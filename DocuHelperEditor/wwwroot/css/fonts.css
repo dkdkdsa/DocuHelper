@@ -1,0 +1,31 @@
+@font-face {
+    font-family: 'Gothic A1';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../fonts/GothicA1-Regular.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Gothic A1';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('../fonts/GothicA1-Medium.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Gothic A1';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('../fonts/GothicA1-Bold.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Hahmlet';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('../fonts/Hahmlet-Variable.woff2') format('woff2-variations'), url('../fonts/Hahmlet-Variable.woff2') format('woff2');
+}

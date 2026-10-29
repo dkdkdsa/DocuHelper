@@ -1,0 +1,595 @@
+﻿@inherits StoreComponentBase
+@using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.Components.Paper
+@inject IJSRuntime JS
+
+<div class="excel-paper">
+    <SheetToolbar Cell="@SelectedCell"
+                  RowKind="@SelectedRowKind"
+                  Locked="@IsLocked"
+                  OnUndo="Undo"
+                  OnToggle="ToggleFormat" />
+    <FormulaBar RefId="@RefId"
+                ContentId="@ContentId"
+                CellRef="@SelectedRef"
+                Text="@BarText"
+                Version="@_editVersion"
+                Locked="@IsLocked"
+                OnGoTo="GoTo"
+                OnEdit="HandleBarEdit"
+                OnCommit="HandleBarCommit"
+                OnCancel="HandleBarCancel"
+                OnLeave="HandleBarLeave" />
+    <SheetGrid @key="CurrentSheet"
+               Sheet="@CurrentSheet"
+               SinkId="@SinkId"
+               SelectedRef="@SelectedRef"
+               Locked="@IsLocked"
+               EditingInCell="@_editInCell"
+               EditingInBar="@_editInBar"
+               Draft="@_draft"
+               SinkSeed="@_sinkSeed"
+               Version="@_editVersion"
+               HighlightChangeId="@HighlightChangeId"
+               LiveChangeIds="@LiveChangeIds"
+               ShowAsking="@IsAskingFile"
+               OnCellClick="SelectFromGrid"
+               OnCellDoubleClick="EditFromGrid"
+               OnSinkKeyDown="HandleGridKeyAsync"
+               OnSinkInput="HandleSinkInput"
+               OnSinkBlur="HandleSinkBlur" />
+    <ChangeNavigator File="File" />
+    <SheetTabs Sheets="@Model.Sheets"
+               ActiveIndex="@ActiveIndex"
+               LiveChangeIds="@LiveChangeIds"
+               HighlightChangeId="@HighlightChangeId"
+               CanAdd="@(!IsLocked)"
+               ShowAskLegend="@ShowAskLegend"
+               OnSelect="SelectSheet"
+               OnAdd="AddSheet" />
+</div>
+
+@code {
+    private readonly string _uid = "xl" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private ExcelPaperModel _fallback;
+    private WorkspaceFile _file;
+    private Sheet _editSheet;
+    private string _editRef;
+    private bool _editInCell;
+    private bool _editInBar;
+    private bool _editTyped;
+    private string _draft = string.Empty;
+    private string _sinkSeed = string.Empty;
+    private int _editVersion;
+    private bool _focusSink;
+    private string _scrollTarget;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private string SinkId => _uid + "-cell";
+
+    private string RefId => _uid + "-ref";
+
+    private string ContentId => _uid + "-fx";
+
+    private ExcelPaperModel Model
+    {
+        get
+        {
+            var model = File?.Paper as ExcelPaperModel;
+            if (model == null)
+            {
+                _fallback ??= ExcelPaperModel.CreateEmpty();
+                model = _fallback;
+            }
+
+            model.EnsureSheet();
+            return model;
+        }
+    }
+
+    private int ActiveIndex => Math.Clamp(Model.ActiveSheetIndex, 0, Model.Sheets.Count - 1);
+
+    private Sheet CurrentSheet => Model.Sheets[ActiveIndex];
+
+    private string SelectedRef
+    {
+        get
+        {
+            var sheet = CurrentSheet;
+            if (!SheetRef.TryParse(sheet.SelectedRef, out var column, out var row))
+                return SheetRef.Make(0, 0);
+
+            column = Math.Clamp(column, 0, Math.Max(0, sheet.Columns.Count - 1));
+            row = Math.Clamp(row, 0, sheet.DisplayRowCount - 1);
+            return SheetRef.Make(column, row);
+        }
+    }
+
+    private SheetCell SelectedCell => CurrentSheet.FindCell(SelectedRef);
+
+    private SheetRowKind SelectedRowKind
+    {
+        get
+        {
+            if (!SheetRef.TryParse(SelectedRef, out _, out var row))
+                return SheetRowKind.Normal;
+
+            return CurrentSheet.FindRow(row)?.Kind ?? SheetRowKind.Normal;
+        }
+    }
+
+    private bool IsLocked => File?.Activity == FileActivity.Editing;
+
+    private bool IsAskingFile => File?.Activity == FileActivity.Asking;
+
+    private bool ShowAskLegend => IsAskingFile && Model.HasAskingCells;
+
+    private bool IsEditing => _editRef != null;
+
+    private string BarText => _editInCell ? _draft : (SelectedCell?.EditText ?? string.Empty);
+
+    private string HighlightChangeId
+    {
+        get
+        {
+            var id = Workspace.SelectedChangeId;
+            if (string.IsNullOrEmpty(id) || File?.Changes == null || Workspace.ActiveFile != File)
+                return null;
+
+            return File.Changes.Any(c => c != null && c.Id == id) ? id : null;
+        }
+    }
+
+    private HashSet<string> LiveChangeIds => File?.Changes == null
+        ? new HashSet<string>()
+        : new HashSet<string>(File.Changes.Where(c => c != null && !string.IsNullOrEmpty(c.Id)).Select(c => c.Id));
+
+    protected override void OnParametersSet()
+    {
+        if (File == _file)
+            return;
+
+        _file = File;
+        _fallback = null;
+        ResetEdit();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusSink)
+        {
+            _focusSink = false;
+            await RunJsAsync("docuHelper.focus", "#" + SinkId);
+        }
+
+        if (_scrollTarget != null)
+        {
+            var target = _scrollTarget;
+            _scrollTarget = null;
+            await RunJsAsync("docuHelper.scrollIntoView", target);
+        }
+
+        if (IsLocked && IsEditing)
+        {
+            ResetEdit();
+            StateHasChanged();
+            return;
+        }
+
+        if (RevealSelectedChange())
+            return;
+
+        SyncSelectionLabel();
+    }
+
+    private bool RevealSelectedChange()
+    {
+        var changeId = HighlightChangeId;
+        var model = Model;
+        if (changeId == null)
+        {
+            model.RevealedChangeId = null;
+            return false;
+        }
+
+        if (changeId == model.RevealedChangeId && Workspace.ChangePickVersion == model.RevealedPickVersion)
+            return false;
+
+        model.RevealedChangeId = changeId;
+        model.RevealedPickVersion = Workspace.ChangePickVersion;
+        if (!model.TryLocateChange(changeId, out var sheetIndex, out var cellRef))
+            return false;
+
+        if (IsEditing)
+            CommitEdit();
+
+        model.ActiveSheetIndex = sheetIndex;
+        var sheet = model.Sheets[sheetIndex];
+        if (!string.IsNullOrEmpty(cellRef))
+            sheet.SelectedRef = cellRef;
+
+        _scrollTarget = "[data-change=\"" + changeId + "\"]";
+        Workspace.SetSelection(LabelFor(sheet, SelectedRef));
+        return true;
+    }
+
+    private void SyncSelectionLabel()
+    {
+        if (File == null || Workspace.ActiveFile != File || !string.IsNullOrEmpty(Workspace.SelectionLabel))
+            return;
+
+        Workspace.SetSelection(LabelFor(CurrentSheet, SelectedRef));
+    }
+
+    private static string LabelFor(Sheet sheet, string cellRef) => sheet.Name + " " + cellRef;
+
+    private void SelectCell(string cellRef, bool focus)
+    {
+        if (focus)
+            _focusSink = true;
+
+        if (cellRef == SelectedRef)
+            return;
+
+        if (IsEditing)
+            CommitEdit();
+
+        var sheet = CurrentSheet;
+        sheet.SelectedRef = cellRef;
+        Workspace.SetSelection(LabelFor(sheet, cellRef));
+    }
+
+    private void SelectFromGrid(string cellRef) => SelectCell(cellRef, true);
+
+    private void EditFromGrid(string cellRef)
+    {
+        SelectCell(cellRef, true);
+        BeginCellEdit(true);
+    }
+
+    private void Move(int rowStep, int columnStep)
+    {
+        var sheet = CurrentSheet;
+        if (!SheetRef.TryParse(SelectedRef, out var column, out var row))
+        {
+            column = 0;
+            row = 0;
+        }
+
+        var nextRow = Math.Clamp(row + rowStep, 0, sheet.DisplayRowCount - 1);
+        var nextColumn = Math.Clamp(column + columnStep, 0, Math.Max(0, sheet.Columns.Count - 1));
+        SelectCell(SheetRef.Make(nextColumn, nextRow), true);
+    }
+
+    private void MoveByKey(string key)
+    {
+        switch (key)
+        {
+            case "ArrowUp":
+                Move(-1, 0);
+                break;
+            case "ArrowDown":
+                Move(1, 0);
+                break;
+            case "ArrowLeft":
+                Move(0, -1);
+                break;
+            case "ArrowRight":
+                Move(0, 1);
+                break;
+        }
+    }
+
+    private async Task HandleGridKeyAsync(KeyboardEventArgs e)
+    {
+        if (e.IsComposing)
+            return;
+
+        if (_editInCell)
+        {
+            switch (e.Key)
+            {
+                case "Enter":
+                    CommitEdit();
+                    _focusSink = true;
+                    break;
+                case "Escape":
+                    CancelEdit();
+                    _focusSink = true;
+                    break;
+                case "ArrowUp":
+                case "ArrowDown":
+                case "ArrowLeft":
+                case "ArrowRight":
+                    if (_editTyped)
+                    {
+                        CommitEdit();
+                        MoveByKey(e.Key);
+                    }
+                    break;
+            }
+
+            return;
+        }
+
+        if (e.CtrlKey || e.MetaKey)
+        {
+            if (!e.AltKey && !e.ShiftKey && e.Code == "KeyZ")
+                await Workspace.UndoAsync();
+
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case "ArrowUp":
+            case "ArrowDown":
+            case "ArrowLeft":
+            case "ArrowRight":
+                MoveByKey(e.Key);
+                break;
+            case "Enter":
+            case "F2":
+                BeginCellEdit(true);
+                break;
+            case "Backspace":
+                BeginCellEdit(false);
+                break;
+            case "Delete":
+                ClearSelectedCell();
+                break;
+        }
+    }
+
+    private void BeginCellEdit(bool keepText)
+    {
+        if (IsLocked)
+            return;
+
+        if (IsEditing)
+            CommitEdit();
+
+        var text = keepText ? (SelectedCell?.EditText ?? string.Empty) : string.Empty;
+        _editSheet = CurrentSheet;
+        _editRef = SelectedRef;
+        _editInCell = true;
+        _editInBar = false;
+        _editTyped = false;
+        _draft = text;
+        _sinkSeed = text;
+        _focusSink = true;
+    }
+
+    private void HandleSinkInput(string value)
+    {
+        if (IsLocked || _editInBar)
+            return;
+
+        if (!_editInCell)
+        {
+            _editSheet = CurrentSheet;
+            _editRef = SelectedRef;
+            _editInCell = true;
+            _editTyped = true;
+            _sinkSeed = string.Empty;
+        }
+
+        _draft = value ?? string.Empty;
+    }
+
+    private void HandleSinkBlur()
+    {
+        if (_editInCell)
+            CommitEdit();
+    }
+
+    private void HandleBarEdit(string value)
+    {
+        if (IsLocked || _editInCell)
+            return;
+
+        if (!_editInBar)
+        {
+            _editSheet = CurrentSheet;
+            _editRef = SelectedRef;
+            _editInBar = true;
+            _editTyped = false;
+        }
+
+        _draft = value ?? string.Empty;
+    }
+
+    private void HandleBarCommit()
+    {
+        if (_editInBar)
+            CommitEdit();
+
+        _focusSink = true;
+    }
+
+    private void HandleBarCancel()
+    {
+        if (_editInBar)
+            CancelEdit();
+
+        _focusSink = true;
+    }
+
+    private void HandleBarLeave()
+    {
+        if (_editInBar)
+            CommitEdit();
+    }
+
+    private void GoTo(string text)
+    {
+        var sheet = CurrentSheet;
+        if (!SheetRef.TryParse(text, out var column, out var row))
+            return;
+
+        if (column >= sheet.Columns.Count || row >= sheet.DisplayRowCount)
+            return;
+
+        SelectCell(SheetRef.Make(column, row), true);
+    }
+
+    private void CommitEdit()
+    {
+        if (!IsEditing)
+            return;
+
+        var sheet = _editSheet;
+        var cellRef = _editRef;
+        var value = _draft ?? string.Empty;
+        ResetEdit();
+        ApplyText(sheet, cellRef, value);
+    }
+
+    private void CancelEdit()
+    {
+        if (IsEditing)
+            ResetEdit();
+    }
+
+    private void ResetEdit()
+    {
+        _editSheet = null;
+        _editRef = null;
+        _editInCell = false;
+        _editInBar = false;
+        _editTyped = false;
+        _draft = string.Empty;
+        _sinkSeed = string.Empty;
+        _editVersion++;
+    }
+
+    private void ClearSelectedCell()
+    {
+        if (IsLocked)
+            return;
+
+        ApplyText(CurrentSheet, SelectedRef, string.Empty);
+    }
+
+    private void ApplyText(Sheet sheet, string cellRef, string value)
+    {
+        if (sheet == null || IsLocked || !SheetRef.TryParse(cellRef, out var column, out var row))
+            return;
+
+        var before = sheet.FindCell(row, column)?.EditText ?? string.Empty;
+        if (value == before)
+            return;
+
+        var cell = sheet.EnsureCell(row, column);
+        cell.SetInput(value);
+        cell.ChangeIds.Clear();
+        MarkDirty();
+    }
+
+    private void ToggleFormat(string format)
+    {
+        if (IsLocked)
+            return;
+
+        if (IsEditing)
+            CommitEdit();
+
+        var sheet = CurrentSheet;
+        if (!SheetRef.TryParse(SelectedRef, out var column, out var row))
+            return;
+
+        var kind = sheet.FindRow(row)?.Kind ?? SheetRowKind.Normal;
+        var cell = sheet.EnsureCell(row, column);
+        switch (format)
+        {
+            case "bold":
+                cell.Bold = !cell.IsBoldIn(kind);
+                break;
+            case "italic":
+                cell.Italic = !cell.Italic;
+                break;
+            case "underline":
+                cell.Underline = !cell.Underline;
+                break;
+            case "center":
+                cell.Align = cell.Align == SheetAlign.Center ? SheetAlign.Auto : SheetAlign.Center;
+                break;
+            case "thousands":
+                if (!cell.ApplyNumberFormat(SheetNumberFormat.Thousands))
+                    return;
+                break;
+            case "percent":
+                if (!cell.ApplyNumberFormat(SheetNumberFormat.Percent))
+                    return;
+                break;
+            default:
+                return;
+        }
+
+        MarkDirty();
+    }
+
+    private void SelectSheet(int index)
+    {
+        var model = Model;
+        if (index < 0 || index >= model.Sheets.Count)
+            return;
+
+        if (IsEditing)
+            CommitEdit();
+
+        model.ActiveSheetIndex = index;
+        Workspace.SetSelection(LabelFor(CurrentSheet, SelectedRef));
+    }
+
+    private void AddSheet()
+    {
+        if (IsLocked)
+            return;
+
+        if (IsEditing)
+            CommitEdit();
+
+        var model = Model;
+        model.AddSheet();
+        if (File != null)
+        {
+            if (File.Paper == null)
+                File.Paper = model;
+
+            File.IsDirty = true;
+        }
+
+        Workspace.SetSelection(LabelFor(CurrentSheet, SelectedRef));
+    }
+
+    private void MarkDirty()
+    {
+        if (File == null)
+            return;
+
+        if (File.Paper == null)
+            File.Paper = Model;
+
+        File.IsDirty = true;
+        Workspace.Notify();
+    }
+
+    private Task Undo() => Workspace.UndoAsync();
+
+    private async Task RunJsAsync(string identifier, string argument)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(identifier, argument);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

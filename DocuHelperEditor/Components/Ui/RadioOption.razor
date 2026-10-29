@@ -1,0 +1,51 @@
+﻿<label class="opt @(Selected ? "on" : null) @Class">
+    <input type="radio" class="sr-only" name="@Group" value="@Value" checked="@Selected" @onchange="OnChanged" />
+    <span class="dot" aria-hidden="true">
+        @if (Selected)
+        {
+            <span class="dot-in"></span>
+        }
+    </span>
+    <span class="opt-body">
+        @if (ChildContent != null)
+        {
+            @ChildContent
+        }
+        else
+        {
+            <span class="opt-label">@Label</span>
+            @if (!string.IsNullOrEmpty(Detail))
+            {
+                <span class="opt-detail">@Detail</span>
+            }
+        }
+    </span>
+</label>
+
+@code {
+    [Parameter]
+    public string Group { get; set; }
+
+    [Parameter]
+    public string Value { get; set; }
+
+    [Parameter]
+    public string Label { get; set; }
+
+    [Parameter]
+    public string Detail { get; set; }
+
+    [Parameter]
+    public bool Selected { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSelect { get; set; }
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    private Task OnChanged(ChangeEventArgs e) => OnSelect.InvokeAsync(Value);
+}

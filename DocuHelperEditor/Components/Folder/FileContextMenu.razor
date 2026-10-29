@@ -1,0 +1,142 @@
+﻿@inject WorkspaceStore Workspace
+@inject IShellService Shell
+
+<div class="backdrop" @onclick="DismissAsync" @oncontextmenu="DismissAsync" @oncontextmenu:preventDefault="true"></div>
+<div class="menu" role="menu" aria-label="파일 메뉴" @onkeydown="OnKeyDownAsync" @onkeydown:preventDefault="true" @oncontextmenu:preventDefault="true">
+    <button type="button" class="entry" role="menuitem" tabindex="-1" @ref="_reveal" @onfocus="() => SetIndex(0)" @onclick="RevealAsync">
+        <Icon Name="folder" Size="16" />
+        탐색기에서 보기
+    </button>
+    <button type="button" class="entry" role="menuitem" tabindex="-1" @ref="_saveCopy" @onfocus="() => SetIndex(1)" @onclick="SaveCopyAsync">
+        <Icon Name="download" Size="16" />
+        다른 곳에 저장하기
+    </button>
+    <button type="button" class="entry" role="menuitem" tabindex="-1" @ref="_rename" @onfocus="() => SetIndex(2)" @onclick="RenameAsync">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /></svg>
+        이름 바꾸기
+    </button>
+    <button type="button" class="entry remove" role="menuitem" tabindex="-1" @ref="_remove" @onfocus="() => SetIndex(3)" @onclick="RemoveAsync">
+        <Icon Name="trash" Size="16" />
+        <span class="lines">
+            <span>작업 폴더에서 빼기</span>
+            <span class="note">휴지통으로 옮겨요</span>
+        </span>
+    </button>
+</div>
+
+@code {
+    private const int EntryCount = 4;
+
+    private ElementReference _reveal;
+    private ElementReference _saveCopy;
+    private ElementReference _rename;
+    private ElementReference _remove;
+    private int _index;
+    private bool _closing;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnClose { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await FocusEntryAsync(0);
+    }
+
+    private ElementReference EntryAt(int index) => index switch
+    {
+        0 => _reveal,
+        1 => _saveCopy,
+        2 => _rename,
+        _ => _remove,
+    };
+
+    private void SetIndex(int index) => _index = index;
+
+    private async Task FocusEntryAsync(int index)
+    {
+        _index = (index % EntryCount + EntryCount) % EntryCount;
+        await EntryAt(_index).FocusAsync();
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                await FocusEntryAsync(_index + 1);
+                break;
+            case "ArrowUp":
+                await FocusEntryAsync(_index - 1);
+                break;
+            case "Home":
+                await FocusEntryAsync(0);
+                break;
+            case "End":
+                await FocusEntryAsync(EntryCount - 1);
+                break;
+            case "Enter":
+            case " ":
+                await ActivateAsync(_index);
+                break;
+            case "Escape":
+            case "Tab":
+                await BeginCloseAsync(true);
+                break;
+            case "F6":
+                await BeginCloseAsync(false);
+                break;
+        }
+    }
+
+    private Task ActivateAsync(int index) => index switch
+    {
+        0 => RevealAsync(),
+        1 => SaveCopyAsync(),
+        2 => RenameAsync(),
+        _ => RemoveAsync(),
+    };
+
+    private Task DismissAsync() => BeginCloseAsync(true);
+
+    private async Task<bool> BeginCloseAsync(bool returnFocus)
+    {
+        if (_closing)
+            return false;
+
+        _closing = true;
+        await OnClose.InvokeAsync(returnFocus);
+        return true;
+    }
+
+    private async Task RevealAsync()
+    {
+        var path = File.Path;
+        if (await BeginCloseAsync(true) && !string.IsNullOrEmpty(path))
+            Shell.RevealInExplorer(path);
+    }
+
+    private async Task SaveCopyAsync()
+    {
+        var fileId = File.Id;
+        if (await BeginCloseAsync(true))
+            await Workspace.SaveCopyAsync(fileId);
+    }
+
+    private async Task RenameAsync()
+    {
+        var fileId = File.Id;
+        if (await BeginCloseAsync(true))
+            await Workspace.RenameFileAsync(fileId);
+    }
+
+    private async Task RemoveAsync()
+    {
+        var fileId = File.Id;
+        if (await BeginCloseAsync(true))
+            await Workspace.RemoveFileAsync(fileId);
+    }
+}

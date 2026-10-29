@@ -1,0 +1,129 @@
+﻿@using System.Threading
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+<div class="toast-host" role="status" aria-live="polite">
+    @if (Workspace.IsToastVisible)
+    {
+        <div class="toast" @onmouseenter="OnPointerEnter" @onmouseleave="OnPointerLeave" @onfocusin="OnFocusIn" @onfocusout="OnFocusOut">
+            <Icon Name="check" Size="16" Stroke="3" />
+            <span class="title">저장했어요</span>
+            <span class="detail">전 상태는 기록에 있어요</span>
+            <button type="button" class="link" @onclick="OpenHistoryAsync">기록 보기</button>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly TimeSpan s_visibleFor = TimeSpan.FromSeconds(6);
+
+    private CancellationTokenSource _timer;
+    private bool _shown;
+    private int _version;
+    private bool _hovered;
+    private bool _focused;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        var visible = Workspace.IsToastVisible;
+        var version = Workspace.ToastVersion;
+        if (visible == _shown && version == _version)
+            return;
+
+        if (!visible || !_shown)
+        {
+            _hovered = false;
+            _focused = false;
+        }
+
+        _shown = visible;
+        _version = version;
+
+        if (visible)
+            Resume();
+        else
+            StopTimer();
+    }
+
+    protected override void OnDispose()
+    {
+        StopTimer();
+        if (Workspace.IsToastVisible)
+            Workspace.DismissToast();
+    }
+
+    private void OnPointerEnter()
+    {
+        _hovered = true;
+        StopTimer();
+    }
+
+    private void OnPointerLeave()
+    {
+        _hovered = false;
+        Resume();
+    }
+
+    private void OnFocusIn()
+    {
+        _focused = true;
+        StopTimer();
+    }
+
+    private void OnFocusOut()
+    {
+        _focused = false;
+        Resume();
+    }
+
+    private async Task OpenHistoryAsync()
+    {
+        if (!Workspace.IsHistoryOpen)
+        {
+            Workspace.ToggleHistory();
+            return;
+        }
+
+        await JS.InvokeVoidAsync("docuHelper.focus", "#history-panel");
+    }
+
+    private void Resume()
+    {
+        if (Workspace.IsToastVisible && !_hovered && !_focused)
+            StartTimer();
+    }
+
+    private void StartTimer()
+    {
+        StopTimer();
+        _timer = new CancellationTokenSource();
+        _ = HideLaterAsync(_timer.Token);
+    }
+
+    private void StopTimer()
+    {
+        if (_timer == null)
+            return;
+
+        _timer.Cancel();
+        _timer.Dispose();
+        _timer = null;
+    }
+
+    private async Task HideLaterAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(s_visibleFor, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (token.IsCancellationRequested)
+            return;
+
+        await InvokeAsync(Workspace.DismissToast);
+    }
+}

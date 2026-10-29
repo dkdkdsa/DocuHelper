@@ -1,0 +1,28 @@
+﻿@inject NavigationManager Navigation
+
+<div class="dev-picker">
+    <label for="dev-scenario" class="sr-only">샘플 화면</label>
+    <select id="dev-scenario" value="@Current" @onchange="OnChanged">
+        @foreach (var name in SampleScenarios.Names)
+        {
+            <option value="@name">@name</option>
+        }
+    </select>
+</div>
+
+@code {
+    [Parameter]
+    public string Current { get; set; }
+
+    private void OnChanged(ChangeEventArgs e)
+    {
+        var name = e.Value?.ToString();
+        if (string.IsNullOrEmpty(name))
+            return;
+
+        if (name == "setup")
+            Navigation.NavigateTo("setup?scenario=setup");
+        else
+            Navigation.NavigateTo($"?scenario={Uri.EscapeDataString(name)}");
+    }
+}

@@ -1,0 +1,111 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@{
+    var files = Workspace.OpenFiles;
+    var activeId = Workspace.ActiveFile?.Id;
+    var regionFocusId = files.Any(f => f.Id == activeId) ? activeId : files.FirstOrDefault()?.Id;
+}
+@if (files.Count > 0)
+{
+    <div class="doc-tabs">
+        @foreach (var file in files)
+        {
+            var active = file.Id == activeId;
+            <div class="tab @(active ? "on" : null)" @key="file.Id">
+                <button type="button" class="tab-btn" aria-current="@(active ? "page" : null)" data-region-focus="@(file.Id == regionFocusId ? "true" : null)" @ref="_tabs[file.Id]" @onclick="() => Workspace.Open(file.Id)" @onkeydown="e => OnTabKeyDown(e, file.Id)">
+                    <FileTypeIcon Type="file.Type" Size="20" Variant="tab" />
+                    @file.Name
+                    @if (file.IsDirty)
+                    {
+                        <span class="dirty" aria-hidden="true"></span>
+                        <span class="sr-only">저장 안 함</span>
+                    }
+                </button>
+                <IconButton Icon="x" IconSize="15" Stroke="2.2" Tone="muted" Label="@($"{file.Name} 닫기")" Title="닫기" OnClick="() => Close(file.Id)" />
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private const string RegionFocusSelector = "[data-region='paper'] [data-region-focus]";
+
+    private readonly Dictionary<string, ElementReference> _tabs = new();
+    private string _focusId;
+    private bool _focusRegion;
+    private string _shownId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusRegion)
+        {
+            _focusRegion = false;
+            await JS.InvokeVoidAsync("docuHelper.focus", RegionFocusSelector);
+        }
+        else if (_focusId != null)
+        {
+            var id = _focusId;
+            _focusId = null;
+            if (_tabs.TryGetValue(id, out var tab))
+                await tab.FocusAsync();
+        }
+
+        var activeId = Workspace.ActiveFile?.Id;
+        if (activeId != _shownId)
+        {
+            _shownId = activeId;
+            if (activeId != null)
+                await JS.InvokeVoidAsync("docuHelper.scrollIntoView", ".doc-tabs [aria-current=\"page\"]");
+        }
+    }
+
+    private void OnTabKeyDown(KeyboardEventArgs e, string fileId)
+    {
+        var files = Workspace.OpenFiles;
+        var index = -1;
+        for (var i = 0; i < files.Count; i++)
+        {
+            if (files[i].Id == fileId)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0)
+            return;
+
+        var next = e.Key switch
+        {
+            "ArrowLeft" => (index - 1 + files.Count) % files.Count,
+            "ArrowRight" => (index + 1) % files.Count,
+            "Home" => 0,
+            "End" => files.Count - 1,
+            _ => -1,
+        };
+
+        if (next < 0 || next == index)
+            return;
+
+        _focusId = files[next].Id;
+        Workspace.Open(_focusId);
+    }
+
+    private void Close(string fileId)
+    {
+        Workspace.RequestClose(fileId);
+        var open = Workspace.OpenFiles;
+        if (open.Any(f => f.Id == fileId))
+            return;
+
+        if (open.Count == 0)
+        {
+            _focusRegion = true;
+            return;
+        }
+
+        var activeId = Workspace.ActiveFile?.Id;
+        _focusId = (open.FirstOrDefault(f => f.Id == activeId) ?? open[0]).Id;
+    }
+}

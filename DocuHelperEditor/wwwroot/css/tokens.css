@@ -1,0 +1,83 @@
+:root {
+    --ink: #1C2A48;
+    --ink-hover: #0E1830;
+    --ink-2: #4A5570;
+    --ink-3: #646E86;
+    --ink-disabled: #8A93A7;
+    --on-ink-2: #C9D0DE;
+    --line-strong: #7A849B;
+    --rule: #CBD1DB;
+    --hair: #E3E7EE;
+    --desk: #E5E8ED;
+    --desk-hover: #EDF0F4;
+    --paper: #FFFFFF;
+    --paper-2: #F4F6F9;
+    --well: #F7F8FA;
+    --well-soft: #FAFBFC;
+    --canvas: #EEF0F4;
+    --tab-idle: #F3F5F8;
+    --head-hover: #E9ECF1;
+    --press-soft: #F5F5F5;
+    --bubble: #EEF1F6;
+    --thumb-line: #9AA3B5;
+    --hl: #FFE35A;
+    --hl-soft: #FFF3B0;
+    --hl-edge: #B59A00;
+    --warn: #8A3A0F;
+    --warn-soft: #FCEBDD;
+    --warn-line: #F0C9A8;
+    --xlsx: #1E7145;
+    --xlsx-soft: #E3F1E8;
+    --docx: #2F5FA8;
+    --docx-soft: #E5ECF7;
+    --pptx: #B5462A;
+    --pptx-soft: #F9E7E1;
+
+    --ink-rgb: 28, 42, 72;
+    --paper-rgb: 255, 255, 255;
+    --hl-rgb: 255, 227, 90;
+    --bubble-rgb: 238, 241, 246;
+
+    --font-display: 'Hahmlet', 'Batang', serif;
+    --font-body: 'Gothic A1', 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, sans-serif;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-card: 10px;
+    --radius-popover: 12px;
+    --radius-pop: 14px;
+    --radius-pill: 999px;
+
+    --hit: 44px;
+
+    --shadow-item: 0 1px 2px rgba(28, 42, 72, 0.10);
+    --shadow-paper: 0 1px 0 rgba(28, 42, 72, 0.05), 0 14px 30px -18px rgba(28, 42, 72, 0.45);
+    --shadow-menu: 0 12px 28px -12px rgba(28, 42, 72, 0.35);
+    --shadow-pop: 0 18px 44px -16px rgba(28, 42, 72, 0.45);
+    --shadow-popup: 0 24px 60px -24px rgba(28, 42, 72, 0.55);
+    --shadow-dialog: 0 24px 60px -24px rgba(28, 42, 72, 0.6);
+    --shadow-card: 0 1px 0 rgba(28, 42, 72, 0.05), 0 18px 40px -22px rgba(28, 42, 72, 0.5);
+    --shadow-toast: 0 14px 30px -14px rgba(28, 42, 72, 0.6);
+    --shadow-page: 0 0 0 1px rgba(28, 42, 72, 0.08), 0 8px 24px -14px rgba(28, 42, 72, 0.40);
+    --shadow-slide: 0 0 0 1px rgba(28, 42, 72, 0.08), 0 10px 26px -14px rgba(28, 42, 72, 0.45);
+    --shadow-note: 0 6px 16px -10px rgba(28, 42, 72, 0.35);
+    --shadow-art-card: 0 10px 22px -14px rgba(28, 42, 72, 0.55);
+    --shadow-art-sheet: 0 14px 26px -14px rgba(28, 42, 72, 0.6);
+    --popup-bg: rgba(255, 255, 255, 0.84);
+    --popup-blur: 16px;
+
+    --hl-stroke: linear-gradient(98deg, rgba(255, 227, 90, 0.25) 0%, #FFE35A 7%, #FFE35A 92%, rgba(255, 227, 90, 0.45) 100%);
+    --hl-text-stroke: linear-gradient(98deg, rgba(255, 227, 90, 0.25) 0%, #FFE35A 4%, #FFE35A 96%, rgba(255, 227, 90, 0.45) 100%);
+    --dur-hl: 0.34s;
+    --dur-hl-step: 0.04s;
+    --dur-pop: 0.2s;
+    --ease-hl: cubic-bezier(.2, .7, .2, 1);
+}

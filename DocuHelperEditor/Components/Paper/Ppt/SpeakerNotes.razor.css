@@ -1,0 +1,30 @@
+.notes {
+    position: relative;
+    flex: none;
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 14px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--paper);
+    cursor: text;
+}
+
+.change-bar {
+    position: absolute;
+    left: -10px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--ink);
+}
+
+.label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+}

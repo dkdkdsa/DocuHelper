@@ -1,0 +1,35 @@
+.strip {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    min-height: 52px;
+    padding: 4px 8px 4px 14px;
+    border-top: 1px solid var(--hair);
+    background: var(--paper);
+}
+
+.swatch {
+    flex: none;
+    width: 30px;
+    height: 14px;
+    border-radius: 3px 8px 4px 9px;
+    background: var(--hl-stroke);
+}
+
+.strip-label {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.strip-pos {
+    margin-left: 4px;
+    font-size: 14px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.strip ::deep .strip-revert {
+    margin-left: auto;
+}

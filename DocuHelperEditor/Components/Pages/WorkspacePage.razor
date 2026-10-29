@@ -1,0 +1,88 @@
+﻿@page "/"
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+<div class="workspace">
+    <div class="workspace-main" inert="@IsBlocked">
+        <AppHeader />
+        <div class="workspace-body">
+            @if (Workspace.IsFolderCollapsed)
+            {
+                <FolderRail />
+            }
+            else
+            {
+                <FolderPanel />
+            }
+            <PaperPanel />
+            @if (Assistant.IsPanelCollapsed)
+            {
+                <AssistantRail />
+            }
+            else
+            {
+                <AssistantPanel />
+            }
+            <DropOverlay />
+        </div>
+    </div>
+    <HistoryPanel />
+    <UnsavedDialog />
+    @if (DevMode.Enabled && string.IsNullOrEmpty(Bare))
+    {
+        <DevScenarioPicker Current="@SampleScenarios.Current" />
+    }
+</div>
+
+@code {
+    private DotNetObjectReference<WorkspacePage> _self;
+
+    [SupplyParameterFromQuery(Name = "scenario")]
+    public string Scenario { get; set; }
+
+    [SupplyParameterFromQuery(Name = "bare")]
+    public string Bare { get; set; }
+
+    private bool IsBlocked => Workspace.PendingClose != null;
+
+    protected override void OnParametersSet()
+    {
+        if (!DevMode.Enabled)
+            return;
+
+        var requested = Scenario;
+        if (string.IsNullOrEmpty(requested))
+        {
+            if (SampleScenarios.Current != null)
+                return;
+
+            requested = SampleScenarios.Default;
+        }
+
+        if (requested == SampleScenarios.Current)
+            return;
+
+        SampleScenarios.Apply(requested, Workspace, Assistant, Settings);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        _self = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("docuHelper.registerShortcuts", _self);
+    }
+
+    [JSInvokable]
+    public Task OnSaveShortcut() => Workspace.SaveAllAsync();
+
+    [JSInvokable]
+    public Task OnUndoShortcut() => Workspace.UndoAsync();
+
+    protected override void OnDispose()
+    {
+        _ = JS.InvokeVoidAsync("docuHelper.unregisterShortcuts").AsTask();
+        _self?.Dispose();
+    }
+}

@@ -1,0 +1,67 @@
+.overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(var(--ink-rgb), 0.28);
+}
+
+.dialog {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    max-height: calc(100% - 40px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 20px;
+    padding: 22px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-pop);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-dialog);
+}
+
+.dialog:focus {
+    outline: none;
+}
+
+h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.desc {
+    margin: 0;
+    font-size: 14px;
+    color: var(--ink-2);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.actions ::deep .cancel {
+    padding: 0 12px;
+}
+
+.actions ::deep .save {
+    padding: 0 16px;
+}

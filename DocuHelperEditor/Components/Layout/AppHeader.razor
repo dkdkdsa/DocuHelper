@@ -1,0 +1,27 @@
+﻿@inherits StoreComponentBase
+@inject NavigationManager Navigation
+
+<header class="app-header">
+    <div class="brand">
+        <BrandMark Size="26" />
+        <span class="brand-name">문서 도우미</span>
+    </div>
+    <div class="actions">
+        <span class="save-status" role="status">
+            @if (Workspace.UnsavedCount > 0)
+            {
+                <span class="dot" aria-hidden="true"></span>
+            }
+            @Workspace.SaveStatusText
+        </span>
+        <button type="button" class="save-all" disabled="@(!Workspace.CanSaveAll)" @onclick="Workspace.SaveAllAsync">모두 저장</button>
+        <ActionButton Kind="ButtonKind.Ghost" Icon="history" aria-expanded="@HistoryExpanded" OnClick="Workspace.ToggleHistory">기록</ActionButton>
+        <ActionButton Kind="ButtonKind.Ghost" Icon="settings" OnClick="OpenSettings">설정</ActionButton>
+    </div>
+</header>
+
+@code {
+    private string HistoryExpanded => Workspace.IsHistoryOpen ? "true" : "false";
+
+    private void OpenSettings() => Navigation.NavigateTo("setup");
+}

@@ -1,0 +1,82 @@
+.greeting {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px 16px 14px;
+}
+
+.hello {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.who {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.name {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.hello-text {
+    margin: 0;
+}
+
+.examples {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.examples-title {
+    margin: 0 0 2px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.example {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 6px 12px 6px 8px;
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+}
+
+.example:hover {
+    filter: brightness(.96);
+}
+
+.example ::deep .file-icon svg {
+    width: 15px;
+    height: 15px;
+}
+
+.new-icon {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--line-strong);
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+}

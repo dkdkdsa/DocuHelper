@@ -1,0 +1,138 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    overflow: hidden;
+    background: var(--desk);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    word-break: keep-all;
+}
+
+#app {
+    height: 100%;
+}
+
+a {
+    color: var(--ink);
+}
+
+a:hover {
+    color: var(--ink-hover);
+}
+
+button, input, textarea, select {
+    font: inherit;
+    color: inherit;
+}
+
+:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+input::placeholder, textarea::placeholder {
+    color: var(--ink-3);
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.mk {
+    display: inline-block;
+    padding: 0 6px;
+    margin: 0 -6px;
+    border-radius: 3px 8px 4px 9px;
+    background-repeat: no-repeat;
+    background-position: left center;
+}
+
+.mk.on {
+    background-image: var(--hl-stroke);
+    background-size: 100% 100%;
+    animation: hl-swipe var(--dur-hl) var(--ease-hl) both;
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes hl-swipe {
+    from {
+        background-size: 0% 100%;
+    }
+
+    to {
+        background-size: 100% 100%;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 1000;
+    display: none;
+    width: 100%;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    background: var(--warn-soft);
+    color: var(--warn);
+    box-shadow: 0 -1px 2px rgba(var(--ink-rgb), 0.2);
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    cursor: pointer;
+}

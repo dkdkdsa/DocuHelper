@@ -1,0 +1,111 @@
+﻿@inject WorkspaceStore Workspace
+
+<li>
+    <button type="button"
+            class="@ItemClass"
+            aria-current="@(Active ? "page" : null)"
+            data-region-focus="@(RegionFocus ? "true" : null)"
+            @ref="_button"
+            @onclick="Open"
+            @oncontextmenu="OpenMenuAsync"
+            @oncontextmenu:preventDefault="true"
+            @onkeydown="OnKeyDownAsync">
+        <FileTypeIcon Type="@File.Type" Size="28" />
+        @if (string.IsNullOrEmpty(StatusText))
+        {
+            <span class="name solo">@File.Name</span>
+        }
+        else
+        {
+            <span class="text">
+                <span class="name">@File.Name</span>
+                <span class="status">
+                    @if (File.Activity == FileActivity.Asking)
+                    {
+                        <span class="pencil" aria-hidden="true"></span>
+                    }
+                    else if (File.Activity == FileActivity.Editing)
+                    {
+                        <Spinner Size="12" Stroke="2.6" />
+                    }
+                    else
+                    {
+                        <span class="swatch" aria-hidden="true"></span>
+                    }
+                    @StatusText
+                </span>
+            </span>
+        }
+    </button>
+    @if (MenuOpen)
+    {
+        <FileContextMenu File="File" OnClose="CloseMenuAsync" />
+    }
+</li>
+
+@code {
+    private ElementReference _button;
+    private bool _focusPending;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    [Parameter]
+    public bool Active { get; set; }
+
+    [Parameter]
+    public bool MenuOpen { get; set; }
+
+    [Parameter]
+    public bool RegionFocus { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnMenuOpen { get; set; }
+
+    [Parameter]
+    public EventCallback OnMenuClose { get; set; }
+
+    private string StatusText => File.StatusText;
+
+    private string ItemClass
+    {
+        get
+        {
+            var css = "item";
+            if (Active)
+                css += " on";
+            if (!string.IsNullOrEmpty(StatusText))
+                css += " two";
+            if (MenuOpen)
+                css += " anchored";
+            return css;
+        }
+    }
+
+    private void Open() => Workspace.Open(File.Id);
+
+    private Task OpenMenuAsync() => MenuOpen ? Task.CompletedTask : OnMenuOpen.InvokeAsync(File.Id);
+
+    private Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "ContextMenu" || (e.Key == "F10" && e.ShiftKey))
+            return OpenMenuAsync();
+
+        return Task.CompletedTask;
+    }
+
+    private async Task CloseMenuAsync(bool returnFocus)
+    {
+        _focusPending = returnFocus;
+        await OnMenuClose.InvokeAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending || MenuOpen)
+            return;
+
+        _focusPending = false;
+        await _button.FocusAsync();
+    }
+}

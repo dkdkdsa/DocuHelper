@@ -1,0 +1,25 @@
+.workspace {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--desk);
+    color: var(--ink);
+}
+
+.workspace-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.workspace-body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow: auto;
+}

@@ -1,0 +1,92 @@
+﻿<div class="fbar">
+    <label for="@RefId" class="sr-only">칸 주소</label>
+    <input id="@RefId" class="ref" value="@_refText" autocomplete="off" spellcheck="false" @oninput="OnRefInput" @onkeydown="OnRefKeyDownAsync" @onblur="OnRefBlur" />
+    <span class="fx" aria-hidden="true">fx</span>
+    <label for="@ContentId" class="sr-only">칸 내용</label>
+    <input id="@ContentId" @key="ContentKey" class="content" value="@Text" readonly="@Locked" autocomplete="off" spellcheck="false" @oninput="OnContentInput" @onkeydown="OnContentKeyDownAsync" @onblur="OnContentBlur" />
+</div>
+
+@code {
+    private string _refText = string.Empty;
+    private string _shownRef;
+
+    [Parameter]
+    public string RefId { get; set; }
+
+    [Parameter]
+    public string ContentId { get; set; }
+
+    [Parameter]
+    public string CellRef { get; set; }
+
+    [Parameter]
+    public string Text { get; set; }
+
+    [Parameter]
+    public int Version { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnGoTo { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnEdit { get; set; }
+
+    [Parameter]
+    public EventCallback OnCommit { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public EventCallback OnLeave { get; set; }
+
+    private string ContentKey => (CellRef ?? string.Empty) + "-" + Version;
+
+    protected override void OnParametersSet()
+    {
+        if (CellRef == _shownRef)
+            return;
+
+        _shownRef = CellRef;
+        _refText = CellRef ?? string.Empty;
+    }
+
+    private void OnRefInput(ChangeEventArgs e) => _refText = e.Value?.ToString() ?? string.Empty;
+
+    private async Task OnRefKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.IsComposing)
+            return;
+
+        if (e.Key == "Enter")
+        {
+            var text = _refText;
+            _refText = CellRef ?? string.Empty;
+            await OnGoTo.InvokeAsync(text);
+        }
+        else if (e.Key == "Escape")
+        {
+            _refText = CellRef ?? string.Empty;
+        }
+    }
+
+    private void OnRefBlur() => _refText = CellRef ?? string.Empty;
+
+    private Task OnContentInput(ChangeEventArgs e) => OnEdit.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+
+    private async Task OnContentKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.IsComposing)
+            return;
+
+        if (e.Key == "Enter")
+            await OnCommit.InvokeAsync();
+        else if (e.Key == "Escape")
+            await OnCancel.InvokeAsync();
+    }
+
+    private Task OnContentBlur() => OnLeave.InvokeAsync();
+}

@@ -1,0 +1,70 @@
+﻿@using DocuHelperEditor.State.Papers
+
+<div class="sheet-bar">
+    <div class="tabs">
+        @if (Sheets != null)
+        {
+            for (var i = 0; i < Sheets.Count; i++)
+            {
+                var index = i;
+                var sheet = Sheets[index];
+                var active = index == ActiveIndex;
+                var isNew = IsPendingNew(sheet);
+                var marked = !string.IsNullOrEmpty(HighlightChangeId) && sheet.ChangeId == HighlightChangeId;
+                <button type="button" @key="sheet" class="tab @(active ? "on" : null) @(isNew ? "new" : null)" aria-pressed="@(active ? "true" : "false")" @onclick="() => OnSelect.InvokeAsync(index)">
+                    @if (marked)
+                    {
+                        <span class="mk on" data-change="@HighlightChangeId">@sheet.Name</span>
+                    }
+                    else
+                    {
+                        <span>@sheet.Name</span>
+                    }
+                    @if (isNew)
+                    {
+                        <span class="badge">새로</span>
+                    }
+                </button>
+            }
+        }
+        <IconButton Icon="plus" IconSize="16" Stroke="2.2" Label="시트 더하기" Class="add" Disabled="@(!CanAdd)" OnClick="Add" />
+    </div>
+    @if (ShowAskLegend)
+    {
+        <p class="legend">
+            <span class="ring" aria-hidden="true"></span>
+            연필 동그라미는 도우미가 물어보는 칸
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<Sheet> Sheets { get; set; }
+
+    [Parameter]
+    public int ActiveIndex { get; set; }
+
+    [Parameter]
+    public HashSet<string> LiveChangeIds { get; set; }
+
+    [Parameter]
+    public string HighlightChangeId { get; set; }
+
+    [Parameter]
+    public bool CanAdd { get; set; } = true;
+
+    [Parameter]
+    public bool ShowAskLegend { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback OnAdd { get; set; }
+
+    private Task Add() => OnAdd.InvokeAsync();
+
+    private bool IsPendingNew(Sheet sheet) =>
+        sheet.IsNew && !string.IsNullOrEmpty(sheet.ChangeId) && LiveChangeIds != null && LiveChangeIds.Contains(sheet.ChangeId);
+}

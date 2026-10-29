@@ -1,0 +1,114 @@
+﻿@inherits StoreComponentBase
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@if (Error != null)
+{
+    <div class="notice @KindClass">
+        @if (!string.IsNullOrEmpty(TitleText))
+        {
+            <p class="notice-title">
+                @if (Error.Kind == AssistantErrorKind.Connection)
+                {
+                    <Icon Name="wifi-off" Size="18" Stroke="2.2" />
+                }
+                else if (Error.Kind == AssistantErrorKind.Key)
+                {
+                    <Icon Name="key" Size="18" Stroke="2.2" />
+                }
+                @TitleText
+            </p>
+        }
+        @if (!string.IsNullOrEmpty(MessageText))
+        {
+            <p class="notice-text">@MessageText</p>
+        }
+        @if (Error.Kind == AssistantErrorKind.Connection && IsLive)
+        {
+            <div class="notice-actions">
+                <ActionButton Kind="ButtonKind.Secondary" OnClick="Assistant.RetryNowAsync">지금 다시 하기</ActionButton>
+                <ActionButton Kind="ButtonKind.Ghost" OnClick="StopAsync">그만하기</ActionButton>
+            </div>
+        }
+        else if (Error.Kind == AssistantErrorKind.Key)
+        {
+            <div class="notice-actions">
+                <ActionButton Kind="ButtonKind.Secondary" OnClick="OpenSettings">설정 열기</ActionButton>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public AssistantError Error { get; set; }
+
+    private bool IsLive => Assistant.Status == AssistantStatus.Error
+        && ReferenceEquals(Assistant.Entries.LastOrDefault()?.Error, Error);
+
+    private string KindClass => Error.Kind switch
+    {
+        AssistantErrorKind.Connection => "connection",
+        AssistantErrorKind.Key => "key",
+        _ => "other",
+    };
+
+    private string TitleText
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(Error.Title))
+                return Error.Title;
+
+            return Error.Kind switch
+            {
+                AssistantErrorKind.Connection => "인터넷 연결이 잠깐 끊겼어요",
+                AssistantErrorKind.Key => "도우미 열쇠가 맞지 않아요",
+                _ => null,
+            };
+        }
+    }
+
+    private string MessageText
+    {
+        get
+        {
+            if (Error.Kind != AssistantErrorKind.Connection)
+                return Error.Message;
+
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(Error.Message))
+                parts.Add(Error.Message);
+
+            if (IsLive && Error.RetryInSeconds > 0)
+                parts.Add($"{Error.RetryInSeconds}초 뒤에 다시 해 볼게요.");
+
+            if (IsLive && Error.Attempt > 0)
+                parts.Add($"({Ordinal(Error.Attempt)})");
+
+            return string.Join(" ", parts);
+        }
+    }
+
+    private static string Ordinal(int attempt) => attempt switch
+    {
+        1 => "첫 번째",
+        2 => "두 번째",
+        3 => "세 번째",
+        4 => "네 번째",
+        5 => "다섯 번째",
+        _ => $"{attempt}번째",
+    };
+
+    private async Task StopAsync()
+    {
+        Assistant.Stop();
+        if (IsLive)
+            return;
+
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
+    }
+
+    private void OpenSettings() => Navigation.NavigateTo("setup");
+}

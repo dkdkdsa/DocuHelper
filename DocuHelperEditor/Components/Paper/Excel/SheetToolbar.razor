@@ -1,0 +1,71 @@
+﻿@using DocuHelperEditor.State.Papers
+
+<div class="toolbar">
+    <IconButton Icon="undo" IconSize="18" Label="되돌리기" Title="되돌리기 (Ctrl+Z)" OnClick="Undo" />
+    <IconButton Icon="redo" IconSize="18" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" />
+    <ToolbarDivider />
+    <IconButton Icon="bold" IconSize="18" Stroke="2.4" Label="굵게" Pressed="@IsBold" Disabled="@Locked" OnClick="ToggleBold" />
+    <IconButton Icon="italic" IconSize="18" Label="기울임" Pressed="@IsItalic" Disabled="@Locked" OnClick="ToggleItalic" />
+    <IconButton Icon="underline" IconSize="18" Label="밑줄" Pressed="@IsUnderline" Disabled="@Locked" OnClick="ToggleUnderline" />
+    <ToolbarDivider />
+    <IconButton Label="글자 색" Disabled="@Locked">
+        <span class="swatch-icon" aria-hidden="true">
+            <Icon Name="text-color" Size="16" Stroke="2.2" />
+            <span class="swatch ink"></span>
+        </span>
+    </IconButton>
+    <IconButton Label="칸 색" Disabled="@Locked">
+        <span class="swatch-icon" aria-hidden="true">
+            <Icon Name="fill-color" Size="16" />
+            <span class="swatch hl"></span>
+        </span>
+    </IconButton>
+    <ToolbarDivider />
+    <IconButton Icon="align-center" IconSize="18" Label="가운데 맞춤" Pressed="@IsCentered" Disabled="@Locked" OnClick="ToggleCenter" />
+    <IconButton Label="천 단위 쉼표" Disabled="@Locked" OnClick="ApplyThousands">
+        <span class="comma" aria-hidden="true">,000</span>
+    </IconButton>
+    <IconButton Icon="percent" IconSize="17" Label="백분율" Disabled="@Locked" OnClick="ApplyPercent" />
+    <ToolbarDivider />
+    <IconButton Icon="sort" IconSize="18" Label="정렬" Disabled="@Locked" />
+    <IconButton Icon="sigma" IconSize="18" Label="자동 합계" Disabled="@Locked" />
+</div>
+
+@code {
+    [Parameter]
+    public SheetCell Cell { get; set; }
+
+    [Parameter]
+    public SheetRowKind RowKind { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public EventCallback OnUndo { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnToggle { get; set; }
+
+    private bool IsBold => Cell != null ? Cell.IsBoldIn(RowKind) : RowKind != SheetRowKind.Normal;
+
+    private bool IsItalic => Cell?.Italic == true;
+
+    private bool IsUnderline => Cell?.Underline == true;
+
+    private bool IsCentered => Cell?.Align == SheetAlign.Center;
+
+    private Task Undo() => OnUndo.InvokeAsync();
+
+    private Task ToggleBold() => OnToggle.InvokeAsync("bold");
+
+    private Task ToggleItalic() => OnToggle.InvokeAsync("italic");
+
+    private Task ToggleUnderline() => OnToggle.InvokeAsync("underline");
+
+    private Task ToggleCenter() => OnToggle.InvokeAsync("center");
+
+    private Task ApplyThousands() => OnToggle.InvokeAsync("thousands");
+
+    private Task ApplyPercent() => OnToggle.InvokeAsync("percent");
+}

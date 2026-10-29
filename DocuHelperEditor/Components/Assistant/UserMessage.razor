@@ -1,0 +1,20 @@
+﻿<li class="user">
+    @if (Entry.Chips != null && Entry.Chips.Count > 0)
+    {
+        <div class="chips">
+            @foreach (var chip in Entry.Chips)
+            {
+                <ContextChip Model="chip" Variant="message" />
+            }
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(Entry.Text))
+    {
+        <p class="bubble">@Entry.Text</p>
+    }
+</li>
+
+@code {
+    [Parameter]
+    public ChatEntry Entry { get; set; }
+}

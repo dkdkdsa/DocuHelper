@@ -1,0 +1,375 @@
+﻿@using DocuHelperEditor.State.Papers
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+<div class="canvas">
+    @if (Model == null)
+    {
+        <div class="spread">
+            <article class="page blank" aria-label="1쪽"></article>
+        </div>
+    }
+    else
+    {
+        var hasNotes = Model.HasSourceNotes;
+        foreach (var page in Model.Pages)
+        {
+            var blocks = Model.BlocksOnPage(page);
+            <div class="spread" @key="page">
+                <article class="@(blocks.Count == 0 ? "page blank" : "page")" aria-label="@($"{page}쪽")">
+                    @foreach (var run in Runs(blocks))
+                    {
+                        if (run.Kind == WordListKind.Number)
+                        {
+                            <ol class="list" @key="run.Key">
+                                @foreach (var block in run.Blocks)
+                                {
+                                    <li @key="block.Id">@(BlockView(block))</li>
+                                }
+                            </ol>
+                        }
+                        else if (run.Kind == WordListKind.Bullet)
+                        {
+                            <ul class="list" @key="run.Key">
+                                @foreach (var block in run.Blocks)
+                                {
+                                    <li @key="block.Id">@(BlockView(block))</li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            @(BlockView(run.Blocks[0]))
+                        }
+                    }
+                </article>
+                @if (hasNotes)
+                {
+                    <div class="margin"></div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private readonly Dictionary<string, ElementReference> _refs = new();
+    private readonly Dictionary<string, int> _versions = new();
+    private WorkspaceFile _file;
+    private string _scrolledChangeId;
+    private int _scrolledPickVersion;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private WordPaperModel Model => File?.Paper as WordPaperModel;
+
+    private bool IsLocked => File?.Activity == FileActivity.Editing;
+
+    private string Editable => IsLocked ? "false" : "plaintext-only";
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_file, File))
+            return;
+
+        _file = File;
+        _scrolledChangeId = null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var changeId = Workspace.SelectedChangeId;
+        var target = Model != null && IsLiveChange(changeId) && Model.HasChange(changeId) ? changeId : null;
+        if (target == _scrolledChangeId && Workspace.ChangePickVersion == _scrolledPickVersion)
+            return;
+
+        _scrolledChangeId = target;
+        _scrolledPickVersion = Workspace.ChangePickVersion;
+        if (target == null)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.scrollIntoView", $"[data-change=\"{target}\"]");
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private RenderFragment BlockView(WordBlockModel block) =>
+        @<div class="@BlockClass(block)" data-change="@ChangeOf(block)" @key="block.Id">
+            @if (IsLive(block))
+            {
+                <span class="bar" aria-hidden="true"></span>
+            }
+            @switch (block.Kind)
+            {
+                case WordBlockKind.Heading1:
+                    <h1 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></h1>
+                    break;
+                case WordBlockKind.Heading2:
+                    <h2 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></h2>
+                    break;
+                case WordBlockKind.Byline:
+                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)">@foreach (var part in block.Parts){<span class="@MarkClass(block)" data-change="@MarkChange(block)">@part</span>}</p>
+                    break;
+                case WordBlockKind.Table:
+                    if (block.Table != null)
+                    {
+                        @(TableView(block, block.Table))
+                    }
+                    break;
+                default:
+                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></p>
+                    break;
+            }
+            @if (block.Source != null)
+            {
+                <div class="note-slot">
+                    <MarginNote Note="block.Source" />
+                </div>
+            }
+        </div>;
+
+    private RenderFragment TableView(WordBlockModel block, WordTableModel table) =>
+        @<table class="@TableClass(block)">
+            @if (!string.IsNullOrEmpty(table.Caption))
+            {
+                <caption class="sr-only">@table.Caption</caption>
+            }
+            @if (table.HasHeaderRow)
+            {
+                <thead>
+                    <tr style="--row: 0">
+                        @for (var c = 0; c < table.ColumnCount; c++)
+                        {
+                            var column = c;
+                            <th scope="col" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
+                        }
+                    </tr>
+                </thead>
+            }
+            <tbody>
+                @foreach (var row in table.BodyRows)
+                {
+                    <tr style="--row: @row">
+                        @for (var c = 0; c < table.ColumnCount; c++)
+                        {
+                            var column = c;
+                            <td class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
+                        }
+                    </tr>
+                }
+            </tbody>
+            @if (table.HasFooterRow)
+            {
+                var footer = table.FooterRow;
+                <tfoot>
+                    <tr style="--row: @footer">
+                        @for (var c = 0; c < table.ColumnCount; c++)
+                        {
+                            var column = c;
+                            <td class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
+                        }
+                    </tr>
+                </tfoot>
+            }
+        </table>;
+
+    private static List<BlockRun> Runs(IReadOnlyList<WordBlockModel> blocks)
+    {
+        var runs = new List<BlockRun>();
+        foreach (var block in blocks)
+        {
+            var kind = block.ListKind;
+            var last = runs.Count > 0 ? runs[runs.Count - 1] : null;
+            if (kind != WordListKind.None && last != null && last.Kind == kind)
+            {
+                last.Blocks.Add(block);
+                continue;
+            }
+
+            var run = new BlockRun(kind);
+            run.Blocks.Add(block);
+            runs.Add(run);
+        }
+
+        return runs;
+    }
+
+    private static string BlockClass(WordBlockModel block)
+    {
+        var classes = block.Kind switch
+        {
+            WordBlockKind.Heading1 => "blk k-h1",
+            WordBlockKind.Heading2 => "blk k-h2",
+            WordBlockKind.Byline => "blk k-byline",
+            WordBlockKind.Table => "blk k-table",
+            _ => "blk k-body",
+        };
+
+        return block.Source == null ? classes : classes + " has-note";
+    }
+
+    private static string TextClass(WordBlockModel block) => FormatClass(block.Kind == WordBlockKind.Byline ? "txt byline" : "txt", block);
+
+    private static string FormatClass(string baseClass, WordBlockModel block)
+    {
+        var classes = baseClass;
+        if (block.IsBold)
+            classes += " b";
+
+        if (block.IsItalic)
+            classes += " i";
+
+        if (block.IsUnderline)
+            classes += " u";
+
+        if (!block.IsTable && block.Alignment == WordAlignment.Center)
+            classes += " center";
+
+        return classes;
+    }
+
+    private static string TableClass(WordBlockModel block) => FormatClass("dt", block);
+
+    private static string CellClass(WordTableModel table, int column) => table.IsNumeric(column) ? "n" : null;
+
+    private bool IsLiveChange(string changeId) =>
+        !string.IsNullOrEmpty(changeId) && File?.Changes != null && File.Changes.Any(c => c != null && c.Id == changeId);
+
+    private bool IsLive(WordBlockModel block) => block.IsChanged && IsLiveChange(block.ChangeId);
+
+    private string ChangeOf(WordBlockModel block) => IsLive(block) ? block.ChangeId : null;
+
+    private bool IsMarked(WordBlockModel block) =>
+        IsLive(block) && !block.IsEditedByHand && block.ChangeId == Workspace.SelectedChangeId;
+
+    private string MarkClass(WordBlockModel block)
+    {
+        if (!IsLive(block))
+            return null;
+
+        return IsMarked(block) ? "mk on" : "mk";
+    }
+
+    private string MarkChange(WordBlockModel block) => IsMarked(block) ? block.ChangeId : null;
+
+    private string CellMarkClass(WordBlockModel block, WordTableModel table, int row, int column) =>
+        table.CellText(row, column).Length == 0 ? null : MarkClass(block);
+
+    private static string CellKey(WordBlockModel block, int row, int column) => $"{block.Id}/{row}/{column}";
+
+    private int VersionOf(string key) => _versions.TryGetValue(key, out var version) ? version : 0;
+
+    private string KeyOf(string key) => $"{key}#{VersionOf(key)}";
+
+    private void SelectBlock(WordBlockModel block)
+    {
+        var model = Model;
+        if (model == null)
+            return;
+
+        var label = model.Describe(block);
+        if (model.SelectedBlockId == block.Id && Workspace.SelectionLabel == label)
+            return;
+
+        model.SelectedBlockId = block.Id;
+        Workspace.SetSelection(label);
+    }
+
+    private void OnInput(WordBlockModel block)
+    {
+        if (File == null)
+            return;
+
+        var changed = !block.IsEditedByHand || !File.IsDirty;
+        block.IsEditedByHand = true;
+        File.IsDirty = true;
+        if (changed)
+            Workspace.Notify();
+    }
+
+    private async Task SyncAsync(WordBlockModel block)
+    {
+        var text = await ReadTextAsync(block.Id);
+        if (text == null)
+            return;
+
+        if (block.Kind == WordBlockKind.Byline)
+            text = string.Join("\n", text.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+
+        if (text == (block.Text ?? string.Empty))
+            return;
+
+        block.Text = text;
+        Commit(block, block.Id);
+    }
+
+    private async Task SyncCellAsync(WordBlockModel block, int row, int column)
+    {
+        var key = CellKey(block, row, column);
+        var text = await ReadTextAsync(key);
+        if (text == null || block.Table == null || text == block.Table.CellText(row, column))
+            return;
+
+        block.Table.SetCell(row, column, text);
+        Commit(block, key);
+    }
+
+    private void Commit(WordBlockModel block, string key)
+    {
+        _versions[key] = VersionOf(key) + 1;
+        block.IsEditedByHand = true;
+        if (File != null)
+            File.IsDirty = true;
+
+        var model = Model;
+        if (model != null && model.SelectedBlockId == block.Id && Workspace.ActiveFile == File)
+            Workspace.SetSelection(model.Describe(block));
+        else
+            Workspace.Notify();
+    }
+
+    private async Task<string> ReadTextAsync(string key)
+    {
+        if (!_refs.TryGetValue(key, out var element))
+            return null;
+
+        try
+        {
+            var text = await JS.InvokeAsync<string>("Reflect.get", element, "innerText");
+            return Normalize(text);
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+        catch (JSDisconnectedException)
+        {
+            return null;
+        }
+    }
+
+    private static string Normalize(string text) =>
+        (text ?? string.Empty).Replace("\r\n", "\n").Replace('\u00A0', ' ').TrimEnd('\n');
+
+    private sealed class BlockRun
+    {
+        public BlockRun(WordListKind kind)
+        {
+            Kind = kind;
+        }
+
+        public WordListKind Kind { get; }
+
+        public List<WordBlockModel> Blocks { get; } = new();
+
+        public string Key => "run:" + Blocks[0].Id;
+    }
+}

@@ -1,0 +1,36 @@
+﻿<span class="chip @VariantClass @KindClass">
+    @switch (Model.Kind)
+    {
+        case ContextChipKind.File:
+            <FileTypeIcon Type="@Model.FileType" Size="@(Variant == "message" ? 18 : 20)" />
+            break;
+        case ContextChipKind.Range:
+            <span class="glyph range" aria-hidden="true"></span>
+            break;
+        case ContextChipKind.Paragraph:
+            <span class="glyph paragraph" aria-hidden="true"></span>
+            break;
+        default:
+            <span class="glyph slide" aria-hidden="true"></span>
+            break;
+    }
+    <span class="chip-text">@Model.Text</span>
+</span>
+
+@code {
+    [Parameter]
+    public ContextChipModel Model { get; set; }
+
+    [Parameter]
+    public string Variant { get; set; } = "composer";
+
+    private string VariantClass => Variant == "message" ? "message" : "composer";
+
+    private string KindClass => Model.Kind switch
+    {
+        ContextChipKind.File => "k-file",
+        ContextChipKind.Range => "k-range",
+        ContextChipKind.Paragraph => "k-paragraph",
+        _ => "k-slide",
+    };
+}

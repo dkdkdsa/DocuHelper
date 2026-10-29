@@ -1,0 +1,123 @@
+.rail {
+    position: relative;
+    flex: none;
+    width: 56px;
+    min-height: 520px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0 12px;
+    background: var(--paper);
+    border-left: 1px solid var(--rule);
+}
+
+.rail ::deep .avatar {
+    margin-top: 4px;
+}
+
+.rail ::deep .avatar svg {
+    width: 15px;
+    height: 15px;
+}
+
+.rail-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+}
+
+.rail-name {
+    flex: none;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.rail-working {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.rail-working-text {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+}
+
+.rail-state {
+    flex: none;
+    width: 44px;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    border-radius: var(--radius-card);
+    font: inherit;
+    cursor: pointer;
+}
+
+.rail-state-text {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.rail-ask {
+    padding: 12px 0;
+    border: 0;
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.rail-ask:hover {
+    filter: brightness(1.35);
+}
+
+.rail-ask-glyph {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--paper);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.rail-done {
+    padding: 10px 0;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+}
+
+.rail-done:hover {
+    filter: brightness(.96);
+}
+
+.rail-done-check {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xs);
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.rail ::deep .rail-request {
+    margin-top: auto;
+}

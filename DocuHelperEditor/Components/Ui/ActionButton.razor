@@ -1,0 +1,48 @@
+﻿<button type="@Type" class="act @KindClass @Class" disabled="@Disabled" @onclick="OnClick" @attributes="Attributes">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <Icon Name="@Icon" Size="@IconSize" Stroke="@IconStroke" />
+    }
+    @ChildContent
+</button>
+
+@code {
+    [Parameter]
+    public ButtonKind Kind { get; set; } = ButtonKind.Secondary;
+
+    [Parameter]
+    public string Type { get; set; } = "button";
+
+    [Parameter]
+    public string Icon { get; set; }
+
+    [Parameter]
+    public int IconSize { get; set; } = 18;
+
+    [Parameter]
+    public double IconStroke { get; set; } = 2;
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> Attributes { get; set; }
+
+    private string KindClass => Kind switch
+    {
+        ButtonKind.Primary => "primary",
+        ButtonKind.Text => "text",
+        ButtonKind.Ghost => "ghost",
+        ButtonKind.OnInk => "on-ink",
+        _ => "secondary",
+    };
+}

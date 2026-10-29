@@ -1,0 +1,64 @@
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    border-radius: var(--radius-pill);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.chip-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.composer {
+    height: 30px;
+    padding: 0 10px 0 5px;
+    background: var(--bubble);
+    font-size: 13px;
+}
+
+.composer.k-range {
+    padding-left: 7px;
+}
+
+.composer.k-paragraph,
+.composer.k-slide {
+    padding-left: 8px;
+}
+
+.message {
+    height: 28px;
+    padding: 0 10px 0 5px;
+    border: 1px solid var(--hair);
+    color: var(--ink-2);
+    font-size: 12px;
+}
+
+.glyph {
+    flex: none;
+    display: inline-block;
+}
+
+.range {
+    width: 16px;
+    height: 14px;
+    border: 2px solid var(--ink);
+    border-radius: 2px;
+}
+
+.paragraph {
+    width: 2px;
+    height: 14px;
+    background: var(--ink);
+}
+
+.slide {
+    width: 16px;
+    height: 12px;
+    border: 2px dashed var(--ink);
+    border-radius: 2px;
+}

@@ -1,0 +1,22 @@
+.scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.thread {
+    margin: 0;
+    padding: 16px 16px 12px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.time {
+    align-self: center;
+    font-size: 13px;
+    color: var(--ink-3);
+}

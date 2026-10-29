@@ -1,0 +1,14 @@
+.page {
+    fill: var(--paper);
+    stroke: var(--ink);
+}
+
+.stroke {
+    fill: none;
+    stroke: var(--hl);
+}
+
+.lines {
+    fill: none;
+    stroke: var(--ink);
+}

@@ -1,0 +1,31 @@
+.icon-btn {
+    flex: none;
+    width: var(--hit);
+    height: var(--hit);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.icon-btn:hover:not(:disabled) {
+    background: var(--bubble);
+}
+
+.icon-btn[aria-pressed="true"] {
+    background: var(--hair);
+}
+
+.icon-btn:disabled {
+    color: var(--ink-disabled);
+    cursor: not-allowed;
+}
+
+.icon-btn.muted {
+    color: var(--ink-2);
+}

@@ -1,0 +1,53 @@
+.composer {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--hair);
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.box {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 4px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius-card);
+    background: var(--paper);
+}
+
+.box:focus-within {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+.input {
+    flex: 1;
+    min-width: 0;
+    min-height: calc(3em + 20px);
+    max-height: calc(7.5em + 20px);
+    field-sizing: content;
+    overflow-y: auto;
+    resize: none;
+    padding: 10px 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.input:focus-visible {
+    outline: none;
+}
+
+.input:disabled {
+    cursor: not-allowed;
+}

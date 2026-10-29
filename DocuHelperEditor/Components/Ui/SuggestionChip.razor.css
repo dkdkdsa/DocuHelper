@@ -1,0 +1,17 @@
+.suggest {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--hit);
+    padding: 0 14px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-pill);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.suggest:hover {
+    background: var(--bubble);
+}

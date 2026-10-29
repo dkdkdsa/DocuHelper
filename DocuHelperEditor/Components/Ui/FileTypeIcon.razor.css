@@ -1,0 +1,39 @@
+.file-icon {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.s28 {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+}
+
+.s20 {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+}
+
+.s18 {
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-xs);
+}
+
+.xlsx {
+    background: var(--xlsx-soft);
+    color: var(--xlsx);
+}
+
+.docx {
+    background: var(--docx-soft);
+    color: var(--docx);
+}
+
+.pptx {
+    background: var(--pptx-soft);
+    color: var(--pptx);
+}

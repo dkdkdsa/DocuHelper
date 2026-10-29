@@ -1,0 +1,83 @@
+.item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.item:not(.on):hover,
+.item.anchored:not(.on) {
+    background: var(--desk-hover);
+}
+
+.item.on {
+    background: var(--paper);
+    box-shadow: var(--shadow-item);
+}
+
+.item.two {
+    min-height: 52px;
+}
+
+.item.anchored {
+    anchor-name: --file-menu;
+}
+
+.name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.solo {
+    flex: 1;
+    min-width: 0;
+}
+
+.on .name {
+    font-weight: 700;
+}
+
+.text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.35;
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+}
+
+.swatch {
+    flex: none;
+    width: 16px;
+    height: 9px;
+    border-radius: 2px 5px 2px 6px;
+    background: var(--hl);
+    box-shadow: inset 0 0 0 1px rgba(var(--ink-rgb), 0.25);
+}
+
+.pencil {
+    flex: none;
+    width: 14px;
+    height: 10px;
+    border: 1.5px dashed var(--ink);
+    border-radius: var(--radius-pill);
+}

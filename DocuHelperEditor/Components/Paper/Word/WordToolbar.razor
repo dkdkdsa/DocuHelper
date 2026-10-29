@@ -1,0 +1,137 @@
+﻿@using DocuHelperEditor.State.Papers
+@inherits StoreComponentBase
+
+<div class="toolbar">
+    <IconButton Icon="undo" Label="되돌리기" Title="되돌리기 (Ctrl+Z)" IconSize="18" Disabled="@IsLocked" OnClick="UndoAsync" />
+    <IconButton Icon="redo" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" IconSize="18" Disabled="@IsLocked" />
+    <ToolbarDivider />
+    <label for="@StyleId" class="sr-only">문단 모양</label>
+    <select id="@StyleId" class="style" value="@StyleValue" disabled="@(!CanStyle)" @onchange="OnStyleChanged">
+        <option value="body">본문</option>
+        <option value="h1">제목 1</option>
+        <option value="h2">제목 2</option>
+    </select>
+    <ToolbarDivider />
+    <IconButton Icon="bold" Label="굵게" IconSize="18" Stroke="2.4" Pressed="@(Block?.IsBold == true)" Disabled="@(!CanFormat)" OnClick="ToggleBold" />
+    <IconButton Icon="italic" Label="기울임" IconSize="18" Pressed="@(Block?.IsItalic == true)" Disabled="@(!CanFormat)" OnClick="ToggleItalic" />
+    <IconButton Icon="underline" Label="밑줄" IconSize="18" Pressed="@(Block?.IsUnderline == true)" Disabled="@(!CanFormat)" OnClick="ToggleUnderline" />
+    <ToolbarDivider />
+    <IconButton Icon="list" Label="글머리 기호" IconSize="18" Pressed="@(Block?.ListKind == WordListKind.Bullet)" Disabled="@(!CanList)" OnClick="ToggleBullets" />
+    <IconButton Icon="list-ordered" Label="번호 매기기" IconSize="18" Pressed="@(Block?.ListKind == WordListKind.Number)" Disabled="@(!CanList)" OnClick="ToggleNumbers" />
+    <ToolbarDivider />
+    <IconButton Icon="align-left" Label="왼쪽 맞춤" IconSize="18" Pressed="@(IsAligned(WordAlignment.Left))" Disabled="@(!CanStyle)" OnClick="AlignLeft" />
+    <IconButton Icon="align-center" Label="가운데 맞춤" IconSize="18" Pressed="@(IsAligned(WordAlignment.Center))" Disabled="@(!CanStyle)" OnClick="ToggleCenter" />
+    <ToolbarDivider />
+    <IconButton Icon="table" Label="표 넣기" IconSize="18" Disabled="@IsLocked" />
+</div>
+
+@code {
+    private const string StyleId = "word-style";
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private WordPaperModel Model => File?.Paper as WordPaperModel;
+
+    private WordBlockModel Block => Model?.SelectedBlock;
+
+    private bool IsLocked => File?.Activity == FileActivity.Editing;
+
+    private bool CanFormat => Block != null && !IsLocked;
+
+    private bool CanStyle => CanFormat && !Block.IsTable;
+
+    private bool CanList => CanFormat && Block.Kind == WordBlockKind.Body;
+
+    private string StyleValue => Block?.Kind switch
+    {
+        WordBlockKind.Heading1 => "h1",
+        WordBlockKind.Heading2 => "h2",
+        _ => "body",
+    };
+
+    private bool IsAligned(WordAlignment alignment) => Block != null && !Block.IsTable && Block.Alignment == alignment;
+
+    private Task UndoAsync() => Workspace.UndoAsync();
+
+    private void OnStyleChanged(ChangeEventArgs e)
+    {
+        var kind = (e.Value?.ToString()) switch
+        {
+            "h1" => WordBlockKind.Heading1,
+            "h2" => WordBlockKind.Heading2,
+            _ => WordBlockKind.Body,
+        };
+
+        Apply(block =>
+        {
+            if (block.IsTable || block.Kind == kind)
+                return false;
+
+            if (block.Kind == WordBlockKind.Byline)
+                block.Text = block.PlainText;
+
+            block.Kind = kind;
+            if (kind != WordBlockKind.Body)
+                block.ListStyle = WordListKind.None;
+
+            return true;
+        });
+    }
+
+    private void ToggleBold() => Apply(block =>
+    {
+        block.IsBold = !block.IsBold;
+        return true;
+    });
+
+    private void ToggleItalic() => Apply(block =>
+    {
+        block.IsItalic = !block.IsItalic;
+        return true;
+    });
+
+    private void ToggleUnderline() => Apply(block =>
+    {
+        block.IsUnderline = !block.IsUnderline;
+        return true;
+    });
+
+    private void ToggleBullets() => ToggleList(WordListKind.Bullet);
+
+    private void ToggleNumbers() => ToggleList(WordListKind.Number);
+
+    private void ToggleList(WordListKind style) => Apply(block =>
+    {
+        if (block.Kind != WordBlockKind.Body)
+            return false;
+
+        block.ListStyle = block.ListStyle == style ? WordListKind.None : style;
+        return true;
+    });
+
+    private void AlignLeft() => Apply(block => Align(block, WordAlignment.Left));
+
+    private void ToggleCenter() => Apply(block => Align(block, block.Alignment == WordAlignment.Center ? WordAlignment.Left : WordAlignment.Center));
+
+    private static bool Align(WordBlockModel block, WordAlignment alignment)
+    {
+        if (block.IsTable || block.Alignment == alignment)
+            return false;
+
+        block.Alignment = alignment;
+        return true;
+    }
+
+    private void Apply(Func<WordBlockModel, bool> change)
+    {
+        var model = Model;
+        var block = model?.SelectedBlock;
+        if (block == null || IsLocked || !change(block))
+            return;
+
+        block.IsEditedByHand = true;
+        File.IsDirty = true;
+        Workspace.SetSelection(model.Describe(block));
+    }
+}

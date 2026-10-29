@@ -1,0 +1,98 @@
+.rail {
+    flex: none;
+    width: 56px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 0 12px;
+    background: var(--desk);
+    border-right: 1px solid var(--rule);
+}
+
+.divider {
+    flex: none;
+    width: 28px;
+    height: 1px;
+    margin: 4px 0;
+    background: var(--rule);
+}
+
+.files {
+    align-self: stretch;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    margin: -4px 0;
+    padding: 4px 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.file {
+    position: relative;
+    width: var(--hit);
+    height: var(--hit);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.file:not(.on):hover {
+    background: var(--desk-hover);
+}
+
+.file.on {
+    background: var(--paper);
+    box-shadow: var(--shadow-item);
+}
+
+.badge {
+    position: absolute;
+}
+
+.mark {
+    right: 3px;
+    top: 3px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--hl);
+    box-shadow: 0 0 0 1.5px var(--ink);
+}
+
+.ask {
+    right: 0;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--ink);
+    border-radius: 50%;
+    background: var(--paper);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.busy {
+    right: 2px;
+    top: 2px;
+    display: flex;
+}
+
+.rail ::deep .add {
+    margin-top: auto;
+}

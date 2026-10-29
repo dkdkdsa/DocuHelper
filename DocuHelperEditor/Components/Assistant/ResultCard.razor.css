@@ -1,0 +1,250 @@
+.card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-card);
+    background: var(--paper);
+    overflow: hidden;
+}
+
+.group-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px 6px;
+}
+
+.group-head ::deep .file-icon,
+.readonly ::deep .file-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+}
+
+.group-head ::deep .file-icon svg,
+.readonly ::deep .file-icon svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2.4;
+}
+
+.group-name {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.group-count {
+    flex: none;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.changes {
+    margin: 0;
+    padding: 2px 8px 4px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.group + .group {
+    margin: 4px 8px 0;
+    border-top: 1px dashed var(--rule);
+}
+
+.group + .group .group-head {
+    padding: 12px 6px 6px;
+}
+
+.group + .group .changes {
+    padding: 2px 0 4px;
+}
+
+.change {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 6px 10px 6px 8px;
+    border: 1.5px solid var(--hair);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.change:hover {
+    filter: brightness(.96);
+}
+
+.change.on {
+    border-color: var(--ink);
+    background: var(--hl-soft);
+}
+
+.change-icon {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+}
+
+.total-glyph {
+    width: 14px;
+    height: 9px;
+    border-top: 1.5px solid var(--ink);
+    border-bottom: 3px double var(--ink);
+}
+
+.change-label {
+    flex: 1;
+    min-width: 0;
+}
+
+.change-where {
+    flex: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.note {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px 12px;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.note + .note {
+    padding-top: 0;
+}
+
+.note ::deep svg,
+.readonly-note ::deep svg,
+.saved-glyph ::deep svg {
+    flex: none;
+}
+
+.readonly {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 8px 0;
+    padding: 10px 8px;
+    border-top: 1px dashed var(--rule);
+}
+
+.readonly-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.readonly-note {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.foot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--hair);
+    background: var(--well-soft);
+}
+
+.readonly + .foot {
+    margin-top: 4px;
+}
+
+.foot-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.foot-actions ::deep .act {
+    font-size: 15px;
+}
+
+.foot-actions ::deep .primary {
+    padding: 0 18px;
+}
+
+.foot-actions ::deep .secondary {
+    padding: 0 16px;
+}
+
+.foot-note {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.foot.saved {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 8px 8px 8px 14px;
+}
+
+.saved-glyph {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xs);
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.saved-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.saved-time {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.foot.saved ::deep .act {
+    margin-left: auto;
+}
+
+.follow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.follow ::deep .suggest {
+    font-weight: 500;
+}

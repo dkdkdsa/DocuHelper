@@ -1,0 +1,143 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@if (Progress != null)
+{
+    if (Progress.IsFinished)
+    {
+        <div class="steps">
+            <button type="button" class="toggle" aria-expanded="@ExpandedText" @onclick="Toggle">
+                <span class="g-done" aria-hidden="true">
+                    <Icon Name="check" Size="11" Stroke="3.6" />
+                </span>
+                <span class="toggle-title">다 했어요</span>
+                <span class="toggle-meta">@FinishedSummary</span>
+                <span class="toggle-action">
+                    @(Progress.IsExpanded ? "접기" : "자세히")
+                    <Icon Name="chevron-down" Size="16" Class="@ChevronClass" />
+                </span>
+            </button>
+            @if (Progress.IsExpanded && Progress.Steps.Count > 0)
+            {
+                @StepList
+            }
+        </div>
+    }
+    else if (Progress.Steps.Count > 0)
+    {
+        <div class="steps">
+            <div class="head">
+                <span class="head-title">하는 일</span>
+                <span class="head-count">@RunningSummary</span>
+                @if (Assistant.IsBusy)
+                {
+                    <button type="button" class="stop" @onclick="StopAsync">
+                        <Icon Name="stop" Size="13" />
+                        멈추기
+                    </button>
+                }
+            </div>
+            @StepList
+        </div>
+    }
+    else
+    {
+        <div class="working">
+            <Spinner Size="16" Stroke="2.4" />
+            <span class="working-text" role="status">
+                <span class="working-title">하는 중이에요</span>
+                @if (!string.IsNullOrEmpty(Progress.CurrentDetail))
+                {
+                    <span class="working-detail">@Progress.CurrentDetail</span>
+                }
+            </span>
+            @if (Assistant.IsBusy)
+            {
+                <button type="button" class="stop" @onclick="StopAsync">
+                    <Icon Name="stop" Size="12" />
+                    멈추기
+                </button>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public ChatEntry Entry { get; set; }
+
+    private TaskProgress Progress => Entry?.Progress;
+
+    private string ExpandedText => Progress.IsExpanded ? "true" : "false";
+
+    private string ChevronClass => Progress.IsExpanded ? "chevron up" : "chevron";
+
+    private string FinishedSummary => string.IsNullOrEmpty(Progress.Elapsed)
+        ? $"{Progress.TotalCount}단계"
+        : $"{Progress.TotalCount}단계, {Progress.Elapsed}";
+
+    private string RunningSummary
+    {
+        get
+        {
+            var doing = Progress.Steps.FindIndex(s => s.State == TaskStepState.Doing);
+            return doing >= 0
+                ? $"{Progress.TotalCount}단계 중 {doing + 1}단계"
+                : $"{Progress.TotalCount}단계 중 {Progress.DoneCount}단계 끝남";
+        }
+    }
+
+    private void Toggle() => Assistant.ToggleProgress(Entry);
+
+    private async Task StopAsync()
+    {
+        Assistant.Stop();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
+    }
+
+    private RenderFragment StepList => __builder =>
+    {
+        <ul class="list">
+            @foreach (var step in Progress.Steps)
+            {
+                <li class="step @StateClass(step.State)">
+                    @switch (step.State)
+                    {
+                        case TaskStepState.Done:
+                            <span class="g-done" aria-hidden="true">
+                                <Icon Name="check" Size="11" Stroke="3.6" />
+                            </span>
+                            <span class="sr-only">끝남: </span>
+                            break;
+                        case TaskStepState.Waiting:
+                            <span class="g-wait" aria-hidden="true">?</span>
+                            <span class="sr-only">기다리는 중: </span>
+                            break;
+                        case TaskStepState.Doing:
+                            <Spinner Size="18" Stroke="2.6" />
+                            <span class="sr-only">하는 중: </span>
+                            break;
+                        default:
+                            <span class="g-todo" aria-hidden="true"></span>
+                            <span class="sr-only">할 일: </span>
+                            break;
+                    }
+                    <span class="label">@step.Label</span>
+                    @if (!string.IsNullOrEmpty(step.Detail))
+                    {
+                        <span class="detail">@step.Detail</span>
+                    }
+                </li>
+            }
+        </ul>
+    };
+
+    private static string StateClass(TaskStepState state) => state switch
+    {
+        TaskStepState.Done => "s-done",
+        TaskStepState.Waiting => "s-wait",
+        TaskStepState.Doing => "s-doing",
+        _ => "s-todo",
+    };
+}

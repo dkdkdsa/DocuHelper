@@ -1,0 +1,136 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+@inject IFileDialogService FileDialog
+
+<div class="composer" inert="@IsCovered">
+    @if (Chips.Count > 0)
+    {
+        <div class="chips">
+            @foreach (var chip in Chips)
+            {
+                <ContextChip Model="chip" Variant="composer" />
+            }
+        </div>
+    }
+    <div class="box">
+        <IconButton Icon="paperclip" Label="파일 더하기" IconSize="18" OnClick="AddFilesAsync" />
+        <label class="sr-only" for="composer-input">도우미에게 보낼 말</label>
+        <textarea id="composer-input" class="input" rows="2" placeholder="@Placeholder" disabled="@IsWorking" data-region-focus="@RegionFocus" value="@Assistant.Draft" @ref="_input" @oninput="OnInput" @onkeydown="OnKeyDownAsync"></textarea>
+        <ActionButton Kind="ButtonKind.Primary" Icon="send" IconSize="15" IconStroke="2.2" Disabled="@(!Assistant.CanSend)" OnClick="SendAsync">보내기</ActionButton>
+    </div>
+</div>
+
+@code {
+    private const string ModulePath = "./Components/Assistant/Composer.razor.js";
+    private const string WorkingPlaceholder = "도우미가 일하는 중이에요";
+    private const string RevisePlaceholder = "어떻게 고칠지 적어 주세요. 예: 합계 줄은 빼 줘";
+
+    private ElementReference _input;
+    private IJSObjectReference _module;
+    private bool _enterGuarded;
+    private bool _dropNextInput;
+
+    private IReadOnlyList<ContextChipModel> Chips => Assistant.ContextChips;
+
+    private bool IsWorking => Assistant.Status == AssistantStatus.Working;
+
+    private bool IsCovered => Assistant.IsPopupOpen && Assistant.PendingQuestion != null;
+
+    private string Placeholder
+    {
+        get
+        {
+            if (IsWorking)
+                return WorkingPlaceholder;
+
+            if (Assistant.IsRevising && Assistant.Status != AssistantStatus.Asking)
+                return RevisePlaceholder;
+
+            return Assistant.ComposerPlaceholder;
+        }
+    }
+
+    private string RegionFocus => IsWorking || Assistant.IsPopupOpen ? null : string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await _module.InvokeVoidAsync("guardEnter", _input);
+            _enterGuarded = true;
+        }
+        catch (JSException)
+        {
+            _enterGuarded = false;
+        }
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        if (_dropNextInput)
+        {
+            _dropNextInput = false;
+            return;
+        }
+
+        Assistant.SetDraft(e.Value?.ToString());
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        var plainEnter = e.Key == "Enter" && !e.ShiftKey && !e.CtrlKey && !e.AltKey && !e.MetaKey && !e.IsComposing;
+        if (!plainEnter)
+        {
+            _dropNextInput = false;
+            return;
+        }
+
+        if (!Assistant.CanSend)
+            return;
+
+        _dropNextInput = !_enterGuarded;
+        await SubmitAsync();
+    }
+
+    private async Task SendAsync()
+    {
+        await SubmitAsync();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
+    }
+
+    private async Task SubmitAsync()
+    {
+        await Assistant.SendAsync();
+        Assistant.StopRevising();
+    }
+
+    private async Task AddFilesAsync()
+    {
+        var paths = await FileDialog.PickDocumentsAsync();
+        if (paths == null || paths.Count == 0)
+            return;
+
+        await Workspace.ImportAsync(paths);
+    }
+
+    protected override void OnDispose()
+    {
+        if (_module != null)
+            _ = ReleaseModuleAsync(_module);
+    }
+
+    private static async Task ReleaseModuleAsync(IJSObjectReference module)
+    {
+        try
+        {
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

@@ -1,0 +1,263 @@
+﻿@using DocuHelperEditor.State.Papers
+
+<div class="grid @(Locked ? "locked" : null)">
+    @if (Sheet != null)
+    {
+        <table class="sheet" aria-label="@TableLabel">
+            <colgroup>
+                <col class="rh" />
+                @foreach (var column in Sheet.Columns)
+                {
+                    <col style="@WidthStyle(column)" />
+                }
+            </colgroup>
+            <thead>
+                <tr>
+                    <th scope="col"><span class="sr-only">행</span></th>
+                    @for (var c = 0; c < Sheet.Columns.Count; c++)
+                    {
+                        var columnIndex = c;
+                        <th scope="col" class="@(columnIndex == _selectedColumn ? "sel" : null)">@ColumnName(columnIndex)</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @for (var r = 0; r < _rowCount; r++)
+                {
+                    var rowIndex = r;
+                    var row = Sheet.FindRow(rowIndex);
+                    var barId = BarChangeId(row);
+                    <tr class="@RowClass(rowIndex, row)" data-change="@barId">
+                        <th scope="row" class="@RowHeadClass(rowIndex, barId)">@(rowIndex + 1)</th>
+                        @for (var c = 0; c < Sheet.Columns.Count; c++)
+                        {
+                            var columnIndex = c;
+                            var cell = Sheet.FindCell(rowIndex, columnIndex);
+                            var cellRef = SheetRef.Make(columnIndex, rowIndex);
+                            var selected = rowIndex == _selectedRow && columnIndex == _selectedColumn;
+                            <td class="@CellClass(cell, row, selected)" @onclick="() => OnCellClick.InvokeAsync(cellRef)" @ondblclick="() => OnCellDoubleClick.InvokeAsync(cellRef)">
+                                @if (selected)
+                                {
+                                    var sinkKey = cellRef + "-" + Version;
+                                    <input id="@SinkId" @key="sinkKey" class="sink @(EditingInCell ? "on" : null)" value="@(EditingInCell ? SinkSeed : string.Empty)" readonly="@Locked" autocomplete="off" spellcheck="false" aria-label="@SinkLabel(cellRef, cell)" @oninput="HandleSinkInput" @onkeydown="HandleSinkKeyDown" @onblur="HandleSinkBlur" />
+                                }
+                                @if (selected && EditingInBar)
+                                {
+                                    @Draft
+                                }
+                                else if (cell != null && !string.IsNullOrEmpty(cell.Text))
+                                {
+                                    var marked = cell.HasChange(HighlightChangeId);
+                                    var asking = ShowAsking && cell.IsAsking;
+                                    if (marked)
+                                    {
+                                        <span class="mk on" data-change="@HighlightChangeId" style="@DelayStyle(rowIndex)" @key="HighlightChangeId">
+                                            @if (asking)
+                                            {
+                                                <span class="pc">@cell.Text</span>
+                                            }
+                                            else
+                                            {
+                                                @cell.Text
+                                            }
+                                        </span>
+                                    }
+                                    else if (asking)
+                                    {
+                                        <span class="pc">@cell.Text</span>
+                                    }
+                                    else
+                                    {
+                                        @cell.Text
+                                    }
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private int _rowCount;
+    private int _selectedRow = -1;
+    private int _selectedColumn = -1;
+    private int _firstMarkedRow;
+
+    [Parameter]
+    public Sheet Sheet { get; set; }
+
+    [Parameter]
+    public string SinkId { get; set; }
+
+    [Parameter]
+    public string SelectedRef { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public bool EditingInCell { get; set; }
+
+    [Parameter]
+    public bool EditingInBar { get; set; }
+
+    [Parameter]
+    public string Draft { get; set; }
+
+    [Parameter]
+    public string SinkSeed { get; set; }
+
+    [Parameter]
+    public int Version { get; set; }
+
+    [Parameter]
+    public string HighlightChangeId { get; set; }
+
+    [Parameter]
+    public HashSet<string> LiveChangeIds { get; set; }
+
+    [Parameter]
+    public bool ShowAsking { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnCellClick { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnCellDoubleClick { get; set; }
+
+    [Parameter]
+    public EventCallback<KeyboardEventArgs> OnSinkKeyDown { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSinkInput { get; set; }
+
+    [Parameter]
+    public EventCallback OnSinkBlur { get; set; }
+
+    private string TableLabel => Sheet.Name + " 시트";
+
+    protected override void OnParametersSet()
+    {
+        _rowCount = Sheet?.DisplayRowCount ?? 0;
+        if (!SheetRef.TryParse(SelectedRef, out _selectedColumn, out _selectedRow))
+        {
+            _selectedColumn = -1;
+            _selectedRow = -1;
+        }
+
+        _firstMarkedRow = FindFirstMarkedRow();
+    }
+
+    private int FindFirstMarkedRow()
+    {
+        if (Sheet == null || string.IsNullOrEmpty(HighlightChangeId))
+            return 0;
+
+        var index = Sheet.Rows.FindIndex(r => r.Cells.Any(c => c.HasChange(HighlightChangeId)));
+        return index < 0 ? 0 : index;
+    }
+
+    private string ColumnName(int index)
+    {
+        var letter = Sheet.Columns[index].Letter;
+        return string.IsNullOrEmpty(letter) ? SheetRef.ColumnName(index) : letter;
+    }
+
+    private static string WidthStyle(SheetColumn column) => column.Width.HasValue ? "width: " + column.Width.Value + "px" : null;
+
+    private string BarChangeId(SheetRow row)
+    {
+        if (row == null || LiveChangeIds == null || LiveChangeIds.Count == 0)
+            return null;
+
+        if (!string.IsNullOrEmpty(row.ChangeId) && LiveChangeIds.Contains(row.ChangeId))
+            return row.ChangeId;
+
+        if (row.Cells == null)
+            return null;
+
+        return row.Cells
+            .Where(c => c?.ChangeIds != null)
+            .SelectMany(c => c.ChangeIds)
+            .FirstOrDefault(id => !string.IsNullOrEmpty(id) && LiveChangeIds.Contains(id));
+    }
+
+    private string RowClass(int rowIndex, SheetRow row)
+    {
+        if (row?.Kind == SheetRowKind.Total)
+            return "tot";
+
+        return Sheet.FindRow(rowIndex + 1)?.Kind == SheetRowKind.Total ? "pre-tot" : null;
+    }
+
+    private string RowHeadClass(int rowIndex, string barId)
+    {
+        var selected = rowIndex == _selectedRow;
+        var bar = barId != null;
+        if (selected && bar)
+            return "sel bar";
+
+        if (selected)
+            return "sel";
+
+        return bar ? "bar" : null;
+    }
+
+    private static string CellClass(SheetCell cell, SheetRow row, bool selected)
+    {
+        var kind = row?.Kind ?? SheetRowKind.Normal;
+        var classes = new List<string>();
+        var bold = cell != null ? cell.IsBoldIn(kind) : kind != SheetRowKind.Normal;
+        if (bold)
+            classes.Add("b");
+
+        if (cell != null)
+        {
+            if (cell.Italic)
+                classes.Add("i");
+
+            if (cell.Underline)
+                classes.Add("u");
+
+            if (cell.Align == SheetAlign.Center)
+                classes.Add("al-c");
+            else if (cell.Align == SheetAlign.Right || (cell.Align == SheetAlign.Auto && cell.IsNumber))
+                classes.Add("al-r");
+        }
+
+        if (selected)
+            classes.Add("sel");
+
+        return classes.Count == 0 ? null : string.Join(" ", classes);
+    }
+
+    private string DelayStyle(int rowIndex)
+    {
+        var step = rowIndex - _firstMarkedRow;
+        return step > 0 ? "animation-delay: calc(var(--dur-hl-step) * " + step + ")" : null;
+    }
+
+    private string SinkLabel(string cellRef, SheetCell cell)
+    {
+        if (cell == null || string.IsNullOrEmpty(cell.Text))
+            return cellRef + " 칸";
+
+        var label = cellRef + " 칸, " + cell.Text;
+        if (ShowAsking && cell.IsAsking)
+            label += ", 도우미가 물어보는 칸";
+
+        if (LiveChangeIds != null && cell.ChangeIds != null && cell.ChangeIds.Any(id => LiveChangeIds.Contains(id)))
+            label += ", 도우미가 바꾼 곳";
+
+        return label;
+    }
+
+    private Task HandleSinkInput(ChangeEventArgs e) => OnSinkInput.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+
+    private Task HandleSinkKeyDown(KeyboardEventArgs e) => OnSinkKeyDown.InvokeAsync(e);
+
+    private Task HandleSinkBlur() => OnSinkBlur.InvokeAsync();
+}

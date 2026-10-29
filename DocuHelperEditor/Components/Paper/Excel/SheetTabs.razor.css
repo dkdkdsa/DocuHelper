@@ -1,0 +1,92 @@
+.sheet-bar {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 0 12px;
+    min-height: 44px;
+    background: var(--paper-2);
+    border-top: 1px solid var(--rule);
+}
+
+.tabs {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.tab {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 0;
+    border-right: 1px solid var(--rule);
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.tab:hover:not(.on) {
+    background: var(--bubble);
+}
+
+.tab:focus-visible {
+    outline-offset: -2px;
+}
+
+.tab.on {
+    background: var(--paper);
+    box-shadow: inset 0 -3px 0 var(--ink);
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.tab.new {
+    padding: 0 14px 0 16px;
+}
+
+.badge {
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid var(--ink);
+    border-radius: var(--radius-xs);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.tabs ::deep .add {
+    border-radius: 0;
+}
+
+.tabs ::deep .add:focus-visible {
+    outline-offset: -2px;
+}
+
+.legend {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.ring {
+    flex: none;
+    width: 28px;
+    height: 16px;
+    border: 1.5px dashed var(--ink);
+    border-radius: var(--radius-pill);
+}

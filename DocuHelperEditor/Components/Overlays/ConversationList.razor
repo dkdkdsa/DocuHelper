@@ -1,0 +1,130 @@
+﻿@inherits StoreComponentBase
+@inject IConversationRepository Conversations
+@inject IJSRuntime JS
+
+@if (Assistant.IsConversationListOpen)
+{
+    <section id="conversation-list" class="convos" aria-labelledby="conversation-list-h" tabindex="-1" @onkeydown="OnKeyDown">
+        <div class="head">
+            <h3 id="conversation-list-h">지난 대화</h3>
+            <IconButton Icon="x" IconSize="16" Stroke="2.2" Label="지난 대화 닫기" OnClick="CloseAsync" />
+        </div>
+        @if (_failed)
+        {
+            <p class="empty">지난 대화를 불러오지 못했어요. 잠시 뒤에 다시 열어 주세요.</p>
+        }
+        else if (_items != null)
+        {
+            if (_items.Count == 0)
+            {
+                <p class="empty">아직 지난 대화가 없어요. 도우미에게 부탁하면 여기에 남아요.</p>
+            }
+            else
+            {
+                <ul class="list">
+                    @foreach (var item in _items)
+                    {
+                        <li @key="item.Id">
+                            <button type="button" class="row" @onclick="() => OpenAsync(item)">
+                                <FileTypeIcon Type="@item.FileType" Size="20" />
+                                <span class="text">
+                                    <span class="title">@item.Title</span>
+                                    <span class="meta">@Meta(item)</span>
+                                </span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </section>
+}
+
+@code {
+    private const string TriggerSelector = "[data-region='assistant'] button[aria-label='지난 대화']";
+
+    private IReadOnlyList<ConversationSummary> _items;
+    private bool _failed;
+    private bool _wasOpen;
+    private int _loadId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var open = Assistant.IsConversationListOpen;
+        if (open == _wasOpen)
+            return;
+
+        _wasOpen = open;
+        if (!open)
+        {
+            _loadId++;
+            _items = null;
+            _failed = false;
+            return;
+        }
+
+        await JS.InvokeVoidAsync("docuHelper.focus", "#conversation-list");
+        await LoadAsync();
+    }
+
+    protected override void OnDispose()
+    {
+        _loadId++;
+        if (Assistant.IsConversationListOpen)
+            Assistant.CloseConversationList();
+    }
+
+    private async Task LoadAsync()
+    {
+        var loadId = ++_loadId;
+        IReadOnlyList<ConversationSummary> items;
+        try
+        {
+            items = await Conversations.ListRecentAsync(10);
+        }
+        catch (Exception)
+        {
+            if (loadId != _loadId)
+                return;
+
+            _failed = true;
+            StateHasChanged();
+            return;
+        }
+
+        if (loadId != _loadId)
+            return;
+
+        _items = items ?? Array.Empty<ConversationSummary>();
+        StateHasChanged();
+    }
+
+    private static string Meta(ConversationSummary item)
+    {
+        if (string.IsNullOrEmpty(item.FileName))
+            return item.When;
+
+        if (string.IsNullOrEmpty(item.When))
+            return item.FileName;
+
+        return $"{item.FileName} · {item.When}";
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            await CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        Assistant.CloseConversationList();
+        await JS.InvokeVoidAsync("docuHelper.focus", TriggerSelector);
+    }
+
+    private async Task OpenAsync(ConversationSummary item)
+    {
+        Assistant.CloseConversationList();
+        await Assistant.OpenConversationAsync(item.Id);
+    }
+}

@@ -1,0 +1,206 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@if (Question != null)
+{
+    var q = Question;
+    var isBigChange = q.Kind == AskKind.BigChange;
+    <div class="ask-scrim">
+        <div id="ask-user-card" class="ask-card" role="dialog" aria-labelledby="ask-user-q" aria-describedby="@DescribedBy" tabindex="-1" data-region-focus @onkeydown="OnKeyDownAsync">
+            <div class="ask-eyebrow">
+                <span class="ask-glyph" aria-hidden="true">?</span>
+                <span class="ask-eyebrow-text">@q.Eyebrow</span>
+            </div>
+            <h2 id="ask-user-q" class="ask-question">@q.Question</h2>
+            @if (isBigChange)
+            {
+                if (q.Impacts.Count > 0)
+                {
+                    <ul class="ask-impacts">
+                        @foreach (var impact in q.Impacts)
+                        {
+                            <li class="impact" @key="impact">
+                                <FileTypeIcon Type="@impact.FileType" Size="20" />
+                                <span class="impact-name">@impact.FileName</span>
+                                <span class="impact-count">@(impact.Count)곳</span>
+                            </li>
+                        }
+                    </ul>
+                }
+                <p id="ask-user-hint" class="ask-hint">@BigChangeNote</p>
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(q.Hint))
+                {
+                    <p id="ask-user-hint" class="ask-hint">@q.Hint</p>
+                }
+                if (q.Kind == AskKind.Conflict)
+                {
+                    <dl class="ask-compare">
+                        <dt class="row-first">직접 넣은 값</dt>
+                        <dd class="row-first">@q.MineValue</dd>
+                        <dt>도우미 계산</dt>
+                        <dd>@q.AssistantValue</dd>
+                    </dl>
+                }
+            }
+            @if (q.Options.Count > 0)
+            {
+                <fieldset class="ask-options">
+                    <legend class="sr-only">@LegendText</legend>
+                    @foreach (var option in q.Options)
+                    {
+                        <RadioOption @key="option" Group="ask-user-option" Value="@option.Id" Selected="@(option.Id == EffectiveOptionId)" OnSelect="Assistant.SelectOption">
+                            @if (!option.IsFreeText && option.FileType != null)
+                            {
+                                <FileTypeIcon Type="@option.FileType.Value" Size="28" Variant="chat" />
+                            }
+                            else if (!option.IsFreeText && q.Kind == AskKind.WhichFile)
+                            {
+                                <span class="o-new" aria-hidden="true">
+                                    <Icon Name="plus" Size="13" Stroke="2.4" />
+                                </span>
+                            }
+                            <span class="o-label">@option.Label</span>
+                            @if (!option.IsFreeText && !string.IsNullOrEmpty(option.Detail))
+                            {
+                                <span class="o-detail">@option.Detail</span>
+                            }
+                        </RadioOption>
+                    }
+                </fieldset>
+            }
+            <div class="ask-actions @(isBigChange ? "big" : null)">
+                @if (isBigChange)
+                {
+                    <ActionButton Kind="ButtonKind.Secondary" Class="ask-second" id="ask-user-alt" OnClick="AlternateAsync">@q.AlternateLabel</ActionButton>
+                }
+                else
+                {
+                    <ActionButton Kind="ButtonKind.Text" Class="ask-alt" id="ask-user-alt" OnClick="AlternateAsync">@q.AlternateLabel</ActionButton>
+                }
+                <ActionButton Kind="ButtonKind.Primary" Class="ask-confirm" id="ask-user-confirm" OnClick="ConfirmAsync">@q.ConfirmLabel</ActionButton>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string ReassuranceNote = "바꾼 뒤에도 저장하기 전에는 전부 되돌릴 수 있어요.";
+    private const string DefaultLegend = "어떻게 할까요?";
+
+    private AskUserRequest _shownQuestion;
+
+    private AskUserRequest Question => Assistant.IsPopupOpen ? Assistant.PendingQuestion : null;
+
+    private AskOption EffectiveOption
+    {
+        get
+        {
+            var q = Question;
+            if (q == null || q.Options.Count == 0)
+                return null;
+
+            return q.Options.FirstOrDefault(o => o.Id == Assistant.SelectedOptionId) ?? q.Options[0];
+        }
+    }
+
+    private string EffectiveOptionId => EffectiveOption?.Id;
+
+    private string DescribedBy
+    {
+        get
+        {
+            var q = Question;
+            if (q == null)
+                return null;
+
+            return q.Kind == AskKind.BigChange || !string.IsNullOrEmpty(q.Hint) ? "ask-user-hint" : null;
+        }
+    }
+
+    private string BigChangeNote => string.IsNullOrEmpty(Question?.Hint) ? ReassuranceNote : Question.Hint;
+
+    private string LegendText => string.IsNullOrEmpty(Question?.Legend) ? DefaultLegend : Question.Legend;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var question = Question;
+        if (ReferenceEquals(question, _shownQuestion))
+            return;
+
+        _shownQuestion = question;
+        if (question == null)
+            return;
+
+        await FocusFirstAsync();
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape" || Question == null)
+            return;
+
+        Assistant.DismissPopup();
+        await FocusComposerAsync();
+    }
+
+    private async Task ConfirmAsync()
+    {
+        var q = Question;
+        if (q == null)
+            return;
+
+        if (q.Options.Count == 0)
+        {
+            await Assistant.AnswerWithTextAsync(q.ConfirmLabel);
+        }
+        else
+        {
+            var option = EffectiveOption;
+            if (Assistant.SelectedOptionId != option.Id)
+                Assistant.SelectOption(option.Id);
+
+            await Assistant.AnswerAsync();
+        }
+
+        await FocusComposerAsync();
+    }
+
+    private async Task AlternateAsync()
+    {
+        var q = Question;
+        if (q == null)
+            return;
+
+        if (q.Kind == AskKind.BigChange)
+            await Assistant.AnswerWithTextAsync(q.AlternateLabel);
+        else
+            Assistant.AnswerInOwnWords();
+
+        await FocusComposerAsync();
+    }
+
+    private async Task FocusFirstAsync()
+    {
+        var q = Question;
+        if (q == null)
+            return;
+
+        if (q.Options.Count == 0)
+        {
+            await JS.InvokeVoidAsync("docuHelper.focusUnlessBusy", "#ask-user-alt");
+            return;
+        }
+
+        await JS.InvokeVoidAsync("docuHelper.focusUnlessBusy", "#ask-user-card input[type=radio]");
+        await JS.InvokeVoidAsync("docuHelper.focusUnlessBusy", "#ask-user-card input[type=radio]:checked");
+    }
+
+    private async Task FocusComposerAsync()
+    {
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
+    }
+}

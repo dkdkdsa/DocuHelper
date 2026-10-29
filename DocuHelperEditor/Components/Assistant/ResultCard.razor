@@ -1,0 +1,156 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@if (Result != null)
+{
+    <div class="card">
+        @foreach (var group in Result.Groups)
+        {
+            <div class="group" @key="group">
+                <div class="group-head">
+                    <FileTypeIcon Type="@group.FileType" Size="20" />
+                    <h3 class="group-name">@group.FileName</h3>
+                    <span class="group-count">@CountText(group)</span>
+                </div>
+                @if (group.Changes.Count > 0)
+                {
+                    <ul class="changes">
+                        @foreach (var change in group.Changes)
+                        {
+                            <li @key="change">
+                                <button type="button" class="change @(IsSelected(change) ? "on" : null)" aria-pressed="@(IsSelected(change) ? "true" : "false")" @onclick="() => Workspace.SelectChange(change.Id)">
+                                    <span class="change-icon" aria-hidden="true">
+                                        @if (IsTotalGlyph(change.Icon))
+                                        {
+                                            <span class="total-glyph"></span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(change.Icon))
+                                        {
+                                            <Icon Name="@GlyphName(change.Icon)" Size="15" Stroke="2.2" />
+                                        }
+                                    </span>
+                                    <span class="change-label">@change.Label</span>
+                                    @if (!string.IsNullOrEmpty(change.Location))
+                                    {
+                                        <span class="change-where">@change.Location</span>
+                                    }
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+        @foreach (var note in Result.Untouched)
+        {
+            <p class="note">
+                <Icon Name="shield-check" Size="15" />
+                @note
+            </p>
+        }
+        @foreach (var name in Result.ReadOnlyFiles)
+        {
+            <div class="readonly">
+                <FileTypeIcon Type="@TypeOf(name)" Size="20" />
+                <span class="readonly-name">@name</span>
+                <span class="readonly-note">
+                    <Icon Name="eye" Size="14" />
+                    읽기만 했어요
+                </span>
+            </div>
+        }
+        @if (Result.IsSaved)
+        {
+            <div class="foot saved">
+                <span class="saved-glyph" aria-hidden="true">
+                    <Icon Name="check" Size="11" Stroke="3.6" />
+                </span>
+                <span class="saved-title">저장했어요</span>
+                @if (!string.IsNullOrEmpty(Result.SavedAt))
+                {
+                    <span class="saved-time">@Result.SavedAt</span>
+                }
+                <ActionButton Kind="ButtonKind.Text" OnClick="ShowHistory">기록 보기</ActionButton>
+            </div>
+        }
+        else
+        {
+            <div class="foot">
+                <div class="foot-actions">
+                    <ActionButton Kind="ButtonKind.Primary" Disabled="@IsWorking" OnClick="SaveAsync">이대로 저장하기</ActionButton>
+                    <ActionButton Kind="ButtonKind.Secondary" Disabled="@IsWorking" OnClick="ReviseAsync">더 고칠래요</ActionButton>
+                </div>
+                <span class="foot-note">저장해도 전 상태가 기록에 남아요. 원래 파일은 그대로예요.</span>
+            </div>
+        }
+    </div>
+    @if (Result.FollowUps.Count > 0 && !Assistant.IsBusy)
+    {
+        <div class="follow">
+            @foreach (var text in Result.FollowUps)
+            {
+                <SuggestionChip OnClick="() => UseFollowUpAsync(text)">@text</SuggestionChip>
+            }
+        </div>
+    }
+}
+
+@code {
+    private static readonly HashSet<string> s_totalIcons = new() { "total", "total-row", "sum-row", "double-line", "double-underline" };
+
+    private static readonly HashSet<string> s_noteIcons = new() { "note", "notes", "memo", "sticky-note", "speaker-notes" };
+
+    [Parameter]
+    public AssistantResult Result { get; set; }
+
+    private bool IsWorking => Assistant.Status == AssistantStatus.Working;
+
+    private bool IsSelected(ChangeItem change) => change.Id != null && change.Id == Workspace.SelectedChangeId;
+
+    private static string CountText(ChangeGroup group) => $"바뀐 곳 {group.Changes.Count}";
+
+    private static bool IsTotalGlyph(string icon) => icon != null && s_totalIcons.Contains(icon);
+
+    private static string GlyphName(string icon) => s_noteIcons.Contains(icon) ? "note" : icon;
+
+    private DocuType TypeOf(string fileName)
+    {
+        var file = Workspace.Files.FirstOrDefault(f => f.Name == fileName);
+        if (file != null)
+            return file.Type;
+
+        var extension = System.IO.Path.GetExtension(fileName ?? string.Empty).ToLowerInvariant();
+        return extension switch
+        {
+            ".xlsx" or ".xlsm" or ".xls" => DocuType.Excel,
+            ".pptx" or ".ppt" => DocuType.Ppt,
+            _ => DocuType.Word,
+        };
+    }
+
+    private Task SaveAsync() => Assistant.SaveResultAsync(Result);
+
+    private async Task ReviseAsync()
+    {
+        Assistant.StartRevising(Result);
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
+    }
+
+    private void ShowHistory()
+    {
+        var fileId = Result?.Groups.FirstOrDefault()?.FileId;
+        if (!string.IsNullOrEmpty(fileId))
+            Workspace.Open(fileId);
+
+        if (!Workspace.IsHistoryOpen)
+            Workspace.ToggleHistory();
+    }
+
+    private async Task UseFollowUpAsync(string text)
+    {
+        Assistant.SetDraft(text);
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
+    }
+}

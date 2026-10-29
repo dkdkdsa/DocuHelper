@@ -1,0 +1,78 @@
+﻿@using DocuHelperEditor.State.Papers
+@inherits StoreComponentBase
+
+@if (Note != null)
+{
+    <aside class="note" aria-label="도우미 메모">
+        <span class="leader" aria-hidden="true"></span>
+        <span class="title">
+            <span class="badge" aria-hidden="true"><Icon Name="highlighter" Size="10" Stroke="2.8" /></span>
+            도우미 메모
+        </span>
+        <p class="text">@Note.Text</p>
+        @if (Source != null)
+        {
+            <button type="button" class="open" @onclick="OpenSource">
+                <span class="type @TypeClass" aria-hidden="true"><Icon Name="@Glyph" Size="11" Stroke="2.6" /></span>
+                @OpenLabel
+            </button>
+        }
+    </aside>
+}
+
+@code {
+    [Parameter]
+    public WordSourceNoteModel Note { get; set; }
+
+    private WorkspaceFile Source => Note == null
+        ? null
+        : Workspace.FindFile(Note.FileId) ?? Workspace.Files.FirstOrDefault(f => f.Name == Note.FileName);
+
+    private DocuType SourceType => Source?.Type ?? Note.FileType;
+
+    private string TypeClass => SourceType switch
+    {
+        DocuType.Excel => "xlsx",
+        DocuType.Word => "docx",
+        _ => "pptx",
+    };
+
+    private string Glyph => SourceType switch
+    {
+        DocuType.Excel => "sheet",
+        DocuType.Word => "file-text",
+        _ => "presentation",
+    };
+
+    private string OpenLabel => SourceType switch
+    {
+        DocuType.Excel => "엑셀에서 보기",
+        DocuType.Word => "워드에서 보기",
+        _ => "파워포인트에서 보기",
+    };
+
+    private void OpenSource()
+    {
+        var source = Source;
+        if (source == null)
+            return;
+
+        RevealRange(source.Paper as ExcelPaperModel);
+        Workspace.Open(source.Id);
+    }
+
+    private void RevealRange(ExcelPaperModel workbook)
+    {
+        if (workbook == null || string.IsNullOrEmpty(Note.SheetName))
+            return;
+
+        var index = workbook.Sheets.FindIndex(s => s.Name == Note.SheetName);
+        if (index < 0)
+            return;
+
+        workbook.ActiveSheetIndex = index;
+        var start = (Note.Range ?? string.Empty).Split(':')[0].Trim();
+        if (start.Length > 0)
+            workbook.Sheets[index].SelectedRef = start;
+    }
+}

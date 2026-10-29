@@ -1,0 +1,10 @@
+﻿<span class="avatar" style="width: @(Size)px; height: @(Size)px" aria-hidden="true">
+    <Icon Name="highlighter" Size="@IconSize" Stroke="2.2" />
+</span>
+
+@code {
+    [Parameter]
+    public int Size { get; set; } = 30;
+
+    private int IconSize => Size >= 30 ? 16 : Size >= 24 ? 13 : 11;
+}

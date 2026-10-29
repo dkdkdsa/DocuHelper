@@ -1,0 +1,47 @@
+﻿<span class="file-icon @TypeClass @SizeClass" aria-hidden="true">
+    <Icon Name="@Glyph" Size="@GlyphSize" Stroke="@GlyphStroke" />
+</span>
+
+@code {
+    [Parameter]
+    public DocuType Type { get; set; }
+
+    [Parameter]
+    public int Size { get; set; } = 28;
+
+    [Parameter]
+    public string Variant { get; set; }
+
+    [Parameter]
+    public double? Stroke { get; set; }
+
+    private string EffectiveVariant => Variant ?? (Size >= 28 ? "list" : "chat");
+
+    private string TypeClass => Type switch
+    {
+        DocuType.Excel => "xlsx",
+        DocuType.Word => "docx",
+        _ => "pptx",
+    };
+
+    private string Glyph => (Type, EffectiveVariant) switch
+    {
+        (DocuType.Excel, "chat") => "sheet",
+        (DocuType.Excel, _) => "grid",
+        (DocuType.Word, "list") => "file-text",
+        (DocuType.Word, "tab") => "file-lines",
+        (DocuType.Word, _) => "page-lines",
+        _ => "presentation",
+    };
+
+    private string SizeClass => Size >= 28 ? "s28" : Size >= 20 ? "s20" : "s18";
+
+    private int GlyphSize => Size >= 28 ? 16 : Size >= 20 ? 12 : 11;
+
+    private double GlyphStroke => Stroke ?? EffectiveVariant switch
+    {
+        "list" => 2,
+        "tab" => 2.2,
+        _ => Size >= 28 ? 2.2 : Size >= 22 ? 2.4 : 2.6,
+    };
+}

@@ -1,0 +1,21 @@
+.dev-picker {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    z-index: 100;
+    opacity: 0.55;
+}
+
+.dev-picker:hover,
+.dev-picker:focus-within {
+    opacity: 1;
+}
+
+.dev-picker select {
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-xs);
+    background: var(--paper);
+    font-size: 12px;
+}

@@ -1,0 +1,27 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+<div class="notice-live" aria-live="polite">
+    @if (Assistant.IsRailNoticeVisible)
+    {
+        <div class="notice">
+            <span class="notice-arrow" aria-hidden="true"></span>
+            <div class="notice-head">
+                <span class="notice-glyph" aria-hidden="true">?</span>
+                <span class="notice-title">도우미가 물어볼 게 있어요</span>
+                <IconButton Icon="x" IconSize="15" Stroke="2.2" Label="알림 닫기" Title="닫기" Class="notice-close" OnClick="DismissAsync" />
+            </div>
+            <p class="notice-question">@Assistant.PendingQuestion.Question</p>
+            <ActionButton Kind="ButtonKind.Primary" Class="notice-answer" OnClick="Assistant.OpenPopup">펼쳐서 답하기</ActionButton>
+        </div>
+    }
+</div>
+
+@code {
+    private async Task DismissAsync()
+    {
+        Assistant.DismissRailNotice();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#assistant-rail-ask");
+    }
+}

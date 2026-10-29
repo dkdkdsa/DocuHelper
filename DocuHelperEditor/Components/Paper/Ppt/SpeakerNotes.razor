@@ -1,0 +1,53 @@
+﻿@using DocuHelperEditor.State.Papers
+
+@if (Slide != null)
+{
+    var slide = Slide;
+    <div class="notes" data-change="@LiveChange" @onclick="FocusText">
+        @if (LiveChange != null)
+        {
+            <span class="change-bar" aria-hidden="true"></span>
+        }
+        <span class="label" id="@_labelId">발표 메모</span>
+        <SlideTextBox @ref="_text" @key="slide" Tag="p" Class="note" Lines="slide.Notes" Highlighted="IsLit" ChangeId="@slide.NotesChangeId" Editable="!Locked" OnFocus="OnFocus" OnEdit="lines => EditNotes(slide, lines)" role="textbox" aria-multiline="true" aria-readonly="@(Locked ? "true" : null)" aria-labelledby="@_labelId" />
+    </div>
+}
+
+@code {
+    private readonly string _labelId = "slide-notes-" + Guid.NewGuid().ToString("N");
+    private SlideTextBox _text;
+
+    [Parameter]
+    public SlideModel Slide { get; set; }
+
+    [Parameter]
+    public string HighlightId { get; set; }
+
+    [Parameter]
+    public HashSet<string> LiveChanges { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public EventCallback OnFocus { get; set; }
+
+    [Parameter]
+    public EventCallback<SlideModel> OnEdited { get; set; }
+
+    private string LiveChange =>
+        Slide != null && !string.IsNullOrEmpty(Slide.NotesChangeId) && LiveChanges != null && LiveChanges.Contains(Slide.NotesChangeId)
+            ? Slide.NotesChangeId
+            : null;
+
+    private bool IsLit =>
+        Slide != null && !string.IsNullOrEmpty(HighlightId) && Slide.NotesChangeId == HighlightId && !Slide.NotesMarkCleared;
+
+    private Task FocusText() => _text == null || Locked ? Task.CompletedTask : _text.FocusAsync();
+
+    private Task EditNotes(SlideModel slide, List<string> lines)
+    {
+        slide.Notes = lines;
+        return OnEdited.InvokeAsync(slide);
+    }
+}

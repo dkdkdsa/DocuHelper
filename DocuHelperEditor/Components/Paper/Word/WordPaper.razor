@@ -1,0 +1,26 @@
+﻿@using DocuHelperEditor.Components.Paper
+@using DocuHelperEditor.State.Papers
+@inherits StoreComponentBase
+
+<div class="word">
+    <WordToolbar File="File" />
+    <WordPage File="File" />
+    <ChangeNavigator File="File" />
+</div>
+
+@code {
+    private WorkspaceFile _boundFile;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_boundFile, File))
+            return;
+
+        _boundFile = File;
+        if (File?.Paper is WordPaperModel model && string.IsNullOrEmpty(Workspace.SelectionLabel))
+            model.SelectedBlockId = null;
+    }
+}

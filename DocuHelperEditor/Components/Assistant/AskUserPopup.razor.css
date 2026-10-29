@@ -1,0 +1,241 @@
+.ask-scrim {
+    position: absolute;
+    top: 53px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    overflow-y: auto;
+    background: rgba(var(--ink-rgb), 0.18);
+}
+
+.ask-card {
+    flex: none;
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid rgba(var(--ink-rgb), 0.16);
+    border-radius: var(--radius-pop);
+    background: var(--popup-bg);
+    -webkit-backdrop-filter: blur(var(--popup-blur)) saturate(1.2);
+    backdrop-filter: blur(var(--popup-blur)) saturate(1.2);
+    box-shadow: var(--shadow-popup);
+    color: var(--ink);
+    animation: rise var(--dur-pop) ease-out both;
+}
+
+.ask-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ask-glyph {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--ink);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.ask-eyebrow-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.ask-question {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.45;
+    text-wrap: pretty;
+}
+
+.ask-hint {
+    margin: 0;
+    font-size: 14px;
+    color: var(--ink-2);
+}
+
+.ask-impacts {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: rgba(var(--paper-rgb), 0.8);
+}
+
+.impact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--hair);
+}
+
+.impact:last-child {
+    border-bottom: 0;
+}
+
+.ask-impacts ::deep .file-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+}
+
+.ask-impacts ::deep .file-icon svg {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2.4;
+}
+
+.impact-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 700;
+}
+
+.impact-count {
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+.ask-compare {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: rgba(var(--paper-rgb), 0.8);
+    font-variant-numeric: tabular-nums;
+}
+
+.ask-compare dt {
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--ink-2);
+}
+
+.ask-compare dd {
+    margin: 0;
+    padding: 10px 12px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.ask-compare .row-first {
+    border-bottom: 1px solid var(--hair);
+}
+
+.ask-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.ask-options ::deep .opt {
+    background: rgba(var(--paper-rgb), 0.72);
+}
+
+.ask-options ::deep .opt:hover {
+    background: rgba(var(--paper-rgb), 0.96);
+}
+
+.ask-options ::deep .opt.on {
+    background: var(--hl-soft);
+}
+
+.ask-options ::deep .opt-body {
+    flex: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    line-height: inherit;
+}
+
+.ask-options ::deep .file-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-sm);
+}
+
+.ask-options ::deep .file-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.o-new {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--line-strong);
+    border-radius: var(--radius-sm);
+}
+
+.o-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.o-detail {
+    flex: none;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.ask-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.ask-actions.big {
+    justify-content: flex-end;
+}
+
+.ask-actions ::deep .ask-alt {
+    padding: 0 8px;
+    margin-left: -8px;
+    color: var(--ink-2);
+}
+
+.ask-actions ::deep .ask-second {
+    font-size: 15px;
+}
+
+.ask-actions ::deep .ask-confirm {
+    padding: 0 20px;
+    font-size: 15px;
+}
+
+.ask-actions.big ::deep .ask-confirm {
+    padding: 0 18px;
+}

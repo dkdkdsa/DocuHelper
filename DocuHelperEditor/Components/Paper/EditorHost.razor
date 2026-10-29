@@ -1,0 +1,24 @@
+﻿@using DocuHelperEditor.Components.Paper.Excel
+@using DocuHelperEditor.Components.Paper.Word
+@using DocuHelperEditor.Components.Paper.Ppt
+
+@if (File != null)
+{
+    switch (File.Type)
+    {
+        case DocuType.Excel:
+            <ExcelPaper File="File" />
+            break;
+        case DocuType.Word:
+            <WordPaper File="File" />
+            break;
+        case DocuType.Ppt:
+            <PptPaper File="File" />
+            break;
+    }
+}
+
+@code {
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+}

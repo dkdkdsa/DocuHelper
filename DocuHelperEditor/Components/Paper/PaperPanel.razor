@@ -1,0 +1,38 @@
+﻿@inherits StoreComponentBase
+
+<main class="paper @(IsStart ? "start" : null)" aria-label="문서" data-region="paper">
+    @if (IsStart)
+    {
+        <StartDropZone />
+    }
+    else
+    {
+        var openFiles = Workspace.OpenFiles;
+        var file = Workspace.ActiveFile;
+        <DocTabs />
+        if (file == null)
+        {
+            <div class="blank">
+                <p class="blank-line" tabindex="-1" data-region-focus="true">왼쪽에서 파일을 골라 주세요</p>
+            </div>
+        }
+        else
+        {
+            <section class="frame @(IsJoined(openFiles, file) ? "joined" : null)" aria-label="@file.Name" @key="file.Id">
+                @if (file.Activity == FileActivity.Editing)
+                {
+                    <WorkingBanner File="file" />
+                }
+                <EditorHost File="file" />
+            </section>
+        }
+    }
+    <SaveToast />
+</main>
+
+@code {
+    private bool IsStart => Workspace.Files.Count == 0;
+
+    private static bool IsJoined(IReadOnlyList<WorkspaceFile> openFiles, WorkspaceFile file) =>
+        openFiles.Count > 0 && openFiles[0].Id == file.Id;
+}

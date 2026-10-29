@@ -1,0 +1,157 @@
+.strip {
+    flex: none;
+    width: 140px;
+    overflow: auto;
+    padding: 8px 6px;
+    background: var(--paper-2);
+    border-right: 1px solid var(--hair);
+}
+
+.list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.item {
+    position: relative;
+}
+
+.bar {
+    position: absolute;
+    left: -4px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--ink);
+}
+
+.th {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.th:hover {
+    background: var(--head-hover);
+}
+
+.th.on {
+    background: var(--hair);
+    color: var(--ink);
+}
+
+.num {
+    width: 12px;
+    padding-top: 2px;
+    text-align: right;
+}
+
+.mini {
+    flex: 1;
+    min-width: 0;
+    height: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+}
+
+.th.on .mini {
+    border: 2px solid var(--ink);
+}
+
+.mini.cover {
+    justify-content: center;
+}
+
+.mini.closing {
+    justify-content: center;
+    align-items: center;
+}
+
+.ln {
+    flex: none;
+    height: 2px;
+    background: var(--thumb-line);
+}
+
+.ln.head {
+    height: 4px;
+    background: var(--ink);
+}
+
+.mini.cover .ln.head {
+    height: 5px;
+}
+
+.ln.sub,
+.ln.wide {
+    height: 3px;
+}
+
+.split {
+    flex: none;
+    display: flex;
+    gap: 4px;
+}
+
+.split-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.split-col.tight {
+    gap: 2px;
+}
+
+.split .ln {
+    height: 3px;
+}
+
+.ln.top {
+    background: var(--ink);
+}
+
+.ln.lit {
+    background: var(--hl);
+    box-shadow: 0 0 0 1px rgba(var(--ink-rgb), 0.25);
+}
+
+.cols {
+    flex: none;
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: 26px;
+}
+
+.col {
+    width: 8px;
+    background: var(--thumb-line);
+}
+
+.col.top {
+    background: var(--ink);
+}

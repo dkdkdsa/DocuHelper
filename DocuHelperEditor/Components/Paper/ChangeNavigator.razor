@@ -1,0 +1,31 @@
+﻿@inherits StoreComponentBase
+
+@if (IsVisible)
+{
+    <div class="strip">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="strip-label">형광펜은 도우미가 바꾼 곳</span>
+        <span class="strip-pos" aria-live="polite">@Position / @File.Changes.Count</span>
+        <IconButton Icon="chevron-left" IconSize="18" Stroke="2.2" Label="이전 바뀐 곳" OnClick="() => Workspace.MoveChange(-1)" />
+        <IconButton Icon="chevron-right" IconSize="18" Stroke="2.2" Label="다음 바뀐 곳" OnClick="() => Workspace.MoveChange(1)" />
+        <ActionButton Kind="ButtonKind.Ghost" Icon="rotate-ccw" IconSize="16" IconStroke="2.2" Class="strip-revert" OnClick="RevertAllAsync">전부 되돌리기</ActionButton>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private bool IsVisible => File != null && File.Changes.Count > 0 && File.Activity != FileActivity.Editing;
+
+    private int Position
+    {
+        get
+        {
+            var index = File.Changes.FindIndex(c => c.Id == Workspace.SelectedChangeId);
+            return index < 0 ? 1 : index + 1;
+        }
+    }
+
+    private Task RevertAllAsync() => Workspace.RevertAllAsync(File.Id);
+}

@@ -1,0 +1,149 @@
+.grid {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    scroll-padding-top: 28px;
+    background: var(--paper);
+}
+
+.grid.locked {
+    opacity: 0.55;
+}
+
+.sheet {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+.rh {
+    width: 44px;
+}
+
+.sheet th,
+.sheet td {
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--hair);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+    font-weight: 400;
+    user-select: none;
+}
+
+.sheet thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    height: 28px;
+    border-top: 0;
+    background: var(--paper-2);
+    color: var(--ink-2);
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.sheet tbody th {
+    padding: 0;
+    background: var(--paper-2);
+    color: var(--ink-2);
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.sheet tr > th:first-child {
+    border-left: 0;
+}
+
+.sheet th.sel {
+    background: var(--hair);
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.sheet tbody th.bar {
+    box-shadow: inset 3px 0 0 var(--ink);
+}
+
+.sheet td {
+    position: relative;
+    color: var(--ink);
+    cursor: cell;
+}
+
+.sheet td.b {
+    font-weight: 700;
+}
+
+.sheet td.i {
+    font-style: italic;
+}
+
+.sheet td.u,
+.sheet td.u .mk {
+    text-decoration: underline;
+}
+
+.sheet td.al-c {
+    text-align: center;
+}
+
+.sheet td.al-r {
+    text-align: right;
+}
+
+.sheet td.sel {
+    box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.sheet tr.tot td {
+    border-top: 1px solid var(--ink);
+    border-bottom: 3px double var(--ink);
+}
+
+.sheet tr.pre-tot td {
+    border-bottom-color: var(--ink);
+}
+
+.pc {
+    padding: 1px 7px;
+    margin: 0 -7px;
+    border: 1.5px dashed var(--ink);
+    border-radius: var(--radius-pill);
+}
+
+.sink {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: cell;
+    user-select: text;
+}
+
+.sink:focus-visible {
+    outline: none;
+}
+
+.sink.on {
+    background: var(--paper);
+    color: var(--ink);
+    caret-color: var(--ink);
+    box-shadow: inset 0 0 0 2px var(--ink);
+    cursor: text;
+}

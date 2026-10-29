@@ -1,0 +1,65 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+<aside class="rail" aria-label="도우미, 접힘" data-region="assistant">
+    <IconButton id="assistant-rail-expand" Icon="panel-right-open" IconSize="18" Label="도우미 칸 펼치기" aria-expanded="false" OnClick="ExpandAsync" />
+    <AssistantAvatar Size="30" />
+    <span class="rail-name" aria-hidden="true">도우미</span>
+    @if (Assistant.Status == AssistantStatus.Working)
+    {
+        <div class="rail-working">
+            <Spinner Size="18" Stroke="2.4" />
+            <span class="rail-vertical rail-working-text">일하는 중</span>
+            <IconButton Icon="stop" IconSize="14" Label="도우미 멈추기" Title="멈추기" OnClick="StopAsync" />
+        </div>
+    }
+    else if (Assistant.IsRailAsking)
+    {
+        <button type="button" id="assistant-rail-ask" class="rail-state rail-ask" aria-label="물어볼 게 있어요, 펼쳐서 답하기" @onclick="Assistant.OpenPopup">
+            <span class="rail-ask-glyph" aria-hidden="true">?</span>
+            <span class="rail-vertical rail-state-text" aria-hidden="true">물어볼 게 있어요</span>
+        </button>
+    }
+    else if (Assistant.Status == AssistantStatus.Done || Assistant.HasUnseenResult)
+    {
+        <button type="button" class="rail-state rail-done" aria-label="다 했어요, 펼쳐서 보기" @onclick="ShowResultAsync">
+            <span class="rail-done-check" aria-hidden="true">
+                <Icon Name="check" Size="11" Stroke="3.6" />
+            </span>
+            <span class="rail-vertical rail-state-text" aria-hidden="true">다 했어요</span>
+        </button>
+    }
+    <IconButton Icon="message-plus" IconSize="18" Label="도우미에게 부탁하기" Class="rail-request" OnClick="RequestAsync" />
+    <RailNotice />
+</aside>
+
+@code {
+    private const string ComposerSelector = "#composer-input";
+    private const string PanelCloseSelector = "#assistant-panel-close";
+
+    private Task ExpandAsync() => ExpandAndFocusAsync(PanelCloseSelector);
+
+    private Task ShowResultAsync() => ExpandAndFocusAsync(ComposerTargetSelector);
+
+    private Task RequestAsync() => ExpandAndFocusAsync(ComposerTargetSelector);
+
+    private string ComposerTargetSelector => Assistant.Status == AssistantStatus.Working ? PanelCloseSelector : ComposerSelector;
+
+    private async Task ExpandAndFocusAsync(string selector)
+    {
+        var popupWillShow = Assistant.PendingQuestion != null && Assistant.IsPopupOpen;
+        Assistant.SetPanelCollapsed(false);
+        if (popupWillShow)
+            return;
+
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", selector);
+    }
+
+    private async Task StopAsync()
+    {
+        Assistant.Stop();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#assistant-rail-expand");
+    }
+}

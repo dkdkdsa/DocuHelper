@@ -1,0 +1,204 @@
+.steps {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-card);
+    background: var(--well);
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 4px 12px;
+    border: 0;
+    border-radius: var(--radius-card);
+    background: var(--well);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.toggle:hover {
+    filter: brightness(.96);
+}
+
+.toggle-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.toggle-meta {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.toggle-action {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.toggle-action ::deep .chevron {
+    flex: none;
+}
+
+.toggle-action ::deep .up {
+    transform: rotate(180deg);
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: var(--hit);
+    padding: 0 4px 0 12px;
+}
+
+.head-title {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.head-count {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.stop {
+    flex: none;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--hit);
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.stop:hover {
+    background: var(--bubble);
+}
+
+.list {
+    margin: 0;
+    padding: 0 12px 10px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 14px;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 30px;
+}
+
+.step ::deep .spin {
+    flex: none;
+}
+
+.label {
+    flex: 1;
+    min-width: 0;
+}
+
+.detail {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.s-wait .label {
+    font-weight: 700;
+}
+
+.s-wait .detail {
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.s-doing {
+    font-weight: 700;
+}
+
+.s-todo {
+    color: var(--ink-2);
+}
+
+.g-done {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xs);
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.g-wait {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--ink);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.g-todo {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius-xs);
+}
+
+.working {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 2px 4px 2px 12px;
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-card);
+    background: var(--well);
+}
+
+.working ::deep .spin {
+    flex: none;
+}
+
+.working-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.4;
+}
+
+.working-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.working-detail {
+    font-size: 13px;
+    color: var(--ink-2);
+}

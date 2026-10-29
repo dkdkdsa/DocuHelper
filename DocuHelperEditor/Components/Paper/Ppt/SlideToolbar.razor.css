@@ -1,0 +1,26 @@
+.toolbar {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--hair);
+}
+
+.glyph {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.glyph sup {
+    font-size: 9px;
+}
+
+.glyph.big {
+    font-size: 16px;
+}
+
+.glyph.big sup {
+    font-size: 10px;
+}

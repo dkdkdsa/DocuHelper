@@ -1,0 +1,45 @@
+﻿@using DocuHelperEditor.Components.Overlays
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+<aside class="panel" aria-label="도우미" data-region="assistant">
+    <div class="head">
+        <AssistantAvatar Size="30" />
+        <h2 class="title">도우미</h2>
+        @if (Assistant.Entries.Count > 0)
+        {
+            <IconButton Icon="message-plus" Label="새 대화" IconSize="18" OnClick="NewConversationAsync" />
+        }
+        <IconButton Icon="list" Label="지난 대화" IconSize="18" aria-expanded="@ListExpanded" OnClick="Assistant.ToggleConversationList" />
+        <IconButton Icon="panel-right-close" Label="도우미 칸 접기" IconSize="18" id="assistant-panel-close" aria-expanded="true" OnClick="CollapseAsync" />
+    </div>
+    @if (Assistant.Entries.Count == 0)
+    {
+        <AssistantGreeting />
+    }
+    else
+    {
+        <ChatThread />
+    }
+    <Composer />
+    <AskUserPopup />
+    <ConversationList />
+</aside>
+
+@code {
+    private string ListExpanded => Assistant.IsConversationListOpen ? "true" : "false";
+
+    private async Task NewConversationAsync()
+    {
+        Assistant.NewConversation();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
+    }
+
+    private async Task CollapseAsync()
+    {
+        Assistant.SetPanelCollapsed(true);
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#assistant-rail-expand");
+    }
+}

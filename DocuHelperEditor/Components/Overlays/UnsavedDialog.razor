@@ -1,0 +1,108 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@if (Workspace.PendingClose != null)
+{
+    var file = Workspace.PendingClose;
+    <div class="overlay">
+        <div class="backdrop" aria-hidden="true" @onmousedown:preventDefault="true"></div>
+        <span class="sr-only" tabindex="0" @onfocus="FocusLastAsync"></span>
+        <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="unsaved-q" aria-describedby="unsaved-d" tabindex="-1" @onkeydown="OnKeyDown">
+            <h2 id="unsaved-q">‘@(file.Name)’를 저장할까요?</h2>
+            <p id="unsaved-d" class="desc">@Description(file)</p>
+            <div class="actions">
+                <ActionButton Kind="ButtonKind.Ghost" Class="cancel" id="unsaved-cancel" OnClick="Cancel">취소</ActionButton>
+                <ActionButton Kind="ButtonKind.Secondary" OnClick="CloseWithoutSave">저장 안 하고 닫기</ActionButton>
+                <ActionButton Kind="ButtonKind.Primary" Class="save" id="unsaved-save" OnClick="SaveAndCloseAsync">저장하고 닫기</ActionButton>
+            </div>
+        </div>
+        <span class="sr-only" tabindex="0" @onfocus="FocusFirstAsync"></span>
+    </div>
+}
+
+@code {
+    private const string PaperFocusSelector = "[data-region='paper'] [data-region-focus]";
+
+    private WorkspaceFile _shownFile;
+    private string _returnFocusTo;
+    private bool _saving;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var file = Workspace.PendingClose;
+        if (file == _shownFile)
+            return;
+
+        _shownFile = file;
+        if (file != null)
+        {
+            await JS.InvokeVoidAsync("docuHelper.focus", "#unsaved-save");
+            return;
+        }
+
+        var selector = _returnFocusTo;
+        _returnFocusTo = null;
+        if (selector != null)
+            await JS.InvokeVoidAsync("docuHelper.focus", selector);
+    }
+
+    private static string Description(WorkspaceFile file)
+    {
+        var count = file.Changes?.Count ?? 0;
+        return count > 0
+            ? $"도우미가 바꾼 {count}곳이 아직 저장 안 됐어요. 저장하지 않고 닫으면 이 변경은 없어져요."
+            : "바꾼 내용이 아직 저장 안 됐어요. 저장하지 않고 닫으면 이 변경은 없어져요.";
+    }
+
+    private static string CloseButtonSelector(WorkspaceFile file)
+    {
+        var name = (file.Name ?? string.Empty).Replace("\\", "\\\\").Replace("'", "\\'");
+        return $"[data-region='paper'] button[aria-label='{name} 닫기']";
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            Cancel();
+    }
+
+    private void Cancel()
+    {
+        var file = Workspace.PendingClose;
+        if (_saving || file == null)
+            return;
+
+        _returnFocusTo = CloseButtonSelector(file);
+        Workspace.CancelClose();
+    }
+
+    private void CloseWithoutSave()
+    {
+        if (_saving || Workspace.PendingClose == null)
+            return;
+
+        _returnFocusTo = PaperFocusSelector;
+        Workspace.CloseWithoutSave();
+    }
+
+    private async Task SaveAndCloseAsync()
+    {
+        if (_saving || Workspace.PendingClose == null)
+            return;
+
+        _saving = true;
+        _returnFocusTo = PaperFocusSelector;
+        try
+        {
+            await Workspace.CloseWithSaveAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task FocusFirstAsync() => await JS.InvokeVoidAsync("docuHelper.focus", "#unsaved-cancel");
+
+    private async Task FocusLastAsync() => await JS.InvokeVoidAsync("docuHelper.focus", "#unsaved-save");
+}

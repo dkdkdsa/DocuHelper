@@ -1,0 +1,24 @@
+﻿@inject AssistantStore Assistant
+@inject IJSRuntime JS
+
+<div class="banner">
+    <Spinner Size="16" Stroke="2.4" />
+    <span class="banner-title">도우미가 이 파일을 고치는 중이에요</span>
+    <span class="banner-sub">끝나면 다시 고칠 수 있어요</span>
+    <ActionButton Kind="ButtonKind.OnInk" Icon="stop" IconSize="12" Class="banner-stop" OnClick="StopAsync">멈추기</ActionButton>
+</div>
+
+@code {
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private async Task StopAsync()
+    {
+        Assistant.Stop();
+        if (File?.Activity == FileActivity.Editing)
+            return;
+
+        await Task.Yield();
+        await JS.InvokeVoidAsync("docuHelper.focus", "[data-region='paper'] [data-region-focus]");
+    }
+}

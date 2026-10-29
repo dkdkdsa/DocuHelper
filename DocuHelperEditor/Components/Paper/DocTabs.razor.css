@@ -1,0 +1,76 @@
+.doc-tabs {
+    position: relative;
+    z-index: 1;
+    flex: none;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: -1px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.tab {
+    flex: none;
+    display: flex;
+    align-items: center;
+    height: 44px;
+    margin-bottom: 1px;
+    background: var(--tab-idle);
+    border: 1px solid var(--rule);
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+}
+
+.tab.on {
+    height: 46px;
+    margin-bottom: 0;
+    background: var(--paper);
+}
+
+.tab:has(.tab-btn:focus-visible) {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 0 0 12px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.tab.on .tab-btn {
+    height: 44px;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.tab-btn:focus-visible {
+    outline: none;
+}
+
+.tab-btn ::deep .file-icon svg {
+    width: 13px;
+    height: 13px;
+}
+
+.dirty {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ink);
+}
+
+.doc-tabs ::deep .icon-btn:focus-visible {
+    outline-offset: -2px;
+}

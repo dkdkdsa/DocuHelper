@@ -1,0 +1,28 @@
+.toolbar {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--hair);
+}
+
+.style {
+    height: var(--hit);
+    margin: 0 2px;
+    padding: 0 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.style:disabled {
+    border-color: var(--rule);
+    color: var(--ink-disabled);
+    cursor: not-allowed;
+}

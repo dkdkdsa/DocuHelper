@@ -1,0 +1,60 @@
+﻿@using DocuHelperEditor.State.Papers
+@inherits StoreComponentBase
+
+<div class="toolbar" @onmousedown:preventDefault="true">
+    <IconButton Icon="undo" IconSize="18" Label="되돌리기" Title="되돌리기 (Ctrl+Z)" OnClick="Workspace.UndoAsync" />
+    <IconButton Icon="redo" IconSize="18" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" />
+    <ToolbarDivider />
+    <IconButton Label="글자 작게" Disabled="!CanFormat" OnClick="OnSmaller"><span class="glyph" aria-hidden="true">가<sup>−</sup></span></IconButton>
+    <IconButton Label="글자 크게" Disabled="!CanFormat" OnClick="OnBigger"><span class="glyph big" aria-hidden="true">가<sup>+</sup></span></IconButton>
+    <ToolbarDivider />
+    <IconButton Icon="bold" IconSize="18" Stroke="2.4" Label="굵게" Pressed="IsBold" Disabled="!CanFormat" OnClick="OnBold" />
+    <IconButton Icon="italic" IconSize="18" Label="기울임" Pressed="IsItalic" Disabled="!CanFormat" OnClick="OnItalic" />
+    <IconButton Icon="underline" IconSize="18" Label="밑줄" Pressed="IsUnderline" Disabled="!CanFormat" OnClick="OnUnderline" />
+    <ToolbarDivider />
+    <IconButton Icon="align-left" IconSize="18" Label="왼쪽 맞춤" Pressed="IsLeft" Disabled="!CanFormat" OnClick="() => OnAlign.InvokeAsync(SlideTextAlign.Left)" />
+    <IconButton Icon="align-center" IconSize="18" Label="가운데 맞춤" Pressed="IsCenter" Disabled="!CanFormat" OnClick="() => OnAlign.InvokeAsync(SlideTextAlign.Center)" />
+    <ToolbarDivider />
+    <ActionButton Kind="ButtonKind.Ghost" Icon="plus" IconSize="16" IconStroke="2.2" Disabled="Locked" OnClick="OnNewSlide">새 슬라이드</ActionButton>
+</div>
+
+@code {
+    [Parameter]
+    public SlideBoxModel Box { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public EventCallback OnSmaller { get; set; }
+
+    [Parameter]
+    public EventCallback OnBigger { get; set; }
+
+    [Parameter]
+    public EventCallback OnBold { get; set; }
+
+    [Parameter]
+    public EventCallback OnItalic { get; set; }
+
+    [Parameter]
+    public EventCallback OnUnderline { get; set; }
+
+    [Parameter]
+    public EventCallback<SlideTextAlign> OnAlign { get; set; }
+
+    [Parameter]
+    public EventCallback OnNewSlide { get; set; }
+
+    private bool CanFormat => Box != null && !Locked;
+
+    private bool IsBold => Box != null && Box.Bold;
+
+    private bool IsItalic => Box != null && Box.Italic;
+
+    private bool IsUnderline => Box != null && Box.Underline;
+
+    private bool IsLeft => Box != null && Box.Align == SlideTextAlign.Left;
+
+    private bool IsCenter => Box != null && Box.Align == SlideTextAlign.Center;
+}

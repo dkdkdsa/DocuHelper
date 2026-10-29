@@ -1,0 +1,41 @@
+.toolbar {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--hair);
+}
+
+.swatch-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+
+.swatch {
+    width: 16px;
+    height: 3px;
+    border-radius: 1px;
+}
+
+.swatch.ink {
+    background: currentColor;
+}
+
+.swatch.hl {
+    background: var(--hl);
+    box-shadow: 0 0 0 0.5px var(--hl-edge);
+}
+
+.toolbar ::deep .icon-btn:disabled .swatch.hl {
+    opacity: 0.45;
+}
+
+.comma {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}

@@ -1,0 +1,308 @@
+﻿@using DocuHelperEditor.Components.Paper
+@using DocuHelperEditor.State.Papers
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@if (File != null && _model != null)
+{
+    var slide = _model.ActiveSlide;
+    <div class="ppt">
+        <SlideToolbar Box="_model.SelectedBox" Locked="Locked" OnSmaller="() => ChangeFontSize(-FontStep)" OnBigger="() => ChangeFontSize(FontStep)" OnBold="ToggleBold" OnItalic="ToggleItalic" OnUnderline="ToggleUnderline" OnAlign="SetAlign" OnNewSlide="AddSlide" />
+        <div class="body @(Locked ? "locked" : null)">
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
+            <div class="stage">
+                <SlideCanvas Slide="slide" Number="_model.ActiveIndex + 1" Footer="@_model.Footer" SelectedBoxId="@_model.SelectedBoxId" HighlightId="@_highlightId" LiveChanges="_live" Locked="Locked" OnSelectBox="SelectBox" OnClearSelection="ClearSelection" OnBoxEdited="BoxEdited" />
+                <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="Locked" OnFocus="FocusNotes" OnEdited="NotesEdited" />
+            </div>
+        </div>
+        <ChangeNavigator File="File" />
+    </div>
+}
+
+@code {
+    private const int FontStep = 2;
+    private const int MinFontSize = 8;
+    private const int MaxFontSize = 60;
+
+    private WorkspaceFile _file;
+    private PptPaperModel _model;
+    private PptPaperModel _fallback;
+    private HashSet<string> _live = new();
+    private string _highlightId;
+    private string _seenChangeId;
+    private int _seenPickVersion;
+    private string _scrollChangeId;
+    private string _reported;
+    private bool _notesFocused;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private bool Locked => File != null && File.Activity == FileActivity.Editing;
+
+    private bool IsActive => File != null && Workspace.ActiveFile != null && Workspace.ActiveFile.Id == File.Id;
+
+    protected override void OnParametersSet() => Sync();
+
+    protected override bool ShouldRender()
+    {
+        Sync();
+        return true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_model == null)
+            return;
+
+        if (IsActive)
+        {
+            var label = CurrentLabel();
+            if (label != _reported || Workspace.SelectionLabel == null)
+            {
+                _reported = label;
+                if (Workspace.SelectionLabel != label)
+                    Workspace.SetSelection(label);
+            }
+        }
+
+        if (_scrollChangeId != null)
+        {
+            var selector = $"[data-change=\"{_scrollChangeId}\"]";
+            _scrollChangeId = null;
+            await JS.InvokeVoidAsync("docuHelper.scrollIntoView", selector);
+        }
+    }
+
+    private void Sync()
+    {
+        if (File == null)
+        {
+            _model = null;
+            return;
+        }
+
+        if (!ReferenceEquals(File, _file))
+        {
+            _file = File;
+            _fallback = null;
+            _seenChangeId = null;
+            _reported = null;
+            _notesFocused = false;
+        }
+
+        _model = ResolveModel();
+        _live = new HashSet<string>((File.Changes ?? new List<ChangeItem>())
+            .Where(c => c != null && !string.IsNullOrEmpty(c.Id))
+            .Select(c => c.Id));
+
+        var selected = Workspace.SelectedChangeId;
+        _highlightId = !string.IsNullOrEmpty(selected) && _live.Contains(selected) ? selected : null;
+        if (selected == _seenChangeId && Workspace.ChangePickVersion == _seenPickVersion)
+            return;
+
+        _seenChangeId = selected;
+        _seenPickVersion = Workspace.ChangePickVersion;
+        if (_highlightId == null)
+            return;
+
+        var index = _model.IndexOfChange(_highlightId);
+        if (index >= 0 && index != _model.ActiveIndex)
+        {
+            _model.ActiveIndex = index;
+            _model.SelectedBoxId = null;
+            _notesFocused = false;
+        }
+
+        _scrollChangeId = _highlightId;
+    }
+
+    private PptPaperModel ResolveModel()
+    {
+        var model = File.Paper as PptPaperModel;
+        if (model == null && File.Paper == null)
+        {
+            model = PptPaperModel.CreateEmpty();
+            File.Paper = model;
+        }
+
+        if (model == null)
+        {
+            _fallback ??= PptPaperModel.CreateEmpty();
+            model = _fallback;
+        }
+
+        model.EnsureSlide();
+        return model;
+    }
+
+    private string CurrentLabel()
+    {
+        var number = _model.ActiveIndex + 1;
+        if (_model.SelectedBox != null)
+            return $"{number}번 슬라이드 글상자";
+
+        return _notesFocused ? $"{number}번 슬라이드 발표 메모" : $"{number}번 슬라이드";
+    }
+
+    private void Report()
+    {
+        if (IsActive)
+        {
+            _reported = CurrentLabel();
+            Workspace.SetSelection(_reported);
+        }
+        else
+        {
+            Workspace.Notify();
+        }
+    }
+
+    private void SelectSlide(int index)
+    {
+        if (_model == null || index < 0 || index >= _model.Slides.Count)
+            return;
+
+        _model.ActiveIndex = index;
+        _model.SelectedBoxId = null;
+        _notesFocused = false;
+        Report();
+    }
+
+    private void SelectBox(SlideBoxModel box)
+    {
+        var slide = _model?.ActiveSlide;
+        if (slide == null || !slide.Contains(box))
+            return;
+
+        if (_model.SelectedBoxId == box.Id && !_notesFocused)
+            return;
+
+        _model.SelectedBoxId = box.Id;
+        _notesFocused = false;
+        Report();
+    }
+
+    private void ClearSelection()
+    {
+        if (_model == null || (_model.SelectedBoxId == null && !_notesFocused))
+            return;
+
+        _model.SelectedBoxId = null;
+        _notesFocused = false;
+        Report();
+    }
+
+    private void FocusNotes()
+    {
+        if (_model == null || (_model.SelectedBoxId == null && _notesFocused))
+            return;
+
+        _model.SelectedBoxId = null;
+        _notesFocused = true;
+        Report();
+    }
+
+    private void BoxEdited(SlideBoxModel box)
+    {
+        if (_model == null || box == null)
+            return;
+
+        box.MarkCleared = true;
+        Touch(_model.SlideOf(box), true);
+    }
+
+    private void NotesEdited(SlideModel slide)
+    {
+        if (slide == null)
+            return;
+
+        slide.NotesMarkCleared = true;
+        Touch(slide, false);
+    }
+
+    private void ChangeFontSize(int step)
+    {
+        var box = EditableBox();
+        if (box == null)
+            return;
+
+        var size = Math.Clamp(box.FontSize + step, MinFontSize, MaxFontSize);
+        if (size == box.FontSize)
+            return;
+
+        box.FontSize = size;
+        Touch(_model.SlideOf(box), true);
+    }
+
+    private void ToggleBold()
+    {
+        var box = EditableBox();
+        if (box == null)
+            return;
+
+        box.Bold = !box.Bold;
+        Touch(_model.SlideOf(box), true);
+    }
+
+    private void ToggleItalic()
+    {
+        var box = EditableBox();
+        if (box == null)
+            return;
+
+        box.Italic = !box.Italic;
+        Touch(_model.SlideOf(box), true);
+    }
+
+    private void ToggleUnderline()
+    {
+        var box = EditableBox();
+        if (box == null)
+            return;
+
+        box.Underline = !box.Underline;
+        Touch(_model.SlideOf(box), false);
+    }
+
+    private void SetAlign(SlideTextAlign align)
+    {
+        var box = EditableBox();
+        if (box == null)
+            return;
+
+        var next = box.Align == align ? SlideTextAlign.Left : align;
+        if (next == box.Align)
+            return;
+
+        box.Align = next;
+        Touch(_model.SlideOf(box), false);
+    }
+
+    private void AddSlide()
+    {
+        if (_model == null || Locked)
+            return;
+
+        _model.Slides.Add(SlideModel.CreateEmpty());
+        _model.ActiveIndex = _model.Slides.Count - 1;
+        _model.SelectedBoxId = null;
+        _notesFocused = false;
+        File.IsDirty = true;
+        Report();
+    }
+
+    private SlideBoxModel EditableBox() => _model == null || Locked ? null : _model.SelectedBox;
+
+    private void Touch(SlideModel slide, bool affectsFit)
+    {
+        if (affectsFit && slide != null)
+            slide.FitChecked = false;
+
+        if (File.IsDirty)
+            return;
+
+        File.IsDirty = true;
+        Workspace.Notify();
+    }
+}

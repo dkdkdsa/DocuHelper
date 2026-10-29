@@ -1,0 +1,215 @@
+﻿@inject IJSRuntime JS
+
+@switch (Tag)
+{
+    case "ul":
+        <ul @key="_epoch" @ref="_element" class="@RootClass" style="@Style" contenteditable="@EditableValue" spellcheck="false" @onfocus="HandleFocus" @oninput="HandleInput" @onblur="HandleBlur" @attributes="Attributes">
+            @for (var i = 0; i < ShownLines.Count; i++)
+            {
+                var index = i;
+                <li>
+                    @if (ShownLit)
+                    {
+                        <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
+                    }
+                    else
+                    {
+                        @ShownLines[index]
+                    }
+                </li>
+            }
+        </ul>
+        break;
+    case "h2":
+        <h2 @key="_epoch" @ref="_element" class="@RootClass" style="@Style" contenteditable="@EditableValue" spellcheck="false" @onfocus="HandleFocus" @oninput="HandleInput" @onblur="HandleBlur" @attributes="Attributes">
+            @for (var i = 0; i < ShownLines.Count; i++)
+            {
+                var index = i;
+                if (index > 0)
+                {
+                    <br />
+                }
+                if (ShownLit)
+                {
+                    <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
+                }
+                else
+                {
+                    @ShownLines[index]
+                }
+            }
+        </h2>
+        break;
+    default:
+        <p @key="_epoch" @ref="_element" class="@RootClass" style="@Style" contenteditable="@EditableValue" spellcheck="false" @onfocus="HandleFocus" @oninput="HandleInput" @onblur="HandleBlur" @attributes="Attributes">
+            @for (var i = 0; i < ShownLines.Count; i++)
+            {
+                var index = i;
+                if (index > 0)
+                {
+                    <br />
+                }
+                if (ShownLit)
+                {
+                    <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
+                }
+                else
+                {
+                    @ShownLines[index]
+                }
+            }
+        </p>
+        break;
+}
+
+@code {
+    private static readonly List<string> s_noLines = new();
+
+    private ElementReference _element;
+    private int _epoch;
+    private bool _dirty;
+    private List<string> _frozenLines;
+    private bool _frozenLit;
+    private string _frozenChangeId;
+
+    [Parameter]
+    public string Tag { get; set; } = "p";
+
+    [Parameter]
+    public List<string> Lines { get; set; }
+
+    [Parameter]
+    public bool Highlighted { get; set; }
+
+    [Parameter]
+    public string ChangeId { get; set; }
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [Parameter]
+    public string Style { get; set; }
+
+    [Parameter]
+    public bool Framed { get; set; }
+
+    [Parameter]
+    public bool Editable { get; set; } = true;
+
+    [Parameter]
+    public EventCallback OnFocus { get; set; }
+
+    [Parameter]
+    public EventCallback<List<string>> OnEdit { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> Attributes { get; set; }
+
+    private List<string> ShownLines => _dirty ? _frozenLines : (Lines ?? s_noLines);
+
+    private bool ShownLit => _dirty ? _frozenLit : IsLit;
+
+    private string ShownChangeId => _dirty ? _frozenChangeId : ChangeId;
+
+    private bool IsLit => Highlighted && !string.IsNullOrEmpty(ChangeId);
+
+    private string EditableValue => Editable ? "plaintext-only" : "false";
+
+    private string RootClass
+    {
+        get
+        {
+            var css = "text";
+            if (!string.IsNullOrEmpty(Class))
+                css += " " + Class;
+
+            if (Framed)
+                css += " framed";
+
+            if (_dirty && _frozenLit && !IsLit)
+                css += " cleared";
+
+            return css;
+        }
+    }
+
+    public async Task FocusAsync()
+    {
+        if (!Editable)
+            return;
+
+        try
+        {
+            await _element.FocusAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private static string DelayStyle(int index) => $"--i: {index}";
+
+    private Task HandleFocus() => OnFocus.InvokeAsync();
+
+    private Task HandleInput()
+    {
+        if (!_dirty)
+        {
+            _frozenLines = (Lines ?? s_noLines).ToList();
+            _frozenLit = IsLit;
+            _frozenChangeId = ChangeId;
+            _dirty = true;
+        }
+
+        return PushTextAsync();
+    }
+
+    private async Task HandleBlur()
+    {
+        if (!_dirty)
+            return;
+
+        await PushTextAsync();
+        _dirty = false;
+        _frozenLines = null;
+        _frozenChangeId = null;
+        _epoch++;
+    }
+
+    private async Task PushTextAsync()
+    {
+        string text;
+        try
+        {
+            text = await JS.InvokeAsync<string>("Reflect.get", _element, "innerText");
+        }
+        catch (JSException)
+        {
+            return;
+        }
+        catch (JSDisconnectedException)
+        {
+            return;
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (text == null)
+            return;
+
+        await OnEdit.InvokeAsync(Parse(text));
+    }
+
+    private static List<string> Parse(string text) => text
+        .Replace((char)0xA0, ' ')
+        .Replace("\r", string.Empty)
+        .Split('\n')
+        .Select(line => line.Trim())
+        .Where(line => line.Length > 0)
+        .ToList();
+}

@@ -1,0 +1,41 @@
+﻿<li class="msg">
+    <div class="who">
+        <AssistantAvatar Size="24" />
+        <span class="name">도우미</span>
+    </div>
+    @if (Entry.Progress != null && Entry.Progress.IsFinished)
+    {
+        <TaskSteps Entry="Entry" />
+    }
+    @if (!string.IsNullOrEmpty(Entry.Text))
+    {
+        <p class="text">@Entry.Text</p>
+    }
+    @if (!string.IsNullOrEmpty(Entry.AskedQuestion))
+    {
+        <div class="asked">
+            <span class="asked-glyph" aria-hidden="true">?</span>
+            <span class="asked-body">
+                <span class="asked-title">여쭤본 것</span>
+                <span>@Entry.AskedQuestion</span>
+            </span>
+        </div>
+    }
+    @if (Entry.Progress != null && !Entry.Progress.IsFinished)
+    {
+        <TaskSteps Entry="Entry" />
+    }
+    @if (Entry.Result != null)
+    {
+        <ResultCard Result="Entry.Result" />
+    }
+    @if (Entry.Error != null)
+    {
+        <ErrorNotice Error="Entry.Error" />
+    }
+</li>
+
+@code {
+    [Parameter]
+    public ChatEntry Entry { get; set; }
+}

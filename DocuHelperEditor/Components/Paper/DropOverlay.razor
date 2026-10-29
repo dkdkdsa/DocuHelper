@@ -1,0 +1,58 @@
+﻿@inherits StoreComponentBase
+
+@if (Workspace.IsDragOver)
+{
+    <div class="drop-layer">
+        <div class="drop-zone">
+            <p class="drop-title">여기에 놓으면 작업 폴더에 복사돼요</p>
+            @if (Workspace.DropCandidates.Count > 0)
+            {
+                <ul class="drop-list">
+                    @foreach (var item in Workspace.DropCandidates)
+                    {
+                        if (item.CanOpen)
+                        {
+                            <li class="row ok">
+                                <span class="ftile @TileClass(item.Type)" aria-hidden="true"><Icon Name="@Glyph(item.Type)" Size="14" Stroke="2.4" /></span>
+                                <span class="row-name">@item.Name</span>
+                                <span class="row-ok"><Icon Name="check" Size="13" Stroke="3" />넣을 수 있어요</span>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="row no">
+                                <span class="row-head">
+                                    <span class="ftile bad" aria-hidden="true"><Icon Name="file" Size="14" Stroke="2.4" /></span>
+                                    <span class="row-name">@item.Name</span>
+                                    <span class="row-no">못 열어요</span>
+                                </span>
+                                @if (!string.IsNullOrEmpty(item.Reason))
+                                {
+                                    <span class="row-reason">@item.Reason</span>
+                                }
+                            </li>
+                        }
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private static string TileClass(DocuType? type) => type switch
+    {
+        DocuType.Excel => "xlsx",
+        DocuType.Word => "docx",
+        DocuType.Ppt => "pptx",
+        _ => "other",
+    };
+
+    private static string Glyph(DocuType? type) => type switch
+    {
+        DocuType.Excel => "sheet",
+        DocuType.Word => "file-text",
+        DocuType.Ppt => "presentation",
+        _ => "file",
+    };
+}

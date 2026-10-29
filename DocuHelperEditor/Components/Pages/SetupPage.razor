@@ -1,0 +1,176 @@
+﻿@page "/setup"
+@inherits StoreComponentBase
+@inject NavigationManager NavigationManager
+
+<div class="setup">
+    <header class="setup-header">
+        <BrandMark Size="26" />
+        <span class="brand-name">문서 도우미</span>
+    </header>
+
+    <main class="setup-main">
+        <section class="card" aria-labelledby="setup-h">
+            <div class="form">
+                <div class="intro">
+                    <h1 id="setup-h">처음 한 번만 설정해요</h1>
+                    <p class="lead">이 컴퓨터에서 도우미를 쓰려면 아래 두 가지만 정하면 돼요.</p>
+                </div>
+
+                <ol class="steps">
+                    <li class="step">
+                        <span class="num" aria-hidden="true">1</span>
+                        <div class="step-body">
+                            <label for="setup-key" class="step-title">도우미 열쇠 (API 키)</label>
+                            <div class="row">
+                                <div class="fld">
+                                    <input id="setup-key" type="@KeyInputType" value="@Settings.ApiKey" autocomplete="off" spellcheck="false" aria-describedby="setup-key-status" @oninput="OnKeyInput" />
+                                    <IconButton Icon="eye" IconSize="18" Label="열쇠 보이기" Pressed="@Settings.IsKeyVisible" OnClick="Settings.ToggleKeyVisible" />
+                                </div>
+                                <ActionButton Kind="ButtonKind.Secondary" Class="tall" Disabled="@VerifyDisabled" OnClick="Settings.VerifyKeyAsync">연결 확인</ActionButton>
+                            </div>
+                            <p id="setup-key-status" class="key-status @KeyStateClass" role="status">
+                                @switch (Settings.KeyState)
+                                {
+                                    case KeyCheckState.Ok:
+                                        <span class="badge" aria-hidden="true"><Icon Name="check" Size="11" Stroke="3.6" /></span>
+                                        <span>연결됐어요</span>
+                                        break;
+                                    case KeyCheckState.Checking:
+                                        <Spinner Size="16" />
+                                        <span>연결되는지 확인하고 있어요…</span>
+                                        break;
+                                    case KeyCheckState.Failed:
+                                        <span class="badge" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
+                                        <span>연결이 안 됐어요. 열쇠가 맞는지 다시 봐 주세요.</span>
+                                        break;
+                                    default:
+                                        <span>열쇠를 붙여 넣고 [연결 확인]을 눌러 주세요.</span>
+                                        break;
+                                }
+                            </p>
+                        </div>
+                    </li>
+                    <li class="step">
+                        <span class="num" aria-hidden="true">2</span>
+                        <div class="step-body">
+                            <span id="setup-folder-l" class="step-title">작업 폴더를 둘 곳</span>
+                            <div class="row">
+                                <p class="folder" role="group" aria-labelledby="setup-folder-l">
+                                    <Icon Name="folder" Size="17" />
+                                    <span class="path">@Settings.WorkspaceRoot</span>
+                                </p>
+                                <ActionButton Kind="ButtonKind.Secondary" Class="tall" OnClick="Settings.ChangeWorkspaceRootAsync">바꾸기</ActionButton>
+                            </div>
+                            <p class="note">넣은 파일은 여기로 복사돼요. 원래 파일은 건드리지 않아요.</p>
+                        </div>
+                    </li>
+                </ol>
+
+                <div class="foot">
+                    <p class="lock">
+                        <Icon Name="lock" Size="16" />
+                        열쇠는 이 컴퓨터에만 암호화해서 저장해요
+                    </p>
+                    <ActionButton Kind="ButtonKind.Primary" Class="start" Disabled="@(!Settings.CanStart || _starting)" OnClick="StartAsync">시작하기</ActionButton>
+                </div>
+            </div>
+
+            <aside class="guide" aria-labelledby="setup-guide-h">
+                <h2 id="setup-guide-h">이렇게 써요</h2>
+                <ul class="howto">
+                    <li>
+                        <span class="pic" aria-hidden="true">
+                            <span class="sheet-back"></span>
+                            <span class="sheet-front"></span>
+                            <span class="sheet-line"></span>
+                            <span class="sheet-line short"></span>
+                        </span>
+                        <span class="how-text">
+                            <span class="how-title">파일을 작업 폴더에 넣어요</span>
+                            <span class="how-detail">엑셀, 워드, 파워포인트를 여러 개 넣어도 돼요</span>
+                        </span>
+                    </li>
+                    <li>
+                        <span class="pic" aria-hidden="true">
+                            <span class="bubble-me"></span>
+                            <span class="bubble-you"></span>
+                        </span>
+                        <span class="how-text">
+                            <span class="how-title">도우미에게 말로 부탁해요</span>
+                            <span class="how-detail">보고 있는 파일과 고른 칸은 알아서 같이 봐요</span>
+                        </span>
+                    </li>
+                    <li>
+                        <span class="pic" aria-hidden="true">
+                            <span class="pic-page"></span>
+                            <span class="pic-hl"></span>
+                            <span class="pic-bar"></span>
+                        </span>
+                        <span class="how-text">
+                            <span class="how-title">형광펜 친 곳을 보고 저장해요</span>
+                            <span class="how-detail">마음에 안 들면 되돌리거나 직접 고치면 돼요</span>
+                        </span>
+                    </li>
+                </ul>
+                <div class="marks">
+                    <h3>종이에 생기는 표시</h3>
+                    <p class="mark"><span class="swatch-hl" aria-hidden="true"></span>형광펜: 도우미가 바꾼 곳</p>
+                    <p class="mark"><span class="swatch-pencil" aria-hidden="true"></span>연필 동그라미: 도우미가 물어보는 곳</p>
+                    <p class="mark"><span class="swatch-bar" aria-hidden="true"><span class="bar"></span></span>왼쪽 막대: 바뀐 줄</p>
+                </div>
+            </aside>
+        </section>
+    </main>
+
+    @if (DevMode.Enabled && string.IsNullOrEmpty(Bare))
+    {
+        <DevScenarioPicker Current="setup" />
+    }
+</div>
+
+@code {
+    private bool _starting;
+
+    [SupplyParameterFromQuery(Name = "scenario")]
+    public string Scenario { get; set; }
+
+    [SupplyParameterFromQuery(Name = "bare")]
+    public string Bare { get; set; }
+
+    private string KeyInputType => Settings.IsKeyVisible ? "text" : "password";
+
+    private bool VerifyDisabled => string.IsNullOrWhiteSpace(Settings.ApiKey) || Settings.KeyState == KeyCheckState.Checking;
+
+    private string KeyStateClass => Settings.KeyState switch
+    {
+        KeyCheckState.Ok => "ok",
+        KeyCheckState.Checking => "checking",
+        KeyCheckState.Failed => "failed",
+        _ => "idle",
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (DevMode.Enabled && !string.IsNullOrEmpty(Scenario) && Scenario != SampleScenarios.Current)
+            SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings);
+    }
+
+    private void OnKeyInput(ChangeEventArgs e) => Settings.SetApiKey(e.Value?.ToString());
+
+    private async Task StartAsync()
+    {
+        if (_starting || !Settings.CanStart)
+            return;
+
+        _starting = true;
+        try
+        {
+            await Settings.SaveAsync();
+            NavigationManager.NavigateTo("");
+        }
+        finally
+        {
+            _starting = false;
+        }
+    }
+}

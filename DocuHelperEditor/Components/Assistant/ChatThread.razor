@@ -1,0 +1,25 @@
+﻿@inherits StoreComponentBase
+
+<div class="scroll" inert="@IsCovered">
+    <ol class="thread" aria-label="대화 내용">
+        @foreach (var entry in Assistant.Entries)
+        {
+            switch (entry.Kind)
+            {
+                case ChatEntryKind.Time:
+                    <li class="time" @key="entry">@entry.Text</li>
+                    break;
+                case ChatEntryKind.User:
+                    <UserMessage @key="entry" Entry="entry" />
+                    break;
+                default:
+                    <AssistantMessage @key="entry" Entry="entry" />
+                    break;
+            }
+        }
+    </ol>
+</div>
+
+@code {
+    private bool IsCovered => Assistant.IsPopupOpen && Assistant.PendingQuestion != null;
+}

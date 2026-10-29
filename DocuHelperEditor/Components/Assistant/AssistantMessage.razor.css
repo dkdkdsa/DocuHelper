@@ -1,0 +1,59 @@
+.msg {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.who {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.name {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.text {
+    margin: 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.asked {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--well);
+}
+
+.asked-glyph {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px dashed var(--ink);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.asked-body {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.5;
+}
+
+.asked-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+}

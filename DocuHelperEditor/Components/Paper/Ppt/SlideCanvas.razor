@@ -1,0 +1,188 @@
+﻿@using System.Globalization
+@using DocuHelperEditor.State.Papers
+
+@if (Slide != null)
+{
+    <div class="slide @LayoutClass" @onclick="OnClearSelection">
+        @if (TitleBox != null)
+        {
+            @Frame(TitleBox)
+        }
+        @if (Slide.Layout == SlideLayout.Content)
+        {
+            <span class="rule" aria-hidden="true"></span>
+            <div class="row">
+                @if (BodyBox != null)
+                {
+                    @Frame(BodyBox)
+                }
+                @if (Chart != null && Chart.Kind == SlideChartKind.Column)
+                {
+                    <figure class="chart cols" aria-label="@Chart.Label">
+                        @foreach (var bar in Chart.Bars)
+                        {
+                            <span class="col">
+                                <span class="col-track" aria-hidden="true"><span class="col-bar @TopClass(bar)" style="@ColumnStyle(bar)"></span></span>
+                                <span class="col-label">@bar.Label</span>
+                            </span>
+                        }
+                    </figure>
+                }
+                else if (Chart != null)
+                {
+                    <figure class="chart bars" aria-label="@Chart.Label">
+                        @foreach (var bar in Chart.Bars)
+                        {
+                            <span class="bar-row"><span class="bar-label">@bar.Label</span><span class="bar @TopClass(bar)" style="@BarStyle(bar)" aria-hidden="true"></span></span>
+                        }
+                    </figure>
+                }
+            </div>
+            <div class="foot"><span>@Footer</span><span>@Number</span></div>
+        }
+        @if (SubtitleBox != null && Slide.Layout == SlideLayout.Cover)
+        {
+            @Frame(SubtitleBox)
+        }
+    </div>
+    if (Slide.FitChecked)
+    {
+        <p class="fit"><Icon Name="check" Size="14" Stroke="2.6" />글이 상자 안에 다 들어가요. 글자 크기는 그대로예요.</p>
+    }
+}
+
+@code {
+    [Parameter]
+    public SlideModel Slide { get; set; }
+
+    [Parameter]
+    public int Number { get; set; }
+
+    [Parameter]
+    public string Footer { get; set; }
+
+    [Parameter]
+    public string SelectedBoxId { get; set; }
+
+    [Parameter]
+    public string HighlightId { get; set; }
+
+    [Parameter]
+    public HashSet<string> LiveChanges { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public EventCallback<SlideBoxModel> OnSelectBox { get; set; }
+
+    [Parameter]
+    public EventCallback OnClearSelection { get; set; }
+
+    [Parameter]
+    public EventCallback<SlideBoxModel> OnBoxEdited { get; set; }
+
+    private SlideBoxModel TitleBox => Slide?.FindBox(SlideBoxKind.Title);
+
+    private SlideBoxModel SubtitleBox => Slide?.FindBox(SlideBoxKind.Subtitle);
+
+    private SlideBoxModel BodyBox => Slide?.FindBox(SlideBoxKind.Body);
+
+    private SlideChartModel Chart => Slide?.Chart != null && Slide.Chart.HasBars ? Slide.Chart : null;
+
+    private string LayoutClass => Slide?.Layout switch
+    {
+        SlideLayout.Cover => "cover",
+        SlideLayout.Closing => "closing",
+        _ => null,
+    };
+
+    private RenderFragment Frame(SlideBoxModel box) => @<div class="@FrameClass(box)" data-change="@LiveChangeOf(box)" @onclick="() => SelectBox(box)" @onclick:stopPropagation="true">
+        @if (box.Id == SelectedBoxId)
+        {
+            <span class="handle tl" aria-hidden="true"></span>
+            <span class="handle tr" aria-hidden="true"></span>
+            <span class="handle bl" aria-hidden="true"></span>
+            <span class="handle br" aria-hidden="true"></span>
+        }
+        <SlideTextBox @key="box" Tag="@TagOf(box)" Class="@TextClass(box)" Style="@TextStyle(box)" Lines="box.Lines" Highlighted="IsLit(box)" ChangeId="@box.ChangeId" Framed="true" Editable="!Locked" OnFocus="() => SelectBox(box)" OnEdit="lines => EditBox(box, lines)" />
+    </div>;
+
+    private string FrameClass(SlideBoxModel box)
+    {
+        var css = "box";
+        if (box.Kind == SlideBoxKind.Body && Chart != null)
+            css += " beside";
+
+        if (box.Id == SelectedBoxId)
+            css += " on";
+
+        if (box.IsEmpty)
+            css += " empty";
+
+        return css;
+    }
+
+    private string LiveChangeOf(SlideBoxModel box) =>
+        !string.IsNullOrEmpty(box.ChangeId) && LiveChanges != null && LiveChanges.Contains(box.ChangeId) ? box.ChangeId : null;
+
+    private bool IsLit(SlideBoxModel box) =>
+        !string.IsNullOrEmpty(HighlightId) && box.ChangeId == HighlightId && !box.MarkCleared;
+
+    private static string TagOf(SlideBoxModel box) => box.Kind switch
+    {
+        SlideBoxKind.Title => "h2",
+        SlideBoxKind.Body => "ul",
+        _ => "p",
+    };
+
+    private static string TextClass(SlideBoxModel box)
+    {
+        var css = box.Kind switch
+        {
+            SlideBoxKind.Title => "title",
+            SlideBoxKind.Body => "body",
+            _ => "subtitle",
+        };
+
+        return box.Underline ? css + " u" : css;
+    }
+
+    private static string TextStyle(SlideBoxModel box)
+    {
+        var style = $"font-size: {box.FontSize}px; font-weight: {(box.Bold ? 700 : 400)}";
+        if (box.Italic)
+            style += "; font-style: italic";
+
+        if (box.Align == SlideTextAlign.Center)
+        {
+            style += "; text-align: center";
+            if (box.Kind == SlideBoxKind.Body)
+                style += "; list-style-position: inside; padding-left: 0";
+        }
+
+        return style;
+    }
+
+    private string TopClass(SlideChartBar bar) => Chart != null && Chart.IsTop(bar) ? "top" : null;
+
+    private string BarStyle(SlideChartBar bar)
+    {
+        var ratio = Chart?.RatioOf(bar) ?? 0;
+        return string.Format(CultureInfo.InvariantCulture, "width: {0:0.#}%; max-width: {1:0}px", ratio * 100, Math.Round(ratio * 120));
+    }
+
+    private string ColumnStyle(SlideChartBar bar)
+    {
+        var ratio = Chart?.RatioOf(bar) ?? 0;
+        return string.Format(CultureInfo.InvariantCulture, "height: {0:0.#}%", ratio * 100);
+    }
+
+    private Task SelectBox(SlideBoxModel box) => OnSelectBox.InvokeAsync(box);
+
+    private Task EditBox(SlideBoxModel box, List<string> lines)
+    {
+        box.Lines = lines;
+        return OnBoxEdited.InvokeAsync(box);
+    }
+}
