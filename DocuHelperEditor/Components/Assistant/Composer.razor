@@ -86,7 +86,7 @@
                 </ul>
             }
             <label class="sr-only" for="composer-input">도우미에게 보낼 말</label>
-            <textarea id="composer-input" class="input" rows="2" placeholder="@Placeholder" disabled="@IsWorking" data-region-focus="@RegionFocus" value="@Assistant.Draft" @ref="_input" @oninput="OnInput" @onkeydown="OnKeyDownAsync"></textarea>
+            <textarea id="composer-input" class="input" rows="2" placeholder="@Placeholder" disabled="@IsWorking" data-region-focus="@RegionFocus" @ref="_input" @oninput="OnInput" @onkeydown="OnKeyDownAsync"></textarea>
             <div class="bar">
                 <IconButton Icon="paperclip" Label="파일 더하기" Title="파일 더하기 · 그림은 Ctrl+V로 붙여 넣어도 돼요" IconSize="18" OnClick="AddFilesAsync" />
                 <button type="button" id="composer-model-btn" class="pick" aria-label="@($"모델 {Settings.Model.Name}")" aria-expanded="@(OpenMenu == ModelMenu ? "true" : "false")" aria-controls="composer-model-pop" disabled="@PickDisabled" @onclick="ToggleModel">
@@ -117,6 +117,7 @@
     private IJSObjectReference _files;
     private bool _enterGuarded;
     private bool _dropNextInput;
+    private string _shownDraft = string.Empty;
     private string _menu;
 
     private IReadOnlyList<ContextChipModel> Chips => Assistant.ContextChips;
@@ -147,18 +148,37 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (firstRender)
+        {
+            try
+            {
+                _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+                await _module.InvokeVoidAsync("guardEnter", _input);
+                _enterGuarded = true;
+            }
+            catch (JSException)
+            {
+                _enterGuarded = false;
+            }
+        }
+
+        await ShowDraftAsync();
+    }
+
+    private async Task ShowDraftAsync()
+    {
+        var draft = Assistant.Draft ?? string.Empty;
+        if (_module == null || draft == _shownDraft)
             return;
 
+        _shownDraft = draft;
         try
         {
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
-            await _module.InvokeVoidAsync("guardEnter", _input);
-            _enterGuarded = true;
+            await _module.InvokeVoidAsync("setValue", _input, draft);
         }
-        catch (JSException)
+        catch (JSException e)
         {
-            _enterGuarded = false;
+            AppLog.Write("Could not show the draft", e);
         }
     }
 
@@ -202,7 +222,8 @@
             return;
         }
 
-        Assistant.SetDraft(e.Value?.ToString());
+        _shownDraft = e.Value?.ToString() ?? string.Empty;
+        Assistant.SetDraft(_shownDraft);
     }
 
     private async Task OnKeyDownAsync(KeyboardEventArgs e)

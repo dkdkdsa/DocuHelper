@@ -37,6 +37,43 @@ window.docuHelper = (function () {
     document.addEventListener('dragover', blockFileDrop);
     document.addEventListener('drop', blockFileDrop);
 
+    var composing = null;
+    var typed = new WeakMap();
+    var echoWindowMs = 1000;
+
+    document.addEventListener('compositionstart', function (e) { composing = e.target; }, true);
+    document.addEventListener('compositionend', function () { composing = null; }, true);
+    document.addEventListener('input', function (e) {
+        var el = e.target;
+        if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
+        var now = Date.now();
+        var list = (typed.get(el) || []).filter(function (t) { return now - t.at < echoWindowMs; });
+        list.push({ text: el.value, at: now });
+        typed.set(el, list);
+    }, true);
+
+    function isLateEcho(el, text) {
+        var now = Date.now();
+        var list = typed.get(el);
+        if (!list) return false;
+        return list.some(function (t) { return t.text === text && now - t.at < echoWindowMs; });
+    }
+
+    [window.HTMLInputElement, window.HTMLTextAreaElement].forEach(function (type) {
+        var value = Object.getOwnPropertyDescriptor(type.prototype, 'value');
+        Object.defineProperty(type.prototype, 'value', {
+            configurable: true,
+            enumerable: value.enumerable,
+            get: function () { return value.get.call(this); },
+            set: function (text) {
+                var next = text == null ? '' : String(text);
+                if (this === composing || next === value.get.call(this) || isLateEcho(this, next)) return;
+                typed.delete(this);
+                value.set.call(this, next);
+            }
+        });
+    });
+
     return {
         registerShortcuts: function (dotnet) {
             if (handler) document.removeEventListener('keydown', handler);
