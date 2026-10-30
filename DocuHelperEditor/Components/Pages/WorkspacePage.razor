@@ -51,7 +51,7 @@
     [SupplyParameterFromQuery(Name = "bare")]
     public string Bare { get; set; }
 
-    private bool IsBlocked => Workspace.PendingClose != null || Workspace.IsNewFileOpen;
+    private bool IsBlocked => Workspace.PendingClose != null || Workspace.IsNewFileOpen || Settings.IsDialogOpen;
 
     protected override void OnParametersSet()
     {
@@ -77,7 +77,7 @@
             return;
         }
 
-        if (!Workspace.IsReady)
+        if (!Workspace.IsReady && !(Settings.OpenLastFolder && Workspace.OpenLastFolderOnce()))
             Navigation.NavigateTo("home");
     }
 

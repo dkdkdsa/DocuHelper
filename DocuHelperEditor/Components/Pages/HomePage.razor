@@ -3,18 +3,18 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
-<div class="home">
-    <header class="home-header">
+<div class="home" inert="@Settings.IsDialogOpen">
+    <header class="home-header" data-chrome>
         <BrandMark Size="26" />
         <span class="brand-name">문서 도우미</span>
         <div class="header-actions">
             <UpdateButton />
-            <ActionButton Kind="ButtonKind.Ghost" Icon="settings" OnClick="OpenSettings">설정</ActionButton>
+            <ActionButton Kind="ButtonKind.Ghost" Icon="settings" id="home-settings" aria-haspopup="dialog" OnClick="OpenSettings">설정</ActionButton>
         </div>
     </header>
 
     <main class="home-main">
-        <div class="inner">
+        <div class="inner" data-chrome>
             <div class="intro">
                 <h1>어떤 작업 폴더를 열까요?</h1>
                 <p class="lead">같이 볼 파일을 작업 폴더 하나에 모아 두고 일해요. 한 번 연 폴더는 여기에 남아요.</p>
@@ -220,7 +220,7 @@
         Workspace.RefreshRecents();
     }
 
-    private void OpenSettings() => Navigation.NavigateTo("setup");
+    private void OpenSettings() => Settings.OpenDialog("#home-settings");
 
     private void OpenRecent(RecentFolderItem item)
     {

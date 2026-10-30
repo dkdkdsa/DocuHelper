@@ -15,6 +15,7 @@ namespace DocuHelperEditor.State
         private const string HelperFolder = ".문서도우미";
 
         private readonly List<RecentFolderItem> _recents = new();
+        private bool _triedLastFolder;
 
         public IReadOnlyList<RecentFolderItem> RecentFolders => _recents;
 
@@ -84,6 +85,37 @@ namespace DocuHelperEditor.State
 
             OpenWorkspace(path);
             return true;
+        }
+
+        public bool OpenLastFolderOnce()
+        {
+            if (IsReady)
+                return true;
+
+            if (_triedLastFolder)
+                return false;
+
+            _triedLastFolder = true;
+            var last = _registry.Items.FirstOrDefault(w => Directory.Exists(w.Path));
+            if (last == null)
+                return false;
+
+            try
+            {
+                OpenWorkspace(last.Path);
+                return true;
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                AppLog.Write($"Could not open the last folder {last.Path}", e);
+                return false;
+            }
+        }
+
+        public void ClearRecents()
+        {
+            _registry.Clear();
+            RefreshRecents();
         }
 
         public void ForgetRecent(string path)

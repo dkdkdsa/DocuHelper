@@ -44,6 +44,12 @@ namespace DocuHelperEditor.Services
             Write();
         }
 
+        public void Clear()
+        {
+            _items = new List<RecentWorkspace>();
+            Write();
+        }
+
         public void Relocate(string path, string newPath)
         {
             _items ??= Read();

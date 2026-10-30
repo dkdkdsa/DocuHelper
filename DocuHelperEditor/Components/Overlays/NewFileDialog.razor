@@ -2,7 +2,7 @@
 @inject IJSRuntime JS
 
 <div class="scrim">
-    <dialog open class="dialog" aria-modal="true" aria-labelledby="new-file-h" @onkeydown="OnKeyDownAsync">
+    <dialog open class="dialog" data-chrome aria-modal="true" aria-labelledby="new-file-h" @onkeydown="OnKeyDownAsync">
         <div class="head">
             <span class="badge" aria-hidden="true"><Icon Name="file-lines" Size="18" /></span>
             <h2 id="new-file-h">새 파일 만들기</h2>

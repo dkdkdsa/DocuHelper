@@ -150,6 +150,9 @@ namespace DocuHelper.Agents
             if (!string.IsNullOrWhiteSpace(_request.Selection))
                 text.AppendLine($"The user has selected: {_request.Selection}");
 
+            if (!_request.AskBigChanges)
+                text.AppendLine("The user turned off big-change checks: don't ask big_change questions, just make the changes.");
+
             if (_request.Attachments.Count > 0)
                 text.AppendLine($"Attached to this message: {string.Join(", ", _request.Attachments.Select(a => a.Name))}");
 

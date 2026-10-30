@@ -2,7 +2,7 @@
 @inject IFileDialogService FileDialog
 @inject IJSRuntime JS
 
-<aside class="rail" aria-label="작업 폴더, 접힘" data-region="folder">
+<aside class="rail" aria-label="작업 폴더, 접힘" data-region="folder" data-chrome>
     <IconButton Icon="panel-left-open" IconSize="18" Label="파일 목록 펼치기" id="folder-files-open" aria-expanded="false" OnClick="Expand" />
     <span class="divider" aria-hidden="true"></span>
     @if (Workspace.Files.Count > 0)
