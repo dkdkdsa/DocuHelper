@@ -3,7 +3,7 @@
 
 <div class="toolbar" @onmousedown:preventDefault="true">
     <IconButton Icon="undo" IconSize="18" Label="되돌리기" Title="되돌리기 (Ctrl+Z)" OnClick="Workspace.UndoAsync" />
-    <IconButton Icon="redo" IconSize="18" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" />
+    <IconButton Icon="redo" IconSize="18" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" Disabled="@(!Workspace.CanRedo)" OnClick="Workspace.RedoAsync" />
     <ToolbarDivider />
     <IconButton Label="글자 작게" Disabled="!CanFormat" OnClick="OnSmaller"><span class="glyph" aria-hidden="true">가<sup>−</sup></span></IconButton>
     <IconButton Label="글자 크게" Disabled="!CanFormat" OnClick="OnBigger"><span class="glyph big" aria-hidden="true">가<sup>+</sup></span></IconButton>

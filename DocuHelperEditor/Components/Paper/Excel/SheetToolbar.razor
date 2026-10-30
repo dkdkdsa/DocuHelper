@@ -2,24 +2,36 @@
 
 <div class="toolbar">
     <IconButton Icon="undo" IconSize="18" Label="되돌리기" Title="되돌리기 (Ctrl+Z)" OnClick="Undo" />
-    <IconButton Icon="redo" IconSize="18" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" />
+    <IconButton Icon="redo" IconSize="18" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" Disabled="@(!CanRedo)" OnClick="Redo" />
     <ToolbarDivider />
     <IconButton Icon="bold" IconSize="18" Stroke="2.4" Label="굵게" Pressed="@IsBold" Disabled="@Locked" OnClick="ToggleBold" />
     <IconButton Icon="italic" IconSize="18" Label="기울임" Pressed="@IsItalic" Disabled="@Locked" OnClick="ToggleItalic" />
     <IconButton Icon="underline" IconSize="18" Label="밑줄" Pressed="@IsUnderline" Disabled="@Locked" OnClick="ToggleUnderline" />
     <ToolbarDivider />
-    <IconButton Label="글자 색" Disabled="@Locked">
-        <span class="swatch-icon" aria-hidden="true">
-            <Icon Name="text-color" Size="16" Stroke="2.2" />
-            <span class="swatch ink"></span>
-        </span>
-    </IconButton>
-    <IconButton Label="칸 색" Disabled="@Locked">
-        <span class="swatch-icon" aria-hidden="true">
-            <Icon Name="fill-color" Size="16" />
-            <span class="swatch hl"></span>
-        </span>
-    </IconButton>
+    <span class="anchor">
+        <IconButton Label="글자 색" Disabled="@Locked" aria-haspopup="true" aria-expanded="@Expanded(FontMenu)" OnClick="() => Toggle(FontMenu)">
+            <span class="swatch-icon" aria-hidden="true">
+                <Icon Name="text-color" Size="16" Stroke="2.2" />
+                <span class="swatch" style="@SwatchStyle(_fontColor)"></span>
+            </span>
+        </IconButton>
+        @if (OpenMenu == FontMenu)
+        {
+            <ColorPalette Title="글자 색" ResetLabel="자동 (검정)" ResetValue="auto" Current="@Cell?.FontColor" OnPick="PickFontColor" OnClose="Close" />
+        }
+    </span>
+    <span class="anchor">
+        <IconButton Label="칸 색" Disabled="@Locked" aria-haspopup="true" aria-expanded="@Expanded(FillMenu)" OnClick="() => Toggle(FillMenu)">
+            <span class="swatch-icon" aria-hidden="true">
+                <Icon Name="fill-color" Size="16" />
+                <span class="swatch fill" style="@SwatchStyle(_fillColor)"></span>
+            </span>
+        </IconButton>
+        @if (OpenMenu == FillMenu)
+        {
+            <ColorPalette Title="칸 색" ResetLabel="채우기 없음" ResetValue="none" Current="@Cell?.FillColor" OnPick="PickFillColor" OnClose="Close" />
+        }
+    </span>
     <ToolbarDivider />
     <IconButton Icon="align-center" IconSize="18" Label="가운데 맞춤" Pressed="@IsCentered" Disabled="@Locked" OnClick="ToggleCenter" />
     <IconButton Label="천 단위 쉼표" Disabled="@Locked" OnClick="ApplyThousands">
@@ -27,11 +39,36 @@
     </IconButton>
     <IconButton Icon="percent" IconSize="17" Label="백분율" Disabled="@Locked" OnClick="ApplyPercent" />
     <ToolbarDivider />
-    <IconButton Icon="sort" IconSize="18" Label="정렬" Disabled="@Locked" />
-    <IconButton Icon="sigma" IconSize="18" Label="자동 합계" Disabled="@Locked" />
+    <span class="anchor">
+        <IconButton Icon="sort" IconSize="18" Label="정렬" Disabled="@Locked" aria-haspopup="true" aria-expanded="@Expanded(SortMenu)" OnClick="() => Toggle(SortMenu)" />
+        @if (OpenMenu == SortMenu)
+        {
+            <div class="menu-scrim" @onclick="Close"></div>
+            <div class="menu sort" role="menu" aria-label="정렬" @onkeydown="OnMenuKeyDown">
+                <p class="menu-note">고른 칸이 있는 표를 그 열 기준으로 정렬해요</p>
+                <button type="button" class="menu-item" role="menuitem" @onclick="() => PickSort(false)">
+                    <span class="menu-main">오름차순</span>
+                    <span class="menu-sub">작은 수부터, ㄱ→ㅎ</span>
+                </button>
+                <button type="button" class="menu-item" role="menuitem" @onclick="() => PickSort(true)">
+                    <span class="menu-main">내림차순</span>
+                    <span class="menu-sub">큰 수부터, ㅎ→ㄱ</span>
+                </button>
+            </div>
+        }
+    </span>
+    <IconButton Icon="sigma" IconSize="18" Label="자동 합계" Title="자동 합계: 바로 위나 왼쪽 숫자를 더해요" Disabled="@Locked" OnClick="AutoSum" />
 </div>
 
 @code {
+    private const string FontMenu = "font";
+    private const string FillMenu = "fill";
+    private const string SortMenu = "sort";
+
+    private string _menu;
+    private string _fontColor = "FF0000";
+    private string _fillColor = "FFFF00";
+
     [Parameter]
     public SheetCell Cell { get; set; }
 
@@ -42,10 +79,30 @@
     public bool Locked { get; set; }
 
     [Parameter]
+    public bool CanRedo { get; set; }
+
+    [Parameter]
     public EventCallback OnUndo { get; set; }
 
     [Parameter]
+    public EventCallback OnRedo { get; set; }
+
+    [Parameter]
     public EventCallback<string> OnToggle { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnFontColor { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnFillColor { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnSort { get; set; }
+
+    [Parameter]
+    public EventCallback OnAutoSum { get; set; }
+
+    private string OpenMenu => Locked ? null : _menu;
 
     private bool IsBold => Cell != null ? Cell.IsBoldIn(RowKind) : RowKind != SheetRowKind.Normal;
 
@@ -55,7 +112,49 @@
 
     private bool IsCentered => Cell?.Align == SheetAlign.Center;
 
+    private string Expanded(string menu) => OpenMenu == menu ? "true" : "false";
+
+    private static string SwatchStyle(string color) => "background-color: #" + color;
+
+    private void Toggle(string menu) => _menu = _menu == menu ? null : menu;
+
+    private void Close() => _menu = null;
+
+    private void OnMenuKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            Close();
+    }
+
+    private Task PickFontColor(string color)
+    {
+        _menu = null;
+        if (color != "auto")
+            _fontColor = color;
+
+        return OnFontColor.InvokeAsync(color);
+    }
+
+    private Task PickFillColor(string color)
+    {
+        _menu = null;
+        if (color != "none")
+            _fillColor = color;
+
+        return OnFillColor.InvokeAsync(color);
+    }
+
+    private Task PickSort(bool descending)
+    {
+        _menu = null;
+        return OnSort.InvokeAsync(descending);
+    }
+
     private Task Undo() => OnUndo.InvokeAsync();
+
+    private Task Redo() => OnRedo.InvokeAsync();
+
+    private Task AutoSum() => OnAutoSum.InvokeAsync();
 
     private Task ToggleBold() => OnToggle.InvokeAsync("bold");
 

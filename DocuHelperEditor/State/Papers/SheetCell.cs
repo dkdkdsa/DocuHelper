@@ -24,6 +24,10 @@ namespace DocuHelperEditor.State.Papers
 
         public bool Underline { get; set; }
 
+        public string FontColor { get; set; }
+
+        public string FillColor { get; set; }
+
         public SheetAlign Align { get; set; }
 
         public SheetNumberFormat NumberFormat { get; set; }

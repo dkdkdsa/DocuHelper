@@ -56,6 +56,43 @@ namespace DocuHelper
 
         public byte[] Read(HistoryEntry entry) => File.ReadAllBytes(entry.Path);
 
+        public void Rename(string oldName, string newName)
+        {
+            var source = Path.Combine(_root, oldName);
+            var target = Path.Combine(_root, newName);
+            if (!Directory.Exists(source) || string.Equals(source, target, StringComparison.Ordinal))
+                return;
+
+            try
+            {
+                if (string.Equals(source, target, StringComparison.OrdinalIgnoreCase))
+                {
+                    var step = source + "." + Guid.NewGuid().ToString("N");
+                    Directory.Move(source, step);
+                    Directory.Move(step, target);
+                    return;
+                }
+
+                if (!Directory.Exists(target))
+                {
+                    Directory.Move(source, target);
+                    return;
+                }
+
+                foreach (var file in Directory.EnumerateFiles(source))
+                {
+                    var moved = Path.Combine(target, Path.GetFileName(file));
+                    if (!File.Exists(moved))
+                        File.Move(file, moved);
+                }
+
+                Directory.Delete(source, true);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+            }
+        }
+
         public void Forget(string fileName)
         {
             var folder = Path.Combine(_root, fileName);

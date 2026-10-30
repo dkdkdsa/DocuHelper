@@ -31,6 +31,54 @@
     anchor-name: --file-menu;
 }
 
+.item.renaming {
+    cursor: default;
+}
+
+.rename-box {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.rename {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    padding: 0 8px;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.rename:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--hl-soft);
+}
+
+.rename[aria-invalid="true"] {
+    border-color: var(--warn);
+}
+
+.ext {
+    flex: none;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.rename-error {
+    margin: 4px 10px 6px 48px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--warn);
+}
+
 .name {
     font-size: 14px;
     font-weight: 500;

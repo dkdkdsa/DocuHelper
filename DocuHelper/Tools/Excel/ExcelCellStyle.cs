@@ -10,6 +10,10 @@
 
         public bool Underline { get; set; }
 
+        public string FontColor { get; set; }
+
+        public string FillColor { get; set; }
+
         public string Horizontal { get; set; }
 
         public uint NumberFormatId { get; set; }

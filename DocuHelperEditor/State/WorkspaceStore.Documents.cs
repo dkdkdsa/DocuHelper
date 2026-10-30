@@ -25,9 +25,13 @@ namespace DocuHelperEditor.State
 
         public bool IsReady { get; private set; }
 
+        public string RenamingFileId { get; private set; }
+
         public string AskingFileId { get; private set; }
 
         public bool CanUndo => IsReady && _workspace.CanUndo;
+
+        public bool CanRedo => IsReady && _workspace.CanRedo;
 
         public bool IsLiveChange(string changeId) => _files.Any(f => f.Changes.Any(c => c.Id == changeId));
 
@@ -46,6 +50,7 @@ namespace DocuHelperEditor.State
             HasSavedAll = false;
             PendingClose = null;
             AskingFileId = null;
+            RenamingFileId = null;
 
             _workspace.OpenFolder(folderPath);
             FolderPath = _workspace.FolderPath;
@@ -252,6 +257,14 @@ namespace DocuHelperEditor.State
             return Task.CompletedTask;
         }
 
+        public Task RedoAsync()
+        {
+            if (IsReady && !_workspace.IsAgentRunning)
+                _workspace.Redo();
+
+            return Task.CompletedTask;
+        }
+
 
         public async Task SaveCopyAsync(string fileId)
         {
@@ -274,7 +287,69 @@ namespace DocuHelperEditor.State
             }
         }
 
-        public Task RenameFileAsync(string fileId) => Task.CompletedTask;
+        public Task RenameFileAsync(string fileId)
+        {
+            var file = FindFile(fileId);
+            if (file?.Docu == null || file.Docu.IsLocked)
+                return Task.CompletedTask;
+
+            RenamingFileId = fileId;
+            Notify();
+            return Task.CompletedTask;
+        }
+
+        public string Rename(string fileId, string name)
+        {
+            var file = FindFile(fileId);
+            if (file?.Docu == null)
+            {
+                CancelRename();
+                return null;
+            }
+
+            try
+            {
+                _workspace.Rename(file.Docu, name);
+            }
+            catch (InvalidOperationException e)
+            {
+                return e.Message;
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                AppLog.Write($"Rename failed for {file.Name}", e);
+                return $"‘{file.Name}’ 파일이 다른 프로그램에서 열려 있어서 이름을 바꾸지 못했어요. 그 프로그램을 닫고 다시 해 주세요.";
+            }
+
+            RenamingFileId = null;
+            _files.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
+            ReloadHistory();
+            Notify();
+            return null;
+        }
+
+        public void FinishRename(string fileId, string name)
+        {
+            if (RenamingFileId != fileId)
+                return;
+
+            var problem = Rename(fileId, name);
+            if (problem == null)
+                return;
+
+            RenamingFileId = null;
+            RaiseNotice(problem);
+            Notify();
+        }
+
+        public void CancelRename()
+        {
+            if (RenamingFileId == null)
+                return;
+
+            RenamingFileId = null;
+            Notify();
+        }
 
         public Task RemoveFileAsync(string fileId)
         {

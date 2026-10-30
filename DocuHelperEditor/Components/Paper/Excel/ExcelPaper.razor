@@ -7,8 +7,14 @@
     <SheetToolbar Cell="@SelectedCell"
                   RowKind="@SelectedRowKind"
                   Locked="@IsLocked"
+                  CanRedo="@Workspace.CanRedo"
                   OnUndo="Undo"
-                  OnToggle="ToggleFormat" />
+                  OnRedo="Redo"
+                  OnToggle="ToggleFormat"
+                  OnFontColor="ApplyFontColor"
+                  OnFillColor="ApplyFillColor"
+                  OnSort="SortTable"
+                  OnAutoSum="AutoSum" />
     <FormulaBar RefId="@RefId"
                 ContentId="@ContentId"
                 CellRef="@SelectedRef"
@@ -332,6 +338,8 @@
         {
             if (!e.AltKey && !e.ShiftKey && e.Code == "KeyZ")
                 await Workspace.UndoAsync();
+            else if (!e.AltKey && ((!e.ShiftKey && e.Code == "KeyY") || (e.ShiftKey && e.Code == "KeyZ")))
+                await Workspace.RedoAsync();
 
             return;
         }
@@ -582,6 +590,93 @@
     }
 
     private Task Undo() => Workspace.UndoAsync();
+
+    private Task Redo() => Workspace.RedoAsync();
+
+    private void ApplyFontColor(string color) => ApplyColor(new { sheet = CurrentSheet.Name, range = SelectedRef, font_color = color });
+
+    private void ApplyFillColor(string color) => ApplyColor(new { sheet = CurrentSheet.Name, range = SelectedRef, fill_color = color });
+
+    private void ApplyColor(object arguments)
+    {
+        if (IsLocked)
+            return;
+
+        if (IsEditing)
+            CommitEdit();
+
+        _focusSink = true;
+        Edit(EditCommand.Create("format_range", arguments));
+    }
+
+    private void SortTable(bool descending)
+    {
+        if (IsLocked)
+            return;
+
+        if (IsEditing)
+            CommitEdit();
+
+        _focusSink = true;
+        var sheet = CurrentSheet;
+        if (!SheetRef.TryParse(SelectedRef, out var column, out var row))
+            return;
+
+        var region = SheetRegion.Around(sheet, column, row);
+        if (region == null)
+        {
+            _editError = "정렬할 표를 찾지 못했어요. 표 안의 칸을 하나 고른 뒤 눌러 주세요.";
+            return;
+        }
+
+        if (sheet.IsClipped && region.Value.TouchesEdge(sheet))
+        {
+            _editError = "표가 너무 커서 여기서는 정렬할 수 없어요. 도우미에게 정렬해 달라고 부탁해 주세요.";
+            return;
+        }
+
+        var (top, left, bottom, right) = region.Value;
+        if (SheetRegion.StartsWithHeader(sheet, top, left, right, column))
+            top++;
+
+        while (bottom > top && sheet.FindRow(bottom)?.Kind == SheetRowKind.Total)
+            bottom--;
+
+        if (bottom <= top)
+        {
+            _editError = "정렬하려면 표에 두 줄 이상이 있어야 해요.";
+            return;
+        }
+
+        var range = SheetRef.Make(left, top) + ":" + SheetRef.Make(right, bottom);
+        Edit(EditCommand.Create("sort_range", new { sheet = sheet.Name, range, by = SheetRef.ColumnName(column), descending }));
+    }
+
+    private void AutoSum()
+    {
+        if (IsLocked)
+            return;
+
+        if (IsEditing)
+            CommitEdit();
+
+        _focusSink = true;
+        var sheet = CurrentSheet;
+        if (!SheetRef.TryParse(SelectedRef, out var column, out var row))
+            return;
+
+        var plan = SheetRegion.PlanSum(sheet, column, row);
+        if (plan.Problem != null)
+        {
+            _editError = plan.Problem;
+            return;
+        }
+
+        var target = SheetRef.Make(plan.Column, plan.Row);
+        ApplyText(sheet.Name, target, "=SUM(" + plan.Range + ")");
+        if (_editError == null)
+            SelectCell(target, true);
+    }
 
     private async Task RunJsAsync(string identifier, string argument)
     {

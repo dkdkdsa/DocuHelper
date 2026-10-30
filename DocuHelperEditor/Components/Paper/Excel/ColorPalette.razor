@@ -1,0 +1,48 @@
+<div class="menu-scrim" @onclick="Close"></div>
+<div class="menu palette" role="dialog" aria-label="@Title" @onkeydown="OnKeyDown">
+    <button type="button" class="reset @(Current == null ? "on" : null)" @onclick="() => Pick(ResetValue)">
+        <span class="reset-chip" aria-hidden="true"></span>
+        @ResetLabel
+    </button>
+    <div class="swatches">
+        @foreach (var (hex, name) in s_colors)
+        {
+            var on = string.Equals(Current, hex, StringComparison.OrdinalIgnoreCase);
+            <button type="button" class="chip @(on ? "on" : null)" style="background-color: #@hex" aria-label="@name" aria-pressed="@(on ? "true" : "false")" title="@name" @onclick="() => Pick(hex)"></button>
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly (string Hex, string Name)[] s_colors =
+    {
+        ("C00000", "진한 빨강"), ("FF0000", "빨강"), ("FFC000", "주황"), ("FFFF00", "노랑"), ("92D050", "연두"),
+        ("00B050", "초록"), ("00B0F0", "하늘"), ("0070C0", "파랑"), ("002060", "남색"), ("7030A0", "보라"),
+        ("000000", "검정"), ("595959", "진한 회색"), ("A6A6A6", "회색"), ("F2F2F2", "연한 회색"), ("FFFFFF", "흰색"),
+        ("FCE4D6", "연한 주황"), ("FFF2CC", "연한 노랑"), ("E2EFDA", "연한 초록"), ("DDEBF7", "연한 파랑"), ("E4DFEC", "연한 보라"),
+    };
+
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public string ResetLabel { get; set; }
+
+    [Parameter]
+    public string ResetValue { get; set; }
+
+    [Parameter]
+    public string Current { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnPick { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private Task Pick(string value) => OnPick.InvokeAsync(value);
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? Close() : Task.CompletedTask;
+}

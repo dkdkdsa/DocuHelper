@@ -1,42 +1,60 @@
 ﻿@inject WorkspaceStore Workspace
+@inject IJSRuntime JS
 
 <li>
-    <button type="button"
-            class="@ItemClass"
-            aria-current="@(Active ? "page" : null)"
-            data-region-focus="@(RegionFocus ? "true" : null)"
-            @ref="_button"
-            @onclick="Open"
-            @oncontextmenu="OpenMenuAsync"
-            @oncontextmenu:preventDefault="true"
-            @onkeydown="OnKeyDownAsync">
-        <FileTypeIcon Type="@File.Type" Size="28" />
-        @if (string.IsNullOrEmpty(StatusText))
-        {
-            <span class="name solo">@File.Name</span>
-        }
-        else
-        {
-            <span class="text">
-                <span class="name">@File.Name</span>
-                <span class="status">
-                    @if (File.Activity == FileActivity.Asking)
-                    {
-                        <span class="pencil" aria-hidden="true"></span>
-                    }
-                    else if (File.Activity == FileActivity.Editing)
-                    {
-                        <Spinner Size="12" Stroke="2.6" />
-                    }
-                    else if (File.Changes.Count > 0)
-                    {
-                        <span class="swatch" aria-hidden="true"></span>
-                    }
-                    @StatusText
-                </span>
+    @if (Renaming)
+    {
+        <div class="item on renaming">
+            <FileTypeIcon Type="@File.Type" Size="28" />
+            <span class="rename-box">
+                <input id="@InputId" class="rename" value="@_name" aria-label="새 파일 이름" aria-invalid="@(_error != null ? "true" : "false")" aria-describedby="@(_error != null ? ErrorId : null)" autocomplete="off" spellcheck="false" @oninput="OnNameInput" @onkeydown="OnRenameKeyDown" @onblur="OnRenameBlur" />
+                <span class="ext">@Extension</span>
             </span>
+        </div>
+        @if (_error != null)
+        {
+            <p id="@ErrorId" class="rename-error" role="alert">@_error</p>
         }
-    </button>
+    }
+    else
+    {
+        <button type="button"
+                class="@ItemClass"
+                aria-current="@(Active ? "page" : null)"
+                data-region-focus="@(RegionFocus ? "true" : null)"
+                @ref="_button"
+                @onclick="Open"
+                @oncontextmenu="OpenMenuAsync"
+                @oncontextmenu:preventDefault="true"
+                @onkeydown="OnKeyDownAsync">
+            <FileTypeIcon Type="@File.Type" Size="28" />
+            @if (string.IsNullOrEmpty(StatusText))
+            {
+                <span class="name solo">@File.Name</span>
+            }
+            else
+            {
+                <span class="text">
+                    <span class="name">@File.Name</span>
+                    <span class="status">
+                        @if (File.Activity == FileActivity.Asking)
+                        {
+                            <span class="pencil" aria-hidden="true"></span>
+                        }
+                        else if (File.Activity == FileActivity.Editing)
+                        {
+                            <Spinner Size="12" Stroke="2.6" />
+                        }
+                        else if (File.Changes.Count > 0)
+                        {
+                            <span class="swatch" aria-hidden="true"></span>
+                        }
+                        @StatusText
+                    </span>
+                </span>
+            }
+        </button>
+    }
     @if (MenuOpen)
     {
         <FileContextMenu File="File" OnClose="CloseMenuAsync" />
@@ -46,6 +64,10 @@
 @code {
     private ElementReference _button;
     private bool _focusPending;
+    private bool _wasRenaming;
+    private bool _selectPending;
+    private string _name = string.Empty;
+    private string _error;
 
     [Parameter]
     public WorkspaceFile File { get; set; }
@@ -65,6 +87,14 @@
     [Parameter]
     public EventCallback OnMenuClose { get; set; }
 
+    private bool Renaming => Workspace.RenamingFileId == File.Id;
+
+    private string InputId => "rename-" + File.Id;
+
+    private string ErrorId => "rename-err-" + File.Id;
+
+    private string Extension => System.IO.Path.GetExtension(File.Name);
+
     private string StatusText => File.StatusText;
 
     private string ItemClass
@@ -82,6 +112,23 @@
         }
     }
 
+    protected override void OnParametersSet()
+    {
+        var renaming = Renaming;
+        if (renaming && !_wasRenaming)
+        {
+            _name = System.IO.Path.GetFileNameWithoutExtension(File.Name);
+            _error = null;
+            _selectPending = true;
+        }
+        else if (!renaming && _wasRenaming)
+        {
+            _error = null;
+        }
+
+        _wasRenaming = renaming;
+    }
+
     private void Open() => Workspace.Open(File.Id);
 
     private Task OpenMenuAsync() => MenuOpen ? Task.CompletedTask : OnMenuOpen.InvokeAsync(File.Id);
@@ -91,7 +138,40 @@
         if (e.Key == "ContextMenu" || (e.Key == "F10" && e.ShiftKey))
             return OpenMenuAsync();
 
+        if (e.Key == "F2")
+            return Workspace.RenameFileAsync(File.Id);
+
         return Task.CompletedTask;
+    }
+
+    private void OnNameInput(ChangeEventArgs e)
+    {
+        _name = e.Value?.ToString() ?? string.Empty;
+        _error = null;
+    }
+
+    private void OnRenameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.IsComposing)
+            return;
+
+        if (e.Key == "Enter")
+        {
+            _error = Workspace.Rename(File.Id, _name);
+            if (_error == null)
+                _focusPending = true;
+        }
+        else if (e.Key == "Escape")
+        {
+            _focusPending = true;
+            Workspace.CancelRename();
+        }
+    }
+
+    private void OnRenameBlur()
+    {
+        if (Renaming)
+            Workspace.FinishRename(File.Id, _name);
     }
 
     private async Task CloseMenuAsync(bool returnFocus)
@@ -102,7 +182,14 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_focusPending || MenuOpen)
+        if (_selectPending && Renaming)
+        {
+            _selectPending = false;
+            await JS.InvokeVoidAsync("docuHelper.selectText", "#" + InputId);
+            return;
+        }
+
+        if (!_focusPending || MenuOpen || Renaming)
             return;
 
         _focusPending = false;
