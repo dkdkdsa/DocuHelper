@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,6 +13,10 @@ namespace DocuHelper.Agents
             throw new NotSupportedException("ChatGPT 도우미는 아직 준비 중이에요.");
 
         public override void ResetConversation()
+        {
+        }
+
+        public override void RestoreConversation(IReadOnlyList<AgentTurn> turns)
         {
         }
 

@@ -15,5 +15,7 @@ namespace DocuHelperEditor.State
         public bool IsSaved { get; set; }
 
         public string SavedAt { get; set; }
+
+        public bool IsArchived { get; set; }
     }
 }

@@ -21,6 +21,8 @@ namespace DocuHelperEditor.State
 
         public event Action<string> NoticeRaised;
 
+        public event Action FolderOpened;
+
         public bool IsReady { get; private set; }
 
         public string AskingFileId { get; private set; }
@@ -48,6 +50,7 @@ namespace DocuHelperEditor.State
             _workspace.OpenFolder(folderPath);
             FolderPath = _workspace.FolderPath;
             FolderName = Path.GetFileName(FolderPath);
+            FolderOpened?.Invoke();
 
             var failed = new List<string>();
             foreach (var path in _workspace.ListFolderFiles())

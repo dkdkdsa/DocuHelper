@@ -70,6 +70,21 @@ h3 {
     background: var(--bubble);
 }
 
+.row.on {
+    background: var(--well);
+    box-shadow: inset 3px 0 0 var(--ink);
+}
+
+.no-file {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-2);
+}
+
 .text {
     flex: 1;
     min-width: 0;

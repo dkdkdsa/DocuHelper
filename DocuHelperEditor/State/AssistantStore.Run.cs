@@ -238,6 +238,7 @@ namespace DocuHelperEditor.State
                 _working = null;
                 _workspace.SetAskingFile(null);
                 Notify();
+                await SaveConversationAsync();
             }
         }
 
@@ -253,6 +254,7 @@ namespace DocuHelperEditor.State
             ClearQuestion();
             Status = AssistantStatus.Idle;
             Notify();
+            _ = SaveConversationAsync();
         }
 
         private void ContinueAfterAnswer(string text)

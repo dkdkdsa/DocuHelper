@@ -25,8 +25,15 @@
                     @foreach (var item in _items)
                     {
                         <li @key="item.Id">
-                            <button type="button" class="row" @onclick="() => OpenAsync(item)">
-                                <FileTypeIcon Type="@item.FileType" Size="20" />
+                            <button type="button" class="row @(item.Id == Assistant.ConversationId ? "on" : null)" aria-current="@(item.Id == Assistant.ConversationId ? "true" : null)" @onclick="() => OpenAsync(item)">
+                                @if (item.FileType.HasValue)
+                                {
+                                    <FileTypeIcon Type="@item.FileType.Value" Size="20" />
+                                }
+                                else
+                                {
+                                    <span class="no-file" aria-hidden="true"><Icon Name="file" Size="16" /></span>
+                                }
                                 <span class="text">
                                     <span class="title">@item.Title</span>
                                     <span class="meta">@Meta(item)</span>
@@ -80,7 +87,7 @@
         IReadOnlyList<ConversationSummary> items;
         try
         {
-            items = await Conversations.ListRecentAsync(10);
+            items = await Conversations.ListRecentAsync(Workspace.FolderPath, 20);
         }
         catch (Exception)
         {

@@ -10,7 +10,7 @@ namespace DocuHelperEditor.State
 
         public string FileName { get; set; }
 
-        public DocuType FileType { get; set; }
+        public DocuType? FileType { get; set; }
 
         public string When { get; set; }
     }

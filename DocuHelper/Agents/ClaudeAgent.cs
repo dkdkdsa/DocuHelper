@@ -137,6 +137,35 @@ namespace DocuHelper.Agents
             _attachedImages = 0;
         }
 
+        public override void RestoreConversation(IReadOnlyList<AgentTurn> turns)
+        {
+            ResetConversation();
+
+            var merged = new List<AgentTurn>();
+            foreach (var turn in turns ?? Array.Empty<AgentTurn>())
+            {
+                if (turn == null || string.IsNullOrWhiteSpace(turn.Text) || (merged.Count == 0 && !turn.IsUser))
+                    continue;
+
+                var last = merged.LastOrDefault();
+                if (last != null && last.IsUser == turn.IsUser)
+                    last.Text += "\n\n" + turn.Text.Trim();
+                else
+                    merged.Add(new AgentTurn { IsUser = turn.IsUser, Text = turn.Text.Trim() });
+            }
+
+            while (merged.Count > 0 && merged[^1].IsUser)
+                merged.RemoveAt(merged.Count - 1);
+
+            foreach (var turn in merged)
+            {
+                var content = new List<BetaContentBlockParam> { new BetaTextBlockParam { Text = turn.Text } };
+                _messages.Add(turn.IsUser
+                    ? new BetaUserMessageParam { Content = content }
+                    : new BetaAssistantMessageParam { Content = content });
+            }
+        }
+
         public override async Task VerifyKeyAsync(string apiKey, CancellationToken cancellationToken)
         {
             var client = CreateClient(apiKey);

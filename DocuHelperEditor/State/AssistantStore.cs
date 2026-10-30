@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DocuHelper.Docus;
+using DocuHelperEditor.Services;
 
 namespace DocuHelperEditor.State
 {
@@ -25,13 +26,16 @@ namespace DocuHelperEditor.State
 
         private readonly WorkspaceStore _workspace;
         private readonly SettingsStore _settings;
+        private readonly IConversationRepository _conversations;
         private readonly List<ChatEntry> _entries = new();
 
-        public AssistantStore(WorkspaceStore workspace, SettingsStore settings)
+        public AssistantStore(WorkspaceStore workspace, SettingsStore settings, IConversationRepository conversations)
         {
             _workspace = workspace;
             _settings = settings;
+            _conversations = conversations;
             _workspace.NoticeRaised += OnNotice;
+            _workspace.FolderOpened += OnFolderOpened;
         }
 
         public event Action Changed;
@@ -166,6 +170,7 @@ namespace DocuHelperEditor.State
 
             var prompt = Draft.Trim();
             var attachments = _attachments.ToList();
+            StartConversation();
             AddTimeMark();
             _entries.Add(new ChatEntry
             {
@@ -289,8 +294,6 @@ namespace DocuHelperEditor.State
             Notify();
         }
 
-        public Task OpenConversationAsync(string conversationId) => Task.CompletedTask;
-
         public void NewConversation()
         {
             if (IsRunning)
@@ -304,6 +307,7 @@ namespace DocuHelperEditor.State
             _attachments.Clear();
             _lastPrompt = null;
             _lastAttachments = new List<AttachmentModel>();
+            ForgetConversation();
             _workspace.Workspace.Agent?.ResetConversation();
             Notify();
         }
