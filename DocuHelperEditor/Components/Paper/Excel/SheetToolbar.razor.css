@@ -21,17 +21,78 @@
     border-radius: 1px;
 }
 
-.swatch.ink {
-    background: currentColor;
-}
-
-.swatch.hl {
-    background: var(--hl);
+.swatch.fill {
     box-shadow: 0 0 0 0.5px var(--hl-edge);
 }
 
-.toolbar ::deep .icon-btn:disabled .swatch.hl {
+.toolbar ::deep .icon-btn:disabled .swatch {
     opacity: 0.45;
+}
+
+.anchor {
+    position: relative;
+    display: inline-flex;
+}
+
+.menu-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+}
+
+.menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 31;
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-popover);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-menu);
+}
+
+.menu-note {
+    margin: 0;
+    padding: 2px 6px 4px;
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.4;
+}
+
+.menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+    background: var(--bubble);
+    outline: none;
+}
+
+.menu-main {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.menu-sub {
+    font-size: 12px;
+    color: var(--ink-2);
 }
 
 .comma {

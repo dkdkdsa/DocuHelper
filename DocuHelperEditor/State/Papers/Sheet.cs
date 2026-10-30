@@ -17,6 +17,8 @@ namespace DocuHelperEditor.State.Papers
 
         public bool IsNew { get; set; }
 
+        public bool IsClipped { get; set; }
+
         public string ChangeId { get; set; }
 
         public string SelectedRef { get; set; } = "A1";

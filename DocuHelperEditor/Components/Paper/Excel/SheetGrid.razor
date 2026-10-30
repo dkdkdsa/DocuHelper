@@ -35,7 +35,7 @@
                             var cell = Sheet.FindCell(rowIndex, columnIndex);
                             var cellRef = SheetRef.Make(columnIndex, rowIndex);
                             var selected = rowIndex == _selectedRow && columnIndex == _selectedColumn;
-                            <td class="@CellClass(cell, row, selected)" @onclick="() => OnCellClick.InvokeAsync(cellRef)" @ondblclick="() => OnCellDoubleClick.InvokeAsync(cellRef)">
+                            <td class="@CellClass(cell, row, selected)" style="@ColorStyle(cell)" @onclick="() => OnCellClick.InvokeAsync(cellRef)" @ondblclick="() => OnCellDoubleClick.InvokeAsync(cellRef)">
                                 @if (selected)
                                 {
                                     var sinkKey = cellRef + "-" + Version;
@@ -232,6 +232,15 @@
             classes.Add("sel");
 
         return classes.Count == 0 ? null : string.Join(" ", classes);
+    }
+
+    private static string ColorStyle(SheetCell cell)
+    {
+        if (cell == null || (cell.FillColor == null && cell.FontColor == null))
+            return null;
+
+        var style = cell.FillColor == null ? string.Empty : "background-color: #" + cell.FillColor + ";";
+        return cell.FontColor == null ? style : style + " color: #" + cell.FontColor + ";";
     }
 
     private string DelayStyle(int rowIndex)

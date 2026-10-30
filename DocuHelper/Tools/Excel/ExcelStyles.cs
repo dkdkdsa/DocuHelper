@@ -18,17 +18,21 @@ namespace DocuHelper.Tools.Excel
         };
 
         private readonly WorkbookPart _workbookPart;
+        private readonly ExcelColors _colors;
         private readonly Dictionary<uint, ExcelCellStyle> _described = new();
         private readonly Dictionary<string, uint> _applied = new(StringComparer.Ordinal);
         private List<CellFormat> _formats;
         private List<Font> _fonts;
+        private List<Fill> _fills;
         private Dictionary<string, uint> _formatKeys;
         private Dictionary<string, uint> _fontKeys;
+        private Dictionary<string, uint> _fillKeys;
         private Dictionary<uint, string> _customCodes;
 
         public ExcelStyles(WorkbookPart workbookPart)
         {
             _workbookPart = workbookPart;
+            _colors = new ExcelColors(workbookPart);
         }
 
         private Stylesheet Stylesheet => _workbookPart?.WorkbookStylesPart?.Stylesheet;
@@ -67,11 +71,16 @@ namespace DocuHelper.Tools.Excel
                 var fontId = format.FontId?.Value ?? 0;
                 var font = fontId < fonts.Count ? fonts[(int)fontId] : null;
                 var numberFormatId = format.NumberFormatId?.Value ?? 0;
+                var fills = Fills();
+                var fillId = format.FillId?.Value ?? 0;
+                var fill = fillId < fills.Count ? fills[(int)fillId] : null;
                 style = new ExcelCellStyle
                 {
                     Bold = font?.Bold != null && IsOn(font.Bold.Val),
                     Italic = font?.Italic != null && IsOn(font.Italic.Val),
                     Underline = font?.Underline != null && (font.Underline.Val == null || font.Underline.Val.InnerText != "none"),
+                    FontColor = _colors.Resolve(font?.Color),
+                    FillColor = FillColor(fill),
                     Horizontal = format.Alignment?.Horizontal?.InnerText,
                     NumberFormatId = numberFormatId,
                     FormatCode = FormatCode(numberFormatId),
@@ -165,6 +174,12 @@ namespace DocuHelper.Tools.Excel
                 format.ApplyFont = true;
             }
 
+            if (change.FillColor != null)
+            {
+                format.FillId = change.FillColor == StyleChange.NoFill ? 0u : AddFill(SolidFill(change.FillColor));
+                format.ApplyFill = true;
+            }
+
             if (change.Horizontal != null)
             {
                 var alignment = format.Alignment;
@@ -231,6 +246,11 @@ namespace DocuHelper.Tools.Excel
                 font.Underline.Val = null;
             else if (change.Underline == false)
                 font.Underline = null;
+
+            if (change.FontColor == StyleChange.AutoColor)
+                font.Color = null;
+            else if (change.FontColor != null)
+                font.Color = new Color { Rgb = "FF" + change.FontColor };
 
             var children = font.ChildElements.ToList();
             var ordered = children.OrderBy(c =>
@@ -300,8 +320,10 @@ namespace DocuHelper.Tools.Excel
         {
             _formats = null;
             _fonts = null;
+            _fills = null;
             _formatKeys = null;
             _fontKeys = null;
+            _fillKeys = null;
             _customCodes = null;
             _described.Clear();
         }
@@ -311,6 +333,42 @@ namespace DocuHelper.Tools.Excel
 
         private List<Font> Fonts() =>
             _fonts ??= Stylesheet?.Fonts?.Elements<Font>().ToList() ?? new List<Font>();
+
+        private List<Fill> Fills() =>
+            _fills ??= Stylesheet?.Fills?.Elements<Fill>().ToList() ?? new List<Fill>();
+
+        private string FillColor(Fill fill)
+        {
+            var pattern = fill?.PatternFill;
+            var type = pattern?.PatternType?.Value;
+            if (pattern == null || type == null || type == PatternValues.None)
+                return null;
+
+            return _colors.Resolve(pattern.ForegroundColor);
+        }
+
+        private static Fill SolidFill(string hex) => new(
+            new PatternFill(
+                new ForegroundColor { Rgb = "FF" + hex },
+                new BackgroundColor { Indexed = 64U })
+            { PatternType = PatternValues.Solid });
+
+        private uint AddFill(Fill fill)
+        {
+            var fills = Fills();
+            _fillKeys ??= BuildKeys(fills);
+            var key = Key(fill);
+            if (_fillKeys.TryGetValue(key, out var existing))
+                return existing;
+
+            var container = Stylesheet.Fills;
+            container.Append(fill);
+            var index = (uint)fills.Count;
+            fills.Add(fill);
+            _fillKeys[key] = index;
+            container.Count = (uint)fills.Count;
+            return index;
+        }
 
         private uint AddFont(Font font)
         {

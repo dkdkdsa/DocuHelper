@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using DocuHelper.Docus;
 
 namespace DocuHelper.Tools.Excel
@@ -8,8 +9,9 @@ namespace DocuHelper.Tools.Excel
         public override string Name => "format_range";
 
         public override string Description =>
-            "Change the look of a range of cells without touching their values: bold, italic, underline, horizontal alignment and number format. "
-            + "Only the properties you pass change; everything else (fonts, fills, borders) stays. "
+            "Change the look of a range of cells without touching their values: bold, italic, underline, font color, fill color, horizontal alignment and number format. "
+            + "Only the properties you pass change; everything else (font name and size, borders) stays. "
+            + "Colors are six-digit hex codes such as \"FF0000\"; font_color \"auto\" goes back to the default text color and fill_color \"none\" removes the fill. "
             + "number_format: \"general\", \"thousands\" (1,234), \"percent\" (12%), or an Excel format code such as \"#,##0원\", \"0.0%\", \"yyyy-mm-dd\".";
 
         public override string InputSchema => """
@@ -21,6 +23,8 @@ namespace DocuHelper.Tools.Excel
                 "bold": {"type": "boolean", "description": "true for bold, false for regular."},
                 "italic": {"type": "boolean"},
                 "underline": {"type": "boolean"},
+                "font_color": {"type": "string", "description": "Text color as a hex code such as \"C00000\", or \"auto\" for the default color."},
+                "fill_color": {"type": "string", "description": "Cell background as a hex code such as \"FFF2CC\", or \"none\" to remove the fill."},
                 "align": {"type": "string", "enum": ["general", "left", "center", "right"], "description": "Horizontal alignment. general goes back to Excel's default (text left, numbers right)."},
                 "number_format": {"type": "string", "description": "\"general\", \"thousands\", \"percent\" or an Excel number format code."}
               },
@@ -40,6 +44,8 @@ namespace DocuHelper.Tools.Excel
                 Bold = input.GetOptionalBool("bold"),
                 Italic = input.GetOptionalBool("italic"),
                 Underline = input.GetOptionalBool("underline"),
+                FontColor = ParseColor(input.GetOptionalString("font_color"), StyleChange.AutoColor, "글자 색"),
+                FillColor = ParseColor(input.GetOptionalString("fill_color"), StyleChange.NoFill, "칸 색"),
             };
 
             var align = input.GetOptionalString("align")?.Trim().ToLowerInvariant();
@@ -64,7 +70,7 @@ namespace DocuHelper.Tools.Excel
             }
 
             if (change.IsEmpty && code == null)
-                throw new ToolInputException("바꿀 서식을 하나 이상 알려 주세요. (bold, italic, underline, align, number_format)");
+                throw new ToolInputException("바꿀 서식을 하나 이상 알려 주세요. (bold, italic, underline, font_color, fill_color, align, number_format)");
 
             sheet.PrepareForWrite();
             if (code != null)
@@ -91,6 +97,22 @@ namespace DocuHelper.Tools.Excel
             return ToolResult.Changed(content, result, $"{range.CellCount}칸");
         }
 
+        private static string ParseColor(string input, string reset, string what)
+        {
+            var value = input?.Trim();
+            if (string.IsNullOrEmpty(value))
+                return null;
+
+            if (string.Equals(value, reset, StringComparison.OrdinalIgnoreCase))
+                return reset;
+
+            var hex = value.TrimStart('#');
+            if (!ExcelColors.IsHex(hex))
+                throw new ToolInputException($"{what}은 \"FF0000\" 같은 여섯 자리 색 코드나 \"{reset}\"{(reset == StyleChange.NoFill ? "으로" : "로")} 알려 주세요. 지금 값: {value}");
+
+            return hex.ToUpperInvariant();
+        }
+
         private static string Summary(StyleChange change, string code)
         {
             var parts = new List<string>();
@@ -102,6 +124,12 @@ namespace DocuHelper.Tools.Excel
 
             if (change.Underline.HasValue)
                 parts.Add(change.Underline.Value ? "underlined" : "no underline");
+
+            if (change.FontColor != null)
+                parts.Add(change.FontColor == StyleChange.AutoColor ? "default font color" : "font color #" + change.FontColor);
+
+            if (change.FillColor != null)
+                parts.Add(change.FillColor == StyleChange.NoFill ? "no fill" : "fill #" + change.FillColor);
 
             if (change.Horizontal != null)
                 parts.Add("align " + change.Horizontal);
@@ -128,6 +156,12 @@ namespace DocuHelper.Tools.Excel
 
             if (change.Underline.HasValue)
                 return "underline";
+
+            if (change.FillColor != null)
+                return "fill-color";
+
+            if (change.FontColor != null)
+                return "text-color";
 
             return change.Horizontal != null ? "align-left" : "pencil";
         }

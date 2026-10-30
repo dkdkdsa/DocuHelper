@@ -74,6 +74,7 @@ namespace DocuHelperEditor.State.Mapping
                 lastColumn = Math.Max(lastColumn, column);
             }
 
+            view.IsClipped = lastRow > MaxRows - 1 || lastColumn > MaxColumns - 2;
             lastRow = Math.Min(lastRow, MaxRows - 1);
             lastColumn = Math.Min(lastColumn, MaxColumns - 2);
             var columnCount = Math.Max(lastColumn + 2, MinColumns);
@@ -182,6 +183,8 @@ namespace DocuHelperEditor.State.Mapping
                 Bold = style.Bold,
                 Italic = style.Italic,
                 Underline = style.Underline,
+                FontColor = style.FontColor,
+                FillColor = style.FillColor,
                 Align = Align(style.Horizontal),
                 NumberFormat = style.IsPercent ? SheetNumberFormat.Percent : style.IsThousands ? SheetNumberFormat.Thousands : SheetNumberFormat.General,
                 ChangeIds = changes.ChangeIds(sheet.Name, entry.Column, entry.Row),

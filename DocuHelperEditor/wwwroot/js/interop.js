@@ -92,6 +92,9 @@ window.docuHelper = (function () {
                 } else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && key === 'z' && !isEditable(e.target)) {
                     e.preventDefault();
                     dotnet.invokeMethodAsync('OnUndoShortcut').catch(function () { });
+                } else if ((e.ctrlKey || e.metaKey) && !e.altKey && ((!e.shiftKey && key === 'y') || (e.shiftKey && key === 'z')) && !isEditable(e.target)) {
+                    e.preventDefault();
+                    dotnet.invokeMethodAsync('OnRedoShortcut').catch(function () { });
                 }
             };
             document.addEventListener('keydown', handler);
@@ -101,6 +104,12 @@ window.docuHelper = (function () {
             handler = null;
         },
         cycleRegion: cycleRegion,
+        selectText: function (selector) {
+            var el = document.querySelector(selector);
+            if (!el) return;
+            el.focus();
+            el.select();
+        },
         focus: function (selector) {
             var el = document.querySelector(selector);
             if (el) el.focus();

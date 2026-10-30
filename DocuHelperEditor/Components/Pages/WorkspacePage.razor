@@ -114,6 +114,9 @@
     public Task OnUndoShortcut() => Workspace.UndoAsync();
 
     [JSInvokable]
+    public Task OnRedoShortcut() => Workspace.RedoAsync();
+
+    [JSInvokable]
     public void OnFilesDragEnter(string[] kinds)
     {
         if (Workspace.CanTakeFiles)

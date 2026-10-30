@@ -3,7 +3,7 @@
 
 <div class="toolbar">
     <IconButton Icon="undo" Label="되돌리기" Title="되돌리기 (Ctrl+Z)" IconSize="18" Disabled="@IsLocked" OnClick="UndoAsync" />
-    <IconButton Icon="redo" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" IconSize="18" Disabled="@IsLocked" />
+    <IconButton Icon="redo" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" IconSize="18" Disabled="@(IsLocked || !Workspace.CanRedo)" OnClick="Workspace.RedoAsync" />
     <ToolbarDivider />
     <label for="@StyleId" class="sr-only">문단 모양</label>
     <select id="@StyleId" class="style" value="@StyleValue" disabled="@(!CanStyle)" @onchange="OnStyleChanged" @key="_styleVersion">

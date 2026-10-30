@@ -22,6 +22,7 @@ namespace DocuHelper
         private readonly List<Docu> _docus = new();
         private readonly Dictionary<DocuType, DocuEditor> _editors = new();
         private readonly List<WorkspaceEdit> _undo = new();
+        private readonly List<WorkspaceEdit> _redo = new();
         private readonly Dictionary<Docu, DocuState> _assistantBaselines = new();
         private readonly List<string> _notes = new();
 
@@ -43,6 +44,8 @@ namespace DocuHelper
 
         public bool CanUndo => _undo.Count > 0 && !IsAgentRunning;
 
+        public bool CanRedo => _redo.Count > 0 && !IsAgentRunning;
+
         public void OpenFolder(string folderPath)
         {
             Directory.CreateDirectory(folderPath);
@@ -52,6 +55,7 @@ namespace DocuHelper
 
             _docus.Clear();
             _undo.Clear();
+            _redo.Clear();
             _assistantBaselines.Clear();
             _notes.Clear();
             Agent?.ResetConversation();
@@ -117,6 +121,7 @@ namespace DocuHelper
 
             _assistantBaselines.Remove(docu);
             _undo.RemoveAll(edit => edit.Before.Count == 1 && edit.Before.ContainsKey(docu));
+            _redo.RemoveAll(edit => edit.Before.ContainsKey(docu));
             docu.Dispose();
             DocusChanged?.Invoke();
         }
@@ -153,6 +158,38 @@ namespace DocuHelper
         }
 
         public bool IsTakenName(string fileName) => IsTaken(Path.Combine(FolderPath, fileName));
+
+        public void Rename(Docu docu, string name)
+        {
+            if (docu.IsLocked)
+                throw new InvalidOperationException("도우미가 이 파일을 고치는 중이에요. 끝나면 이름을 바꿀 수 있어요.");
+
+            var oldName = docu.Name;
+            var extension = Path.GetExtension(oldName);
+            var stem = (name ?? string.Empty).Trim();
+            if (stem.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                stem = stem[..^extension.Length].TrimEnd();
+
+            var problem = FileNames.Problem(stem);
+            if (problem != null)
+                throw new InvalidOperationException(problem);
+
+            var fileName = stem + extension;
+            if (fileName == oldName)
+                return;
+
+            var target = Path.Combine(FolderPath, fileName);
+            if (!string.Equals(fileName, oldName, StringComparison.OrdinalIgnoreCase) && IsTaken(target))
+                throw new InvalidOperationException($"‘{fileName}’ 파일이 이미 있어요. 다른 이름을 적어 주세요.");
+
+            if (File.Exists(docu.FilePath))
+                File.Move(docu.FilePath, target);
+
+            docu.MoveTo(target);
+            History.Rename(oldName, fileName);
+            AddNote($"The user renamed '{oldName}' to '{fileName}'.");
+            DocusChanged?.Invoke();
+        }
 
         public string AddFile(string fileName, byte[] content, string what)
         {
@@ -221,6 +258,7 @@ namespace DocuHelper
                 throw new InvalidOperationException("도우미가 고치는 중에는 되돌릴 수 없어요.");
 
             var content = History.Read(entry);
+            _redo.Clear();
             docu.Load(content);
             File.WriteAllBytes(docu.FilePath, content);
             var restored = History.Record(docu.FilePath, $"{entry.SavedAt.ToString("tt h:mm", s_korean)} 상태로 되돌림");
@@ -268,6 +306,8 @@ namespace DocuHelper
             var edit = _undo[^1];
             _undo.RemoveAt(_undo.Count - 1);
 
+            var after = new Dictionary<Docu, DocuState>();
+            var redoable = true;
             foreach (var pair in edit.Before)
             {
                 var docu = pair.Key;
@@ -279,15 +319,51 @@ namespace DocuHelper
 
                 if (pair.Value == null)
                 {
+                    redoable = false;
                     DiscardCreated(docu);
                     continue;
                 }
 
+                after[docu] = docu.Capture();
                 docu.Restore(pair.Value);
             }
 
+            if (redoable && after.Count > 0)
+                _redo.Add(new WorkspaceEdit(edit.Label, edit.IsAssistantRun, after, edit));
+            else
+                _redo.Clear();
+
             if (edit.IsAssistantRun)
                 AddNote("The user undid your last task. Everything it changed is gone from the files.");
+
+            return true;
+        }
+
+        public bool Redo()
+        {
+            if (!CanRedo)
+                return false;
+
+            var edit = _redo[^1];
+            _redo.RemoveAt(_redo.Count - 1);
+
+            foreach (var pair in edit.Before)
+            {
+                var docu = pair.Key;
+                if (!_docus.Contains(docu))
+                    continue;
+
+                docu.Restore(pair.Value);
+                if (edit.IsAssistantRun && !_assistantBaselines.ContainsKey(docu) && edit.Undone.Before.TryGetValue(docu, out var baseline))
+                    _assistantBaselines[docu] = baseline;
+            }
+
+            _undo.Add(edit.Undone);
+            if (_undo.Count > MaxUndo)
+                _undo.RemoveAt(0);
+
+            if (edit.IsAssistantRun)
+                AddNote("The user redid your last task, so everything it changed is back in the files.");
 
             return true;
         }
@@ -303,6 +379,7 @@ namespace DocuHelper
                 return;
             }
 
+            _redo.Clear();
             docu.Load(File.ReadAllBytes(docu.FilePath));
             _assistantBaselines.Remove(docu);
             docu.MarkSaved();
@@ -383,6 +460,7 @@ namespace DocuHelper
 
         private void PushUndo(WorkspaceEdit edit)
         {
+            _redo.Clear();
             _undo.Add(edit);
             if (_undo.Count > MaxUndo)
                 _undo.RemoveAt(0);
