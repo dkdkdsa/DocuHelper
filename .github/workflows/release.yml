@@ -63,6 +63,7 @@ jobs:
           --packTitle "문서 도우미"
           --icon DocuHelperEditor/Platforms/Windows/appicon.ico
           --framework webview2
+          --delta none
           -o Releases
 
       - name: Upload release
