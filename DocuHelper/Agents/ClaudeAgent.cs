@@ -20,6 +20,7 @@ namespace DocuHelper.Agents
         private const int MaxTurns = 30;
         private const long MaxAttachedBytes = 24L * 1024 * 1024;
         private const int MaxAttachedImages = 90;
+        private const int MaxWebUses = 5;
 
         private static readonly TimeSpan[] s_retryDelays = { TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(8) };
 
@@ -66,13 +67,20 @@ namespace DocuHelper.Agents
                     _messages.Add(new BetaAssistantMessageParam { Content = Echo(blocks, boundary) });
 
                     var served = blocks.Skip(boundary + 1).ToList();
-                    var text = string.Join("\n\n", served
-                        .Select(b => b.TryPickText(out var t) ? t.Text : null)
-                        .Where(t => !string.IsNullOrWhiteSpace(t)));
+                    var text = ServedText(served);
                     var uses = served
                         .Select(b => b.TryPickToolUse(out var use) ? use : null)
                         .Where(use => use != null)
                         .ToList();
+
+                    ReportWebSteps(served, host);
+
+                    if (response.StopReason == "pause_turn")
+                    {
+                        if (!string.IsNullOrWhiteSpace(text))
+                            host.OnMessage(text);
+                        continue;
+                    }
 
                     if (uses.Count == 0)
                     {
@@ -209,7 +217,7 @@ namespace DocuHelper.Agents
                     Model = model,
                     MaxTokens = MaxTokens,
                     System = ClaudePrompt.System,
-                    Tools = tools,
+                    Tools = [.. tools, new BetaWebSearchTool20250305 { MaxUses = MaxWebUses }, new BetaWebFetchTool20250910 { MaxUses = MaxWebUses }],
                     Messages = _messages.ToList(),
                     OutputConfig = new BetaOutputConfig { Effort = effort },
                     CacheControl = new BetaCacheControlEphemeral(),
@@ -221,7 +229,7 @@ namespace DocuHelper.Agents
                 Model = model,
                 MaxTokens = MaxTokens,
                 System = ClaudePrompt.System,
-                Tools = tools,
+                Tools = [.. tools, new BetaWebSearchTool20260209 { MaxUses = MaxWebUses }, new BetaWebFetchTool20260209 { MaxUses = MaxWebUses }],
                 Messages = _messages.ToList(),
                 OutputConfig = new BetaOutputConfig { Effort = effort },
                 CacheControl = new BetaCacheControlEphemeral(),
@@ -369,9 +377,53 @@ namespace DocuHelper.Agents
                 {
                     echo.Add(new BetaToolUseBlockParam { ID = use.ID, Name = use.Name, Input = use.Input });
                 }
+                else if (block.TryPickServerToolUse(out _) || block.TryPickWebSearchToolResult(out _) || block.TryPickWebFetchToolResult(out _))
+                {
+                    echo.Add(JsonSerializer.Deserialize<BetaContentBlockParam>(JsonSerializer.Serialize(block)));
+                }
             }
 
             return echo;
+        }
+
+        private static string ServedText(List<BetaContentBlock> blocks)
+        {
+            var parts = new List<string>();
+            var current = new StringBuilder();
+            foreach (var block in blocks)
+            {
+                if (block.TryPickText(out var text))
+                {
+                    current.Append(text.Text);
+                    continue;
+                }
+
+                parts.Add(current.ToString());
+                current.Clear();
+            }
+
+            parts.Add(current.ToString());
+            return string.Join("\n\n", parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()));
+        }
+
+        private static void ReportWebSteps(List<BetaContentBlock> blocks, IAgentHost host)
+        {
+            foreach (var block in blocks)
+            {
+                if (!block.TryPickServerToolUse(out var use))
+                    continue;
+
+                var isFetch = use.Input.TryGetValue("url", out var url);
+                use.Input.TryGetValue("query", out var query);
+                var target = isFetch ? url : query;
+                var step = new AgentStep
+                {
+                    Label = isFetch ? "웹 페이지 읽기" : "웹에서 찾아보기",
+                    Detail = target.ValueKind == JsonValueKind.String ? target.GetString() : null,
+                };
+                host.OnStepStarted(step);
+                host.OnStepCompleted(step);
+            }
         }
     }
 }
