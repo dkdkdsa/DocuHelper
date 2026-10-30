@@ -5,12 +5,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using DocuHelper.Docus;
 using DocuHelper.Importers;
+using DocuHelper.Importers.Hwp;
 
 namespace DocuHelperEditor.State
 {
     public partial class WorkspaceStore
     {
-        private static readonly string[] s_explainedExtensions = { ".hwp", ".hwpx", ".xls", ".doc", ".ppt" };
+        private static readonly string[] s_explainedExtensions = { ".xls", ".doc", ".ppt" };
 
         private readonly List<DropCandidate> _dropCandidates = new();
 
@@ -39,6 +40,7 @@ namespace DocuHelperEditor.State
             AddDragRow(candidates, counts, "excel", "엑셀 파일", DocuType.Excel, DropDestination.Folder, null);
             AddDragRow(candidates, counts, "word", "워드 파일", DocuType.Word, DropDestination.Folder, null);
             AddDragRow(candidates, counts, "ppt", "파워포인트 파일", DocuType.Ppt, DropDestination.Folder, null);
+            AddDragRow(candidates, counts, "hwp", "한글 파일", DocuType.Word, DropDestination.Folder, null);
             AddDragRow(candidates, counts, "image", "그림", null, DropDestination.Assistant, "image");
             AddDragRow(candidates, counts, "pdf", "PDF", null, DropDestination.Assistant, "file-text");
             AddDragRow(candidates, counts, "text", "글 파일", null, DropDestination.Assistant, "file-lines");
@@ -64,12 +66,11 @@ namespace DocuHelperEditor.State
 
             var all = paths.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var problems = all
-                .Where(p => !Directory.Exists(p) && FindImporter(p) == null && !s_explainedExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()))
+                .Where(p => !CanTake(p))
                 .Select(p => $"‘{Path.GetFileName(p)}’: {ExplainUnsupportedDrop(p)}")
                 .ToList();
 
-            var importable = all.Where(p => Directory.Exists(p) || FindImporter(p) != null || s_explainedExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()));
-            await ImportAsync(importable, problems);
+            await ImportAsync(all.Where(CanTake), problems);
         }
 
         public static string ExplainUnsupportedDrop(string name)
@@ -78,8 +79,14 @@ namespace DocuHelperEditor.State
             if (s_explainedExtensions.Contains(extension))
                 return DocuImporter.ExplainUnsupported(name);
 
-            return "넣을 수 없는 파일이에요. 엑셀, 워드, 파워포인트 파일은 작업 폴더에 넣고, 그림, PDF, 글 파일(.txt, .csv, .md)은 도우미에게 붙일 수 있어요.";
+            return "넣을 수 없는 파일이에요. 엑셀, 워드, 파워포인트, 한글 파일은 작업 폴더에 넣고, 그림, PDF, 글 파일(.txt, .csv, .md)은 도우미에게 붙일 수 있어요.";
         }
+
+        private bool CanTake(string path) =>
+            Directory.Exists(path)
+            || FindImporter(path) != null
+            || HwpConverter.CanConvert(path)
+            || s_explainedExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
 
         private static void AddDragRow(List<DropCandidate> rows, Dictionary<string, int> counts, string kind, string label, DocuType? type, DropDestination destination, string glyph)
         {
@@ -93,6 +100,7 @@ namespace DocuHelperEditor.State
                 CanOpen = true,
                 Destination = destination,
                 Glyph = glyph,
+                Note = kind == "hwp" ? "워드 파일로 바꿔서 넣어요" : null,
             });
         }
     }

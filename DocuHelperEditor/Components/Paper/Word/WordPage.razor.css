@@ -140,12 +140,17 @@ h2.txt {
     font-variant-numeric: tabular-nums;
 }
 
+.dt.fixed {
+    table-layout: fixed;
+}
+
 .dt th,
 .dt td {
     padding: 5px 10px;
     border: 1px solid var(--thumb-line);
     text-align: left;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .dt thead th {

@@ -68,6 +68,9 @@
 
     private string NoteOf(DropCandidate item)
     {
+        if (!string.IsNullOrEmpty(item.Note))
+            return item.Note;
+
         if (item.Destination == DropDestination.Assistant)
             return "도우미에게 붙어요";
 

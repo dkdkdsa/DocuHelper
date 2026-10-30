@@ -15,5 +15,7 @@ namespace DocuHelperEditor.State
         public DropDestination Destination { get; set; }
 
         public string Glyph { get; set; }
+
+        public string Note { get; set; }
     }
 }

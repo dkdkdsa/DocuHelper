@@ -16,6 +16,14 @@ namespace DocuHelperEditor.State.Papers
 
         public List<int> NumericColumns { get; set; } = new();
 
+        public Dictionary<(int Row, int Column), (int Rows, int Columns)> Spans { get; set; } = new();
+
+        public HashSet<(int Row, int Column)> Covered { get; set; } = new();
+
+        public List<double> ColumnWidths { get; set; } = new();
+
+        public bool HasColumnWidths => ColumnWidths.Count > 0 && ColumnWidths.Count == ColumnCount;
+
         public bool HasHeaderRow => HasHeader && Rows.Count > 0;
 
         public bool HasFooterRow => HasFooter && Rows.Count > (HasHeaderRow ? 1 : 0);
@@ -35,6 +43,12 @@ namespace DocuHelperEditor.State.Papers
         }
 
         public bool IsNumeric(int column) => NumericColumns.Contains(column);
+
+        public bool IsCovered(int row, int column) => Covered.Contains((row, column));
+
+        public int? RowSpan(int row, int column) => Spans.TryGetValue((row, column), out var span) && span.Rows > 1 ? span.Rows : null;
+
+        public int? ColumnSpan(int row, int column) => Spans.TryGetValue((row, column), out var span) && span.Columns > 1 ? span.Columns : null;
 
         public string CellText(int row, int column)
         {

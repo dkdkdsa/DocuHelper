@@ -5,6 +5,7 @@ using System.Linq;
 using DocuHelper.Docus;
 using DocuHelper.Tools.Word;
 using DocuHelperEditor.State.Papers;
+using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace DocuHelperEditor.State.Mapping
 {
@@ -90,8 +91,44 @@ namespace DocuHelperEditor.State.Mapping
 
         private static WordBlockModel MapTable(WordScan scan, WordBlock block)
         {
-            var rows = WordTables.Texts(WordTables.Grid(block.Table));
-            var hasHeader = WordTables.HasHeaderRow(scan.Styles, block.Table);
+            var grid = WordTables.Grid(block.Table);
+            var rows = WordTables.Texts(grid);
+            var spans = new Dictionary<(int Row, int Column), (int Rows, int Columns)>();
+            var covered = new HashSet<(int Row, int Column)>();
+            for (var r = 0; r < grid.Count; r++)
+            {
+                for (var c = 0; c < grid[r].Count; c++)
+                {
+                    var cell = grid[r][c];
+                    if (!cell.IsOrigin || cell.Owner == null)
+                        continue;
+
+                    var columns = 1;
+                    while (c + columns < grid[r].Count && !grid[r][c + columns].IsOrigin && grid[r][c + columns].Owner == cell.Owner)
+                        columns++;
+
+                    var height = 1;
+                    while (r + height < grid.Count && c < grid[r + height].Count && !grid[r + height][c].IsOrigin && grid[r + height][c].Owner == cell.Owner)
+                        height++;
+
+                    if (columns == 1 && height == 1)
+                        continue;
+
+                    spans[(r, c)] = (height, columns);
+                    for (var y = r; y < r + height; y++)
+                    {
+                        for (var x = c; x < c + columns; x++)
+                        {
+                            if (y != r || x != c)
+                                covered.Add((y, x));
+                        }
+                    }
+                }
+            }
+
+            var last = rows.Count - 1;
+            var hasHeader = WordTables.HasHeaderRow(scan.Styles, block.Table) && !spans.Any(s => s.Key.Row == 0 && s.Value.Rows > 1);
+            var hasFooter = IsFooter(rows, hasHeader) && !spans.Any(s => s.Key.Row < last && s.Key.Row + s.Value.Rows > last);
             return new WordBlockModel
             {
                 Kind = WordBlockKind.Table,
@@ -99,11 +136,27 @@ namespace DocuHelperEditor.State.Mapping
                 {
                     Rows = rows,
                     HasHeader = hasHeader,
-                    HasFooter = IsFooter(rows, hasHeader),
+                    HasFooter = hasFooter,
                     NumericColumns = WordTables.NumericColumns(rows, hasHeader),
                     Caption = Caption(rows, hasHeader),
+                    Spans = spans,
+                    Covered = covered,
+                    ColumnWidths = ColumnWidths(block.Table),
                 },
             };
+        }
+
+        private static List<double> ColumnWidths(Table table)
+        {
+            var widths = table.GetFirstChild<TableGrid>()?.Elements<GridColumn>()
+                .Select(c => double.TryParse(c.Width?.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var width) ? width : 0)
+                .ToList() ?? new List<double>();
+
+            var total = widths.Sum();
+            if (widths.Count == 0 || widths.Any(w => w <= 0) || total <= 0)
+                return new List<double>();
+
+            return widths.Select(w => Math.Round(w * 100 / total, 2)).ToList();
         }
 
         private static bool IsFooter(List<List<string>> rows, bool hasHeader)

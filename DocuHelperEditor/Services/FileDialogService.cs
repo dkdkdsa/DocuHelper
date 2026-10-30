@@ -12,7 +12,7 @@ namespace DocuHelperEditor.Services
     {
         private static readonly FilePickerFileType s_documents = new(new Dictionary<DevicePlatform, IEnumerable<string>>
         {
-            { DevicePlatform.WinUI, new[] { ".xlsx", ".docx", ".pptx", ".xls", ".doc", ".ppt" } },
+            { DevicePlatform.WinUI, new[] { ".xlsx", ".docx", ".pptx", ".hwp", ".hwpx", ".xls", ".doc", ".ppt" } },
         });
 
         public async Task<IReadOnlyList<string>> PickDocumentsAsync()

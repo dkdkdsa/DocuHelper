@@ -3,7 +3,7 @@ const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
 const TEXT_EXTENSIONS = ['txt', 'csv', 'tsv', 'md'];
 const TEXT_TYPES = ['text/plain', 'text/csv', 'text/markdown', 'text/tab-separated-values'];
 const DIRECT_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
-const ACCEPT = '.xlsx,.docx,.pptx,.xls,.doc,.ppt,.png,.jpg,.jpeg,.gif,.webp,.bmp,.pdf,.txt,.csv,.tsv,.md';
+const ACCEPT = '.xlsx,.docx,.pptx,.hwp,.hwpx,.xls,.doc,.ppt,.png,.jpg,.jpeg,.gif,.webp,.bmp,.pdf,.txt,.csv,.tsv,.md';
 const THUMB_EDGE = 320;
 const PNG_SOFT_LIMIT = 1024 * 1024;
 const DRAG_TIMEOUT = 1500;
@@ -34,6 +34,7 @@ function kindOf(file) {
 
 function dragKindOf(type) {
     type = (type || '').toLowerCase();
+    if (type.includes('hwp')) return 'hwp';
     if (type.startsWith('image/')) return 'image';
     if (type === 'application/pdf') return 'pdf';
     if (TEXT_TYPES.includes(type)) return 'text';

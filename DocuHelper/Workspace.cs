@@ -154,6 +154,14 @@ namespace DocuHelper
 
         public bool IsTakenName(string fileName) => IsTaken(Path.Combine(FolderPath, fileName));
 
+        public string AddFile(string fileName, byte[] content, string what)
+        {
+            var path = UniquePath(fileName);
+            File.WriteAllBytes(path, content);
+            History.Record(path, what);
+            return path;
+        }
+
         public ToolResult Apply(Docu docu, EditCommand command)
         {
             var editor = GetEditor(docu);

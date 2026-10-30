@@ -1,4 +1,5 @@
-﻿@using DocuHelperEditor.State.Papers
+﻿@using System.Globalization
+@using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 
@@ -137,10 +138,19 @@
         </div>;
 
     private RenderFragment TableView(WordBlockModel block, WordTableModel table) =>
-        @<table class="@TableClass(block)">
+        @<table class="@TableClass(block, table)">
             @if (!string.IsNullOrEmpty(table.Caption))
             {
                 <caption class="sr-only">@table.Caption</caption>
+            }
+            @if (table.HasColumnWidths)
+            {
+                <colgroup>
+                    @foreach (var width in table.ColumnWidths)
+                    {
+                        <col style="@ColumnStyle(width)" />
+                    }
+                </colgroup>
             }
             @if (table.HasHeaderRow)
             {
@@ -149,7 +159,10 @@
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
-                            <th scope="col" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
+                            if (table.IsCovered(0, column))
+                                continue;
+
+                            <th scope="col" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
                         }
                     </tr>
                 </thead>
@@ -161,7 +174,10 @@
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
-                            <td class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
+                            if (table.IsCovered(row, column))
+                                continue;
+
+                            <td rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
                         }
                     </tr>
                 }
@@ -174,7 +190,10 @@
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
-                            <td class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
+                            if (table.IsCovered(footer, column))
+                                continue;
+
+                            <td colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
                         }
                     </tr>
                 </tfoot>
@@ -236,7 +255,9 @@
         return classes;
     }
 
-    private static string TableClass(WordBlockModel block) => FormatClass("dt", block);
+    private static string TableClass(WordBlockModel block, WordTableModel table) => FormatClass(table.HasColumnWidths ? "dt fixed" : "dt", block);
+
+    private static string ColumnStyle(double width) => "width: " + width.ToString("0.##", CultureInfo.InvariantCulture) + "%";
 
     private static string CellClass(WordTableModel table, int column) => table.IsNumeric(column) ? "n" : null;
 
