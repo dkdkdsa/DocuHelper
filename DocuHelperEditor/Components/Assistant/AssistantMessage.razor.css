@@ -18,8 +18,171 @@
 
 .text {
     margin: 0;
-    white-space: pre-line;
     overflow-wrap: anywhere;
+    line-height: 1.6;
+}
+
+.text ::deep > :first-child {
+    margin-top: 0;
+}
+
+.text ::deep > :last-child {
+    margin-bottom: 0;
+}
+
+.text ::deep p,
+.text ::deep ul,
+.text ::deep ol,
+.text ::deep dl,
+.text ::deep blockquote,
+.text ::deep pre,
+.text ::deep table {
+    margin: 0 0 8px;
+}
+
+.text ::deep h1,
+.text ::deep h2,
+.text ::deep h3,
+.text ::deep h4,
+.text ::deep h5,
+.text ::deep h6 {
+    margin: 12px 0 6px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.text ::deep h1 {
+    font-size: 18px;
+}
+
+.text ::deep h2 {
+    font-size: 16px;
+}
+
+.text ::deep h3,
+.text ::deep h4,
+.text ::deep h5,
+.text ::deep h6 {
+    font-size: 14px;
+}
+
+.text ::deep strong {
+    font-weight: 700;
+}
+
+.text ::deep ul,
+.text ::deep ol {
+    padding-left: 20px;
+}
+
+.text ::deep ul {
+    list-style: disc;
+}
+
+.text ::deep ul ul {
+    list-style: circle;
+}
+
+.text ::deep ol {
+    list-style: decimal;
+}
+
+.text ::deep li + li,
+.text ::deep li > ul,
+.text ::deep li > ol {
+    margin-top: 2px;
+    margin-bottom: 0;
+}
+
+.text ::deep ul.contains-task-list {
+    padding-left: 2px;
+    list-style: none;
+}
+
+.text ::deep .task-list-item input {
+    margin: 0 6px 0 0;
+    vertical-align: -1px;
+}
+
+.text ::deep dt {
+    font-weight: 700;
+}
+
+.text ::deep dd {
+    margin: 0 0 4px 16px;
+}
+
+.text ::deep a {
+    color: var(--docx);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.text ::deep mark {
+    padding: 0 2px;
+    background: var(--hl-soft);
+    color: inherit;
+}
+
+.text ::deep code {
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
+    background: var(--well);
+    font-family: Consolas, 'D2Coding', monospace;
+    font-size: 0.92em;
+}
+
+.text ::deep pre {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--well);
+    overflow-x: auto;
+}
+
+.text ::deep pre code {
+    padding: 0;
+    background: none;
+    overflow-wrap: normal;
+    white-space: pre;
+}
+
+.text ::deep blockquote {
+    padding: 2px 0 2px 12px;
+    border-left: 3px solid var(--rule);
+    color: var(--ink-2);
+}
+
+.text ::deep hr {
+    margin: 12px 0;
+    border: none;
+    border-top: 1px solid var(--hair);
+}
+
+.text ::deep table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.text ::deep th,
+.text ::deep td {
+    padding: 5px 9px;
+    border: 1px solid var(--hair);
+    text-align: left;
+    overflow-wrap: normal;
+}
+
+.text ::deep th {
+    background: var(--well);
+    font-weight: 700;
+}
+
+.text ::deep img {
+    max-width: 100%;
+    border-radius: var(--radius-sm);
 }
 
 .asked {

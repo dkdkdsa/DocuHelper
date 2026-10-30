@@ -9,7 +9,7 @@
     }
     @if (!string.IsNullOrEmpty(Entry.Text))
     {
-        <p class="text">@Entry.Text</p>
+        <div class="text">@((MarkupString)Html())</div>
     }
     @if (!string.IsNullOrEmpty(Entry.AskedQuestion))
     {
@@ -38,4 +38,17 @@
 @code {
     [Parameter]
     public ChatEntry Entry { get; set; }
+
+    private string _source;
+    private string _html;
+
+    private string Html()
+    {
+        if (_source != Entry.Text)
+        {
+            _source = Entry.Text;
+            _html = MarkdownRenderer.ToHtml(_source);
+        }
+        return _html;
+    }
 }
