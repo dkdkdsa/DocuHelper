@@ -98,6 +98,18 @@
     color: var(--pptx);
 }
 
+.hwp {
+    background: var(--hwp-soft);
+    color: var(--hwp);
+}
+
+.han {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .other {
     background: var(--paper-2);
     color: var(--ink-2);

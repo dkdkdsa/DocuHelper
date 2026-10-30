@@ -13,7 +13,16 @@
         @if (Source != null)
         {
             <button type="button" class="open" @onclick="OpenSource">
-                <span class="type @TypeClass" aria-hidden="true"><Icon Name="@Glyph" Size="11" Stroke="2.6" /></span>
+                <span class="type @TypeClass" aria-hidden="true">
+                    @if (SourceType == DocuType.Hwp)
+                    {
+                        <span class="han">한</span>
+                    }
+                    else
+                    {
+                        <Icon Name="@Glyph" Size="11" Stroke="2.6" />
+                    }
+                </span>
                 @OpenLabel
             </button>
         }
@@ -34,6 +43,7 @@
     {
         DocuType.Excel => "xlsx",
         DocuType.Word => "docx",
+        DocuType.Hwp => "hwp",
         _ => "pptx",
     };
 
@@ -48,6 +58,7 @@
     {
         DocuType.Excel => "엑셀에서 보기",
         DocuType.Word => "워드에서 보기",
+        DocuType.Hwp => "한글 파일 보기",
         _ => "파워포인트에서 보기",
     };
 

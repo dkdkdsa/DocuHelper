@@ -63,7 +63,7 @@
                                             <span class="row-text">
                                                 <span class="row-name">@item.Name</span>
                                                 <span class="row-path">@item.DisplayPath</span>
-                                                @if (item.ExcelCount + item.WordCount + item.PptCount > 0)
+                                                @if (item.FileCount > 0)
                                                 {
                                                     <span class="counts">
                                                         @if (item.ExcelCount > 0)
@@ -73,6 +73,10 @@
                                                         @if (item.WordCount > 0)
                                                         {
                                                             <span class="count"><span class="swatch docx" aria-hidden="true"></span>워드 @item.WordCount</span>
+                                                        }
+                                                        @if (item.HwpCount > 0)
+                                                        {
+                                                            <span class="count"><span class="swatch hwp" aria-hidden="true"></span>한글 @item.HwpCount</span>
                                                         }
                                                         @if (item.PptCount > 0)
                                                         {

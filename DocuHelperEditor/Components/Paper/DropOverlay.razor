@@ -35,7 +35,16 @@
                         else
                         {
                             <li class="row ok">
-                                <span class="ftile @TileClass(item.Type)" aria-hidden="true"><Icon Name="@GlyphOf(item)" Size="14" Stroke="2.4" /></span>
+                                <span class="ftile @TileClass(item.Type)" aria-hidden="true">
+                                    @if (item.Type == DocuType.Hwp)
+                                    {
+                                        <span class="han">한</span>
+                                    }
+                                    else
+                                    {
+                                        <Icon Name="@GlyphOf(item)" Size="14" Stroke="2.4" />
+                                    }
+                                </span>
                                 <span class="row-name">@item.Name</span>
                                 <span class="row-ok"><Icon Name="check" Size="13" Stroke="3" />@NoteOf(item)</span>
                             </li>
@@ -84,6 +93,7 @@
         DocuType.Excel => "xlsx",
         DocuType.Word => "docx",
         DocuType.Ppt => "pptx",
+        DocuType.Hwp => "hwp",
         _ => "other",
     };
 

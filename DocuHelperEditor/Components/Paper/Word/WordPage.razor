@@ -7,7 +7,7 @@
     @if (Model == null)
     {
         <div class="spread">
-            <article class="page blank" aria-label="1쪽"></article>
+            <article class="@PageClass(true)" aria-label="1쪽"></article>
         </div>
     }
     else
@@ -17,7 +17,7 @@
         {
             var blocks = Model.BlocksOnPage(page);
             <div class="spread" @key="page">
-                <article class="@(blocks.Count == 0 ? "page blank" : "page")" aria-label="@($"{page}쪽")">
+                <article class="@PageClass(blocks.Count == 0)" aria-label="@($"{page}쪽")">
                     @foreach (var run in Runs(blocks))
                     {
                         if (run.Kind == WordListKind.Number)
@@ -66,6 +66,8 @@
     private WordPaperModel Model => File?.Paper as WordPaperModel;
 
     private bool IsLocked => File?.Activity == FileActivity.Editing;
+
+    private string PageClass(bool blank) => (blank ? "page blank" : "page") + (File?.Type == DocuType.Hwp ? " hwp" : null);
 
     private string Editable => IsLocked ? "false" : "plaintext-only";
 

@@ -135,11 +135,12 @@ namespace DocuHelperEditor.State.Samples
                     workspace.ShowDrop(new[]
                     {
                         new DropCandidate { Name = "6월 매출정리.xlsx", Type = DocuType.Excel, CanOpen = true },
+                        new DropCandidate { Name = "회의록.hwp", Type = DocuType.Hwp, CanOpen = true },
                         new DropCandidate
                         {
-                            Name = "회의록.hwp",
+                            Name = "작년 보고서.doc",
                             CanOpen = false,
-                            Reason = "한글 파일은 아직 못 열어요. 한글에서 ‘다른 이름으로 저장’으로 .docx를 골라 저장한 다음 넣어 주세요.",
+                            Reason = "옛날 형식 파일은 아직 못 열어요. 오피스에서 ‘다른 이름으로 저장’으로 새 형식(.xlsx, .docx, .pptx)을 골라 저장한 다음 넣어 주세요.",
                         },
                     });
                     break;

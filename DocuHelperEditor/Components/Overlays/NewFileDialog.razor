@@ -33,6 +33,10 @@
                 <span class="ext" aria-hidden="true">@Extension</span>
             </div>
             <p id="new-file-msg" class="msg @(IsWarning ? "warn" : null)">@Message</p>
+            @if (_type == DocuType.Hwp)
+            {
+                <p class="hwp-note">@HwpNote</p>
+            }
         </div>
         <p class="tip">
             <span class="tip-icon" aria-hidden="true"><Icon Name="highlighter" Size="12" Stroke="2.4" /></span>
@@ -50,6 +54,7 @@
     {
         ("xlsx", DocuType.Excel, "엑셀", "표와 계산"),
         ("docx", DocuType.Word, "워드", "글과 보고서"),
+        ("hwpx", DocuType.Hwp, "한글", "공문과 안내문"),
         ("pptx", DocuType.Ppt, "파워포인트", "발표 자료"),
     };
 
@@ -60,11 +65,15 @@
     private bool _focusPending = true;
     private bool _creating;
 
-    private string Extension => WorkspaceStore.ExtensionOf(_type);
+    private string Extension => Workspace.ExtensionOf(_type);
 
     private string Problem => string.IsNullOrWhiteSpace(_name) ? null : Workspace.NewFileProblem(_type, _name);
 
     private bool IsWarning => !string.IsNullOrEmpty(_error) || Problem != null;
+
+    private string HwpNote => Extension == ".hwp"
+        ? "설정에서 고른 대로 .hwp로 만들어요. 아주 옛날 한글에서도 열려요. 요즘 형식 .hwpx로 만들려면 설정에서 바꿔요."
+        : "한글 파일은 요즘 한글의 기본 형식인 .hwpx로 만들어요. 한글 2010 이후에서 열려요. .hwp로 만들려면 설정에서 바꿔요.";
 
     private bool CanCreate => !_creating && !string.IsNullOrWhiteSpace(_name) && Problem == null;
 
@@ -162,6 +171,7 @@
     {
         DocuType.Excel => "xlsx",
         DocuType.Word => "docx",
+        DocuType.Hwp => "hwpx",
         _ => "pptx",
     };
 

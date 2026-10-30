@@ -29,6 +29,11 @@
     line-height: 1.75;
 }
 
+.page.hwp {
+    font-family: var(--font-display);
+    line-height: 1.8;
+}
+
 .page.blank {
     aspect-ratio: 210 / 297;
 }

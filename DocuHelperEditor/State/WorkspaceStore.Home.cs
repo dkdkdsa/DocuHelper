@@ -102,6 +102,26 @@ namespace DocuHelperEditor.State
             RefreshRecents();
         }
 
+        public void OpenInOriginalApp(string fileId)
+        {
+            var file = FindFile(fileId);
+            if (file?.Path == null || !File.Exists(file.Path))
+                return;
+
+            if (file.IsDirty)
+                RaiseNotice($"‘{file.Name}’은 마지막으로 저장한 모습으로 열려요. 고친 걸 보려면 먼저 저장해 주세요.");
+
+            try
+            {
+                _shell?.OpenFile(file.Path);
+            }
+            catch (Exception e)
+            {
+                AppLog.Write($"Could not open {file.Path}", e);
+                RaiseNotice($"‘{file.Name}’을 열 프로그램을 찾지 못했어요.");
+            }
+        }
+
         public void RevealFolder(string path)
         {
             try
@@ -190,10 +210,11 @@ namespace DocuHelperEditor.State
             return true;
         }
 
-        public static string ExtensionOf(DocuType type) => type switch
+        public string ExtensionOf(DocuType type) => type switch
         {
             DocuType.Excel => ".xlsx",
             DocuType.Word => ".docx",
+            DocuType.Hwp => _workspace.Editors.TryGetValue(DocuType.Hwp, out var editor) ? editor.Extension : ".hwpx",
             _ => ".pptx",
         };
 
@@ -203,6 +224,7 @@ namespace DocuHelperEditor.State
             {
                 DocuType.Excel => "새 엑셀 파일",
                 DocuType.Word => "새 워드 파일",
+                DocuType.Hwp => "새 한글 파일",
                 _ => "새 파워포인트 파일",
             };
 
@@ -284,6 +306,10 @@ namespace DocuHelperEditor.State
                             break;
                         case ".pptx":
                             folder.PptCount++;
+                            break;
+                        case ".hwp":
+                        case ".hwpx":
+                            folder.HwpCount++;
                             break;
                     }
                 }

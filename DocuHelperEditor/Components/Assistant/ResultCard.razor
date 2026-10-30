@@ -41,6 +41,13 @@
                         }
                     </ul>
                 }
+                @if (group.FileType == DocuType.Hwp && Workspace.HwpSaveNote(group.FileName) is string saveNote)
+                {
+                    <p class="save-format">
+                        <Icon Name="file-check" Size="15" />
+                        @saveNote
+                    </p>
+                }
             </div>
         }
         @foreach (var note in Result.Untouched)
@@ -149,6 +156,7 @@
         {
             ".xlsx" or ".xlsm" or ".xls" => DocuType.Excel,
             ".pptx" or ".ppt" => DocuType.Ppt,
+            ".hwp" or ".hwpx" => DocuType.Hwp,
             _ => DocuType.Word,
         };
     }

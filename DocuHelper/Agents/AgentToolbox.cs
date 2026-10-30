@@ -36,7 +36,7 @@ namespace DocuHelper.Agents
             {
               "type": "object",
               "properties": {
-                "name": {"type": "string", "description": "New file name ending in .xlsx, .docx or .pptx, e.g. \"7월 회의 보고서.docx\"."},
+                "name": {"type": "string", "description": "New file name ending in .xlsx, .docx, .hwpx or .pptx, e.g. \"7월 회의 보고서.docx\". Use .hwpx for a Hancom 한글 document."},
                 "label": {"type": "string", "description": "Short Korean sentence for the change list, e.g. \"7월 회의 보고서를 새로 만들어요\"."},
                 "step": {"type": "string", "description": "Short Korean progress label, e.g. \"새 보고서 만들기\"."}
               },
@@ -235,7 +235,8 @@ namespace DocuHelper.Agents
                 return ToolResult.Fail($"There is no tool named '{name}'.");
 
             var tool = editor.Tools[name];
-            var docu = ResolveDocu(args.GetOptionalString("file"), editor);
+            var docu = ResolveDocu(args.GetOptionalString("file"), name, editor);
+            editor = _workspace.GetEditor(docu);
             if (tool.IsReadOnly)
                 return Track(host, args, $"{docu.Name} 읽기", docu.Name, () => Read(editor, docu, name, input));
 
@@ -286,12 +287,12 @@ namespace DocuHelper.Agents
                 docu.SetLocked(true);
         }
 
-        private Docu ResolveDocu(string fileName, DocuEditor editor)
+        private Docu ResolveDocu(string fileName, string toolName, DocuEditor editor)
         {
             var docu = _workspace.FindDocu(fileName);
             if (docu == null && string.IsNullOrWhiteSpace(fileName))
             {
-                var candidates = _workspace.Docus.Where(d => d.Type == editor.TargetType).ToList();
+                var candidates = _workspace.Docus.Where(d => Handles(d, toolName)).ToList();
                 if (candidates.Count == 1)
                     docu = candidates[0];
             }
@@ -299,16 +300,19 @@ namespace DocuHelper.Agents
             if (docu == null)
                 throw new ToolInputException($"Could not find the file '{fileName}'. Files in the folder: {FileList()}.");
 
-            if (docu.Type != editor.TargetType)
+            if (!Handles(docu, toolName))
                 throw new ToolInputException($"'{docu.Name}' is not a {KindName(editor.TargetType)} file, so this tool cannot open it.");
 
             return docu;
         }
 
+        private bool Handles(Docu docu, string toolName) =>
+            _workspace.Editors.TryGetValue(docu.Type, out var editor) && editor.Tools.ContainsKey(toolName);
+
         private ToolResult ListFiles()
         {
             if (_workspace.Docus.Count == 0)
-                return ToolResult.Ok("The working folder has no Excel, Word or PowerPoint files yet.", "파일 없음");
+                return ToolResult.Ok("The working folder has no Excel, Word, 한글 or PowerPoint files yet.", "파일 없음");
 
             var text = new StringBuilder();
             foreach (var docu in _workspace.Docus)
@@ -480,6 +484,7 @@ namespace DocuHelper.Agents
         {
             DocuType.Excel => "Excel",
             DocuType.Word => "Word",
+            DocuType.Hwp => "한글",
             _ => "PowerPoint",
         };
 
@@ -499,14 +504,22 @@ namespace DocuHelper.Agents
 
         private void BuildDefinitions()
         {
+            var defined = new HashSet<string>();
             foreach (var editor in _workspace.Editors.Values.OrderBy(e => e.TargetType))
             {
+                var kind = KindName(editor.TargetType);
+                if (editor.TargetType == DocuType.Word && _workspace.Editors.ContainsKey(DocuType.Hwp))
+                    kind = "Word or 한글";
+
                 foreach (var tool in editor.Tools.Values)
-                    _definitions.Add(Define(tool.Name, tool.Description, WithCommonFields(tool.InputSchema, !tool.IsReadOnly, KindName(editor.TargetType))));
+                {
+                    if (defined.Add(tool.Name))
+                        _definitions.Add(Define(tool.Name, tool.Description, WithCommonFields(tool.InputSchema, !tool.IsReadOnly, kind)));
+                }
             }
 
             _definitions.Add(Define(ListFilesTool, "List the files in the user's working folder with a one-line summary of each.", ListFilesSchema));
-            _definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word or PowerPoint file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves.", CreateFileSchema));
+            _definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word, 한글 or PowerPoint file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves.", CreateFileSchema));
             _definitions.Add(Define(AskUserTool, "Ask the user one question and wait for the answer. Use it only when you cannot pick a sensible default.", AskUserSchema));
             _definitions.Add(Define(FinishTool, "Report the result to the user and end the task. Call it once, after all changes are made.", FinishSchema));
         }

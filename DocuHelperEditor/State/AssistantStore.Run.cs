@@ -455,6 +455,7 @@ namespace DocuHelperEditor.State
             {
                 ".xlsx" => DocuType.Excel,
                 ".pptx" => DocuType.Ppt,
+                ".hwp" or ".hwpx" => DocuType.Hwp,
                 _ => DocuType.Word,
             };
         }

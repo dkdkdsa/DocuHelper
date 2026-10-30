@@ -37,3 +37,23 @@
     background: var(--pptx-soft);
     color: var(--pptx);
 }
+
+.hwp {
+    background: var(--hwp-soft);
+    color: var(--hwp);
+}
+
+.han {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.s20 .han {
+    font-size: 12px;
+}
+
+.s18 .han {
+    font-size: 11px;
+}

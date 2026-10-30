@@ -5,5 +5,6 @@
         Word,
         Excel,
         Ppt,
+        Hwp,
     }
 }

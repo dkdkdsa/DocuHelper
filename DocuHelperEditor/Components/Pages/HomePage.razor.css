@@ -236,6 +236,10 @@ h2:focus {
     background: var(--pptx);
 }
 
+.swatch.hwp {
+    background: var(--hwp);
+}
+
 .row-when {
     flex: none;
     align-self: flex-start;

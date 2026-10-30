@@ -1,5 +1,12 @@
 ﻿<span class="file-icon @TypeClass @SizeClass" aria-hidden="true">
-    <Icon Name="@Glyph" Size="@GlyphSize" Stroke="@GlyphStroke" />
+    @if (Type == DocuType.Hwp)
+    {
+        <span class="han">한</span>
+    }
+    else
+    {
+        <Icon Name="@Glyph" Size="@GlyphSize" Stroke="@GlyphStroke" />
+    }
 </span>
 
 @code {
@@ -21,6 +28,7 @@
     {
         DocuType.Excel => "xlsx",
         DocuType.Word => "docx",
+        DocuType.Hwp => "hwp",
         _ => "pptx",
     };
 

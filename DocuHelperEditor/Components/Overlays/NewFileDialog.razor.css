@@ -12,7 +12,7 @@
 .dialog {
     position: relative;
     width: 100%;
-    max-width: 560px;
+    max-width: 660px;
     max-height: 100%;
     overflow: auto;
     margin: 0;
@@ -74,7 +74,7 @@ legend {
 
 .type-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -218,6 +218,12 @@ legend {
 }
 
 .msg {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.hwp-note {
     margin: 0;
     font-size: 13px;
     color: var(--ink-2);

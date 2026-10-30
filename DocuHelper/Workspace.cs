@@ -101,7 +101,7 @@ namespace DocuHelper
         public DocuEditor FindEditor(string fileName)
         {
             var extension = Path.GetExtension(fileName ?? string.Empty);
-            return _editors.Values.FirstOrDefault(e => string.Equals(e.Extension, extension, StringComparison.OrdinalIgnoreCase));
+            return _editors.Values.FirstOrDefault(e => e.Accepts(extension));
         }
 
         public void AddDocu(Docu docu)
@@ -141,7 +141,7 @@ namespace DocuHelper
 
             var editor = FindEditor(name);
             if (editor == null)
-                throw new InvalidOperationException("파일 이름은 .xlsx, .docx, .pptx 중 하나로 끝나야 해요.");
+                throw new InvalidOperationException("파일 이름은 .xlsx, .docx, .hwpx, .pptx 중 하나로 끝나야 해요.");
 
             var docu = editor.CreateBlank(UniquePath(name));
             editor.Save(docu);
@@ -199,7 +199,16 @@ namespace DocuHelper
                 throw new InvalidOperationException("도우미가 고치는 중에는 저장할 수 없어요.");
 
             var what = docu.Changes.Count > 0 ? $"도우미가 {docu.Changes.Count}곳 고친 걸 저장함" : "고친 걸 저장함";
-            GetEditor(docu).Save(docu);
+            var editor = GetEditor(docu);
+            var target = editor.SavePath(docu);
+            if (!string.Equals(target, docu.FilePath, StringComparison.OrdinalIgnoreCase))
+            {
+                var original = docu.Name;
+                docu.MoveTo(UniquePath(Path.GetFileName(target)));
+                AddNote($"'{original}' was saved as '{docu.Name}'. The original file is unchanged.");
+            }
+
+            editor.Save(docu);
             var entry = History.Record(docu.FilePath, what);
             _assistantBaselines.Remove(docu);
             docu.MarkSaved();

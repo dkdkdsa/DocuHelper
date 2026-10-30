@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using DocuHelper.Docus;
 using DocuHelper.Importers;
-using DocuHelper.Importers.Hwp;
 
 namespace DocuHelperEditor.State
 {
@@ -39,8 +38,8 @@ namespace DocuHelperEditor.State
             var candidates = new List<DropCandidate>();
             AddDragRow(candidates, counts, "excel", "엑셀 파일", DocuType.Excel, DropDestination.Folder, null);
             AddDragRow(candidates, counts, "word", "워드 파일", DocuType.Word, DropDestination.Folder, null);
+            AddDragRow(candidates, counts, "hwp", "한글 파일", DocuType.Hwp, DropDestination.Folder, null);
             AddDragRow(candidates, counts, "ppt", "파워포인트 파일", DocuType.Ppt, DropDestination.Folder, null);
-            AddDragRow(candidates, counts, "hwp", "한글 파일", DocuType.Word, DropDestination.Folder, null);
             AddDragRow(candidates, counts, "image", "그림", null, DropDestination.Assistant, "image");
             AddDragRow(candidates, counts, "pdf", "PDF", null, DropDestination.Assistant, "file-text");
             AddDragRow(candidates, counts, "text", "글 파일", null, DropDestination.Assistant, "file-lines");
@@ -85,7 +84,6 @@ namespace DocuHelperEditor.State
         private bool CanTake(string path) =>
             Directory.Exists(path)
             || FindImporter(path) != null
-            || HwpConverter.CanConvert(path)
             || s_explainedExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
 
         private static void AddDragRow(List<DropCandidate> rows, Dictionary<string, int> counts, string kind, string label, DocuType? type, DropDestination destination, string glyph)
@@ -100,7 +98,6 @@ namespace DocuHelperEditor.State
                 CanOpen = true,
                 Destination = destination,
                 Glyph = glyph,
-                Note = kind == "hwp" ? "워드 파일로 바꿔서 넣어요" : null,
             });
         }
     }

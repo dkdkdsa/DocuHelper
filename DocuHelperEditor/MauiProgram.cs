@@ -2,6 +2,7 @@
 using DocuHelper.Agents;
 using DocuHelper.Editors;
 using DocuHelper.Importers;
+using DocuHelper.Importers.Hwp;
 using DocuHelperEditor.Services;
 using DocuHelperEditor.State;
 using DocuHelperEditor.State.Mapping;
@@ -40,10 +41,12 @@ namespace DocuHelperEditor
             builder.Services.AddSingleton<DocuImporter, WordImporter>();
             builder.Services.AddSingleton<DocuImporter, ExcelImporter>();
             builder.Services.AddSingleton<DocuImporter, PptImporter>();
+            builder.Services.AddSingleton<DocuImporter, HwpImporter>();
 
             builder.Services.AddSingleton<IPaperMapper, ExcelPaperMapper>();
             builder.Services.AddSingleton<IPaperMapper, WordPaperMapper>();
             builder.Services.AddSingleton<IPaperMapper, PptPaperMapper>();
+            builder.Services.AddSingleton<IPaperMapper, HwpPaperMapper>();
 
             builder.Services.AddSingleton<WorkspaceRegistry>();
             builder.Services.AddSingleton<WorkspaceStore>();
@@ -69,6 +72,7 @@ namespace DocuHelperEditor
             workspace.RegisterEditor(new WordEditor());
             workspace.RegisterEditor(new ExcelEditor());
             workspace.RegisterEditor(new PptEditor());
+            workspace.RegisterEditor(new HwpEditor(new HancomOffice()));
             return workspace;
         }
     }
