@@ -19,6 +19,8 @@ namespace DocuHelperEditor
     {
         public static MauiApp CreateMauiApp()
         {
+            AppPaths.CopyLegacyData();
+
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
@@ -47,11 +49,13 @@ namespace DocuHelperEditor
             builder.Services.AddSingleton<WorkspaceStore>();
             builder.Services.AddSingleton<AssistantStore>();
             builder.Services.AddSingleton<SettingsStore>();
+            builder.Services.AddSingleton<UpdateStore>();
 
             builder.Services.AddSingleton<IFileDialogService, FileDialogService>();
             builder.Services.AddSingleton<IConversationRepository, ConversationRepository>();
 #if WINDOWS
             builder.Services.AddSingleton<IShellService, WindowsShellService>();
+            builder.Services.AddSingleton<IUpdateService, VelopackUpdateService>();
             builder.Services.AddSingleton<ISecretStore, DpapiSecretStore>();
             builder.Services.AddSingleton<IOfficeInterop, OfficeComInterop>();
 #endif

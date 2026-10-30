@@ -1,0 +1,32 @@
+﻿@implements IDisposable
+@inject UpdateStore Updates
+@inject WorkspaceStore Workspace
+@inject AssistantStore Assistant
+
+@if (Updates.IsReady)
+{
+    <ActionButton Kind="ButtonKind.Ghost" Icon="download" title="@Title" OnClick="Restart">새 버전으로 다시 시작</ActionButton>
+}
+
+@code {
+    private string Title => string.IsNullOrEmpty(Updates.CurrentVersion)
+        ? $"새 버전({Updates.NewVersion})을 받아 뒀어요. 그냥 두면 다음에 켤 때 바뀌어요."
+        : $"지금 {Updates.CurrentVersion} → 새 버전 {Updates.NewVersion}. 그냥 두면 다음에 켤 때 바뀌어요.";
+
+    protected override void OnInitialized() => Updates.Changed += OnChanged;
+
+    public void Dispose() => Updates.Changed -= OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void Restart()
+    {
+        if (Workspace.UnsavedCount > 0 || Assistant.IsRunning)
+        {
+            Assistant.ShowNotice("저장하지 않은 파일이 있거나 도우미가 일하는 중이라 아직 새 버전으로 바꾸지 않았어요. 저장한 다음 다시 눌러 주세요. 그냥 두면 다음에 켤 때 바뀌어요.");
+            return;
+        }
+
+        Updates.Restart();
+    }
+}

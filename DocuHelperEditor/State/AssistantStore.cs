@@ -334,6 +334,8 @@ namespace DocuHelperEditor.State
             IsPopupOpen = false;
         }
 
+        public void ShowNotice(string text) => OnNotice(text);
+
         private void OnNotice(string text)
         {
             _entries.Add(new ChatEntry { Kind = ChatEntryKind.Assistant, Text = text });

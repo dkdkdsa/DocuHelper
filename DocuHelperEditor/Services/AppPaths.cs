@@ -9,14 +9,18 @@ namespace DocuHelperEditor.Services
         private const string HomeVariable = "DOCUHELPER_HOME";
 
         private static readonly string s_home = Environment.GetEnvironmentVariable(HomeVariable);
+        private static readonly string s_userFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
+        private static readonly string[] s_legacyFiles = { "key.dat", "settings.json", "workspaces.json" };
 
         public static string DataFolder { get; } = string.IsNullOrWhiteSpace(s_home)
-            ? AppContext.BaseDirectory
+            ? s_userFolder
             : Path.Combine(s_home, "data");
 
         public static string LogFolder { get; } = string.IsNullOrWhiteSpace(s_home)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName)
+            ? s_userFolder
             : Path.Combine(s_home, "data");
+
+        public static string WebViewFolder { get; } = Path.Combine(DataFolder, "WebView2");
 
         public static string DocumentsFolder { get; } = string.IsNullOrWhiteSpace(s_home)
             ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
@@ -27,6 +31,30 @@ namespace DocuHelperEditor.Services
             : Path.Combine(s_home, "desktop");
 
         public static string DefaultRoot { get; } = Path.Combine(DocumentsFolder, AppName);
+
+        public static void CopyLegacyData()
+        {
+            if (!string.IsNullOrWhiteSpace(s_home))
+                return;
+
+            foreach (var name in s_legacyFiles)
+            {
+                var source = Path.Combine(AppContext.BaseDirectory, name);
+                var target = Path.Combine(DataFolder, name);
+                if (!File.Exists(source) || File.Exists(target))
+                    continue;
+
+                try
+                {
+                    Directory.CreateDirectory(DataFolder);
+                    File.Copy(source, target);
+                }
+                catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                {
+                    AppLog.Write($"Could not copy {name} to the data folder", e);
+                }
+            }
+        }
 
         public static string Display(string path)
         {
