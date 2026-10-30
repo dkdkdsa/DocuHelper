@@ -75,6 +75,10 @@ window.docuHelper = (function () {
     });
 
     return {
+        setTextSize: function (size) {
+            if (size && size !== 'm') document.documentElement.setAttribute('data-text-size', size);
+            else document.documentElement.removeAttribute('data-text-size');
+        },
         registerShortcuts: function (dotnet) {
             if (handler) document.removeEventListener('keydown', handler);
             handler = function (e) {

@@ -136,3 +136,15 @@ input::placeholder, textarea::placeholder {
     right: 0.75rem;
     cursor: pointer;
 }
+
+html[data-text-size="l"] [data-chrome] {
+    zoom: 1.13;
+}
+
+html[data-text-size="xl"] [data-chrome] {
+    zoom: 1.26;
+}
+
+html[data-text-size] [data-chrome] [data-chrome] {
+    zoom: 1;
+}

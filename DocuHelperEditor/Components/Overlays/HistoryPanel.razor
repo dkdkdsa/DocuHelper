@@ -5,7 +5,7 @@
 {
     var file = Workspace.ActiveFile;
     var history = Workspace.ActiveHistory;
-    <section id="history-panel" class="history" aria-labelledby="history-h" tabindex="-1" @onkeydown="OnKeyDown">
+    <section id="history-panel" class="history" aria-labelledby="history-h" data-chrome tabindex="-1" @onkeydown="OnKeyDown">
         <div class="head">
             <h2 id="history-h">저장 기록</h2>
             <IconButton Icon="x" IconSize="16" Stroke="2.2" Label="저장 기록 닫기" OnClick="CloseAsync" />

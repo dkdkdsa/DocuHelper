@@ -92,3 +92,15 @@
     background: var(--pptx-soft);
     color: var(--pptx);
 }
+
+.hwp {
+    background: var(--hwp-soft);
+    color: var(--hwp);
+}
+
+.han {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}

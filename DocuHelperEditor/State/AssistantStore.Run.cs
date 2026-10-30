@@ -211,6 +211,7 @@ namespace DocuHelperEditor.State
                     Selection = _workspace.SelectionLabel,
                     Model = _settings.Model.ApiId,
                     Effort = _settings.EffortId,
+                    AskBigChanges = _settings.AskBigChanges,
                     Attachments = attachments.Select(ToAgentAttachment).ToList(),
                 };
                 var result = await _workspace.Workspace.AskAsync(request, this, run.Token);
@@ -455,6 +456,7 @@ namespace DocuHelperEditor.State
             {
                 ".xlsx" => DocuType.Excel,
                 ".pptx" => DocuType.Ppt,
+                ".hwp" or ".hwpx" => DocuType.Hwp,
                 _ => DocuType.Word,
             };
         }

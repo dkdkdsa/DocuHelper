@@ -1,5 +1,4 @@
 ﻿@inherits StoreComponentBase
-@inject NavigationManager Navigation
 @inject IJSRuntime JS
 
 @if (Error != null)
@@ -110,5 +109,5 @@
         await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
     }
 
-    private void OpenSettings() => Navigation.NavigateTo("setup");
+    private void OpenSettings() => Settings.OpenDialog("#composer-input", "key");
 }

@@ -18,7 +18,7 @@ namespace DocuHelperEditor.State.Mapping
 
         private static readonly HashSet<string> s_footers = new(StringComparer.OrdinalIgnoreCase) { "합계", "총계", "계", "소계", "누계", "총합", "total", "sum" };
 
-        public DocuType Type => DocuType.Word;
+        public virtual DocuType Type => DocuType.Word;
 
         public PaperModel Map(Docu docu, PaperModel previous)
         {

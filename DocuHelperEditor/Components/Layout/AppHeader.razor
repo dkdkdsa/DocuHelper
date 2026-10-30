@@ -1,7 +1,6 @@
 ﻿@inherits StoreComponentBase
-@inject NavigationManager Navigation
 
-<header class="app-header">
+<header class="app-header" data-chrome>
     <div class="brand">
         <BrandMark Size="26" />
         <span class="brand-name">문서 도우미</span>
@@ -17,12 +16,12 @@
         </span>
         <button type="button" class="save-all" disabled="@(!Workspace.CanSaveAll)" @onclick="Workspace.SaveAllAsync">모두 저장</button>
         <ActionButton Kind="ButtonKind.Ghost" Icon="history" aria-expanded="@HistoryExpanded" OnClick="Workspace.ToggleHistory">기록</ActionButton>
-        <ActionButton Kind="ButtonKind.Ghost" Icon="settings" OnClick="OpenSettings">설정</ActionButton>
+        <ActionButton Kind="ButtonKind.Ghost" Icon="settings" id="header-settings" aria-haspopup="dialog" OnClick="OpenSettings">설정</ActionButton>
     </div>
 </header>
 
 @code {
     private string HistoryExpanded => Workspace.IsHistoryOpen ? "true" : "false";
 
-    private void OpenSettings() => Navigation.NavigateTo("setup");
+    private void OpenSettings() => Settings.OpenDialog("#header-settings");
 }

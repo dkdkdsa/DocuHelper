@@ -7,22 +7,34 @@
     <ToolbarDivider />
     <label for="@StyleId" class="sr-only">문단 모양</label>
     <select id="@StyleId" class="style" value="@StyleValue" disabled="@(!CanStyle)" @onchange="OnStyleChanged" @key="_styleVersion">
-        <option value="body">본문</option>
-        <option value="h1">제목 1</option>
-        <option value="h2">제목 2</option>
+        <option value="body">@(IsHwp ? "바탕글" : "본문")</option>
+        <option value="h1">@(IsHwp ? "개요 1" : "제목 1")</option>
+        <option value="h2">@(IsHwp ? "개요 2" : "제목 2")</option>
     </select>
     <ToolbarDivider />
     <IconButton Icon="bold" Label="굵게" IconSize="18" Stroke="2.4" Pressed="@(Block?.IsBold == true)" Disabled="@(!CanFormat)" OnClick="ToggleBold" />
     <IconButton Icon="italic" Label="기울임" IconSize="18" Pressed="@(Block?.IsItalic == true)" Disabled="@(!CanFormat)" OnClick="ToggleItalic" />
     <IconButton Icon="underline" Label="밑줄" IconSize="18" Pressed="@(Block?.IsUnderline == true)" Disabled="@(!CanFormat)" OnClick="ToggleUnderline" />
     <ToolbarDivider />
-    <IconButton Icon="list" Label="글머리 기호" IconSize="18" Pressed="@(Block?.ListKind == WordListKind.Bullet)" Disabled="@(!CanList)" OnClick="ToggleBullets" />
-    <IconButton Icon="list-ordered" Label="번호 매기기" IconSize="18" Pressed="@(Block?.ListKind == WordListKind.Number)" Disabled="@(!CanList)" OnClick="ToggleNumbers" />
+    @if (IsHwp)
+    {
+        <IconButton Icon="list-ordered" Label="문단 번호" Title="문단 번호 (1. 가.)" IconSize="18" Pressed="@(Block?.ListKind == WordListKind.Number)" Disabled="@(!CanList)" OnClick="ToggleNumbers" />
+        <IconButton Icon="list" Label="글머리표" IconSize="18" Pressed="@(Block?.ListKind == WordListKind.Bullet)" Disabled="@(!CanList)" OnClick="ToggleBullets" />
+    }
+    else
+    {
+        <IconButton Icon="list" Label="글머리 기호" IconSize="18" Pressed="@(Block?.ListKind == WordListKind.Bullet)" Disabled="@(!CanList)" OnClick="ToggleBullets" />
+        <IconButton Icon="list-ordered" Label="번호 매기기" IconSize="18" Pressed="@(Block?.ListKind == WordListKind.Number)" Disabled="@(!CanList)" OnClick="ToggleNumbers" />
+    }
     <ToolbarDivider />
     <IconButton Icon="align-left" Label="왼쪽 맞춤" IconSize="18" Pressed="@(IsAligned(WordAlignment.Left))" Disabled="@(!CanStyle)" OnClick="AlignLeft" />
     <IconButton Icon="align-center" Label="가운데 맞춤" IconSize="18" Pressed="@(IsAligned(WordAlignment.Center))" Disabled="@(!CanStyle)" OnClick="ToggleCenter" />
     <ToolbarDivider />
     <IconButton Icon="table" Label="표 넣기" IconSize="18" Disabled="@IsLocked" OnClick="InsertTable" />
+    @if (IsHwp)
+    {
+        <ActionButton Kind="ButtonKind.Ghost" Icon="external" IconSize="16" IconStroke="2.2" Class="open-app" OnClick="OpenInHancom">한글에서 열기</ActionButton>
+    }
 </div>
 
 @code {
@@ -40,6 +52,8 @@
 
     private bool IsLocked => File?.Activity == FileActivity.Editing;
 
+    private bool IsHwp => File?.Type == DocuType.Hwp;
+
     private bool CanFormat => Block != null && !IsLocked;
 
     private bool CanStyle => CanFormat && !Block.IsTable;
@@ -56,6 +70,8 @@
     private bool IsAligned(WordAlignment alignment) => Block != null && !Block.IsTable && Block.Alignment == alignment;
 
     private Task UndoAsync() => Workspace.UndoAsync();
+
+    private void OpenInHancom() => Workspace.OpenInOriginalApp(File?.Id);
 
     private void OnStyleChanged(ChangeEventArgs e)
     {

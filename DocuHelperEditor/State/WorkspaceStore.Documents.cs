@@ -111,31 +111,30 @@ namespace DocuHelperEditor.State
             if (!IsReady || paths == null)
                 return;
 
-            var converted = new List<string>();
+            var notes = new List<string>();
             WorkspaceFile last = null;
             foreach (var path in paths.Where(p => !string.IsNullOrWhiteSpace(p)))
             {
                 var candidates = Directory.Exists(path)
-                    ? Directory.EnumerateFiles(path).Where(p => FindImporter(p) != null || HwpConverter.CanConvert(p)).ToList()
+                    ? Directory.EnumerateFiles(path).Where(p => FindImporter(p) != null).ToList()
                     : new List<string> { path };
 
                 foreach (var candidate in candidates)
                 {
-                    var file = HwpConverter.CanConvert(candidate)
-                        ? await ConvertFileAsync(candidate, problems, converted)
-                        : await ImportFileAsync(candidate, problems);
-                    if (file != null)
-                        last = file;
+                    var file = await ImportFileAsync(candidate, problems);
+                    if (file == null)
+                        continue;
+
+                    last = file;
+                    if (file.Docu is HwpDocu hwp && hwp.Skipped.Count > 0)
+                        notes.Add($"‘{file.Name}’의 {SkippedText(hwp.Skipped)}은 화면에 안 보이고, 저장하면 빠져요. 원래 모습은 [기록]에 남아 있어요.");
                 }
             }
 
             if (last != null)
                 Open(last.Id);
 
-            if (converted.Count > 0)
-                converted.Add("원래 한글 파일은 그대로 있고, 글자 모양이나 표는 원래와 조금 다를 수 있어요.");
-
-            var notes = converted.Concat(problems.Distinct()).ToList();
+            notes.AddRange(problems.Distinct());
             if (notes.Count > 0)
                 RaiseNotice(string.Join("\n", notes));
         }
@@ -265,9 +264,9 @@ namespace DocuHelperEditor.State
 
             try
             {
-                File.WriteAllBytes(target, file.Docu.ToBytes());
+                File.WriteAllBytes(target, _workspace.GetEditor(file.Docu).Export(file.Docu, target));
             }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is HwpException)
             {
                 AppLog.Write($"Save copy failed for {file.Name}", e);
                 RaiseNotice($"‘{Path.GetFileName(target)}’에 저장하지 못했어요. 다른 곳을 골라 주세요.");
@@ -330,6 +329,12 @@ namespace DocuHelperEditor.State
                 _workspace.RecordInitial(docu);
                 return _files.FirstOrDefault(f => f.Docu == docu);
             }
+            catch (HwpException e)
+            {
+                AppLog.Write($"HWP import failed for {path}", e.InnerException ?? e);
+                problems.Add($"‘{name}’: {e.Message}");
+                return null;
+            }
             catch (Exception e)
             {
                 AppLog.Write($"Import failed for {path}", e);
@@ -338,37 +343,8 @@ namespace DocuHelperEditor.State
             }
         }
 
-        private async Task<WorkspaceFile> ConvertFileAsync(string path, List<string> problems, List<string> converted)
-        {
-            var name = Path.GetFileName(path);
-            try
-            {
-                var conversion = await Task.Run(() => HwpConverter.Convert(path));
-                var target = _workspace.AddFile(Path.GetFileNameWithoutExtension(path) + ".docx", conversion.Content, "한글 파일에서 바꾼 상태");
-                var docu = FindImporter(target).Import(target);
-                _workspace.AddDocu(docu);
-                converted.Add($"‘{name}’는 워드 파일 ‘{docu.Name}’로 바꿔서 넣었어요.{SkippedText(conversion.Skipped)}");
-                return _files.FirstOrDefault(f => f.Docu == docu);
-            }
-            catch (HwpException e)
-            {
-                AppLog.Write($"HWP conversion failed for {path}", e.InnerException ?? e);
-                problems.Add($"‘{name}’: {e.Message}");
-                return null;
-            }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
-            {
-                AppLog.Write($"HWP conversion could not be saved for {path}", e);
-                problems.Add($"‘{name}’: 워드 파일로 바꿨지만 작업 폴더에 저장하지 못했어요.");
-                return null;
-            }
-        }
-
         private static string SkippedText(ICollection<HwpSkipped> skipped)
         {
-            if (skipped == null || skipped.Count == 0)
-                return string.Empty;
-
             var names = skipped.OrderBy(s => s).Select(s => s switch
             {
                 HwpSkipped.Picture => "그림",
@@ -378,17 +354,27 @@ namespace DocuHelperEditor.State
                 _ => "개체",
             }).Distinct();
 
-            return $" {string.Join(", ", names)} 같은 건 옮기지 못했어요.";
+            return string.Join(", ", names);
         }
 
         private bool TrySave(WorkspaceFile file)
         {
             var changeIds = file.Changes.Select(c => c.Id).ToList();
+            var name = file.Name;
             try
             {
                 _workspace.Save(file.Docu);
                 _savedChangeIds.UnionWith(changeIds);
+                if (file.Docu.Name != name)
+                    RaiseNotice(RenamedText(name, file.Docu.Name));
+
                 return true;
+            }
+            catch (HwpException e)
+            {
+                AppLog.Write($"HWP save failed for {file.Name}", e.InnerException ?? e);
+                RaiseNotice($"‘{file.Name}’: {e.Message}");
+                return false;
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {
@@ -396,6 +382,26 @@ namespace DocuHelperEditor.State
                 RaiseNotice($"‘{file.Name}’ 파일이 다른 프로그램에서 열려 있어서 저장하지 못했어요. 그 프로그램을 닫고 다시 저장해 주세요.");
                 return false;
             }
+        }
+
+        public string HwpSaveNote(string fileName)
+        {
+            var file = _files.FirstOrDefault(f => f.Name == fileName && f.Docu is HwpDocu);
+            if (file == null || !_workspace.Editors.TryGetValue(DocuType.Hwp, out var editor))
+                return null;
+
+            var target = editor.SavePath(file.Docu);
+            if (string.Equals(target, file.Docu.FilePath, StringComparison.OrdinalIgnoreCase))
+                return $"저장하면 {Path.GetExtension(target).ToLowerInvariant()} 형식 그대로 저장돼요";
+
+            return $"저장하면 .hwpx 형식으로 따로 저장돼요. 원래 {Path.GetExtension(file.Docu.FilePath).ToLowerInvariant()} 파일은 그대로 있어요";
+        }
+
+        private string RenamedText(string before, string after)
+        {
+            var hancom = _workspace.Editors.TryGetValue(DocuType.Hwp, out var editor) && editor is HwpEditor hwp && hwp.CanWriteHwp;
+            var reason = hancom ? "설정에서 고른 대로" : "이 컴퓨터에 한글이 없어서";
+            return $"{reason} ‘{after}’로 저장했어요. 원래 파일 ‘{before}’은 그대로 있어요.";
         }
 
         private void OnDocusChanged()

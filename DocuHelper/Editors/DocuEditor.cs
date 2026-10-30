@@ -21,6 +21,10 @@ namespace DocuHelper.Editors
 
         public abstract Docu CreateBlank(string filePath);
 
+        public virtual bool Accepts(string extension) => string.Equals(Extension, extension, StringComparison.OrdinalIgnoreCase);
+
+        public virtual string SavePath(Docu docu) => docu.FilePath;
+
         public ToolResult Apply(Docu docu, EditCommand command)
         {
             if (!_tools.TryGetValue(command.Name, out var tool))
@@ -48,7 +52,9 @@ namespace DocuHelper.Editors
             return Run(docu, tool, arguments);
         }
 
-        public void Save(Docu docu) => File.WriteAllBytes(docu.FilePath, docu.ToBytes());
+        public void Save(Docu docu) => File.WriteAllBytes(docu.FilePath, Export(docu, docu.FilePath));
+
+        public virtual byte[] Export(Docu docu, string targetPath) => docu.ToBytes();
 
         protected void AddTool(Tool tool) => _tools[tool.Name] = tool;
 

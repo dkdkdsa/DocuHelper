@@ -16,6 +16,8 @@ namespace DocuHelper.Agents
 
         public string Effort { get; set; }
 
+        public bool AskBigChanges { get; set; } = true;
+
         public List<AgentAttachment> Attachments { get; set; } = new();
     }
 }

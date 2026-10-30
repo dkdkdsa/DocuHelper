@@ -6,13 +6,21 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DocuHelper;
+using DocuHelper.Docus;
+using DocuHelper.Editors;
 using DocuHelperEditor.Services;
 
 namespace DocuHelperEditor.State
 {
     public partial class SettingsStore
     {
+        public const string DefaultTextSize = "m";
+
         private const string KeyName = "key";
+        private const string DefaultSection = "key";
+
+        private static readonly string[] s_textSizes = { "m", "l", "xl" };
+        private static readonly string[] s_sections = { "key", "ai", "folder", "hwp", "view", "about" };
 
         private static readonly string s_settingsPath = Path.Combine(AppPaths.DataFolder, "settings.json");
 
@@ -47,6 +55,36 @@ namespace DocuHelperEditor.State
 
         public string EffortId { get; private set; } = AssistantModels.DefaultEffort;
 
+        public bool AskBigChanges { get; private set; } = true;
+
+        public bool OpenLastFolder { get; private set; }
+
+        public bool HwpAlwaysHwpx { get; private set; }
+
+        public bool HwpNewAsHwp { get; private set; }
+
+        public string TextSize { get; private set; } = DefaultTextSize;
+
+        public bool IsHancomInstalled => HwpEditor?.CanWriteHwp == true;
+
+        public DateTime? KeyCheckedAt { get; private set; }
+
+        public bool IsKeyDeleted { get; private set; }
+
+        public bool IsDialogOpen { get; private set; }
+
+        public string DialogSection { get; private set; } = DefaultSection;
+
+        public string DialogReturnFocus { get; private set; }
+
+        public bool IsChangingKey { get; private set; }
+
+        public string NewKey { get; private set; } = string.Empty;
+
+        public KeyCheckState NewKeyState { get; private set; }
+
+        public bool IsConfirmingKeyDelete { get; private set; }
+
         public ModelOption Model => AssistantModels.FindModel(ModelId);
 
         public EffortOption Effort => AssistantModels.FindEffort(EffortId);
@@ -56,6 +94,8 @@ namespace DocuHelperEditor.State
         public bool IsConfigured => HasSavedKey;
 
         public string RootPath => _rootPath ?? AppPaths.DefaultRoot;
+
+        private HwpEditor HwpEditor => _workspace.Editors.TryGetValue(DocuType.Hwp, out var editor) ? editor as HwpEditor : null;
 
         public void Load(string apiKey, KeyCheckState keyState, string workspaceRoot)
         {
@@ -82,12 +122,185 @@ namespace DocuHelperEditor.State
             ModelId = AssistantModels.FindModel(data?.Model).Id;
             EffortId = AssistantModels.FindEffort(data?.Effort).Id;
             TrackChanges = data?.TrackChanges ?? false;
+            AskBigChanges = data?.AskBigChanges ?? true;
+            OpenLastFolder = data?.OpenLastFolder ?? false;
+            HwpAlwaysHwpx = data?.HwpAlwaysHwpx ?? false;
+            HwpNewAsHwp = data?.HwpNewAsHwp ?? false;
+            TextSize = Array.IndexOf(s_textSizes, data?.TextSize) >= 0 ? data.TextSize : DefaultTextSize;
+            ApplyHwp();
             ApiKey = _secrets?.Load(KeyName) ?? string.Empty;
             HasSavedKey = !string.IsNullOrWhiteSpace(ApiKey);
             KeyState = KeyCheckState.Idle;
             IsKeyVisible = false;
+            IsKeyDeleted = false;
             WorkspaceRoot = AppPaths.Display(RootPath);
             Notify();
+        }
+
+        public void OpenDialog(string returnFocus, string section = null)
+        {
+            EnsureLoaded();
+            DialogReturnFocus = returnFocus;
+            DialogSection = Array.IndexOf(s_sections, section) >= 0 ? section : DefaultSection;
+            IsDialogOpen = true;
+            ResetKeyEditing();
+            Notify();
+        }
+
+        public void CloseDialog()
+        {
+            IsDialogOpen = false;
+            ResetKeyEditing();
+            Notify();
+        }
+
+        public void ShowSection(string section)
+        {
+            if (Array.IndexOf(s_sections, section) < 0)
+                return;
+
+            DialogSection = section;
+            IsConfirmingKeyDelete = false;
+            Notify();
+        }
+
+        public void SetAskBigChanges(bool ask)
+        {
+            AskBigChanges = ask;
+            WriteSettings();
+            Notify();
+        }
+
+        public void SetOpenLastFolder(bool openLast)
+        {
+            OpenLastFolder = openLast;
+            WriteSettings();
+            Notify();
+        }
+
+        public void SetHwpAlwaysHwpx(bool alwaysHwpx)
+        {
+            HwpAlwaysHwpx = alwaysHwpx;
+            ApplyHwp();
+            WriteSettings();
+            Notify();
+        }
+
+        public void SetHwpNewAsHwp(bool newAsHwp)
+        {
+            HwpNewAsHwp = newAsHwp;
+            ApplyHwp();
+            WriteSettings();
+            Notify();
+        }
+
+        public void SetTextSize(string size)
+        {
+            if (Array.IndexOf(s_textSizes, size) < 0)
+                return;
+
+            TextSize = size;
+            WriteSettings();
+            Notify();
+        }
+
+        public void BeginKeyChange()
+        {
+            IsChangingKey = true;
+            NewKey = string.Empty;
+            NewKeyState = KeyCheckState.Idle;
+            Notify();
+        }
+
+        public void SetNewKey(string key)
+        {
+            NewKey = key ?? string.Empty;
+            NewKeyState = KeyCheckState.Idle;
+            Notify();
+        }
+
+        public void CancelKeyChange()
+        {
+            ResetKeyEditing();
+            Notify();
+        }
+
+        public async Task<bool> ConfirmNewKeyAsync()
+        {
+            var key = NewKey.Trim();
+            if (key.Length == 0 || NewKeyState == KeyCheckState.Checking)
+                return false;
+
+            NewKeyState = KeyCheckState.Checking;
+            Notify();
+
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+                await _workspace.Agent.VerifyKeyAsync(key, timeout.Token);
+            }
+            catch (Exception e)
+            {
+                AppLog.Write("New key check failed", e);
+                if (NewKey.Trim() == key)
+                    NewKeyState = KeyCheckState.Failed;
+
+                Notify();
+                return false;
+            }
+
+            if (NewKey.Trim() != key)
+                return false;
+
+            var previous = ApiKey;
+            ApiKey = key;
+            if (!SaveKey())
+            {
+                ApiKey = previous;
+                NewKeyState = KeyCheckState.Failed;
+                Notify();
+                return false;
+            }
+
+            KeyState = KeyCheckState.Ok;
+            KeyCheckedAt = DateTime.Now;
+            IsKeyDeleted = false;
+            ResetKeyEditing();
+            Notify();
+            return true;
+        }
+
+        public void AskDeleteKey()
+        {
+            IsConfirmingKeyDelete = true;
+            Notify();
+        }
+
+        public void CancelDeleteKey()
+        {
+            IsConfirmingKeyDelete = false;
+            Notify();
+        }
+
+        public bool DeleteKey()
+        {
+            IsConfirmingKeyDelete = false;
+            try
+            {
+                _secrets?.Delete(KeyName);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                AppLog.Write("Could not delete the key", e);
+                Notify();
+                return false;
+            }
+
+            IsKeyDeleted = true;
+            KeyState = KeyCheckState.Idle;
+            KeyCheckedAt = null;
+            Notify();
+            return true;
         }
 
         public void SetApiKey(string apiKey)
@@ -138,7 +351,10 @@ namespace DocuHelperEditor.State
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
                 await _workspace.Agent.VerifyKeyAsync(key, timeout.Token);
                 if (key == ApiKey)
+                {
                     KeyState = KeyCheckState.Ok;
+                    KeyCheckedAt = DateTime.Now;
+                }
             }
             catch (Exception e)
             {
@@ -190,13 +406,42 @@ namespace DocuHelperEditor.State
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(s_settingsPath));
-                var data = new SettingsData { Root = _rootPath, Model = ModelId, Effort = EffortId, TrackChanges = TrackChanges };
+                var data = new SettingsData
+                {
+                    Root = _rootPath,
+                    Model = ModelId,
+                    Effort = EffortId,
+                    TrackChanges = TrackChanges,
+                    AskBigChanges = AskBigChanges,
+                    OpenLastFolder = OpenLastFolder,
+                    HwpAlwaysHwpx = HwpAlwaysHwpx,
+                    HwpNewAsHwp = HwpNewAsHwp,
+                    TextSize = TextSize,
+                };
                 File.WriteAllText(s_settingsPath, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {
                 AppLog.Write("Could not save settings", e);
             }
+        }
+
+        private void ResetKeyEditing()
+        {
+            IsChangingKey = false;
+            NewKey = string.Empty;
+            NewKeyState = KeyCheckState.Idle;
+            IsConfirmingKeyDelete = false;
+        }
+
+        private void ApplyHwp()
+        {
+            var editor = HwpEditor;
+            if (editor == null)
+                return;
+
+            editor.AlwaysHwpx = HwpAlwaysHwpx;
+            editor.NewAsHwp = HwpNewAsHwp;
         }
 
         private static SettingsData ReadSettings()

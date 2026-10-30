@@ -18,6 +18,10 @@
 
         public int PptCount { get; set; }
 
+        public int HwpCount { get; set; }
+
+        public int FileCount => ExcelCount + WordCount + PptCount + HwpCount;
+
         public bool IsMissing { get; set; }
     }
 }

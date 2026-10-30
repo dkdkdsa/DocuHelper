@@ -1,0 +1,629 @@
+﻿@using System.Globalization
+@using DocuHelperEditor.Services
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+@inject UpdateStore Updates
+@inject IEnumerable<IShellService> Shells
+
+@if (Settings.IsDialogOpen)
+{
+    <div class="overlay">
+        <div class="backdrop" aria-hidden="true" @onmousedown:preventDefault="true"></div>
+        <span class="sr-only" tabindex="0" @onfocus="FocusLastAsync"></span>
+        <div id="settings-dialog" class="dialog" role="dialog" aria-modal="true" aria-labelledby="settings-h" tabindex="-1" data-chrome @onkeydown="OnKeyDownAsync">
+            <div class="head">
+                <span class="badge" aria-hidden="true"><Icon Name="settings" Size="18" /></span>
+                <h1 id="settings-h">설정</h1>
+                <span class="autosave">바꾸면 바로 저장돼요</span>
+                <IconButton Icon="x" IconSize="20" Label="설정 닫기" Title="닫기 (Esc)" id="settings-close" OnClick="CloseAsync" />
+            </div>
+
+            <div class="body">
+                <nav class="nav" aria-label="설정 항목">
+                    <ul>
+                        @foreach (var item in s_sections)
+                        {
+                            var on = Settings.DialogSection == item.Id;
+                            <li @key="item.Id">
+                                <button type="button" class="nv @(on ? "on" : null)" aria-current="@(on ? "true" : "false")" @onclick="() => Settings.ShowSection(item.Id)">
+                                    @if (item.Icon == null)
+                                    {
+                                        <span class="han" aria-hidden="true">한</span>
+                                    }
+                                    else
+                                    {
+                                        <Icon Name="@item.Icon" Size="18" />
+                                    }
+                                    @item.Name
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+
+                <div class="content">
+                    @switch (Settings.DialogSection)
+                    {
+                        case "ai":
+                            <section aria-labelledby="settings-ai-h">
+                                <h2 id="settings-ai-h">도우미</h2>
+                                <p class="lead">입력창 아래에서 바꾼 것도 여기에 같이 바뀌어요.</p>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">기본 모델</span>
+                                        <span class="row-note">비용은 Sonnet 5.5 기준이에요.</span>
+                                    </div>
+                                    <fieldset class="row-body options">
+                                        <legend class="sr-only">기본 모델</legend>
+                                        @foreach (var model in AssistantModels.Models)
+                                        {
+                                            <RadioOption @key="model.Id" Group="settings-model" Value="@model.Id" Class="compact" Selected="@(Settings.ModelId == model.Id)" OnSelect="Settings.SetModel">
+                                                <span class="opt-line">
+                                                    <span class="opt-name">@model.Name</span>
+                                                    @if (model.IsDefault)
+                                                    {
+                                                        <span class="default-tag">기본</span>
+                                                    }
+                                                    <span class="opt-cost">@model.Cost</span>
+                                                </span>
+                                                <span class="opt-note">@model.Description</span>
+                                            </RadioOption>
+                                        }
+                                    </fieldset>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">기본 노력</span>
+                                        <span class="row-note">도우미가 얼마나 깊이 생각할지예요.</span>
+                                    </div>
+                                    <fieldset class="row-body options">
+                                        <legend class="sr-only">기본 노력</legend>
+                                        @foreach (var effort in AssistantModels.Efforts)
+                                        {
+                                            <RadioOption @key="effort.Id" Group="settings-effort" Value="@effort.Id" Class="compact" Selected="@(Settings.EffortId == effort.Id)" OnSelect="Settings.SetEffort">
+                                                <span class="opt-line">
+                                                    <span class="opt-name">@effort.Name</span>
+                                                    @if (effort.IsDefault)
+                                                    {
+                                                        <span class="default-tag">기본</span>
+                                                    }
+                                                </span>
+                                                <span class="opt-note">@effort.Description</span>
+                                            </RadioOption>
+                                        }
+                                    </fieldset>
+                                </div>
+
+                                <div class="row center">
+                                    <div class="row-head">
+                                        <label for="settings-ask" class="row-title">큰 변경은 먼저 물어보기</label>
+                                        <span id="settings-ask-d" class="row-note">한 번에 20곳 넘게 바꿀 때 시작하기 전에 확인해요.</span>
+                                    </div>
+                                    <div class="row-body switch-row">
+                                        <input type="checkbox" role="switch" id="settings-ask" class="switch" checked="@Settings.AskBigChanges" aria-describedby="settings-ask-d" @onchange="e => Settings.SetAskBigChanges(IsOn(e))" />
+                                        <span class="switch-text" aria-hidden="true">@OnOff(Settings.AskBigChanges)</span>
+                                    </div>
+                                </div>
+
+                                <div class="row center">
+                                    <div class="row-head">
+                                        <label for="settings-track" class="row-title">워드 변경 내용 추적으로도 남기기</label>
+                                        <span id="settings-track-d" class="row-note">켜면 도우미가 고친 곳이 워드의 ‘변경 내용 추적’에도 남아요.</span>
+                                    </div>
+                                    <div class="row-body switch-row">
+                                        <input type="checkbox" role="switch" id="settings-track" class="switch" checked="@Settings.TrackChanges" aria-describedby="settings-track-d" @onchange="e => Settings.SetTrackChanges(IsOn(e))" />
+                                        <span class="switch-text" aria-hidden="true">@OnOff(Settings.TrackChanges)</span>
+                                    </div>
+                                </div>
+                            </section>
+                            break;
+
+                        case "folder":
+                            <section aria-labelledby="settings-folder-h">
+                                <h2 id="settings-folder-h">작업 폴더</h2>
+                                <p class="lead">작업 폴더를 어디에 만들고, 켤 때 무엇부터 보여 줄지예요.</p>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">새 작업 폴더를 만들 곳</span>
+                                        <span class="row-note">작업 폴더 고르기 화면에서 만들 때 쓰여요.</span>
+                                    </div>
+                                    <div class="row-body inline">
+                                        <p class="path">
+                                            <Icon Name="folder" Size="16" />
+                                            <span>@Settings.WorkspaceRoot</span>
+                                        </p>
+                                        <ActionButton Kind="ButtonKind.Secondary" aria-label="만들 곳 바꾸기" OnClick="Settings.ChangeWorkspaceRootAsync">바꾸기</ActionButton>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">켤 때</span>
+                                        <span class="row-note">처음 시작 화면은 열쇠가 없을 때만 나와요.</span>
+                                    </div>
+                                    <fieldset class="row-body options">
+                                        <legend class="sr-only">켤 때</legend>
+                                        <RadioOption Group="settings-start" Value="pick" Class="compact" Selected="@(!Settings.OpenLastFolder)" OnSelect="_ => Settings.SetOpenLastFolder(false)">
+                                            <span class="opt-line">
+                                                <span class="opt-name">작업 폴더 고르기부터</span>
+                                                <span class="default-tag">기본</span>
+                                            </span>
+                                            <span class="opt-note">최근에 연 폴더 목록이 먼저 떠요</span>
+                                        </RadioOption>
+                                        <RadioOption Group="settings-start" Value="last" Class="compact" Selected="@Settings.OpenLastFolder" OnSelect="_ => Settings.SetOpenLastFolder(true)">
+                                            <span class="opt-line">
+                                                <span class="opt-name">마지막 작업 폴더 바로 열기</span>
+                                            </span>
+                                            <span class="opt-note">고르기 화면은 파일 목록 위 바꾸기 버튼으로 열어요</span>
+                                        </RadioOption>
+                                    </fieldset>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">최근 목록</span>
+                                        <span class="row-note">목록만 비워요. 폴더와 파일은 그대로 있어요.</span>
+                                    </div>
+                                    <div class="row-body">
+                                        <ActionButton Kind="ButtonKind.Secondary" Disabled="@(Workspace.RecentFolders.Count == 0 && _recentsCleared)" OnClick="ClearRecents">목록 비우기</ActionButton>
+                                        @if (_recentsCleared)
+                                        {
+                                            <p class="done" role="status">최근 목록을 비웠어요.</p>
+                                        }
+                                    </div>
+                                </div>
+                            </section>
+                            break;
+
+                        case "hwp":
+                            <section aria-labelledby="settings-hwp-h">
+                                <h2 id="settings-hwp-h">한글 파일</h2>
+                                <p class="lead">한글(.hwp, .hwpx) 파일을 고치고 저장하는 방법이에요.</p>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">이 컴퓨터의 한글</span>
+                                        <span class="row-note">켤 때마다 알아서 찾아봐요.</span>
+                                    </div>
+                                    <div class="row-body stack">
+                                        @if (Settings.IsHancomInstalled)
+                                        {
+                                            <p class="state"><span class="check" aria-hidden="true"><Icon Name="check" Size="11" Stroke="3.6" /></span>한글이 깔려 있어요</p>
+                                            <span class="row-note">그래서 .hwp 파일도 고친 뒤 .hwp 그대로 저장할 수 있어요.</span>
+                                        }
+                                        else
+                                        {
+                                            <p class="state"><span class="check off" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>한글을 찾지 못했어요</p>
+                                            <span class="row-note">.hwp 파일은 읽고 고칠 수 있지만, 저장은 .hwpx로 따로 해요. 원래 .hwp 파일은 그대로 있어요.</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">고친 한글 파일 저장</span>
+                                        <span class="row-note">저장 기록에는 늘 원래 형식으로 남아요.</span>
+                                    </div>
+                                    <fieldset class="row-body options">
+                                        <legend class="sr-only">고친 한글 파일 저장</legend>
+                                        <RadioOption Group="settings-hwp-save" Value="same" Class="compact" Selected="@(!Settings.HwpAlwaysHwpx)" OnSelect="_ => Settings.SetHwpAlwaysHwpx(false)">
+                                            <span class="opt-line">
+                                                <span class="opt-name">받은 형식 그대로</span>
+                                                <span class="default-tag">기본</span>
+                                            </span>
+                                            <span class="opt-note">.hwp는 .hwp로, .hwpx는 .hwpx로</span>
+                                        </RadioOption>
+                                        <RadioOption Group="settings-hwp-save" Value="hwpx" Class="compact" Selected="@Settings.HwpAlwaysHwpx" OnSelect="_ => Settings.SetHwpAlwaysHwpx(true)">
+                                            <span class="opt-line">
+                                                <span class="opt-name">늘 .hwpx로</span>
+                                            </span>
+                                            <span class="opt-note">새 형식이에요. 한글 2010 이후에서 열려요</span>
+                                        </RadioOption>
+                                    </fieldset>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">새로 만드는 한글 파일</span>
+                                        <span class="row-note">[새 파일]로 만들 때 쓰는 형식이에요.</span>
+                                    </div>
+                                    <fieldset class="row-body options">
+                                        <legend class="sr-only">새로 만드는 한글 파일</legend>
+                                        <RadioOption Group="settings-hwp-new" Value="hwpx" Class="compact" Selected="@(!Settings.HwpNewAsHwp)" OnSelect="_ => Settings.SetHwpNewAsHwp(false)">
+                                            <span class="opt-line">
+                                                <span class="opt-name">.hwpx</span>
+                                                <span class="default-tag">기본</span>
+                                            </span>
+                                            <span class="opt-note">요즘 한글이 기본으로 저장하는 형식이에요</span>
+                                        </RadioOption>
+                                        <RadioOption Group="settings-hwp-new" Value="hwp" Class="compact" Selected="@Settings.HwpNewAsHwp" OnSelect="_ => Settings.SetHwpNewAsHwp(true)">
+                                            <span class="opt-line">
+                                                <span class="opt-name">.hwp</span>
+                                            </span>
+                                            <span class="opt-note">@(Settings.IsHancomInstalled ? "아주 옛날 한글을 쓰는 곳에 보낼 때" : "아주 옛날 한글을 쓰는 곳에 보낼 때. 한글이 깔려 있어야 해요")</span>
+                                        </RadioOption>
+                                    </fieldset>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">화면에 보이는 모양</span>
+                                    </div>
+                                    <p class="row-body text">표, 글자, 문단은 그대로 보이고 그림, 수식, 머리말 같은 건 화면에 안 보여요. 정확한 모양은 문서 위 [한글에서 열기]로 볼 수 있어요.</p>
+                                </div>
+                            </section>
+                            break;
+
+                        case "view":
+                            <section aria-labelledby="settings-view-h">
+                                <h2 id="settings-view-h">화면</h2>
+                                <p class="lead">메뉴와 대화 글자만 바뀌어요. 문서 안 글자는 그대로예요.</p>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">글자 크기</span>
+                                    </div>
+                                    <fieldset class="row-body options">
+                                        <legend class="sr-only">글자 크기</legend>
+                                        @foreach (var size in s_sizes)
+                                        {
+                                            <RadioOption @key="size.Id" Group="settings-size" Value="@size.Id" Class="compact size" Selected="@(Settings.TextSize == size.Id)" OnSelect="Settings.SetTextSize">
+                                                <span class="opt-line">
+                                                    <span class="opt-name">@size.Name</span>
+                                                    @if (size.Id == SettingsStore.DefaultTextSize)
+                                                    {
+                                                        <span class="default-tag">기본</span>
+                                                    }
+                                                    <span class="sample" aria-hidden="true" style="font-size: @(size.Sample)px">가나다</span>
+                                                </span>
+                                            </RadioOption>
+                                        }
+                                    </fieldset>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">움직임</span>
+                                    </div>
+                                    <p class="row-body text">윈도우의 ‘애니메이션 효과’ 설정을 따라요. 꺼 두면 형광펜도 그어지지 않고 바로 칠해져요.</p>
+                                </div>
+                            </section>
+                            break;
+
+                        case "about":
+                            <section aria-labelledby="settings-about-h">
+                                <h2 id="settings-about-h">정보</h2>
+                                <p class="lead">문제가 생겼을 때 앱을 깔아 준 분께 알려 주면 좋은 것들이에요.</p>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">버전</span>
+                                    </div>
+                                    <p class="row-body text num">문서 도우미 @Version</p>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">설정이 있는 곳</span>
+                                        <span class="row-note">열쇠, 설정, 최근 목록이 여기 있어요.</span>
+                                    </div>
+                                    <div class="row-body stack start">
+                                        <p class="where">@AppPaths.DataFolder</p>
+                                        <ActionButton Kind="ButtonKind.Secondary" OnClick="OpenDataFolder">폴더 열기</ActionButton>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">저장 기록</span>
+                                    </div>
+                                    <p class="row-body text">작업 폴더마다 안에 있는 숨김 폴더 .문서도우미에 남아요.</p>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">글꼴</span>
+                                    </div>
+                                    <p class="row-body text">함렛, Gothic A1. 둘 다 SIL 오픈 폰트 라이선스예요.</p>
+                                </div>
+                            </section>
+                            break;
+
+                        default:
+                            <section aria-labelledby="settings-key-h">
+                                <h2 id="settings-key-h">도우미 열쇠</h2>
+                                <p class="lead">도우미가 일하려면 열쇠(API 키)가 있어야 해요.</p>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">연결 상태</span>
+                                        <span class="row-note">@KeyNote</span>
+                                    </div>
+                                    <div class="row-body inline">
+                                        <p class="state" role="status">
+                                            @switch (Settings.KeyState)
+                                            {
+                                                case KeyCheckState.Ok:
+                                                    <span class="check" aria-hidden="true"><Icon Name="check" Size="11" Stroke="3.6" /></span>
+                                                    <span>연결됐어요</span>
+                                                    break;
+                                                case KeyCheckState.Checking:
+                                                    <Spinner Size="16" />
+                                                    <span>연결되는지 확인하고 있어요…</span>
+                                                    break;
+                                                case KeyCheckState.Failed:
+                                                    <span class="check off" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
+                                                    <span>연결이 안 됐어요</span>
+                                                    break;
+                                                default:
+                                                    <span>@(Settings.IsKeyDeleted ? "열쇠를 지웠어요" : "아직 확인 안 했어요")</span>
+                                                    break;
+                                            }
+                                        </p>
+                                        <ActionButton Kind="ButtonKind.Secondary" Class="push" Disabled="@(!CanVerify)" OnClick="Settings.VerifyKeyAsync">연결 확인</ActionButton>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">열쇠</span>
+                                        <span class="row-note">연결이 확인돼야 새 열쇠로 바뀌어요. 그전까지는 지금 열쇠를 그대로 써요.</span>
+                                    </div>
+                                    <div class="row-body stack">
+                                        @if (Settings.IsChangingKey)
+                                        {
+                                            <label for="settings-key" class="field-label">새 열쇠</label>
+                                            <div class="fld">
+                                                <input id="settings-key" type="password" value="@Settings.NewKey" placeholder="sk-ant-로 시작해요" autocomplete="off" spellcheck="false" aria-describedby="settings-key-msg" @oninput="e => Settings.SetNewKey(e.Value?.ToString())" @onkeydown="OnKeyInputKeyDownAsync" />
+                                            </div>
+                                            <p id="settings-key-msg" class="key-msg @(Settings.NewKeyState == KeyCheckState.Failed ? "warn" : null)" role="status">@NewKeyMessage</p>
+                                            <div class="buttons">
+                                                <ActionButton Kind="ButtonKind.Primary" Disabled="@(!CanConfirmKey)" OnClick="ConfirmKeyAsync">연결 확인하고 바꾸기</ActionButton>
+                                                <ActionButton Kind="ButtonKind.Ghost" OnClick="CancelKeyAsync">취소</ActionButton>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="inline">
+                                                <p class="masked">@MaskedKey</p>
+                                                <ActionButton Kind="ButtonKind.Secondary" id="settings-key-change" OnClick="BeginKeyAsync">열쇠 바꾸기</ActionButton>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">저장 위치</span>
+                                        <span class="row-note">이 컴퓨터의 문서 도우미 설정 폴더</span>
+                                    </div>
+                                    <p class="row-body text icon-text">
+                                        <Icon Name="lock" Size="18" />
+                                        <span>암호를 걸어 저장해서 이 컴퓨터, 지금 쓰는 윈도우 계정에서만 열려요.</span>
+                                    </p>
+                                </div>
+
+                                <div class="row">
+                                    <div class="row-head">
+                                        <span class="row-title">열쇠 지우기</span>
+                                        <span class="row-note">지우면 다음에 켤 때 처음 시작 화면이 다시 나와요.</span>
+                                    </div>
+                                    <div class="row-body stack start">
+                                        @if (Settings.IsConfirmingKeyDelete)
+                                        {
+                                            <div class="confirm" role="alertdialog" aria-labelledby="settings-delete-q">
+                                                <p id="settings-delete-q" class="confirm-q">열쇠를 지울까요? 지금 켜 둔 동안은 계속 쓸 수 있어요.</p>
+                                                <div class="buttons">
+                                                    <ActionButton Kind="ButtonKind.Ghost" id="settings-delete-cancel" OnClick="CancelDeleteAsync">취소</ActionButton>
+                                                    <button type="button" class="danger" @onclick="DeleteKeyAsync">지우기</button>
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" id="settings-delete" class="danger" disabled="@Settings.IsKeyDeleted" @onclick="AskDeleteAsync">열쇠 지우기</button>
+                                        }
+                                    </div>
+                                </div>
+                            </section>
+                            break;
+                    }
+                </div>
+            </div>
+        </div>
+        <span class="sr-only" tabindex="0" @onfocus="FocusFirstAsync"></span>
+    </div>
+}
+
+@code {
+    private static readonly CultureInfo s_korean = CultureInfo.GetCultureInfo("ko-KR");
+
+    private static readonly (string Id, string Name, string Icon)[] s_sections =
+    {
+        ("key", "도우미 열쇠", "key-round"),
+        ("ai", "도우미", "highlighter"),
+        ("folder", "작업 폴더", "folder"),
+        ("hwp", "한글 파일", null),
+        ("view", "화면", "type"),
+        ("about", "정보", "info"),
+    };
+
+    private static readonly (string Id, string Name, int Sample)[] s_sizes =
+    {
+        ("m", "보통", 15),
+        ("l", "크게", 17),
+        ("xl", "아주 크게", 19),
+    };
+
+    private bool _shown;
+    private bool _recentsCleared;
+
+    private string Version => string.IsNullOrEmpty(Updates.CurrentVersion) ? "개발용" : Updates.CurrentVersion;
+
+    private bool CanVerify => !string.IsNullOrWhiteSpace(Settings.ApiKey) && Settings.KeyState != KeyCheckState.Checking;
+
+    private bool CanConfirmKey => !string.IsNullOrWhiteSpace(Settings.NewKey) && Settings.NewKeyState != KeyCheckState.Checking;
+
+    private string MaskedKey
+    {
+        get
+        {
+            var key = Settings.ApiKey?.Trim() ?? string.Empty;
+            if (key.Length == 0)
+                return "열쇠가 없어요";
+
+            var tail = key.Length > 4 ? key.Substring(key.Length - 4) : string.Empty;
+            return (key.StartsWith("sk-ant-", StringComparison.Ordinal) ? "sk-ant-" : string.Empty) + "••••••••" + tail;
+        }
+    }
+
+    private string KeyNote
+    {
+        get
+        {
+            if (Settings.IsKeyDeleted)
+                return "다음에 켤 때 처음 시작 화면이 나와요.";
+
+            if (Settings.KeyCheckedAt is DateTime at)
+                return $"{FormatWhen(at)}에 확인했어요";
+
+            return "[연결 확인]을 누르면 바로 확인해요.";
+        }
+    }
+
+    private string NewKeyMessage => Settings.NewKeyState switch
+    {
+        KeyCheckState.Checking => "연결되는지 확인하고 있어요…",
+        KeyCheckState.Failed => "연결이 안 됐어요. 열쇠가 맞는지 다시 봐 주세요. 지금 열쇠는 그대로예요.",
+        _ => "sk-ant-로 시작하는 열쇠예요. 없으면 앱을 깔아 준 분께 받아 주세요.",
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Settings.IsDialogOpen == _shown)
+            return;
+
+        _shown = Settings.IsDialogOpen;
+        _recentsCleared = false;
+        if (_shown)
+            await FocusAsync("#settings-close");
+    }
+
+    private static bool IsOn(ChangeEventArgs e) => e.Value is bool on ? on : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+    private static string OnOff(bool on) => on ? "켜짐" : "꺼짐";
+
+    private static string FormatWhen(DateTime time)
+    {
+        var clock = time.ToString("tt h:mm", s_korean);
+        return time.Date == DateTime.Today ? $"오늘 {clock}" : $"{time.Month}월 {time.Day}일 {clock}";
+    }
+
+    private void ClearRecents()
+    {
+        Workspace.ClearRecents();
+        _recentsCleared = true;
+    }
+
+    private void OpenDataFolder()
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(AppPaths.DataFolder);
+            Shells.FirstOrDefault()?.OpenFile(AppPaths.DataFolder);
+        }
+        catch (Exception e)
+        {
+            AppLog.Write("Could not open the data folder", e);
+        }
+    }
+
+    private async Task BeginKeyAsync()
+    {
+        Settings.BeginKeyChange();
+        await FocusAsync("#settings-key");
+    }
+
+    private async Task CancelKeyAsync()
+    {
+        Settings.CancelKeyChange();
+        await FocusAsync("#settings-key-change");
+    }
+
+    private async Task ConfirmKeyAsync()
+    {
+        if (await Settings.ConfirmNewKeyAsync())
+            await FocusAsync("#settings-key-change");
+    }
+
+    private async Task OnKeyInputKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.IsComposing && CanConfirmKey)
+            await ConfirmKeyAsync();
+    }
+
+    private async Task AskDeleteAsync()
+    {
+        Settings.AskDeleteKey();
+        await FocusAsync("#settings-delete-cancel");
+    }
+
+    private async Task CancelDeleteAsync()
+    {
+        Settings.CancelDeleteKey();
+        await FocusAsync("#settings-delete");
+    }
+
+    private async Task DeleteKeyAsync()
+    {
+        Settings.DeleteKey();
+        await FocusAsync("#settings-close");
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape")
+            return;
+
+        if (Settings.IsConfirmingKeyDelete)
+        {
+            await CancelDeleteAsync();
+            return;
+        }
+
+        if (Settings.IsChangingKey)
+        {
+            await CancelKeyAsync();
+            return;
+        }
+
+        await CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        var target = Settings.DialogReturnFocus;
+        Settings.CloseDialog();
+        if (!string.IsNullOrEmpty(target))
+            await FocusAsync(target);
+    }
+
+    private Task FocusFirstAsync() => FocusAsync("#settings-close");
+
+    private Task FocusLastAsync() => FocusAsync("#settings-dialog .content button:not([disabled]):last-of-type, #settings-close");
+
+    private async Task FocusAsync(string selector)
+    {
+        await Task.Yield();
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.focus", selector);
+        }
+        catch (JSException)
+        {
+        }
+    }
+}

@@ -1,12 +1,42 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
 @inject UpdateStore Updates
+@inject SettingsStore Settings
+@inject IJSRuntime JS
 
 @Body
+<SettingsDialog />
 
 @code {
+    private string _textSize = SettingsStore.DefaultTextSize;
+
+    protected override void OnInitialized() => Settings.Changed += OnSettingsChanged;
+
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
+        {
             _ = Updates.StartAsync();
+            _ = ApplyTextSizeAsync();
+        }
+    }
+
+    public void Dispose() => Settings.Changed -= OnSettingsChanged;
+
+    private void OnSettingsChanged() => _ = InvokeAsync(ApplyTextSizeAsync);
+
+    private async Task ApplyTextSizeAsync()
+    {
+        if (Settings.TextSize == _textSize)
+            return;
+
+        _textSize = Settings.TextSize;
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.setTextSize", _textSize);
+        }
+        catch (JSException)
+        {
+        }
     }
 }

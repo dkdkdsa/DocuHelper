@@ -21,6 +21,10 @@
     cursor: pointer;
 }
 
+::deep .open-app {
+    margin-left: auto;
+}
+
 .style:disabled {
     border-color: var(--rule);
     color: var(--ink-disabled);
