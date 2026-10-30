@@ -38,11 +38,14 @@
             }
         </ul>
     }
-    <IconButton Icon="plus" IconSize="18" Stroke="2.2" Label="파일 넣기" Class="add" OnClick="ImportAsync" />
+    <IconButton Icon="file-plus" IconSize="18" Label="새 파일" Title="새 파일" Class="add" id="folder-rail-new-file" OnClick="NewFile" />
+    <IconButton Icon="import" IconSize="18" Label="파일 넣기" Title="파일 넣기" OnClick="ImportAsync" />
 </aside>
 
 @code {
     private bool _importing;
+
+    private void NewFile() => Workspace.OpenNewFile("#folder-rail-new-file");
 
     private string RegionFocusId
     {

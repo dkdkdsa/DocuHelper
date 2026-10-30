@@ -9,7 +9,17 @@
         </div>
         <p class="hello-text">안녕하세요. 파일을 넣으시면 같이 볼게요. 파일 없이 새 문서를 만들어 달라고 하셔도 돼요.</p>
     </div>
-    @if (Assistant.Examples.Count > 0)
+    @if (Assistant.IsActiveBlank)
+    {
+        <div class="examples">
+            <h3 class="examples-title">빈 파일이에요. 이렇게 부탁해 보세요</h3>
+            @foreach (var text in Assistant.BlankSuggestions)
+            {
+                <button type="button" class="example plain" @key="text" @onclick="() => UseExampleAsync(text)">@text</button>
+            }
+        </div>
+    }
+    else if (Assistant.Examples.Count > 0)
     {
         <div class="examples">
             <h3 class="examples-title">이렇게 부탁해 보세요</h3>

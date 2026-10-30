@@ -23,6 +23,10 @@ namespace DocuHelperEditor.State
 
         public Docu Docu { get; set; }
 
+        public bool IsJustCreated { get; set; }
+
+        public bool IsBlank => Paper?.IsBlank == true;
+
         public string StatusText
         {
             get
@@ -36,7 +40,7 @@ namespace DocuHelperEditor.State
                 if (Changes.Count > 0)
                     return $"도우미가 {Changes.Count}곳 고침, 저장 전";
 
-                return null;
+                return IsJustCreated ? "방금 만듦" : null;
             }
         }
     }

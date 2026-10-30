@@ -1,6 +1,7 @@
 ﻿@inherits StoreComponentBase
 @inject IFileDialogService FileDialog
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <aside class="folder" aria-label="작업 폴더" data-region="folder">
     <div class="head">
@@ -8,14 +9,7 @@
             <span class="kicker">작업 폴더</span>
             <span class="folder-name">@Workspace.FolderName</span>
         </div>
-        @if (HasFiles)
-        {
-            <IconButton Icon="chevrons-up-down" IconSize="18" Label="다른 작업 폴더 열기" OnClick="Workspace.OpenOtherFolderAsync" />
-        }
-        else
-        {
-            <IconButton Icon="pencil" IconSize="17" Label="작업 폴더 이름 바꾸기" Title="이름 바꾸기" OnClick="Workspace.RenameFolderAsync" />
-        }
+        <IconButton Icon="chevrons-up-down" IconSize="18" Label="다른 작업 폴더 열기" Title="다른 작업 폴더 열기" OnClick="SwitchFolder" />
         <IconButton Icon="panel-left-close" IconSize="18" Label="파일 목록 접기" id="folder-files-close" aria-expanded="true" OnClick="Collapse" />
     </div>
     @if (HasFiles)
@@ -39,14 +33,20 @@
     {
         <div class="empty">
             <p class="empty-title">아직 파일이 없어요</p>
-            <p class="empty-text">가운데로 끌어다 놓거나 아래 버튼을 눌러 주세요. 파일을 넣으면 여기에 쌓여요.</p>
+            <p class="empty-text">가운데로 끌어다 놓거나 아래 버튼으로 새로 만들어 주세요. 파일은 여기에 쌓여요.</p>
         </div>
     }
     <div class="foot">
-        <button type="button" class="import" @onclick="ImportAsync">
-            <Icon Name="plus" Size="16" Stroke="2.2" />
-            파일 넣기
-        </button>
+        <div class="foot-row">
+            <button type="button" id="folder-new-file" class="import" @onclick="NewFile">
+                <Icon Name="file-plus" Size="18" />
+                새 파일
+            </button>
+            <button type="button" class="import" @onclick="ImportAsync">
+                <Icon Name="import" Size="18" />
+                파일 넣기
+            </button>
+        </div>
         @if (HasFiles)
         {
             <span class="hint">여기로 끌어다 놓아도 돼요</span>
@@ -75,6 +75,14 @@
     private bool IsActive(WorkspaceFile file) => Workspace.ActiveFile != null && Workspace.ActiveFile.Id == file.Id;
 
     private void Collapse() => Workspace.ToggleFolderWithFocus();
+
+    private void SwitchFolder()
+    {
+        if (Workspace.CanLeaveWorkspace())
+            Navigation.NavigateTo("home");
+    }
+
+    private void NewFile() => Workspace.OpenNewFile("#folder-new-file");
 
     private void OpenMenu(string fileId) => _menuFileId = fileId;
 

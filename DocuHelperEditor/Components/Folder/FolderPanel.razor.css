@@ -88,12 +88,20 @@
     border-top: 1px solid var(--rule);
 }
 
+.foot-row {
+    display: flex;
+    gap: 6px;
+}
+
 .import {
+    flex: 1;
+    min-width: 0;
     height: var(--hit);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
+    padding: 0 6px;
     border: 1.5px solid var(--line-strong);
     border-radius: var(--radius);
     background: var(--paper);

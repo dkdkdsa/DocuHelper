@@ -8,9 +8,14 @@ namespace DocuHelper.Agents
     {
         public override string Name => "ChatGPT";
 
-        public override Task<string> RunAsync(Workspace workspace, string prompt, CancellationToken cancellationToken = default)
+        public override Task<AgentResult> RunAsync(AgentRequest request, AgentToolbox toolbox, IAgentHost host, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("ChatGPT 도우미는 아직 준비 중이에요.");
+
+        public override void ResetConversation()
         {
-            throw new NotImplementedException();
         }
+
+        public override Task VerifyKeyAsync(string apiKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("ChatGPT 도우미는 아직 준비 중이에요.");
     }
 }

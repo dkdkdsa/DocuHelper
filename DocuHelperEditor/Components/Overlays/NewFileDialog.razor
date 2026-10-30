@@ -1,0 +1,179 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+<div class="scrim">
+    <dialog open class="dialog" aria-modal="true" aria-labelledby="new-file-h" @onkeydown="OnKeyDownAsync">
+        <div class="head">
+            <span class="badge" aria-hidden="true"><Icon Name="file-lines" Size="18" /></span>
+            <h2 id="new-file-h">새 파일 만들기</h2>
+            <IconButton Icon="x" IconSize="18" Label="닫기" Title="닫기 (Esc)" Class="close" OnClick="CloseAsync" />
+        </div>
+        <fieldset class="types">
+            <legend>무슨 파일을 만들까요?</legend>
+            <div class="type-grid">
+                @foreach (var option in s_types)
+                {
+                    var on = option.Type == _type;
+                    <label class="type @(on ? "on" : null)" @key="option.Key">
+                        <input type="radio" id="@($"new-file-type-{option.Key}")" name="new-file-type" checked="@on" @onchange="() => PickType(option.Type)" />
+                        <span class="check" aria-hidden="true"></span>
+                        <FileTypeIcon Type="@option.Type" Size="28" />
+                        <span class="type-text">
+                            <span class="type-name">@option.Name</span>
+                            <span class="type-desc">@option.Description</span>
+                        </span>
+                    </label>
+                }
+            </div>
+        </fieldset>
+        <div class="field">
+            <label for="new-file-name" class="field-label">이름</label>
+            <div class="fld @(IsWarning ? "warn" : null)">
+                <input id="new-file-name" value="@_name" autocomplete="off" spellcheck="false" aria-describedby="new-file-msg" aria-invalid="@(IsWarning ? "true" : "false")" @oninput="OnNameInput" @onkeydown="OnNameKeyDownAsync" />
+                <span class="ext" aria-hidden="true">@Extension</span>
+            </div>
+            <p id="new-file-msg" class="msg @(IsWarning ? "warn" : null)">@Message</p>
+        </div>
+        <p class="tip">
+            <span class="tip-icon" aria-hidden="true"><Icon Name="highlighter" Size="12" Stroke="2.4" /></span>
+            <span>빈 파일로 만들어요. 내용까지 채우려면 도우미에게 ‘7월 매출표 만들어 줘’처럼 부탁해도 돼요.</span>
+        </p>
+        <div class="actions">
+            <ActionButton Kind="ButtonKind.Ghost" OnClick="CloseAsync">취소</ActionButton>
+            <ActionButton Kind="ButtonKind.Primary" Class="create" Disabled="@(!CanCreate)" OnClick="CreateAsync">만들기</ActionButton>
+        </div>
+    </dialog>
+</div>
+
+@code {
+    private static readonly (string Key, DocuType Type, string Name, string Description)[] s_types =
+    {
+        ("xlsx", DocuType.Excel, "엑셀", "표와 계산"),
+        ("docx", DocuType.Word, "워드", "글과 보고서"),
+        ("pptx", DocuType.Ppt, "파워포인트", "발표 자료"),
+    };
+
+    private DocuType _type;
+    private string _name = string.Empty;
+    private bool _edited;
+    private string _error;
+    private bool _focusPending = true;
+    private bool _creating;
+
+    private string Extension => WorkspaceStore.ExtensionOf(_type);
+
+    private string Problem => string.IsNullOrWhiteSpace(_name) ? null : Workspace.NewFileProblem(_type, _name);
+
+    private bool IsWarning => !string.IsNullOrEmpty(_error) || Problem != null;
+
+    private bool CanCreate => !_creating && !string.IsNullOrWhiteSpace(_name) && Problem == null;
+
+    private string Message
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(_error))
+                return _error;
+
+            if (string.IsNullOrWhiteSpace(_name))
+                return "이름을 적어 주세요.";
+
+            return Problem ?? $"‘{_name.Trim()}{Extension}’로 {Workspace.FolderName} 폴더에 바로 만들어요.";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        _type = Workspace.LastNewFileType;
+        _name = Workspace.SuggestFileName(_type);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending)
+            return;
+
+        _focusPending = false;
+        await FocusAsync($"#new-file-type-{KeyOf(_type)}");
+    }
+
+    private void PickType(DocuType type)
+    {
+        _type = type;
+        _error = null;
+        Workspace.RememberNewFileType(type);
+        if (!_edited)
+            _name = Workspace.SuggestFileName(type);
+    }
+
+    private void OnNameInput(ChangeEventArgs e)
+    {
+        _name = e.Value?.ToString() ?? string.Empty;
+        _edited = true;
+        _error = null;
+    }
+
+    private async Task OnNameKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.IsComposing)
+            await CreateAsync();
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            await CloseAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        if (!CanCreate)
+            return;
+
+        _creating = true;
+        var file = Workspace.CreateFile(_type, _name, out var error);
+        _creating = false;
+        if (file == null)
+        {
+            _error = error;
+            return;
+        }
+
+        Workspace.CloseNewFile();
+        await Task.Delay(60);
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.focusPaperStart");
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        var target = Workspace.NewFileReturnFocus;
+        Workspace.CloseNewFile();
+        if (!string.IsNullOrEmpty(target))
+            await FocusAsync(target);
+    }
+
+    private static string KeyOf(DocuType type) => type switch
+    {
+        DocuType.Excel => "xlsx",
+        DocuType.Word => "docx",
+        _ => "pptx",
+    };
+
+    private async Task FocusAsync(string selector)
+    {
+        await Task.Yield();
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.focus", selector);
+        }
+        catch (JSException)
+        {
+        }
+    }
+}

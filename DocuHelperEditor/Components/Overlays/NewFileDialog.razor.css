@@ -1,0 +1,270 @@
+.scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(var(--ink-rgb), 0.28);
+}
+
+.dialog {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    max-height: 100%;
+    overflow: auto;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 22px 22px 20px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-pop);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-dialog);
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.badge {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    background: var(--ink);
+    color: var(--paper);
+}
+
+h2 {
+    flex: 1;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.head ::deep .close {
+    margin: -6px -8px -6px 0;
+}
+
+.types {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+legend {
+    padding: 0;
+    margin: 0 0 10px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.type-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.type {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-height: 120px;
+    padding: 12px;
+    border: 1.5px solid var(--rule);
+    border-radius: var(--radius-card);
+    background: var(--paper);
+    cursor: pointer;
+}
+
+.type:hover {
+    background: var(--well);
+}
+
+.type input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.type:has(input:focus-visible) {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+.type.on {
+    border-color: var(--ink);
+    background: var(--hl-soft);
+}
+
+.check {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--ink-2);
+    border-radius: 50%;
+}
+
+.type.on .check {
+    border-color: var(--ink);
+}
+
+.type.on .check::after {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ink);
+}
+
+.type ::deep .file-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+}
+
+.type ::deep .file-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.type-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.4;
+}
+
+.type-name {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.type-desc {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-label {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.fld {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--paper);
+}
+
+.fld.warn {
+    border-color: var(--warn);
+}
+
+.fld:focus-within {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+.fld input {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    padding: 0 2px 0 12px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 15px;
+}
+
+.fld input:focus-visible {
+    outline: none;
+}
+
+.ext {
+    flex: none;
+    padding: 0 12px 0 2px;
+    font-size: 15px;
+    color: var(--ink-2);
+}
+
+.msg {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.msg.warn {
+    font-weight: 700;
+    color: var(--warn);
+}
+
+.tip {
+    margin: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--paper-2);
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.tip-icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--hl);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.actions ::deep .act {
+    font-weight: 700;
+}
+
+.actions ::deep .create {
+    padding: 0 22px;
+    font-size: 15px;
+}

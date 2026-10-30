@@ -11,7 +11,7 @@
                 var active = index == ActiveIndex;
                 var isNew = IsPendingNew(sheet);
                 var marked = !string.IsNullOrEmpty(HighlightChangeId) && sheet.ChangeId == HighlightChangeId;
-                <button type="button" @key="sheet" class="tab @(active ? "on" : null) @(isNew ? "new" : null)" aria-pressed="@(active ? "true" : "false")" @onclick="() => OnSelect.InvokeAsync(index)">
+                <button type="button" @key="sheet.Name" class="tab @(active ? "on" : null) @(isNew ? "new" : null)" aria-pressed="@(active ? "true" : "false")" @onclick="() => OnSelect.InvokeAsync(index)">
                     @if (marked)
                     {
                         <span class="mk on" data-change="@HighlightChangeId">@sheet.Name</span>

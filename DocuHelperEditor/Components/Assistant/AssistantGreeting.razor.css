@@ -60,6 +60,10 @@
     cursor: pointer;
 }
 
+.example.plain {
+    padding: 6px 12px;
+}
+
 .example:hover {
     filter: brightness(.96);
 }

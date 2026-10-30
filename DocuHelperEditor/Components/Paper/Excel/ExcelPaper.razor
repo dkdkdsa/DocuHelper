@@ -20,7 +20,11 @@
                 OnCommit="HandleBarCommit"
                 OnCancel="HandleBarCancel"
                 OnLeave="HandleBarLeave" />
-    <SheetGrid @key="CurrentSheet"
+    @if (!string.IsNullOrEmpty(_editError))
+    {
+        <p class="edit-error" role="alert">@_editError</p>
+    }
+    <SheetGrid @key="CurrentSheet.Name"
                Sheet="@CurrentSheet"
                SinkId="@SinkId"
                SelectedRef="@SelectedRef"
@@ -50,11 +54,14 @@
 </div>
 
 @code {
+    private const string SheetNamePrefix = "시트";
+
     private readonly string _uid = "xl" + Guid.NewGuid().ToString("N").Substring(0, 8);
     private ExcelPaperModel _fallback;
     private WorkspaceFile _file;
-    private Sheet _editSheet;
+    private string _editSheet;
     private string _editRef;
+    private string _editError;
     private bool _editInCell;
     private bool _editInBar;
     private bool _editTyped;
@@ -153,6 +160,7 @@
 
         _file = File;
         _fallback = null;
+        _editError = null;
         ResetEdit();
     }
 
@@ -203,7 +211,12 @@
             return false;
 
         if (IsEditing)
+        {
             CommitEdit();
+            model = Model;
+            if (!model.TryLocateChange(changeId, out sheetIndex, out cellRef))
+                return false;
+        }
 
         model.ActiveSheetIndex = sheetIndex;
         var sheet = model.Sheets[sheetIndex];
@@ -233,6 +246,7 @@
         if (cellRef == SelectedRef)
             return;
 
+        _editError = null;
         if (IsEditing)
             CommitEdit();
 
@@ -352,7 +366,7 @@
             CommitEdit();
 
         var text = keepText ? (SelectedCell?.EditText ?? string.Empty) : string.Empty;
-        _editSheet = CurrentSheet;
+        _editSheet = CurrentSheet.Name;
         _editRef = SelectedRef;
         _editInCell = true;
         _editInBar = false;
@@ -369,7 +383,7 @@
 
         if (!_editInCell)
         {
-            _editSheet = CurrentSheet;
+            _editSheet = CurrentSheet.Name;
             _editRef = SelectedRef;
             _editInCell = true;
             _editTyped = true;
@@ -392,7 +406,7 @@
 
         if (!_editInBar)
         {
-            _editSheet = CurrentSheet;
+            _editSheet = CurrentSheet.Name;
             _editRef = SelectedRef;
             _editInBar = true;
             _editTyped = false;
@@ -470,22 +484,20 @@
         if (IsLocked)
             return;
 
-        ApplyText(CurrentSheet, SelectedRef, string.Empty);
+        ApplyText(CurrentSheet.Name, SelectedRef, string.Empty);
     }
 
-    private void ApplyText(Sheet sheet, string cellRef, string value)
+    private void ApplyText(string sheetName, string cellRef, string value)
     {
-        if (sheet == null || IsLocked || !SheetRef.TryParse(cellRef, out var column, out var row))
+        if (string.IsNullOrEmpty(sheetName) || IsLocked || !SheetRef.TryParse(cellRef, out var column, out var row))
             return;
 
-        var before = sheet.FindCell(row, column)?.EditText ?? string.Empty;
+        var sheet = Model.Sheets.FirstOrDefault(s => s.Name == sheetName);
+        var before = sheet?.FindCell(row, column)?.EditText ?? string.Empty;
         if (value == before)
             return;
 
-        var cell = sheet.EnsureCell(row, column);
-        cell.SetInput(value);
-        cell.ChangeIds.Clear();
-        MarkDirty();
+        Edit(EditCommand.Create("write_cells", new { sheet = sheetName, start = cellRef, values = new[] { new[] { value } } }));
     }
 
     private void ToggleFormat(string format)
@@ -497,50 +509,38 @@
             CommitEdit();
 
         var sheet = CurrentSheet;
-        if (!SheetRef.TryParse(SelectedRef, out var column, out var row))
+        var cellRef = SelectedRef;
+        if (!SheetRef.TryParse(cellRef, out var column, out var row))
             return;
 
         var kind = sheet.FindRow(row)?.Kind ?? SheetRowKind.Normal;
-        var cell = sheet.EnsureCell(row, column);
-        switch (format)
+        var cell = sheet.FindCell(row, column);
+        object arguments = format switch
         {
-            case "bold":
-                cell.Bold = !cell.IsBoldIn(kind);
-                break;
-            case "italic":
-                cell.Italic = !cell.Italic;
-                break;
-            case "underline":
-                cell.Underline = !cell.Underline;
-                break;
-            case "center":
-                cell.Align = cell.Align == SheetAlign.Center ? SheetAlign.Auto : SheetAlign.Center;
-                break;
-            case "thousands":
-                if (!cell.ApplyNumberFormat(SheetNumberFormat.Thousands))
-                    return;
-                break;
-            case "percent":
-                if (!cell.ApplyNumberFormat(SheetNumberFormat.Percent))
-                    return;
-                break;
-            default:
-                return;
-        }
+            "bold" => new { sheet = sheet.Name, range = cellRef, bold = !(cell?.IsBoldIn(kind) ?? kind != SheetRowKind.Normal) },
+            "italic" => new { sheet = sheet.Name, range = cellRef, italic = cell?.Italic != true },
+            "underline" => new { sheet = sheet.Name, range = cellRef, underline = cell?.Underline != true },
+            "center" => new { sheet = sheet.Name, range = cellRef, align = cell?.Align == SheetAlign.Center ? "general" : "center" },
+            "thousands" when cell?.NumberFormat != SheetNumberFormat.Thousands => new { sheet = sheet.Name, range = cellRef, number_format = "thousands" },
+            "percent" when cell?.NumberFormat != SheetNumberFormat.Percent => new { sheet = sheet.Name, range = cellRef, number_format = "percent" },
+            _ => null,
+        };
 
-        MarkDirty();
+        if (arguments != null)
+            Edit(EditCommand.Create("format_range", arguments));
     }
 
     private void SelectSheet(int index)
     {
-        var model = Model;
-        if (index < 0 || index >= model.Sheets.Count)
+        if (index < 0 || index >= Model.Sheets.Count)
             return;
 
         if (IsEditing)
             CommitEdit();
 
-        model.ActiveSheetIndex = index;
+        var model = Model;
+        model.ActiveSheetIndex = Math.Clamp(index, 0, model.Sheets.Count - 1);
+        _editError = null;
         Workspace.SetSelection(LabelFor(CurrentSheet, SelectedRef));
     }
 
@@ -552,29 +552,33 @@
         if (IsEditing)
             CommitEdit();
 
-        var model = Model;
-        model.AddSheet();
-        if (File != null)
-        {
-            if (File.Paper == null)
-                File.Paper = model;
+        var name = NextSheetName();
+        if (!Edit(EditCommand.Create("add_sheet", new { name })))
+            return;
 
-            File.IsDirty = true;
-        }
+        var model = Model;
+        var index = model.Sheets.FindIndex(s => s.Name == name);
+        if (index >= 0)
+            model.ActiveSheetIndex = index;
 
         Workspace.SetSelection(LabelFor(CurrentSheet, SelectedRef));
     }
 
-    private void MarkDirty()
+    private string NextSheetName()
     {
-        if (File == null)
-            return;
+        var names = Model.Sheets.Select(s => s.Name).ToList();
+        var number = names.Count + 1;
+        while (names.Any(n => string.Equals(n, SheetNamePrefix + number, StringComparison.OrdinalIgnoreCase)))
+            number++;
 
-        if (File.Paper == null)
-            File.Paper = Model;
+        return SheetNamePrefix + number;
+    }
 
-        File.IsDirty = true;
-        Workspace.Notify();
+    private bool Edit(EditCommand command)
+    {
+        var result = Workspace.ApplyEdit(File, command);
+        _editError = result.IsError ? result.Content : null;
+        return !result.IsError;
     }
 
     private Task Undo() => Workspace.UndoAsync();

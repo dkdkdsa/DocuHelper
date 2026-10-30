@@ -5,5 +5,7 @@
         void OpenFile(string path);
 
         void RevealInExplorer(string path);
+
+        void MoveToRecycleBin(string path);
     }
 }

@@ -12,6 +12,8 @@ namespace DocuHelperEditor.State
 
         public List<ContextChipModel> Chips { get; set; } = new();
 
+        public List<AttachmentModel> Attachments { get; set; } = new();
+
         public TaskProgress Progress { get; set; }
 
         public AssistantResult Result { get; set; }

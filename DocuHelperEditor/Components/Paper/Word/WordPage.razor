@@ -285,14 +285,12 @@
 
     private void OnInput(WordBlockModel block)
     {
-        if (File == null)
+        var current = Model?.FindBlock(block.Id);
+        if (current == null || current.IsEditedByHand)
             return;
 
-        var changed = !block.IsEditedByHand || !File.IsDirty;
-        block.IsEditedByHand = true;
-        File.IsDirty = true;
-        if (changed)
-            Workspace.Notify();
+        current.IsEditedByHand = true;
+        Workspace.Notify();
     }
 
     private async Task SyncAsync(WordBlockModel block)
@@ -301,40 +299,44 @@
         if (text == null)
             return;
 
-        if (block.Kind == WordBlockKind.Byline)
-            text = string.Join("\n", text.Split('\n', StringSplitOptions.RemoveEmptyEntries));
-
-        if (text == (block.Text ?? string.Empty))
+        var current = Model?.FindBlock(block.Id);
+        if (current == null)
             return;
 
-        block.Text = text;
-        Commit(block, block.Id);
+        text = Shape(current, text);
+        if (text == Shape(current, Normalize(current.Text)))
+            return;
+
+        Edit(block.Id, block.Id, EditCommand.Create("replace_paragraph", new { id = block.Id, text }));
     }
 
     private async Task SyncCellAsync(WordBlockModel block, int row, int column)
     {
         var key = CellKey(block, row, column);
         var text = await ReadTextAsync(key);
-        if (text == null || block.Table == null || text == block.Table.CellText(row, column))
+        var current = Model?.FindBlock(block.Id);
+        if (text == null || current?.Table == null || text == Normalize(current.Table.CellText(row, column)))
             return;
 
-        block.Table.SetCell(row, column, text);
-        Commit(block, key);
+        Edit(block.Id, key, EditCommand.Create("set_table_cell", new { table = block.Id, row = row + 1, column = column + 1, text }));
     }
 
-    private void Commit(WordBlockModel block, string key)
+    private void Edit(string blockId, string key, EditCommand command)
     {
         _versions[key] = VersionOf(key) + 1;
-        block.IsEditedByHand = true;
-        if (File != null)
-            File.IsDirty = true;
+        if (File != null && !IsLocked)
+            Workspace.ApplyEdit(File, command);
 
         var model = Model;
-        if (model != null && model.SelectedBlockId == block.Id && Workspace.ActiveFile == File)
+        var block = model?.FindBlock(blockId);
+        if (block != null && model.SelectedBlockId == blockId && Workspace.ActiveFile == File)
             Workspace.SetSelection(model.Describe(block));
         else
             Workspace.Notify();
     }
+
+    private static string Shape(WordBlockModel block, string text) =>
+        block.Kind == WordBlockKind.Byline ? string.Join("\n", text.Split('\n', StringSplitOptions.RemoveEmptyEntries)) : text;
 
     private async Task<string> ReadTextAsync(string key)
     {

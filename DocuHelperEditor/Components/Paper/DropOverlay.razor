@@ -4,21 +4,13 @@
 {
     <div class="drop-layer">
         <div class="drop-zone">
-            <p class="drop-title">여기에 놓으면 작업 폴더에 복사돼요</p>
+            <p class="drop-title">@Title</p>
             @if (Workspace.DropCandidates.Count > 0)
             {
                 <ul class="drop-list">
                     @foreach (var item in Workspace.DropCandidates)
                     {
-                        if (item.CanOpen)
-                        {
-                            <li class="row ok">
-                                <span class="ftile @TileClass(item.Type)" aria-hidden="true"><Icon Name="@Glyph(item.Type)" Size="14" Stroke="2.4" /></span>
-                                <span class="row-name">@item.Name</span>
-                                <span class="row-ok"><Icon Name="check" Size="13" Stroke="3" />넣을 수 있어요</span>
-                            </li>
-                        }
-                        else
+                        if (!item.CanOpen)
                         {
                             <li class="row no">
                                 <span class="row-head">
@@ -32,6 +24,22 @@
                                 }
                             </li>
                         }
+                        else if (item.Destination == DropDestination.Unknown)
+                        {
+                            <li class="row ok unsure">
+                                <span class="ftile other" aria-hidden="true"><Icon Name="@GlyphOf(item)" Size="14" Stroke="2.4" /></span>
+                                <span class="row-name">@item.Name</span>
+                                <span class="row-ok">놓으면 확인해요</span>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="row ok">
+                                <span class="ftile @TileClass(item.Type)" aria-hidden="true"><Icon Name="@GlyphOf(item)" Size="14" Stroke="2.4" /></span>
+                                <span class="row-name">@item.Name</span>
+                                <span class="row-ok"><Icon Name="check" Size="13" Stroke="3" />@NoteOf(item)</span>
+                            </li>
+                        }
                     }
                 </ul>
             }
@@ -40,6 +48,34 @@
 }
 
 @code {
+    private bool HasFolder => Workspace.DropCandidates.Any(c => c.CanOpen && c.Destination == DropDestination.Folder);
+
+    private bool HasAssistant => Workspace.DropCandidates.Any(c => c.CanOpen && c.Destination == DropDestination.Assistant);
+
+    private string Title
+    {
+        get
+        {
+            if (HasAssistant)
+                return HasFolder ? "여기에 놓으면 파일마다 알맞은 곳에 넣어요" : "여기에 놓으면 도우미에게 보낼 메시지에 붙어요";
+
+            if (!HasFolder && Workspace.DropCandidates.Any(c => c.Destination == DropDestination.Unknown))
+                return "여기에 놓으면 넣을 수 있는지 확인해요";
+
+            return "여기에 놓으면 작업 폴더에 복사돼요";
+        }
+    }
+
+    private string NoteOf(DropCandidate item)
+    {
+        if (item.Destination == DropDestination.Assistant)
+            return "도우미에게 붙어요";
+
+        return HasAssistant ? "작업 폴더에 복사돼요" : "넣을 수 있어요";
+    }
+
+    private static string GlyphOf(DropCandidate item) => item.Glyph ?? Glyph(item.Type);
+
     private static string TileClass(DocuType? type) => type switch
     {
         DocuType.Excel => "xlsx",

@@ -1,0 +1,306 @@
+﻿@page "/home"
+@inherits StoreComponentBase
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="home">
+    <header class="home-header">
+        <BrandMark Size="26" />
+        <span class="brand-name">문서 도우미</span>
+        <div class="header-actions">
+            <ActionButton Kind="ButtonKind.Ghost" Icon="settings" OnClick="OpenSettings">설정</ActionButton>
+        </div>
+    </header>
+
+    <main class="home-main">
+        <div class="inner">
+            <div class="intro">
+                <h1>어떤 작업 폴더를 열까요?</h1>
+                <p class="lead">같이 볼 파일을 작업 폴더 하나에 모아 두고 일해요. 한 번 연 폴더는 여기에 남아요.</p>
+            </div>
+
+            <div class="columns">
+                <section class="panel recent" aria-labelledby="home-recent-h">
+                    <div class="recent-head">
+                        <h2 id="home-recent-h" tabindex="-1">최근에 연 작업 폴더</h2>
+                        @if (Recents.Count > 0)
+                        {
+                            <span class="recent-count">@(Recents.Count)개</span>
+                        }
+                    </div>
+
+                    @if (Recents.Count > 0)
+                    {
+                        <ul class="recent-list" aria-labelledby="home-recent-h" @onkeydown="OnMenuKeyDown">
+                            @foreach (var item in Recents)
+                            {
+                                if (item.IsMissing)
+                                {
+                                    <li class="row missing" @key="item.Path">
+                                        <span class="tile dashed" aria-hidden="true"><Icon Name="folder-x" Size="22" Stroke="1.9" /></span>
+                                        <div class="missing-body">
+                                            <span class="row-name">@item.Name</span>
+                                            <span class="row-path">@item.DisplayPath</span>
+                                            <p class="missing-note">
+                                                <Icon Name="alert-circle" Size="16" />
+                                                폴더를 찾을 수 없어요. 옮겼거나 USB를 뺐을 수 있어요.
+                                            </p>
+                                            <div class="missing-actions">
+                                                <ActionButton Kind="ButtonKind.Secondary" OnClick="() => RelocateAsync(item)">폴더 다시 찾기</ActionButton>
+                                                <ActionButton Kind="ButtonKind.Ghost" OnClick="() => Forget(item)">목록에서 빼기</ActionButton>
+                                            </div>
+                                        </div>
+                                    </li>
+                                }
+                                else
+                                {
+                                    var menuId = item.Key + "-menu";
+                                    var open = _menuKey == item.Key;
+                                    <li class="row" @key="item.Path">
+                                        <button type="button" class="open" @onclick="() => OpenRecent(item)">
+                                            <span class="tile" aria-hidden="true"><Icon Name="folder" Size="22" Stroke="1.9" /></span>
+                                            <span class="row-text">
+                                                <span class="row-name">@item.Name</span>
+                                                <span class="row-path">@item.DisplayPath</span>
+                                                @if (item.ExcelCount + item.WordCount + item.PptCount > 0)
+                                                {
+                                                    <span class="counts">
+                                                        @if (item.ExcelCount > 0)
+                                                        {
+                                                            <span class="count"><span class="swatch xlsx" aria-hidden="true"></span>엑셀 @item.ExcelCount</span>
+                                                        }
+                                                        @if (item.WordCount > 0)
+                                                        {
+                                                            <span class="count"><span class="swatch docx" aria-hidden="true"></span>워드 @item.WordCount</span>
+                                                        }
+                                                        @if (item.PptCount > 0)
+                                                        {
+                                                            <span class="count"><span class="swatch pptx" aria-hidden="true"></span>파워포인트 @item.PptCount</span>
+                                                        }
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="counts">파일 없음</span>
+                                                }
+                                            </span>
+                                            <span class="row-when">@item.When</span>
+                                        </button>
+                                        <IconButton Icon="more" IconSize="18" Label="@($"{item.Name} 메뉴")" id="@(item.Key + "-more")" aria-expanded="@(open ? "true" : "false")" aria-controls="@menuId" OnClick="() => ToggleMenu(item)" />
+                                        @if (open)
+                                        {
+                                            <div class="menu-scrim" @onclick="CloseMenu"></div>
+                                            <ul id="@menuId" class="menu" aria-label="@($"{item.Name} 메뉴")">
+                                                <li>
+                                                    <button type="button" class="menu-item" @onclick="() => Reveal(item)">
+                                                        <Icon Name="folder" Size="18" />
+                                                        탐색기에서 보기
+                                                    </button>
+                                                </li>
+                                                <li class="menu-split">
+                                                    <button type="button" class="menu-item tall" @onclick="() => Forget(item)">
+                                                        <Icon Name="circle-minus" Size="16" />
+                                                        <span class="menu-text">
+                                                            <span>목록에서 빼기</span>
+                                                            <span class="menu-note">폴더와 파일은 그대로 있어요</span>
+                                                        </span>
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        }
+                                    </li>
+                                }
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="empty">
+                            <p class="empty-title">아직 연 작업 폴더가 없어요</p>
+                            <p class="empty-text">새 작업 폴더를 만들거나, 파일이 들어 있는 폴더를 골라 주세요. 한 번 연 폴더는 여기에 남아요.</p>
+                        </div>
+                    }
+                </section>
+
+                <div class="side">
+                    <section class="panel create" aria-labelledby="home-new-h">
+                        <div class="panel-head">
+                            <span class="badge dark" aria-hidden="true"><Icon Name="folder-plus" Size="18" Stroke="2.1" /></span>
+                            <h2 id="home-new-h">새 작업 폴더 만들기</h2>
+                        </div>
+                        <div class="field">
+                            <label for="home-name" class="field-label">이름</label>
+                            <input id="home-name" class="name @(HasNameError ? "invalid" : null)" value="@_name" placeholder="예: 7월 결산" autocomplete="off" aria-describedby="@(HasNameError ? "home-name-err" : "home-preview")" aria-invalid="@(HasNameError ? "true" : "false")" @oninput="OnNameInput" @onkeydown="OnNameKeyDown" />
+                            @if (HasNameError)
+                            {
+                                <p id="home-name-err" class="name-error">
+                                    <Icon Name="alert-circle" Size="16" />
+                                    <span>@NameError</span>
+                                </p>
+                            }
+                            @if (_nameExists)
+                            {
+                                <button type="button" class="open-existing" @onclick="OpenExisting">‘@(_name.Trim())’ 열기</button>
+                            }
+                        </div>
+                        <div class="field">
+                            <span class="field-label">만들 곳</span>
+                            <div class="where">
+                                <p class="where-path">
+                                    <Icon Name="folder" Size="17" />
+                                    <span>@Settings.WorkspaceRoot</span>
+                                </p>
+                                <ActionButton Kind="ButtonKind.Secondary" aria-label="만들 곳 바꾸기" OnClick="ChangeRootAsync">바꾸기</ActionButton>
+                            </div>
+                        </div>
+                        <div class="create-foot">
+                            <p id="home-preview" class="preview">@Preview</p>
+                            <ActionButton Kind="ButtonKind.Primary" Class="create-btn" Disabled="@(!CanCreate)" OnClick="Create">만들고 열기</ActionButton>
+                        </div>
+                    </section>
+
+                    <section class="panel existing" aria-labelledby="home-open-h">
+                        <div class="panel-head">
+                            <span class="badge" aria-hidden="true"><Icon Name="folder-open" Size="18" /></span>
+                            <h2 id="home-open-h">이미 있는 폴더 열기</h2>
+                        </div>
+                        <p class="existing-text">파일이 들어 있는 폴더를 그대로 작업 폴더로 써요. 안의 파일을 바로 고치고, 저장할 때마다 전 상태를 기록에 남겨요.</p>
+                        <ActionButton Kind="ButtonKind.Secondary" Icon="folder-open" Class="pick" OnClick="PickFolderAsync">폴더 고르기</ActionButton>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+@code {
+    private string _name = string.Empty;
+    private string _menuKey;
+    private string _createError;
+    private bool _nameExists;
+
+    private IReadOnlyList<RecentFolderItem> Recents => Workspace.RecentFolders;
+
+    private string NameError
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(_createError))
+                return _createError;
+
+            if (string.IsNullOrWhiteSpace(_name))
+                return null;
+
+            return Workspace.WorkspaceNameProblem(_name, out _);
+        }
+    }
+
+    private bool HasNameError => !string.IsNullOrEmpty(NameError);
+
+    private bool CanCreate => !string.IsNullOrWhiteSpace(_name) && Workspace.WorkspaceNameProblem(_name, out _) == null;
+
+    private string Preview => CanCreate
+        ? $"{Settings.WorkspaceRoot}\\{_name.Trim()} 폴더를 새로 만들고 바로 열어요."
+        : $"이름을 적으면 {Settings.WorkspaceRoot} 안에 새 폴더를 만들어요.";
+
+    protected override void OnInitialized()
+    {
+        Settings.EnsureLoaded();
+        if (!Settings.IsConfigured)
+        {
+            Navigation.NavigateTo("setup");
+            return;
+        }
+
+        Workspace.RefreshRecents();
+    }
+
+    private void OpenSettings() => Navigation.NavigateTo("setup");
+
+    private void OpenRecent(RecentFolderItem item)
+    {
+        _menuKey = null;
+        if (Workspace.OpenRecent(item.Path))
+            Navigation.NavigateTo("");
+    }
+
+    private void ToggleMenu(RecentFolderItem item) => _menuKey = _menuKey == item.Key ? null : item.Key;
+
+    private Task CloseMenu()
+    {
+        var key = _menuKey;
+        _menuKey = null;
+        return key == null ? Task.CompletedTask : FocusAsync("#" + key + "-more");
+    }
+
+    private Task OnMenuKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? CloseMenu() : Task.CompletedTask;
+
+    private void Reveal(RecentFolderItem item)
+    {
+        _menuKey = null;
+        Workspace.RevealFolder(item.Path);
+    }
+
+    private async Task Forget(RecentFolderItem item)
+    {
+        _menuKey = null;
+        Workspace.ForgetRecent(item.Path);
+        await FocusAsync("#home-recent-h");
+    }
+
+    private Task RelocateAsync(RecentFolderItem item) => Workspace.RelocateRecentAsync(item.Path);
+
+    private void OnNameInput(ChangeEventArgs e)
+    {
+        _name = e.Value?.ToString() ?? string.Empty;
+        _createError = null;
+        Workspace.WorkspaceNameProblem(_name, out _nameExists);
+    }
+
+    private void OnNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            Create();
+    }
+
+    private void Create()
+    {
+        if (!CanCreate)
+            return;
+
+        _createError = Workspace.CreateWorkspace(_name);
+        if (_createError == null)
+            Navigation.NavigateTo("");
+    }
+
+    private void OpenExisting()
+    {
+        if (Workspace.OpenExistingWorkspace(_name))
+            Navigation.NavigateTo("");
+    }
+
+    private async Task ChangeRootAsync()
+    {
+        await Settings.ChangeWorkspaceRootAsync();
+        _createError = null;
+        Workspace.WorkspaceNameProblem(_name, out _nameExists);
+    }
+
+    private async Task PickFolderAsync()
+    {
+        if (await Workspace.OpenFolderFromDiskAsync())
+            Navigation.NavigateTo("");
+    }
+
+    private async Task FocusAsync(string selector)
+    {
+        await Task.Yield();
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.focus", selector);
+        }
+        catch (JSException)
+        {
+        }
+    }
+}

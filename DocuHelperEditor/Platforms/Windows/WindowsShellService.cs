@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using DocuHelperEditor.Services;
+using Microsoft.VisualBasic.FileIO;
 
 namespace DocuHelperEditor.WinUI
 {
@@ -13,6 +14,11 @@ namespace DocuHelperEditor.WinUI
         public void RevealInExplorer(string path)
         {
             Process.Start("explorer.exe", $"/select,\"{path}\"");
+        }
+
+        public void MoveToRecycleBin(string path)
+        {
+            FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
         }
     }
 }

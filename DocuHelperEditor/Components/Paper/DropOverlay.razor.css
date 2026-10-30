@@ -123,6 +123,10 @@
     font-size: 13px;
 }
 
+.unsure .row-ok {
+    color: var(--ink-2);
+}
+
 .row-no {
     flex: none;
     font-size: 13px;

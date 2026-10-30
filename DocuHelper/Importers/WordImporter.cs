@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DocuHelper.Docus;
 
 namespace DocuHelper.Importers
@@ -8,9 +7,6 @@ namespace DocuHelper.Importers
     {
         public override IReadOnlyList<string> SupportedExtensions { get; } = [".docx"];
 
-        public override WordDocu Import(string filePath)
-        {
-            throw new NotImplementedException();
-        }
+        public override WordDocu Create(string filePath, byte[] content) => new(filePath, content);
     }
 }

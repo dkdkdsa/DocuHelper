@@ -42,12 +42,16 @@
     <p class="drop-lead">엑셀, 워드, 파워포인트 파일을 여러 개 같이 넣어도 돼요. 원래 파일은 그대로 두고 복사본으로 작업해요.</p>
     <div class="drop-actions">
         <button type="button" class="pick" @onclick="PickFilesAsync">
-            <Icon Name="file-plus" Size="17" Stroke="2.2" />
+            <Icon Name="import" Size="17" Stroke="2.2" />
             파일 고르기
         </button>
         <button type="button" class="pick-folder" @onclick="PickFolderAsync">
             <Icon Name="folder" Size="17" Stroke="2.2" />
             폴더째 넣기
+        </button>
+        <button type="button" id="start-new-file" class="pick-folder" @onclick="NewFile">
+            <Icon Name="file-plus" Size="17" Stroke="2.2" />
+            새 파일 만들기
         </button>
     </div>
     <p class="drop-formats">열 수 있는 파일: .xlsx, .docx, .pptx, 옛날 형식 .xls, .doc, .ppt<br />한글 파일(.hwp)은 아직 못 열어요</p>
@@ -55,6 +59,8 @@
 
 @code {
     private bool _picking;
+
+    private void NewFile() => Workspace.OpenNewFile("#start-new-file");
 
     private async Task PickFilesAsync()
     {

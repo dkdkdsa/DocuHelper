@@ -1,6 +1,5 @@
 ﻿@inherits StoreComponentBase
 @inject IJSRuntime JS
-@inject IFileDialogService FileDialog
 
 <div class="composer" inert="@IsCovered">
     @if (Chips.Count > 0)
@@ -12,29 +11,123 @@
             }
         </div>
     }
-    <div class="box">
-        <IconButton Icon="paperclip" Label="파일 더하기" IconSize="18" OnClick="AddFilesAsync" />
-        <label class="sr-only" for="composer-input">도우미에게 보낼 말</label>
-        <textarea id="composer-input" class="input" rows="2" placeholder="@Placeholder" disabled="@IsWorking" data-region-focus="@RegionFocus" value="@Assistant.Draft" @ref="_input" @oninput="OnInput" @onkeydown="OnKeyDownAsync"></textarea>
-        <ActionButton Kind="ButtonKind.Primary" Icon="send" IconSize="15" IconStroke="2.2" Disabled="@(!Assistant.CanSend)" OnClick="SendAsync">보내기</ActionButton>
+    <div class="wrap" @onkeydown="OnWrapKeyDownAsync">
+        @if (OpenMenu == ModelMenu)
+        {
+            <div class="menu-scrim" @onclick="CloseMenuAsync"></div>
+            <section id="composer-model-pop" class="pop" aria-labelledby="composer-model-h">
+                <div class="pop-head">
+                    <h3 id="composer-model-h">모델</h3>
+                    <span class="pop-sub">다음 부탁부터 바뀌어요</span>
+                </div>
+                <ul class="options">
+                    @foreach (var option in AssistantModels.Models)
+                    {
+                        var on = option.Id == Settings.ModelId;
+                        <li @key="option.Id">
+                            <button type="button" class="option @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => PickModelAsync(option)">
+                                <span class="radio" aria-hidden="true"><span class="dot"></span></span>
+                                <span class="option-text">
+                                    <span class="option-top">
+                                        <span class="option-name">@option.Name</span>
+                                        @if (option.IsDefault)
+                                        {
+                                            <span class="default-tag">기본</span>
+                                        }
+                                        <span class="option-cost">@option.Cost</span>
+                                    </span>
+                                    <span class="option-desc">@option.Description</span>
+                                </span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+        @if (OpenMenu == EffortMenu)
+        {
+            <div class="menu-scrim" @onclick="CloseMenuAsync"></div>
+            <section id="composer-effort-pop" class="pop" aria-labelledby="composer-effort-h">
+                <div class="pop-head">
+                    <h3 id="composer-effort-h">노력</h3>
+                    <span class="pop-sub">도우미가 얼마나 깊이 생각할지예요. 다음 부탁부터 바뀌어요</span>
+                </div>
+                <ul class="options">
+                    @foreach (var option in AssistantModels.Efforts)
+                    {
+                        var on = option.Id == Settings.EffortId;
+                        <li @key="option.Id">
+                            <button type="button" class="option @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => PickEffortAsync(option)">
+                                <span class="radio" aria-hidden="true"><span class="dot"></span></span>
+                                <span class="option-text">
+                                    <span class="option-top">
+                                        <span class="option-name">@option.Name</span>
+                                        @if (option.IsDefault)
+                                        {
+                                            <span class="default-tag">기본</span>
+                                        }
+                                    </span>
+                                    <span class="option-desc">@option.Description</span>
+                                </span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+        <div class="box">
+            @if (Assistant.Attachments.Count > 0)
+            {
+                <ul class="attachments" aria-label="붙인 파일">
+                    @foreach (var item in Assistant.Attachments)
+                    {
+                        <li @key="item.Id"><AttachmentTile Model="item" OnRemove="() => RemoveAttachmentAsync(item)" /></li>
+                    }
+                </ul>
+            }
+            <label class="sr-only" for="composer-input">도우미에게 보낼 말</label>
+            <textarea id="composer-input" class="input" rows="2" placeholder="@Placeholder" disabled="@IsWorking" data-region-focus="@RegionFocus" value="@Assistant.Draft" @ref="_input" @oninput="OnInput" @onkeydown="OnKeyDownAsync"></textarea>
+            <div class="bar">
+                <IconButton Icon="paperclip" Label="파일 더하기" Title="파일 더하기 · 그림은 Ctrl+V로 붙여 넣어도 돼요" IconSize="18" OnClick="AddFilesAsync" />
+                <button type="button" id="composer-model-btn" class="pick" aria-label="@($"모델 {Settings.Model.Name}")" aria-expanded="@(OpenMenu == ModelMenu ? "true" : "false")" aria-controls="composer-model-pop" disabled="@PickDisabled" @onclick="ToggleModel">
+                    @Settings.Model.Name
+                    <Icon Name="chevron-down" Size="14" Stroke="2.2" Class="@(OpenMenu == ModelMenu ? "flip" : null)" />
+                </button>
+                <button type="button" id="composer-effort-btn" class="pick" aria-label="@($"노력 {Settings.Effort.Name}")" aria-expanded="@(OpenMenu == EffortMenu ? "true" : "false")" aria-controls="composer-effort-pop" disabled="@PickDisabled" @onclick="ToggleEffort">
+                    <span class="pick-label">노력</span>
+                    @Settings.Effort.Name
+                    <Icon Name="chevron-down" Size="14" Stroke="2.2" Class="@(OpenMenu == EffortMenu ? "flip" : null)" />
+                </button>
+                <ActionButton Kind="ButtonKind.Primary" Icon="send" IconSize="15" IconStroke="2.2" Class="send" Disabled="@(!Assistant.CanSend)" OnClick="SendAsync">보내기</ActionButton>
+            </div>
+        </div>
     </div>
 </div>
 
 @code {
     private const string ModulePath = "./Components/Assistant/Composer.razor.js";
+    private const string FilesModulePath = "./js/attachments.js";
     private const string WorkingPlaceholder = "도우미가 일하는 중이에요";
     private const string RevisePlaceholder = "어떻게 고칠지 적어 주세요. 예: 합계 줄은 빼 줘";
+    private const string ModelMenu = "model";
+    private const string EffortMenu = "effort";
 
     private ElementReference _input;
     private IJSObjectReference _module;
+    private IJSObjectReference _files;
     private bool _enterGuarded;
     private bool _dropNextInput;
+    private string _menu;
 
     private IReadOnlyList<ContextChipModel> Chips => Assistant.ContextChips;
 
     private bool IsWorking => Assistant.Status == AssistantStatus.Working;
 
     private bool IsCovered => Assistant.IsPopupOpen && Assistant.PendingQuestion != null;
+
+    private bool PickDisabled => Assistant.IsBusy || Assistant.IsRunning;
+
+    private string OpenMenu => PickDisabled ? null : _menu;
 
     private string Placeholder
     {
@@ -67,6 +160,38 @@
         {
             _enterGuarded = false;
         }
+    }
+
+    private void ToggleModel() => _menu = _menu == ModelMenu ? null : ModelMenu;
+
+    private void ToggleEffort() => _menu = _menu == EffortMenu ? null : EffortMenu;
+
+    private async Task PickModelAsync(ModelOption option)
+    {
+        Settings.SetModel(option.Id);
+        _menu = null;
+        await FocusAsync("#composer-model-btn");
+    }
+
+    private async Task PickEffortAsync(EffortOption option)
+    {
+        Settings.SetEffort(option.Id);
+        _menu = null;
+        await FocusAsync("#composer-effort-btn");
+    }
+
+    private async Task CloseMenuAsync()
+    {
+        var menu = _menu;
+        _menu = null;
+        if (menu != null)
+            await FocusAsync(menu == ModelMenu ? "#composer-model-btn" : "#composer-effort-btn");
+    }
+
+    private async Task OnWrapKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && _menu != null)
+            await CloseMenuAsync();
     }
 
     private void OnInput(ChangeEventArgs e)
@@ -104,23 +229,49 @@
 
     private async Task SubmitAsync()
     {
+        _menu = null;
         await Assistant.SendAsync();
         Assistant.StopRevising();
     }
 
     private async Task AddFilesAsync()
     {
-        var paths = await FileDialog.PickDocumentsAsync();
-        if (paths == null || paths.Count == 0)
-            return;
+        try
+        {
+            _files ??= await JS.InvokeAsync<IJSObjectReference>("import", FilesModulePath);
+            await _files.InvokeVoidAsync("pick");
+        }
+        catch (JSException e)
+        {
+            AppLog.Write("File picker failed", e);
+        }
+    }
 
-        await Workspace.ImportAsync(paths);
+    private async Task RemoveAttachmentAsync(AttachmentModel item)
+    {
+        Assistant.RemoveAttachment(item.Id);
+        await FocusAsync("#composer-input");
+    }
+
+    private async Task FocusAsync(string selector)
+    {
+        await Task.Yield();
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.focus", selector);
+        }
+        catch (JSException)
+        {
+        }
     }
 
     protected override void OnDispose()
     {
         if (_module != null)
             _ = ReleaseModuleAsync(_module);
+
+        if (_files != null)
+            _ = ReleaseModuleAsync(_files);
     }
 
     private static async Task ReleaseModuleAsync(IJSObjectReference module)

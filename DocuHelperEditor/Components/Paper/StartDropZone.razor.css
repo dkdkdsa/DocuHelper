@@ -1,6 +1,6 @@
 .drop {
     width: 100%;
-    max-width: 640px;
+    max-width: 660px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -156,6 +156,10 @@
     bottom: 4px;
     border-radius: 3px 8px 4px 9px;
     background: linear-gradient(98deg, rgba(var(--hl-rgb), 0.3) 0%, var(--hl) 6%, var(--hl) 93%, rgba(var(--hl-rgb), 0.45) 100%);
+}
+
+.drop-title:focus {
+    outline: none;
 }
 
 .drop-title {

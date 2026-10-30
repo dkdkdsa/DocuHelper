@@ -8,5 +8,7 @@ namespace DocuHelperEditor.Services
         Task<IReadOnlyList<string>> PickDocumentsAsync();
 
         Task<string> PickFolderAsync();
+
+        Task<string> PickSaveFileAsync(string suggestedName);
     }
 }

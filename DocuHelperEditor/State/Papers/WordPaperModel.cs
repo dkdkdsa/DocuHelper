@@ -15,6 +15,8 @@ namespace DocuHelperEditor.State.Papers
 
         public string SelectionLabel => Describe(SelectedBlock);
 
+        public override bool IsBlank => Blocks.All(b => !b.IsTable && string.IsNullOrWhiteSpace(b.Text));
+
         public bool HasSourceNotes => Blocks.Any(b => b.Source != null);
 
         public IReadOnlyList<int> Pages

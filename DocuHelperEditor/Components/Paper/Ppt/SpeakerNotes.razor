@@ -9,7 +9,7 @@
             <span class="change-bar" aria-hidden="true"></span>
         }
         <span class="label" id="@_labelId">발표 메모</span>
-        <SlideTextBox @ref="_text" @key="slide" Tag="p" Class="note" Lines="slide.Notes" Highlighted="IsLit" ChangeId="@slide.NotesChangeId" Editable="!Locked" OnFocus="OnFocus" OnEdit="lines => EditNotes(slide, lines)" role="textbox" aria-multiline="true" aria-readonly="@(Locked ? "true" : null)" aria-labelledby="@_labelId" />
+        <SlideTextBox @ref="_text" @key="slide.Id" Tag="p" Class="note" data-placeholder="발표할 때 볼 메모를 적어 주세요" Lines="slide.Notes" Highlighted="IsLit" ChangeId="@ShownChangeId" Editable="!Locked" OnFocus="OnFocus" OnEdit="lines => EditNotes(slide, lines)" OnCommit="lines => CommitNotes(slide, lines)" role="textbox" aria-multiline="true" aria-readonly="@(Locked ? "true" : null)" aria-labelledby="@_labelId" />
     </div>
 }
 
@@ -35,13 +35,27 @@
     [Parameter]
     public EventCallback<SlideModel> OnEdited { get; set; }
 
-    private string LiveChange =>
-        Slide != null && !string.IsNullOrEmpty(Slide.NotesChangeId) && LiveChanges != null && LiveChanges.Contains(Slide.NotesChangeId)
-            ? Slide.NotesChangeId
-            : null;
+    [Parameter]
+    public EventCallback<SlideModel> OnCommitted { get; set; }
 
-    private bool IsLit =>
-        Slide != null && !string.IsNullOrEmpty(HighlightId) && Slide.NotesChangeId == HighlightId && !Slide.NotesMarkCleared;
+    private string LiveChange
+    {
+        get
+        {
+            if (Slide == null || LiveChanges == null)
+                return null;
+
+            if (Slide.HasNotesChange(HighlightId) && LiveChanges.Contains(HighlightId))
+                return HighlightId;
+
+            var ids = (Slide.NotesChangeIds ?? new List<string>()).Append(Slide.NotesChangeId);
+            return ids.LastOrDefault(id => !string.IsNullOrEmpty(id) && LiveChanges.Contains(id));
+        }
+    }
+
+    private bool IsLit => Slide != null && Slide.HasNotesChange(HighlightId) && !Slide.NotesMarkCleared;
+
+    private string ShownChangeId => IsLit ? HighlightId : Slide?.NotesChangeId;
 
     private Task FocusText() => _text == null || Locked ? Task.CompletedTask : _text.FocusAsync();
 
@@ -49,5 +63,13 @@
     {
         slide.Notes = lines;
         return OnEdited.InvokeAsync(slide);
+    }
+
+    private Task CommitNotes(SlideModel slide, List<string> lines)
+    {
+        if (lines != null)
+            slide.Notes = lines;
+
+        return OnCommitted.InvokeAsync(slide);
     }
 }

@@ -7,12 +7,12 @@
 {
     var slide = _model.ActiveSlide;
     <div class="ppt">
-        <SlideToolbar Box="_model.SelectedBox" Locked="Locked" OnSmaller="() => ChangeFontSize(-FontStep)" OnBigger="() => ChangeFontSize(FontStep)" OnBold="ToggleBold" OnItalic="ToggleItalic" OnUnderline="ToggleUnderline" OnAlign="SetAlign" OnNewSlide="AddSlide" />
+        <SlideToolbar Box="_model.SelectedBox" Locked="ReadOnly" OnSmaller="() => ChangeFontSize(-1)" OnBigger="() => ChangeFontSize(1)" OnBold="ToggleBold" OnItalic="ToggleItalic" OnUnderline="ToggleUnderline" OnAlign="SetAlign" OnNewSlide="AddSlide" />
         <div class="body @(Locked ? "locked" : null)">
             <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
             <div class="stage">
-                <SlideCanvas Slide="slide" Number="_model.ActiveIndex + 1" Footer="@_model.Footer" SelectedBoxId="@_model.SelectedBoxId" HighlightId="@_highlightId" LiveChanges="_live" Locked="Locked" OnSelectBox="SelectBox" OnClearSelection="ClearSelection" OnBoxEdited="BoxEdited" />
-                <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="Locked" OnFocus="FocusNotes" OnEdited="NotesEdited" />
+                <SlideCanvas Slide="slide" Number="_model.ActiveIndex + 1" Footer="@_model.Footer" SelectedBoxId="@_model.SelectedBoxId" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnSelectBox="SelectBox" OnClearSelection="ClearSelection" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
             </div>
         </div>
         <ChangeNavigator File="File" />
@@ -20,9 +20,7 @@
 }
 
 @code {
-    private const int FontStep = 2;
-    private const int MinFontSize = 8;
-    private const int MaxFontSize = 60;
+    private static readonly double[] s_fontSizes = { 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96 };
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -34,11 +32,16 @@
     private string _scrollChangeId;
     private string _reported;
     private bool _notesFocused;
+    private string _draftSlideId;
+    private string _draftBoxId;
+    private List<string> _draftLines;
 
     [Parameter]
     public WorkspaceFile File { get; set; }
 
     private bool Locked => File != null && File.Activity == FileActivity.Editing;
+
+    private bool ReadOnly => Locked || File?.Docu == null;
 
     private bool IsActive => File != null && Workspace.ActiveFile != null && Workspace.ActiveFile.Id == File.Id;
 
@@ -74,6 +77,8 @@
         }
     }
 
+    protected override void OnDispose() => CommitDraft();
+
     private void Sync()
     {
         if (File == null)
@@ -84,6 +89,7 @@
 
         if (!ReferenceEquals(File, _file))
         {
+            CommitDraft();
             _file = File;
             _fallback = null;
             _seenChangeId = null;
@@ -160,6 +166,7 @@
 
     private void SelectSlide(int index)
     {
+        CommitDraft();
         if (_model == null || index < 0 || index >= _model.Slides.Count)
             return;
 
@@ -171,8 +178,11 @@
 
     private void SelectBox(SlideBoxModel box)
     {
+        if (box != null && _draftLines != null && _draftBoxId != box.Id)
+            CommitDraft();
+
         var slide = _model?.ActiveSlide;
-        if (slide == null || !slide.Contains(box))
+        if (slide == null || box == null || slide.FindBox(box.Id) == null)
             return;
 
         if (_model.SelectedBoxId == box.Id && !_notesFocused)
@@ -185,6 +195,7 @@
 
     private void ClearSelection()
     {
+        CommitDraft();
         if (_model == null || (_model.SelectedBoxId == null && !_notesFocused))
             return;
 
@@ -195,6 +206,9 @@
 
     private void FocusNotes()
     {
+        if (_draftLines != null && _draftBoxId != null)
+            CommitDraft();
+
         if (_model == null || (_model.SelectedBoxId == null && _notesFocused))
             return;
 
@@ -205,104 +219,198 @@
 
     private void BoxEdited(SlideBoxModel box)
     {
-        if (_model == null || box == null)
+        if (_model == null || box == null || ReadOnly)
             return;
 
-        box.MarkCleared = true;
-        Touch(_model.SlideOf(box), true);
+        if (_draftLines != null && _draftBoxId != box.Id)
+            CommitDraft();
+
+        var slide = SlideOfBox(box.Id);
+        var current = slide?.FindBox(box.Id);
+        if (current == null)
+            return;
+
+        _draftSlideId = slide.Id;
+        _draftBoxId = box.Id;
+        _draftLines = (box.Lines ?? new List<string>()).ToList();
+        current.Lines = _draftLines.ToList();
+        current.MarkCleared = true;
+        slide.FitChecked = false;
+    }
+
+    private void BoxCommitted(SlideBoxModel box)
+    {
+        BoxEdited(box);
+        CommitDraft();
     }
 
     private void NotesEdited(SlideModel slide)
     {
-        if (slide == null)
+        if (_model == null || slide == null || ReadOnly)
             return;
 
-        slide.NotesMarkCleared = true;
-        Touch(slide, false);
+        if (_draftLines != null && (_draftBoxId != null || _draftSlideId != slide.Id))
+            CommitDraft();
+
+        var current = _model.Slides.FirstOrDefault(s => s.Id == slide.Id);
+        if (current == null)
+            return;
+
+        _draftSlideId = slide.Id;
+        _draftBoxId = null;
+        _draftLines = (slide.Notes ?? new List<string>()).ToList();
+        current.Notes = _draftLines.ToList();
+        current.NotesMarkCleared = true;
     }
 
-    private void ChangeFontSize(int step)
+    private void NotesCommitted(SlideModel slide)
     {
-        var box = EditableBox();
+        NotesEdited(slide);
+        CommitDraft();
+    }
+
+    private void CommitDraft()
+    {
+        if (_draftLines == null)
+            return;
+
+        var slideId = _draftSlideId;
+        var boxId = _draftBoxId;
+        var lines = _draftLines;
+        _draftSlideId = null;
+        _draftBoxId = null;
+        _draftLines = null;
+
+        var file = _file ?? File;
+        var model = file?.Paper as PptPaperModel;
+        var index = model?.Slides.FindIndex(s => s.Id == slideId) ?? -1;
+        if (file?.Docu == null || index < 0)
+            return;
+
+        var slide = model.Slides[index];
+        if (boxId == null)
+        {
+            if (IsRealSlide(slide))
+                Edit(file, "set_notes", new { slide = index + 1, text = string.Join("\n", lines) });
+
+            return;
+        }
+
+        var box = slide.FindBox(boxId);
         if (box == null)
             return;
 
-        var size = Math.Clamp(box.FontSize + step, MinFontSize, MaxFontSize);
-        if (size == box.FontSize)
+        if (!IsRealSlide(slide))
+        {
+            if (box.Kind == SlideBoxKind.Title)
+                Edit(file, "add_slide", new { after = 0, title = string.Join(" ", lines) });
+            else
+                Edit(file, "add_slide", new { after = 0, lines });
+
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(box.ShapeKey))
+            Edit(file, "set_slide_text", new { slide = index + 1, shape = box.ShapeKey, lines });
+    }
+
+    private void ChangeFontSize(int direction)
+    {
+        var target = EditableTarget();
+        if (target == null)
             return;
 
-        box.FontSize = size;
-        Touch(_model.SlideOf(box), true);
+        var (number, box) = target.Value;
+        var current = box.PointSize > 0 ? box.PointSize : 18;
+        var next = direction > 0
+            ? s_fontSizes.FirstOrDefault(s => s > current + 0.01)
+            : s_fontSizes.LastOrDefault(s => s < current - 0.01);
+
+        if (next > 0)
+            Edit("set_font", new { slide = number, shape = box.ShapeKey, size = next });
     }
 
     private void ToggleBold()
     {
-        var box = EditableBox();
-        if (box == null)
-            return;
-
-        box.Bold = !box.Bold;
-        Touch(_model.SlideOf(box), true);
+        var target = EditableTarget();
+        if (target != null)
+            Edit("set_font", new { slide = target.Value.Number, shape = target.Value.Box.ShapeKey, bold = !target.Value.Box.Bold });
     }
 
     private void ToggleItalic()
     {
-        var box = EditableBox();
-        if (box == null)
-            return;
-
-        box.Italic = !box.Italic;
-        Touch(_model.SlideOf(box), true);
+        var target = EditableTarget();
+        if (target != null)
+            Edit("set_font", new { slide = target.Value.Number, shape = target.Value.Box.ShapeKey, italic = !target.Value.Box.Italic });
     }
 
     private void ToggleUnderline()
     {
-        var box = EditableBox();
-        if (box == null)
-            return;
-
-        box.Underline = !box.Underline;
-        Touch(_model.SlideOf(box), false);
+        var target = EditableTarget();
+        if (target != null)
+            Edit("set_font", new { slide = target.Value.Number, shape = target.Value.Box.ShapeKey, underline = !target.Value.Box.Underline });
     }
 
     private void SetAlign(SlideTextAlign align)
     {
-        var box = EditableBox();
-        if (box == null)
+        var target = EditableTarget();
+        if (target == null)
             return;
 
+        var box = target.Value.Box;
         var next = box.Align == align ? SlideTextAlign.Left : align;
-        if (next == box.Align)
-            return;
-
-        box.Align = next;
-        Touch(_model.SlideOf(box), false);
+        if (next != box.Align)
+            Edit("set_font", new { slide = target.Value.Number, shape = box.ShapeKey, align = next == SlideTextAlign.Center ? "center" : "left" });
     }
 
     private void AddSlide()
     {
-        if (_model == null || Locked)
+        if (_model == null || ReadOnly)
             return;
 
-        _model.Slides.Add(SlideModel.CreateEmpty());
-        _model.ActiveIndex = _model.Slides.Count - 1;
+        CommitDraft();
+        if (_model == null)
+            return;
+
+        var after = Math.Clamp(_model.ActiveIndex + 1, 0, _model.Slides.Count(IsRealSlide));
+        if (!Edit("add_slide", new { after, layout = "title_content" }) || _model == null)
+            return;
+
+        _model.ActiveIndex = Math.Clamp(after, 0, _model.Slides.Count - 1);
         _model.SelectedBoxId = null;
         _notesFocused = false;
-        File.IsDirty = true;
         Report();
     }
 
-    private SlideBoxModel EditableBox() => _model == null || Locked ? null : _model.SelectedBox;
-
-    private void Touch(SlideModel slide, bool affectsFit)
+    private (int Number, SlideBoxModel Box)? EditableTarget()
     {
-        if (affectsFit && slide != null)
-            slide.FitChecked = false;
+        if (_model == null || ReadOnly || string.IsNullOrEmpty(_model.SelectedBoxId))
+            return null;
 
-        if (File.IsDirty)
-            return;
+        CommitDraft();
+        var slide = _model?.ActiveSlide;
+        var box = slide?.FindBox(_model.SelectedBoxId);
+        if (box == null || !IsRealSlide(slide) || string.IsNullOrEmpty(box.ShapeKey))
+            return null;
 
-        File.IsDirty = true;
-        Workspace.Notify();
+        return (_model.Slides.IndexOf(slide) + 1, box);
     }
+
+    private bool Edit(string tool, object arguments) => Edit(File, tool, arguments);
+
+    private bool Edit(WorkspaceFile file, string tool, object arguments)
+    {
+        if (file == null)
+            return false;
+
+        var result = Workspace.ApplyEdit(file, EditCommand.Create(tool, arguments));
+        if (ReferenceEquals(file, File))
+            _model = ResolveModel();
+
+        return !result.IsError;
+    }
+
+    private SlideModel SlideOfBox(string boxId) => _model?.Slides.FirstOrDefault(s => s.FindBox(boxId) != null);
+
+    private static bool IsRealSlide(SlideModel slide) => slide?.Id != null && slide.Id.StartsWith("s:", StringComparison.Ordinal);
 }

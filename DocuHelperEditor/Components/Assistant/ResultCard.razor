@@ -3,7 +3,9 @@
 
 @if (Result != null)
 {
-    <div class="card">
+    var saved = IsSaved;
+    var undone = !saved && IsUndone;
+    <div class="card @(undone ? "undone" : null)">
         @foreach (var group in Result.Groups)
         {
             <div class="group" @key="group">
@@ -59,7 +61,7 @@
                 </span>
             </div>
         }
-        @if (Result.IsSaved)
+        @if (saved)
         {
             <div class="foot saved">
                 <span class="saved-glyph" aria-hidden="true">
@@ -71,6 +73,16 @@
                     <span class="saved-time">@Result.SavedAt</span>
                 }
                 <ActionButton Kind="ButtonKind.Text" OnClick="ShowHistory">기록 보기</ActionButton>
+            </div>
+        }
+        else if (undone)
+        {
+            <div class="foot undone">
+                <span class="undone-glyph" aria-hidden="true">
+                    <Icon Name="rotate-ccw" Size="12" Stroke="2.6" />
+                </span>
+                <span class="undone-title">되돌렸어요</span>
+                <span class="undone-note">이 부탁으로 바뀐 곳은 이제 파일에 없어요</span>
             </div>
         }
         else
@@ -104,6 +116,12 @@
     public AssistantResult Result { get; set; }
 
     private bool IsWorking => Assistant.Status == AssistantStatus.Working;
+
+    private IEnumerable<string> ChangeIds => Result.Groups.SelectMany(g => g.Changes).Select(c => c.Id).Where(id => id != null);
+
+    private bool IsSaved => Result.IsSaved || (ChangeIds.Any() && ChangeIds.All(Workspace.IsSavedChange));
+
+    private bool IsUndone => ChangeIds.Any() && ChangeIds.All(id => !Workspace.IsLiveChange(id) && !Workspace.IsSavedChange(id));
 
     private bool IsSelected(ChangeItem change) => change.Id != null && change.Id == Workspace.SelectedChangeId;
 

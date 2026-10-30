@@ -8,6 +8,15 @@
             }
         </div>
     }
+    @if (Entry.Attachments.Count > 0)
+    {
+        <ul class="attachments" aria-label="붙인 파일">
+            @foreach (var item in Entry.Attachments)
+            {
+                <li @key="item.Id"><AttachmentTile Model="item" Variant="message" /></li>
+            }
+        </ul>
+    }
     @if (!string.IsNullOrEmpty(Entry.Text))
     {
         <p class="bubble">@Entry.Text</p>

@@ -14,6 +14,11 @@ namespace DocuHelperEditor.State.Papers
 
         public string Footer { get; set; }
 
+        public override bool IsBlank => Slides == null || Slides.All(s =>
+            s.Chart == null
+            && (s.Boxes == null || s.Boxes.All(b => b.IsEmpty))
+            && (s.Notes == null || s.Notes.All(string.IsNullOrWhiteSpace)));
+
         public SlideModel ActiveSlide => Slides == null || Slides.Count == 0
             ? null
             : Slides[Math.Clamp(ActiveIndex, 0, Slides.Count - 1)];

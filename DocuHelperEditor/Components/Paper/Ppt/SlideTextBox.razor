@@ -102,6 +102,9 @@
     [Parameter]
     public EventCallback<List<string>> OnEdit { get; set; }
 
+    [Parameter]
+    public EventCallback<List<string>> OnCommit { get; set; }
+
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object> Attributes { get; set; }
 
@@ -172,14 +175,22 @@
         if (!_dirty)
             return;
 
-        await PushTextAsync();
+        var lines = await ReadLinesAsync();
         _dirty = false;
         _frozenLines = null;
         _frozenChangeId = null;
         _epoch++;
+        await OnCommit.InvokeAsync(lines);
     }
 
     private async Task PushTextAsync()
+    {
+        var lines = await ReadLinesAsync();
+        if (lines != null)
+            await OnEdit.InvokeAsync(lines);
+    }
+
+    private async Task<List<string>> ReadLinesAsync()
     {
         string text;
         try
@@ -188,21 +199,18 @@
         }
         catch (JSException)
         {
-            return;
+            return null;
         }
         catch (JSDisconnectedException)
         {
-            return;
+            return null;
         }
         catch (TaskCanceledException)
         {
-            return;
+            return null;
         }
 
-        if (text == null)
-            return;
-
-        await OnEdit.InvokeAsync(Parse(text));
+        return text == null ? null : Parse(text);
     }
 
     private static List<string> Parse(string text) => text

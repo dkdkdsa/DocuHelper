@@ -1,6 +1,7 @@
 ﻿@page "/"
 @inherits StoreComponentBase
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <div class="workspace">
     <div class="workspace-main" inert="@IsBlocked">
@@ -28,14 +29,21 @@
     </div>
     <HistoryPanel />
     <UnsavedDialog />
+    @if (Workspace.IsNewFileOpen)
+    {
+        <NewFileDialog />
+    }
     @if (DevMode.Enabled && string.IsNullOrEmpty(Bare))
     {
-        <DevScenarioPicker Current="@SampleScenarios.Current" />
+        <DevScenarioPicker Current="@(SampleScenarios.Current ?? SampleScenarios.Real)" />
     }
 </div>
 
 @code {
+    private const string FilesModulePath = "./js/attachments.js";
+
     private DotNetObjectReference<WorkspacePage> _self;
+    private IJSObjectReference _files;
 
     [SupplyParameterFromQuery(Name = "scenario")]
     public string Scenario { get; set; }
@@ -43,26 +51,34 @@
     [SupplyParameterFromQuery(Name = "bare")]
     public string Bare { get; set; }
 
-    private bool IsBlocked => Workspace.PendingClose != null;
+    private bool IsBlocked => Workspace.PendingClose != null || Workspace.IsNewFileOpen;
 
     protected override void OnParametersSet()
     {
-        if (!DevMode.Enabled)
-            return;
-
-        var requested = Scenario;
-        if (string.IsNullOrEmpty(requested))
+        if (DevMode.Enabled && !string.IsNullOrEmpty(Scenario) && Scenario != SampleScenarios.Real)
         {
-            if (SampleScenarios.Current != null)
-                return;
+            if (Scenario != SampleScenarios.Current)
+                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings);
 
-            requested = SampleScenarios.Default;
+            return;
         }
 
-        if (requested == SampleScenarios.Current)
-            return;
+        if (SampleScenarios.Current != null)
+        {
+            SampleScenarios.Leave();
+            Settings.Reload();
+            Assistant.NewConversation();
+        }
 
-        SampleScenarios.Apply(requested, Workspace, Assistant, Settings);
+        Settings.EnsureLoaded();
+        if (!Settings.IsConfigured)
+        {
+            Navigation.NavigateTo("setup");
+            return;
+        }
+
+        if (!Workspace.IsReady)
+            Navigation.NavigateTo("home");
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -72,6 +88,23 @@
 
         _self = DotNetObjectReference.Create(this);
         await JS.InvokeVoidAsync("docuHelper.registerShortcuts", _self);
+
+        try
+        {
+            _files = await JS.InvokeAsync<IJSObjectReference>("import", FilesModulePath);
+            await _files.InvokeVoidAsync("start", _self, new
+            {
+                maxEdge = AssistantStore.MaxImageEdge,
+                imageBytes = AssistantStore.MaxImageBytes,
+                imageSourceBytes = AssistantStore.MaxImageSourceBytes,
+                pdfBytes = AssistantStore.MaxPdfBytes,
+                textBytes = AssistantStore.MaxTextBytes,
+            });
+        }
+        catch (JSException e)
+        {
+            AppLog.Write("File intake failed to start", e);
+        }
     }
 
     [JSInvokable]
@@ -80,9 +113,47 @@
     [JSInvokable]
     public Task OnUndoShortcut() => Workspace.UndoAsync();
 
+    [JSInvokable]
+    public void OnFilesDragEnter(string[] kinds)
+    {
+        if (Workspace.CanTakeFiles)
+            Workspace.ShowDrag(kinds);
+    }
+
+    [JSInvokable]
+    public void OnFilesDragLeave() => Workspace.ClearDrop();
+
+    [JSInvokable]
+    public string OnFileAttached(IncomingFile file) => Workspace.CanTakeFiles ? Assistant.AddAttachment(file) : "blocked";
+
+    [JSInvokable]
+    public void OnFileProblems(IncomingFile[] problems)
+    {
+        if (Workspace.CanTakeFiles)
+            Assistant.ReportFileProblems(problems);
+    }
+
     protected override void OnDispose()
     {
         _ = JS.InvokeVoidAsync("docuHelper.unregisterShortcuts").AsTask();
+        if (_files != null)
+            _ = StopFilesAsync(_files);
+
         _self?.Dispose();
+    }
+
+    private static async Task StopFilesAsync(IJSObjectReference files)
+    {
+        try
+        {
+            await files.InvokeVoidAsync("stop");
+            await files.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (JSException)
+        {
+        }
     }
 }

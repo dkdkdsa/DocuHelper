@@ -58,3 +58,9 @@
 .cleared .mk.on {
     background-image: none;
 }
+
+[data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: var(--ink-3);
+    pointer-events: none;
+}

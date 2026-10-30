@@ -1,4 +1,7 @@
 ﻿using Microsoft.Maui.Controls;
+#if WINDOWS
+using DocuHelperEditor.WinUI;
+#endif
 
 namespace DocuHelperEditor
 {
@@ -7,9 +10,14 @@ namespace DocuHelperEditor
         public MainPage()
         {
             InitializeComponent();
-#if WINDOWS && !DEBUG
+#if WINDOWS
             blazorWebView.BlazorWebViewInitialized += (sender, e) =>
+            {
+#if !DEBUG
                 e.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+#endif
+                WebViewFileBridge.Attach(e.WebView.CoreWebView2);
+            };
 #endif
         }
     }

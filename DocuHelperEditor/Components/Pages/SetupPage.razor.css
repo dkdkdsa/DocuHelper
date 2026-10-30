@@ -79,45 +79,15 @@ h1:focus {
     color: var(--ink-2);
 }
 
-.steps {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
-}
-
-.step {
-    display: grid;
-    grid-template-columns: 30px minmax(0, 1fr);
-    column-gap: 14px;
-}
-
-.num {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1.5px solid var(--ink);
-    border-radius: 50%;
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 700;
-}
-
-.step-body {
-    min-width: 0;
+.key {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.step-title {
+.key-title {
     font-size: 15px;
     font-weight: 700;
-    line-height: 30px;
 }
 
 .row {
@@ -161,6 +131,11 @@ h1:focus {
 
 .fld input:focus-visible {
     outline: none;
+}
+
+.fld input::-ms-reveal,
+.fld input::-ms-clear {
+    display: none;
 }
 
 .key-status {
@@ -207,57 +182,57 @@ h1:focus {
     background: var(--warn);
 }
 
-.folder {
-    flex: 1 1 260px;
-    min-width: 0;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 47px;
-    padding: 0 12px;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
-    background: var(--paper-2);
-    font-size: 15px;
-}
-
-.folder ::deep svg {
-    flex: none;
-}
-
-.path {
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-.note {
+.tip {
     margin: 0;
     font-size: 13px;
     color: var(--ink-2);
+}
+
+.info {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-card);
+    background: var(--paper-2);
+}
+
+.info ::deep svg {
+    flex: none;
+    margin-top: 3px;
+}
+
+.info-text {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.5;
+}
+
+.info-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.info-note {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.save-error {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--warn);
 }
 
 .foot {
+    margin-top: auto;
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: flex-end;
     padding-top: 18px;
     border-top: 1px solid var(--hair);
-}
-
-.lock {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--ink-2);
-}
-
-.lock ::deep svg {
-    flex: none;
 }
 
 .foot ::deep .start {

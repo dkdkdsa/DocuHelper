@@ -6,7 +6,7 @@
     <IconButton Icon="redo" Label="다시 하기" Title="다시 하기 (Ctrl+Y)" IconSize="18" Disabled="@IsLocked" />
     <ToolbarDivider />
     <label for="@StyleId" class="sr-only">문단 모양</label>
-    <select id="@StyleId" class="style" value="@StyleValue" disabled="@(!CanStyle)" @onchange="OnStyleChanged">
+    <select id="@StyleId" class="style" value="@StyleValue" disabled="@(!CanStyle)" @onchange="OnStyleChanged" @key="_styleVersion">
         <option value="body">본문</option>
         <option value="h1">제목 1</option>
         <option value="h2">제목 2</option>
@@ -22,11 +22,14 @@
     <IconButton Icon="align-left" Label="왼쪽 맞춤" IconSize="18" Pressed="@(IsAligned(WordAlignment.Left))" Disabled="@(!CanStyle)" OnClick="AlignLeft" />
     <IconButton Icon="align-center" Label="가운데 맞춤" IconSize="18" Pressed="@(IsAligned(WordAlignment.Center))" Disabled="@(!CanStyle)" OnClick="ToggleCenter" />
     <ToolbarDivider />
-    <IconButton Icon="table" Label="표 넣기" IconSize="18" Disabled="@IsLocked" />
+    <IconButton Icon="table" Label="표 넣기" IconSize="18" Disabled="@IsLocked" OnClick="InsertTable" />
 </div>
 
 @code {
     private const string StyleId = "word-style";
+    private const int NewTableSize = 3;
+
+    private int _styleVersion;
 
     [Parameter]
     public WorkspaceFile File { get; set; }
@@ -56,82 +59,103 @@
 
     private void OnStyleChanged(ChangeEventArgs e)
     {
-        var kind = (e.Value?.ToString()) switch
+        _styleVersion++;
+        var value = e.Value?.ToString();
+        var block = Block;
+        if (block == null || !CanStyle || value == StyleValue)
+            return;
+
+        var style = value switch
         {
-            "h1" => WordBlockKind.Heading1,
-            "h2" => WordBlockKind.Heading2,
-            _ => WordBlockKind.Body,
+            "h1" => "heading1",
+            "h2" => "heading2",
+            _ => "body",
         };
 
-        Apply(block =>
-        {
-            if (block.IsTable || block.Kind == kind)
-                return false;
-
-            if (block.Kind == WordBlockKind.Byline)
-                block.Text = block.PlainText;
-
-            block.Kind = kind;
-            if (kind != WordBlockKind.Body)
-                block.ListStyle = WordListKind.None;
-
-            return true;
-        });
+        Format(new { id = block.Id, style });
     }
 
-    private void ToggleBold() => Apply(block =>
+    private void ToggleBold()
     {
-        block.IsBold = !block.IsBold;
-        return true;
-    });
+        var block = Block;
+        if (block != null)
+            Format(new { id = block.Id, bold = !block.IsBold });
+    }
 
-    private void ToggleItalic() => Apply(block =>
+    private void ToggleItalic()
     {
-        block.IsItalic = !block.IsItalic;
-        return true;
-    });
+        var block = Block;
+        if (block != null)
+            Format(new { id = block.Id, italic = !block.IsItalic });
+    }
 
-    private void ToggleUnderline() => Apply(block =>
+    private void ToggleUnderline()
     {
-        block.IsUnderline = !block.IsUnderline;
-        return true;
-    });
+        var block = Block;
+        if (block != null)
+            Format(new { id = block.Id, underline = !block.IsUnderline });
+    }
 
     private void ToggleBullets() => ToggleList(WordListKind.Bullet);
 
     private void ToggleNumbers() => ToggleList(WordListKind.Number);
 
-    private void ToggleList(WordListKind style) => Apply(block =>
+    private void ToggleList(WordListKind style)
     {
-        if (block.Kind != WordBlockKind.Body)
-            return false;
-
-        block.ListStyle = block.ListStyle == style ? WordListKind.None : style;
-        return true;
-    });
-
-    private void AlignLeft() => Apply(block => Align(block, WordAlignment.Left));
-
-    private void ToggleCenter() => Apply(block => Align(block, block.Alignment == WordAlignment.Center ? WordAlignment.Left : WordAlignment.Center));
-
-    private static bool Align(WordBlockModel block, WordAlignment alignment)
-    {
-        if (block.IsTable || block.Alignment == alignment)
-            return false;
-
-        block.Alignment = alignment;
-        return true;
-    }
-
-    private void Apply(Func<WordBlockModel, bool> change)
-    {
-        var model = Model;
-        var block = model?.SelectedBlock;
-        if (block == null || IsLocked || !change(block))
+        var block = Block;
+        if (block == null || block.Kind != WordBlockKind.Body)
             return;
 
-        block.IsEditedByHand = true;
-        File.IsDirty = true;
-        Workspace.SetSelection(model.Describe(block));
+        var next = block.ListStyle == style ? "body" : style == WordListKind.Bullet ? "bullet" : "number";
+        Format(new { id = block.Id, style = next });
+    }
+
+    private void AlignLeft()
+    {
+        var block = Block;
+        if (block != null && !block.IsTable && block.Alignment != WordAlignment.Left)
+            Format(new { id = block.Id, align = "left" });
+    }
+
+    private void ToggleCenter()
+    {
+        var block = Block;
+        if (block != null && !block.IsTable)
+            Format(new { id = block.Id, align = block.Alignment == WordAlignment.Center ? "left" : "center" });
+    }
+
+    private void InsertTable()
+    {
+        if (File == null || IsLocked)
+            return;
+
+        var rows = Enumerable.Range(0, NewTableSize).Select(_ => Enumerable.Repeat(string.Empty, NewTableSize).ToArray()).ToArray();
+        var result = Workspace.ApplyEdit(File, EditCommand.Create("insert_table", new { after = Block?.Id ?? "end", rows, header = true }));
+        var model = Model;
+        var table = result.IsError ? null : model?.FindBlock(result.Change?.Anchors.FirstOrDefault());
+        if (table == null)
+        {
+            Workspace.Notify();
+            return;
+        }
+
+        model.SelectedBlockId = table.Id;
+        Workspace.SetSelection(model.Describe(table));
+    }
+
+    private void Format(object arguments)
+    {
+        var block = Block;
+        if (block == null || IsLocked || File == null)
+            return;
+
+        var id = block.Id;
+        Workspace.ApplyEdit(File, EditCommand.Create("format_paragraph", arguments));
+        var model = Model;
+        var updated = model?.FindBlock(id);
+        if (updated != null)
+            Workspace.SetSelection(model.Describe(updated));
+        else
+            Workspace.Notify();
     }
 }

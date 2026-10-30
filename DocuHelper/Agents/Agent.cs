@@ -7,6 +7,10 @@ namespace DocuHelper.Agents
     {
         public abstract string Name { get; }
 
-        public abstract Task<string> RunAsync(Workspace workspace, string prompt, CancellationToken cancellationToken = default);
+        public abstract Task<AgentResult> RunAsync(AgentRequest request, AgentToolbox toolbox, IAgentHost host, CancellationToken cancellationToken);
+
+        public abstract void ResetConversation();
+
+        public abstract Task VerifyKeyAsync(string apiKey, CancellationToken cancellationToken);
     }
 }

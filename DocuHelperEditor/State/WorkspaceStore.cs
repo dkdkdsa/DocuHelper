@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using DocuHelper;
 using DocuHelper.Importers;
+using DocuHelperEditor.Services;
+using DocuHelperEditor.State.Mapping;
 
 namespace DocuHelperEditor.State
 {
@@ -11,14 +13,33 @@ namespace DocuHelperEditor.State
     {
         private readonly Workspace _workspace;
         private readonly IReadOnlyList<DocuImporter> _importers;
+        private readonly IReadOnlyList<IPaperMapper> _mappers;
+        private readonly SettingsStore _settings;
+        private readonly IFileDialogService _dialogs;
+        private readonly IShellService _shell;
+        private readonly WorkspaceRegistry _registry;
         private readonly List<WorkspaceFile> _files = new();
         private readonly List<string> _openIds = new();
         private readonly List<SaveHistoryEntry> _history = new();
 
-        public WorkspaceStore(Workspace workspace, IEnumerable<DocuImporter> importers)
+        public WorkspaceStore(
+            Workspace workspace,
+            IEnumerable<DocuImporter> importers,
+            IEnumerable<IPaperMapper> mappers,
+            SettingsStore settings,
+            IFileDialogService dialogs,
+            IEnumerable<IShellService> shells,
+            WorkspaceRegistry registry)
         {
             _workspace = workspace;
             _importers = importers.ToList();
+            _mappers = mappers.ToList();
+            _settings = settings;
+            _dialogs = dialogs;
+            _shell = shells.FirstOrDefault();
+            _registry = registry;
+            _workspace.DocusChanged += OnDocusChanged;
+            _workspace.DocuCreated += OnDocuCreated;
         }
 
         public event Action Changed;
@@ -77,11 +98,11 @@ namespace DocuHelperEditor.State
 
         public void Load(string folderName, string folderPath, IEnumerable<WorkspaceFile> files, IEnumerable<string> openIds, string activeId)
         {
+            DetachAll();
+            IsReady = false;
             FolderName = folderName;
             FolderPath = folderPath;
-            _files.Clear();
             _files.AddRange(files);
-            _openIds.Clear();
             _openIds.AddRange(openIds.Where(id => FindFile(id) != null));
             ActiveFile = FindFile(activeId);
             SelectionLabel = null;
@@ -113,6 +134,7 @@ namespace DocuHelperEditor.State
             {
                 ActiveFile = file;
                 SelectionLabel = null;
+                ReloadHistory();
             }
 
             Notify();
@@ -147,6 +169,9 @@ namespace DocuHelperEditor.State
                 return;
 
             await SaveAsync(file.Id);
+            if (file.IsDirty)
+                return;
+
             PendingClose = null;
             CloseTab(file.Id);
         }
@@ -157,9 +182,17 @@ namespace DocuHelperEditor.State
             if (file == null)
                 return;
 
-            file.IsDirty = false;
-            file.Changes.Clear();
             PendingClose = null;
+            if (file.Docu == null)
+            {
+                file.IsDirty = false;
+                file.Changes.Clear();
+            }
+            else if (!file.Docu.IsLocked)
+            {
+                _workspace.Discard(file.Docu);
+            }
+
             CloseTab(file.Id);
         }
 
@@ -194,6 +227,7 @@ namespace DocuHelperEditor.State
             {
                 ActiveFile = file;
                 SelectionLabel = null;
+                ReloadHistory();
             }
 
             SelectedChangeId = changeId;
@@ -220,6 +254,9 @@ namespace DocuHelperEditor.State
         public void ToggleHistory()
         {
             IsHistoryOpen = !IsHistoryOpen;
+            if (IsHistoryOpen)
+                ReloadHistory();
+
             Notify();
         }
 
@@ -248,28 +285,6 @@ namespace DocuHelperEditor.State
             Notify();
         }
 
-        public Task ImportAsync(IEnumerable<string> paths) => Task.CompletedTask;
-
-        public Task SaveAsync(string fileId) => Task.CompletedTask;
-
-        public Task SaveAllAsync() => Task.CompletedTask;
-
-        public Task RevertAllAsync(string fileId) => Task.CompletedTask;
-
-        public Task RestoreAsync(string historyId) => Task.CompletedTask;
-
-        public Task UndoAsync() => Task.CompletedTask;
-
-        public Task OpenOtherFolderAsync() => Task.CompletedTask;
-
-        public Task RenameFolderAsync() => Task.CompletedTask;
-
-        public Task SaveCopyAsync(string fileId) => Task.CompletedTask;
-
-        public Task RenameFileAsync(string fileId) => Task.CompletedTask;
-
-        public Task RemoveFileAsync(string fileId) => Task.CompletedTask;
-
         public void Notify() => Changed?.Invoke();
 
         private void CloseTab(string fileId)
@@ -284,6 +299,7 @@ namespace DocuHelperEditor.State
             {
                 ActiveFile = _openIds.Count == 0 ? null : FindFile(_openIds[Math.Min(index, _openIds.Count - 1)]);
                 SelectionLabel = null;
+                ReloadHistory();
             }
 
             Notify();

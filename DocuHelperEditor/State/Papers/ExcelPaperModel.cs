@@ -32,6 +32,8 @@ namespace DocuHelperEditor.State.Papers
 
         public SheetCell SelectedCell => ActiveSheet?.FindCell(SelectedCellRef);
 
+        public override bool IsBlank => Sheets.All(s => s.Rows.All(r => r.Cells.All(c => string.IsNullOrEmpty(c.Text))));
+
         public bool HasAskingCells => Sheets.Any(s => s.Rows.Any(r => r.Cells.Any(c => c.IsAsking)));
 
         public static ExcelPaperModel CreateEmpty()

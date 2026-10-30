@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using DocuHelper.Docus;
+﻿using DocuHelper.Docus;
 
 namespace DocuHelper.Tools
 {
@@ -7,6 +6,12 @@ namespace DocuHelper.Tools
     {
         public abstract string Name { get; }
 
-        public abstract void Execute(Docu docu, IReadOnlyDictionary<string, string> arguments);
+        public abstract string Description { get; }
+
+        public abstract string InputSchema { get; }
+
+        public virtual bool IsReadOnly => false;
+
+        public abstract ToolResult Execute(Docu docu, ToolInput input);
     }
 }

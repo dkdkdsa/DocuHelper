@@ -18,26 +18,48 @@ namespace DocuHelperEditor.State.Papers
 
         public string NotesChangeId { get; set; }
 
+        public List<string> NotesChangeIds { get; set; } = new();
+
         public bool NotesMarkCleared { get; set; }
 
         public bool FitChecked { get; set; }
 
         public SlideBoxModel FindBox(SlideBoxKind kind) => Boxes?.FirstOrDefault(b => b.Kind == kind);
 
+        public SlideBoxModel FindBox(string boxId) => string.IsNullOrEmpty(boxId) ? null : Boxes?.FirstOrDefault(b => b.Id == boxId);
+
+        public IEnumerable<SlideBoxModel> BoxesOf(SlideBoxKind kind) => Boxes?.Where(b => b.Kind == kind) ?? Enumerable.Empty<SlideBoxModel>();
+
         public bool Contains(SlideBoxModel box) => box != null && Boxes != null && Boxes.Contains(box);
+
+        public bool HasNotesChange(string changeId) =>
+            !string.IsNullOrEmpty(changeId) && (changeId == NotesChangeId || (NotesChangeIds != null && NotesChangeIds.Contains(changeId)));
 
         public IEnumerable<string> ChangeIds()
         {
+            var seen = new HashSet<string>();
             if (Boxes != null)
             {
                 foreach (var box in Boxes)
                 {
-                    if (!string.IsNullOrEmpty(box.ChangeId))
-                        yield return box.ChangeId;
+                    foreach (var id in box.AllChangeIds())
+                    {
+                        if (seen.Add(id))
+                            yield return id;
+                    }
                 }
             }
 
-            if (!string.IsNullOrEmpty(NotesChangeId))
+            if (NotesChangeIds != null)
+            {
+                foreach (var id in NotesChangeIds)
+                {
+                    if (!string.IsNullOrEmpty(id) && seen.Add(id))
+                        yield return id;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(NotesChangeId) && seen.Add(NotesChangeId))
                 yield return NotesChangeId;
         }
 
@@ -52,8 +74,8 @@ namespace DocuHelperEditor.State.Papers
                 Layout = SlideLayout.Content,
             };
 
-            slide.Boxes.Add(new SlideBoxModel { Id = id + "-title", Kind = SlideBoxKind.Title, FontSize = 22, Bold = true });
-            slide.Boxes.Add(new SlideBoxModel { Id = id + "-body", Kind = SlideBoxKind.Body, FontSize = 15 });
+            slide.Boxes.Add(new SlideBoxModel { Id = id + "-title", Kind = SlideBoxKind.Title, FontSize = 22, PointSize = 40, Bold = true });
+            slide.Boxes.Add(new SlideBoxModel { Id = id + "-body", Kind = SlideBoxKind.Body, FontSize = 15, PointSize = 24 });
             return slide;
         }
     }

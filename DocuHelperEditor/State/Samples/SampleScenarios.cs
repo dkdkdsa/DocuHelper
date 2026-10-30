@@ -16,10 +16,13 @@ namespace DocuHelperEditor.State.Samples
         private const string DeckId = "deck";
         private const string PlanId = "plan";
 
+        public const string Real = "real";
+
         public static string Current { get; private set; }
 
         public static IReadOnlyList<string> Names { get; } = new[]
         {
+            Real,
             "start",
             "excel-ask",
             "excel-result",
@@ -41,6 +44,8 @@ namespace DocuHelperEditor.State.Samples
             "conversations",
             "setup",
         };
+
+        public static void Leave() => Current = null;
 
         public static void Apply(string name, WorkspaceStore workspace, AssistantStore assistant, SettingsStore settings)
         {

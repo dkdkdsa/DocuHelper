@@ -12,9 +12,9 @@
         {
             <span class="rule" aria-hidden="true"></span>
             <div class="row">
-                @if (BodyBox != null)
+                @foreach (var body in Slide.BoxesOf(SlideBoxKind.Body))
                 {
-                    @Frame(BodyBox)
+                    @Frame(body)
                 }
                 @if (Chart != null && Chart.Kind == SlideChartKind.Column)
                 {
@@ -40,9 +40,12 @@
             </div>
             <div class="foot"><span>@Footer</span><span>@Number</span></div>
         }
-        @if (SubtitleBox != null && Slide.Layout == SlideLayout.Cover)
+        @if (Slide.Layout == SlideLayout.Cover)
         {
-            @Frame(SubtitleBox)
+            foreach (var subtitle in Slide.BoxesOf(SlideBoxKind.Subtitle))
+            {
+                @Frame(subtitle)
+            }
         }
     </div>
     if (Slide.FitChecked)
@@ -82,11 +85,10 @@
     [Parameter]
     public EventCallback<SlideBoxModel> OnBoxEdited { get; set; }
 
+    [Parameter]
+    public EventCallback<SlideBoxModel> OnBoxCommitted { get; set; }
+
     private SlideBoxModel TitleBox => Slide?.FindBox(SlideBoxKind.Title);
-
-    private SlideBoxModel SubtitleBox => Slide?.FindBox(SlideBoxKind.Subtitle);
-
-    private SlideBoxModel BodyBox => Slide?.FindBox(SlideBoxKind.Body);
 
     private SlideChartModel Chart => Slide?.Chart != null && Slide.Chart.HasBars ? Slide.Chart : null;
 
@@ -97,7 +99,7 @@
         _ => null,
     };
 
-    private RenderFragment Frame(SlideBoxModel box) => @<div class="@FrameClass(box)" data-change="@LiveChangeOf(box)" @onclick="() => SelectBox(box)" @onclick:stopPropagation="true">
+    private RenderFragment Frame(SlideBoxModel box) => @<div @key="box.Id" class="@FrameClass(box)" data-change="@LiveChangeOf(box)" @onclick="() => SelectBox(box)" @onclick:stopPropagation="true">
         @if (box.Id == SelectedBoxId)
         {
             <span class="handle tl" aria-hidden="true"></span>
@@ -105,8 +107,15 @@
             <span class="handle bl" aria-hidden="true"></span>
             <span class="handle br" aria-hidden="true"></span>
         }
-        <SlideTextBox @key="box" Tag="@TagOf(box)" Class="@TextClass(box)" Style="@TextStyle(box)" Lines="box.Lines" Highlighted="IsLit(box)" ChangeId="@box.ChangeId" Framed="true" Editable="!Locked" OnFocus="() => SelectBox(box)" OnEdit="lines => EditBox(box, lines)" />
+        <SlideTextBox Tag="@TagOf(box)" Class="@TextClass(box)" Style="@TextStyle(box)" Lines="box.Lines" Highlighted="IsLit(box)" ChangeId="@ShownChangeOf(box)" Framed="true" Editable="!Locked" data-placeholder="@PlaceholderOf(box)" OnFocus="() => SelectBox(box)" OnEdit="lines => EditBox(box, lines)" OnCommit="lines => CommitBox(box, lines)" />
     </div>;
+
+    private static string PlaceholderOf(SlideBoxModel box) => box.Kind switch
+    {
+        SlideBoxKind.Title => "제목을 입력하세요",
+        SlideBoxKind.Subtitle => "부제목을 입력하세요",
+        _ => "내용을 입력하세요",
+    };
 
     private string FrameClass(SlideBoxModel box)
     {
@@ -123,11 +132,20 @@
         return css;
     }
 
-    private string LiveChangeOf(SlideBoxModel box) =>
-        !string.IsNullOrEmpty(box.ChangeId) && LiveChanges != null && LiveChanges.Contains(box.ChangeId) ? box.ChangeId : null;
+    private string LiveChangeOf(SlideBoxModel box)
+    {
+        if (LiveChanges == null)
+            return null;
 
-    private bool IsLit(SlideBoxModel box) =>
-        !string.IsNullOrEmpty(HighlightId) && box.ChangeId == HighlightId && !box.MarkCleared;
+        if (box.HasChange(HighlightId) && LiveChanges.Contains(HighlightId))
+            return HighlightId;
+
+        return box.AllChangeIds().LastOrDefault(LiveChanges.Contains);
+    }
+
+    private bool IsLit(SlideBoxModel box) => box.HasChange(HighlightId) && !box.MarkCleared;
+
+    private string ShownChangeOf(SlideBoxModel box) => IsLit(box) ? HighlightId : box.ChangeId;
 
     private static string TagOf(SlideBoxModel box) => box.Kind switch
     {
@@ -184,5 +202,13 @@
     {
         box.Lines = lines;
         return OnBoxEdited.InvokeAsync(box);
+    }
+
+    private Task CommitBox(SlideBoxModel box, List<string> lines)
+    {
+        if (lines != null)
+            box.Lines = lines;
+
+        return OnBoxCommitted.InvokeAsync(box);
     }
 }

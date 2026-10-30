@@ -1,0 +1,42 @@
+﻿<span class="tile @VariantClass @KindClass" title="@Model.Name">
+    @if (Model.Kind == AttachmentKind.Image && !string.IsNullOrEmpty(Model.Thumbnail))
+    {
+        <img class="thumb" src="@Model.Thumbnail" alt="@Model.Name" />
+    }
+    else
+    {
+        <span class="ficon" aria-hidden="true"><Icon Name="@Glyph" Size="16" Stroke="2.2" /></span>
+        <span class="meta">
+            <span class="name">@Model.Name</span>
+            <span class="detail">@Model.KindLabel · @Model.SizeLabel</span>
+        </span>
+    }
+    @if (OnRemove.HasDelegate)
+    {
+        <button type="button" class="remove" aria-label="@($"‘{Model.Name}’ 빼기")" title="빼기" @onclick="OnRemove">
+            <Icon Name="x" Size="12" Stroke="3" />
+        </button>
+    }
+</span>
+
+@code {
+    [Parameter]
+    public AttachmentModel Model { get; set; }
+
+    [Parameter]
+    public string Variant { get; set; } = "composer";
+
+    [Parameter]
+    public EventCallback OnRemove { get; set; }
+
+    private string VariantClass => Variant == "message" ? "message" : "composer";
+
+    private string KindClass => Model.Kind == AttachmentKind.Image && !string.IsNullOrEmpty(Model.Thumbnail) ? "k-image" : "k-file";
+
+    private string Glyph => Model.Kind switch
+    {
+        AttachmentKind.Image => "image",
+        AttachmentKind.Pdf => "file-text",
+        _ => "file-lines",
+    };
+}

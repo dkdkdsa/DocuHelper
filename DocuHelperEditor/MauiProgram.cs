@@ -4,6 +4,7 @@ using DocuHelper.Editors;
 using DocuHelper.Importers;
 using DocuHelperEditor.Services;
 using DocuHelperEditor.State;
+using DocuHelperEditor.State.Mapping;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Hosting;
@@ -38,6 +39,11 @@ namespace DocuHelperEditor
             builder.Services.AddSingleton<DocuImporter, ExcelImporter>();
             builder.Services.AddSingleton<DocuImporter, PptImporter>();
 
+            builder.Services.AddSingleton<IPaperMapper, ExcelPaperMapper>();
+            builder.Services.AddSingleton<IPaperMapper, WordPaperMapper>();
+            builder.Services.AddSingleton<IPaperMapper, PptPaperMapper>();
+
+            builder.Services.AddSingleton<WorkspaceRegistry>();
             builder.Services.AddSingleton<WorkspaceStore>();
             builder.Services.AddSingleton<AssistantStore>();
             builder.Services.AddSingleton<SettingsStore>();

@@ -13,10 +13,13 @@
     gap: 6px;
 }
 
+.wrap {
+    position: relative;
+}
+
 .box {
     display: flex;
-    align-items: flex-end;
-    gap: 6px;
+    flex-direction: column;
     padding: 4px;
     border: 1.5px solid var(--line-strong);
     border-radius: var(--radius-card);
@@ -28,15 +31,23 @@
     outline-offset: 2px;
 }
 
+.attachments {
+    margin: 0;
+    padding: 10px 6px 4px;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
 .input {
-    flex: 1;
-    min-width: 0;
-    min-height: calc(3em + 20px);
-    max-height: calc(7.5em + 20px);
+    width: 100%;
+    min-height: 52px;
+    max-height: calc(7.5em + 10px);
     field-sizing: content;
     overflow-y: auto;
     resize: none;
-    padding: 10px 0;
+    padding: 8px 8px 2px;
     border: 0;
     background: transparent;
     color: var(--ink);
@@ -50,4 +61,197 @@
 
 .input:disabled {
     cursor: not-allowed;
+}
+
+.bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+}
+
+.pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: var(--hit);
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pick:not(:disabled):hover {
+    background: var(--bubble);
+}
+
+.pick:disabled {
+    color: var(--ink-disabled);
+    cursor: not-allowed;
+}
+
+.pick-label {
+    font-weight: 500;
+    color: var(--ink-2);
+}
+
+.pick:disabled .pick-label {
+    color: var(--ink-disabled);
+}
+
+.pick ::deep svg {
+    flex: none;
+}
+
+.pick ::deep .flip {
+    transform: rotate(180deg);
+}
+
+.bar ::deep .send {
+    margin-left: auto;
+    flex: none;
+}
+
+.menu-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 11;
+}
+
+.pop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 12;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-popover);
+    background: var(--paper);
+    box-shadow: var(--shadow-pop);
+}
+
+.pop-head {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 8px;
+    line-height: 1.4;
+}
+
+.pop-head h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.pop-sub {
+    font-size: 12px;
+    color: var(--ink-2);
+}
+
+.options {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 6px 10px;
+    border: 1.5px solid var(--hair);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.option:hover {
+    filter: brightness(.96);
+}
+
+.option.on {
+    border-color: var(--ink);
+    background: var(--hl-soft);
+}
+
+.radio {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--ink-2);
+    border-radius: 50%;
+}
+
+.option.on .radio {
+    border-color: var(--ink);
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.option.on .dot {
+    background: var(--ink);
+}
+
+.option-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.4;
+}
+
+.option-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.option-name {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.default-tag {
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-xs);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+}
+
+.option-cost {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+}
+
+.option-desc {
+    font-size: 13px;
+    color: var(--ink-2);
 }

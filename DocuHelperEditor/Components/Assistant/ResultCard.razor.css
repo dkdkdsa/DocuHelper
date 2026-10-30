@@ -239,6 +239,41 @@
     margin-left: auto;
 }
 
+.foot.undone {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 11px 14px;
+}
+
+.undone-glyph {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-xs);
+    background: var(--paper);
+    color: var(--ink-2);
+}
+
+.undone-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.undone-note {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.card.undone .changes {
+    opacity: 0.55;
+}
+
 .follow {
     display: flex;
     flex-wrap: wrap;

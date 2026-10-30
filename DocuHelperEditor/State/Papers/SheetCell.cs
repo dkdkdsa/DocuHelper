@@ -10,6 +10,8 @@ namespace DocuHelperEditor.State.Papers
 
         public string Formula { get; set; }
 
+        public string Input { get; set; }
+
         public bool IsNumber { get; set; }
 
         public List<string> ChangeIds { get; set; } = new();
@@ -26,7 +28,7 @@ namespace DocuHelperEditor.State.Papers
 
         public SheetNumberFormat NumberFormat { get; set; }
 
-        public string EditText => string.IsNullOrEmpty(Formula) ? (Text ?? string.Empty) : Formula;
+        public string EditText => string.IsNullOrEmpty(Formula) ? (Input ?? Text ?? string.Empty) : Formula;
 
         public bool HasChange(string changeId) => !string.IsNullOrEmpty(changeId) && ChangeIds != null && ChangeIds.Contains(changeId);
 

@@ -13,6 +13,17 @@
     gap: 6px;
 }
 
+.attachments {
+    max-width: 85%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
 .bubble {
     margin: 0;
     max-width: 85%;

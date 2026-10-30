@@ -27,6 +27,16 @@ window.docuHelper = (function () {
         focusable(next).focus();
     }
 
+    function blockFileDrop(e) {
+        var types = e.dataTransfer && e.dataTransfer.types;
+        if (!types || Array.prototype.indexOf.call(types, 'Files') < 0) return;
+        e.preventDefault();
+        if (e.type === 'dragover') e.dataTransfer.dropEffect = 'none';
+    }
+
+    document.addEventListener('dragover', blockFileDrop);
+    document.addEventListener('drop', blockFileDrop);
+
     return {
         registerShortcuts: function (dotnet) {
             if (handler) document.removeEventListener('keydown', handler);
@@ -53,6 +63,12 @@ window.docuHelper = (function () {
         focus: function (selector) {
             var el = document.querySelector(selector);
             if (el) el.focus();
+        },
+        focusPaperStart: function () {
+            var paper = document.querySelector('[data-region="paper"]');
+            if (!paper) return;
+            var target = paper.querySelector('input.sink') || paper.querySelector('[contenteditable]:not([contenteditable="false"])');
+            if (target) target.focus();
         },
         focusUnlessBusy: function (selector) {
             var active = document.activeElement;

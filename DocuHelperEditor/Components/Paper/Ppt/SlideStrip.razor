@@ -15,7 +15,7 @@
             var body = slide.FindBox(SlideBoxKind.Body);
             var chart = slide.Chart != null && slide.Chart.HasBars ? slide.Chart : null;
             var content = slide.Layout == SlideLayout.Content;
-            <li @key="slide" class="item">
+            <li @key="slide.Id" class="item">
                 @if (changed)
                 {
                     <span class="bar" aria-hidden="true"></span>
@@ -159,7 +159,7 @@
     };
 
     private string LitClass(SlideBoxModel box) =>
-        !string.IsNullOrEmpty(HighlightId) && box.ChangeId == HighlightId && !box.MarkCleared ? "lit" : null;
+        box.HasChange(HighlightId) && !box.MarkCleared ? "lit" : null;
 
     private static bool HasText(SlideBoxModel box) => box != null && !box.IsEmpty;
 

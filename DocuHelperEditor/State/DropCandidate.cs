@@ -11,5 +11,9 @@ namespace DocuHelperEditor.State
         public bool CanOpen { get; set; }
 
         public string Reason { get; set; }
+
+        public DropDestination Destination { get; set; }
+
+        public string Glyph { get; set; }
     }
 }
