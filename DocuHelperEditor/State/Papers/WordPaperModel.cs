@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using DocuHelper.Tools.Word;
 
 namespace DocuHelperEditor.State.Papers
 {
@@ -8,6 +10,8 @@ namespace DocuHelperEditor.State.Papers
         private const int SubjectLength = 18;
 
         public List<WordBlockModel> Blocks { get; set; } = new();
+
+        public WordPageLayout Layout { get; set; } = WordPageLayout.Default;
 
         public string SelectedBlockId { get; set; }
 
@@ -23,11 +27,8 @@ namespace DocuHelperEditor.State.Papers
         {
             get
             {
-                var pages = Blocks.Select(b => b.Page).Distinct().OrderBy(p => p).ToList();
-                if (pages.Count == 0)
-                    pages.Add(1);
-
-                return pages;
+                var last = Blocks.Count == 0 ? 1 : Blocks.Max(b => b.Page);
+                return Enumerable.Range(1, Math.Max(1, last)).ToList();
             }
         }
 

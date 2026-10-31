@@ -3,11 +3,11 @@
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 
-<div class="canvas">
+<div class="canvas" style="@PaperVariables">
     @if (Model == null)
     {
         <div class="spread">
-            <article class="@PageClass(true)" aria-label="1쪽"></article>
+            <article class="@PageClass" aria-label="1쪽"><div class="sheet"></div></article>
         </div>
     }
     else
@@ -17,7 +17,7 @@
         {
             var blocks = Model.BlocksOnPage(page);
             <div class="spread" @key="page">
-                <article class="@PageClass(blocks.Count == 0)" aria-label="@($"{page}쪽")">
+                <article class="@PageClass" aria-label="@($"{page}쪽")"><div class="sheet">
                     @foreach (var run in Runs(blocks))
                     {
                         if (run.Kind == WordListKind.Number)
@@ -43,7 +43,7 @@
                             @(BlockView(run.Blocks[0]))
                         }
                     }
-                </article>
+                </div></article>
                 @if (hasNotes)
                 {
                     <div class="margin"></div>
@@ -54,6 +54,8 @@
 </div>
 
 @code {
+    private const double PitchAllowance = 0.98;
+
     private readonly Dictionary<string, ElementReference> _refs = new();
     private readonly Dictionary<string, int> _versions = new();
     private WorkspaceFile _file;
@@ -67,7 +69,26 @@
 
     private bool IsLocked => File?.Activity == FileActivity.Editing;
 
-    private string PageClass(bool blank) => (blank ? "page blank" : "page") + (File?.Type == DocuType.Hwp ? " hwp" : null);
+    private string PageClass => File?.Type == DocuType.Hwp ? "page hwp" : "page";
+
+    private string PaperVariables
+    {
+        get
+        {
+            var layout = Model?.Layout;
+            if (layout == null)
+                return null;
+
+            var pitch = (layout.Height - layout.Top - layout.Bottom) / 15.0 / layout.Capacity * PitchAllowance;
+            var body = 14.0 * Math.Max(10, layout.NormalFontSize) / 20.0;
+            return $"--paper-width: {Css(layout.Width / 15.0)}; --paper-ratio: {Css(layout.Width / (double)layout.Height)}; "
+                + $"--paper-top: {Css(layout.Top / 15.0)}; --paper-right: {Css(layout.Right / 15.0)}; "
+                + $"--paper-bottom: {Css(layout.Bottom / 15.0)}; --paper-left: {Css(layout.Left / 15.0)}; "
+                + $"--body-px: {Css(body)}; --pitch: {Css(pitch)};";
+        }
+    }
+
+    private static string Css(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);
 
     private string Editable => IsLocked ? "false" : "plaintext-only";
 

@@ -11,7 +11,7 @@ namespace DocuHelper.Tools.Word
         public const int DefaultTextHeight = 13697;
 
         private const double CharsPerLine = 45;
-        private const double LinesPerPage = 1700.0 / 45;
+        public const double LinesPerPage = 1700.0 / 45;
 
         private readonly double _charsPerLine;
         private readonly double _linesPerPage;
@@ -26,27 +26,44 @@ namespace DocuHelper.Tools.Word
             _charsPerLine = Math.Max(10, CharsPerLine * width / DefaultTextWidth * font);
             _linesPerPage = Math.Max(10, LinesPerPage * height / DefaultTextHeight * font);
             _limit = body != null && body.Descendants<LastRenderedPageBreak>().Any() ? _linesPerPage * 1.3 : _linesPerPage;
+            Layout = LayoutOf(body, normalFontSize, _limit);
         }
 
         public int Page { get; private set; } = 1;
+
+        public WordPageLayout Layout { get; }
 
         public int LastPage => _fresh && Page > 1 ? Page - 1 : Page;
 
         public static void TextArea(Body body, out int width, out int height)
         {
-            var section = body?.Elements<SectionProperties>().LastOrDefault();
-            var size = section?.GetFirstChild<PageSize>();
-            var margin = section?.GetFirstChild<PageMargin>();
-            var pageWidth = Twips(size?.Width, 11906);
-            var pageHeight = Twips(size?.Height, 16838);
-            width = pageWidth - Twips(margin?.Left, 1440) - Twips(margin?.Right, 1440);
-            height = pageHeight - Math.Abs(Twips(margin?.Top, 1701)) - Math.Abs(Twips(margin?.Bottom, 1440));
+            var layout = LayoutOf(body, 20, 0);
+            width = layout.Width - layout.Left - layout.Right;
+            height = layout.Height - layout.Top - layout.Bottom;
             if (width < 1440)
                 width = DefaultTextWidth;
 
             if (height < 1440)
                 height = DefaultTextHeight;
         }
+
+        public static WordPageLayout LayoutOf(Body body, int normalFontSize, double capacity)
+        {
+            var section = body?.Elements<SectionProperties>().LastOrDefault();
+            var size = section?.GetFirstChild<PageSize>();
+            var margin = section?.GetFirstChild<PageMargin>();
+            return new WordPageLayout(
+                Positive(Twips(size?.Width, 11906), 11906),
+                Positive(Twips(size?.Height, 16838), 16838),
+                Math.Abs(Twips(margin?.Top, 1701)),
+                Math.Abs(Twips(margin?.Right, 1440)),
+                Math.Abs(Twips(margin?.Bottom, 1440)),
+                Math.Abs(Twips(margin?.Left, 1440)),
+                capacity,
+                normalFontSize);
+        }
+
+        private static int Positive(int value, int fallback) => value > 0 ? value : fallback;
 
         private static int Twips(DocumentFormat.OpenXml.OpenXmlSimpleType value, int fallback) =>
             value != null && double.TryParse(value.InnerText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) && Math.Abs(number) < int.MaxValue

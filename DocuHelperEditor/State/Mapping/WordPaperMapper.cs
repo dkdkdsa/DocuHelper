@@ -52,6 +52,7 @@ namespace DocuHelperEditor.State.Mapping
             return new WordPaperModel
             {
                 Blocks = blocks,
+                Layout = scan.Layout,
                 SelectedBlockId = selected != null && blocks.Any(b => b.Id == selected) ? selected : null,
             };
         }

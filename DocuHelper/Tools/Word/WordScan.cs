@@ -32,6 +32,8 @@ namespace DocuHelper.Tools.Word
 
         public int PageCount { get; private set; } = 1;
 
+        public WordPageLayout Layout { get; private set; } = WordPageLayout.Default;
+
         public static WordScan Read(WordprocessingDocument document)
         {
             var scan = new WordScan(document);
@@ -119,6 +121,7 @@ namespace DocuHelper.Tools.Word
                     _byId.TryAdd(block.Id, block);
             }
 
+            Layout = pager.Layout;
             PageCount = Math.Max(pager.LastPage, _blocks.Count == 0 ? 1 : _blocks.Max(b => b.Page));
         }
 
