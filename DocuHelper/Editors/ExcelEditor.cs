@@ -38,6 +38,7 @@ namespace DocuHelper.Editors
             AddTool(new AddSubtotalsTool());
             AddTool(new SplitTextTool());
             AddTool(new GoalSeekTool());
+            AddTool(new BuildPivotSummaryTool());
         }
 
         public override DocuType TargetType => DocuType.Excel;

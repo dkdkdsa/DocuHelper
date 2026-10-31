@@ -174,7 +174,6 @@ namespace DocuHelper.Tools.Excel
                 case "add_sheet":
                 case "copy_sheet":
                 case "delete_sheet":
-                case "build_pivot_summary":
                     plan.Structure = true;
                     break;
                 case "change_sheet":
@@ -248,6 +247,12 @@ namespace DocuHelper.Tools.Excel
                     break;
                 case "split_text":
                     plan.Blocked.Add("텍스트를 여러 칸에 나누는 작업은 칸을 많이 바꾸므로 보호된 시트에서는 할 수 없어요.");
+                    break;
+                case "build_pivot_summary":
+                    if (input.GetOptionalString("destination") == "current_sheet")
+                        plan.Blocked.Add("요약표를 현재 시트에 놓으면 보호된 칸을 덮을 수 있어서 보호된 시트에서는 할 수 없어요.");
+                    else
+                        plan.Structure = true;
                     break;
                 case "goal_seek":
                     plan.Cells.Add(TargetOf(book, input.GetString("changing_cell"), plan.Sheet));

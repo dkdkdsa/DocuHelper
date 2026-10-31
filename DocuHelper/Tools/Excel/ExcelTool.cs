@@ -142,6 +142,24 @@ namespace DocuHelper.Tools.Excel
             return cell == null ? string.Empty : book.DisplayText(book.ReadValue(cell), book.StyleOf(cell));
         }
 
+        protected static int ResolveColumn(ExcelBook book, ExcelSheet sheet, CellRange range, bool hasHeader, string text)
+        {
+            var value = (text ?? string.Empty).Trim();
+            if (hasHeader)
+            {
+                for (var column = range.Left; column <= range.Right; column++)
+                {
+                    if (string.Equals(DisplayAt(book, sheet, column, range.Top).Trim(), value, StringComparison.OrdinalIgnoreCase))
+                        return column;
+                }
+            }
+
+            if (CellAddress.TryParseColumn(value, out var parsed) && parsed >= range.Left && parsed <= range.Right)
+                return parsed;
+
+            throw new ToolInputException($"‘{value}’ 열을 범위에서 찾을 수 없어요. 머리글 글자나 열 글자(예: B)로 알려 주세요.");
+        }
+
         protected static void Emphasize(ExcelBook book, Cell cell)
         {
             var index = book.Styles.Apply(cell.StyleIndex?.Value ?? 0, new StyleChange { Bold = true });
