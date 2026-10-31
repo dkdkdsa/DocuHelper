@@ -31,7 +31,9 @@ namespace DocuHelper.Importers.Hwp
 
                 var width = HwpWordPage.ApplyPage(section, document.Page);
                 HwpWordPage.ApplyBackground(word, document.Page);
-                var elements = ToElements(document.Blocks, width);
+                var ids = new HwpBookmarkIds();
+                HwpWordHeaderFooter.Apply(word, document, section, width, ids);
+                var elements = ToElements(document.Blocks, width, ids);
                 if (document.Notes.Count > 0)
                 {
                     elements.Add(new Paragraph());
@@ -54,14 +56,18 @@ namespace DocuHelper.Importers.Hwp
             return stream.ToArray();
         }
 
-        internal static List<OpenXmlElement> ToElements(IEnumerable<HwpBlock> blocks, int width)
+        internal static List<OpenXmlElement> ToElements(IEnumerable<HwpBlock> blocks, int width) => ToElements(blocks, width, new HwpBookmarkIds());
+
+        internal static List<OpenXmlElement> ToElements(IEnumerable<HwpBlock> blocks, int width, HwpBookmarkIds ids)
         {
             var elements = new List<OpenXmlElement>();
             foreach (var block in blocks)
             {
                 if (block is HwpParagraph paragraph)
                 {
-                    elements.Add(HwpWordParagraphs.ToParagraph(paragraph));
+                    var element = HwpWordParagraphs.ToParagraph(paragraph);
+                    HwpWordHeaderFooter.Mark(element, paragraph, ids);
+                    elements.Add(element);
                 }
                 else if (block is HwpTable table && table.Cells.Count > 0)
                 {

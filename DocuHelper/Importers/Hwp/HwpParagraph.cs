@@ -23,5 +23,9 @@ namespace DocuHelper.Importers.Hwp
         public bool PageBreakBefore { get; set; }
 
         public bool ColumnBreakBefore { get; set; }
+
+        public string PageHiding { get; set; }
+
+        public int? NewPageNumber { get; set; }
     }
 }

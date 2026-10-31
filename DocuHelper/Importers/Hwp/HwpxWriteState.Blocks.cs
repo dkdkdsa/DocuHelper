@@ -47,6 +47,8 @@ namespace DocuHelper.Importers.Hwp
             var pageBreak = WordStyles.IsOn(_styles.ParagraphValue<PageBreakBefore>(paragraph));
             var columnBreak = false;
             var runs = new List<XElement>();
+            runs.AddRange(ParagraphControls(paragraph));
+            var fields = ScanFields(paragraph);
             if (label != null)
             {
                 var first = paragraph.Descendants<Run>().FirstOrDefault(r => Owns(paragraph, r));
@@ -56,6 +58,15 @@ namespace DocuHelper.Importers.Hwp
             foreach (var run in paragraph.Descendants<Run>())
             {
                 if (!Owns(paragraph, run))
+                    continue;
+
+                if (fields.Anchors.Contains(run))
+                {
+                    runs.Add(PageFieldRun(run, paragraph));
+                    continue;
+                }
+
+                if (fields.Skip.Contains(run))
                     continue;
 
                 var content = RunContent(run, ref pageBreak, ref columnBreak, runs.Count == 0);

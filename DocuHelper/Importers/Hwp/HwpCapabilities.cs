@@ -27,8 +27,8 @@ namespace DocuHelper.Importers.Hwp
 
             HwpFeature.TableCellFormat => false,
 
-            HwpFeature.HeaderFooter => false,
-            HwpFeature.PageNumber => false,
+            HwpFeature.HeaderFooter => true,
+            HwpFeature.PageNumber => true,
             HwpFeature.PageControl => false,
 
             HwpFeature.Columns => true,

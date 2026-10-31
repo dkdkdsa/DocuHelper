@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
+using DocuHelper.Tools.Word;
 using DocumentFormat.OpenXml.Wordprocessing;
 using static DocuHelper.Importers.Hwp.HwpxNames;
 
@@ -17,13 +18,18 @@ namespace DocuHelper.Importers.Hwp
 
         public XElement Section(Body body)
         {
+            SetPageNumbering(body);
             var paragraphs = new List<XElement>();
             Blocks(body.ChildElements, paragraphs);
             if (paragraphs.Count == 0)
                 paragraphs.Add(Paragraph(0, 0, false, new List<XElement> { TextRun(0, string.Empty) }));
 
             var first = paragraphs[0];
-            first.AddFirst(new XElement(Hp + "run", new XAttribute("charPrIDRef", "0"), SectionProperties(body), ColumnControl(body)));
+            var leading = new List<XElement> { new XElement(Hp + "run", new XAttribute("charPrIDRef", "0"), SectionProperties(body), ColumnControl(body)) };
+            leading.AddRange(HeaderFooterRuns(body));
+            for (var i = leading.Count - 1; i >= 0; i--)
+                first.AddFirst(leading[i]);
+
             return new XElement(Hs + "sec", Namespaces(), paragraphs);
         }
 
@@ -55,6 +61,10 @@ namespace DocuHelper.Importers.Hwp
                 (width, height) = (height, width);
 
             var border = PageBorderOf(body);
+            var titlePage = section?.GetFirstChild<TitlePage>() is { } title && WordStyles.IsOn(title);
+            var hideHeader = titlePage && FirstEmpty(section, false);
+            var hideFooter = titlePage && FirstEmpty(section, true);
+            var start = section?.GetFirstChild<PageNumberType>()?.Start?.Value ?? 0;
             return new XElement(Hp + "secPr",
                 new XAttribute("id", ""),
                 new XAttribute("textDirection", "HORIZONTAL"),
@@ -67,9 +77,9 @@ namespace DocuHelper.Importers.Hwp
                 new XAttribute("textVerticalWidthHead", "0"),
                 new XAttribute("masterPageCnt", "0"),
                 new XElement(Hp + "grid", new XAttribute("lineGrid", "0"), new XAttribute("charGrid", "0"), new XAttribute("wonggojiFormat", "0")),
-                new XElement(Hp + "startNum", new XAttribute("pageStartsOn", "BOTH"), new XAttribute("page", "0"), new XAttribute("pic", "0"), new XAttribute("tbl", "0"), new XAttribute("equation", "0")),
+                new XElement(Hp + "startNum", new XAttribute("pageStartsOn", "BOTH"), new XAttribute("page", Number(start > 0 ? start : 0)), new XAttribute("pic", "0"), new XAttribute("tbl", "0"), new XAttribute("equation", "0")),
                 new XElement(Hp + "visibility",
-                    new XAttribute("hideFirstHeader", "0"), new XAttribute("hideFirstFooter", "0"), new XAttribute("hideFirstMasterPage", "0"),
+                    new XAttribute("hideFirstHeader", Flag(hideHeader)), new XAttribute("hideFirstFooter", Flag(hideFooter)), new XAttribute("hideFirstMasterPage", "0"),
                     new XAttribute("border", "SHOW_ALL"), new XAttribute("fill", "SHOW_ALL"), new XAttribute("hideFirstPageNum", "0"),
                     new XAttribute("hideFirstEmptyLine", "0"), new XAttribute("showLineNumber", "0")),
                 new XElement(Hp + "lineNumberShape", new XAttribute("restartType", "0"), new XAttribute("countBy", "0"), new XAttribute("distance", "0"), new XAttribute("startNumber", "0")),
@@ -87,6 +97,12 @@ namespace DocuHelper.Importers.Hwp
                 PageBorder("BOTH", border),
                 PageBorder("EVEN", border),
                 PageBorder("ODD", border));
+        }
+
+        private bool FirstEmpty(SectionProperties section, bool footer)
+        {
+            var root = Root(section, footer, HeaderFooterValues.First);
+            return root == null || string.IsNullOrWhiteSpace(root.InnerText);
         }
 
         private static XElement NoteProperties(string name, string length, string between, string place) => new(Hp + name,

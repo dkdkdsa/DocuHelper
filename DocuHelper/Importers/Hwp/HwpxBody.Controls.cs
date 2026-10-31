@@ -9,11 +9,19 @@ namespace DocuHelper.Importers.Hwp
             switch (element.Name.LocalName)
             {
                 case "header":
+                    ReadHeaderFooter(element, false);
+                    break;
                 case "footer":
-                    ReadHeaderFooter(element);
+                    ReadHeaderFooter(element, true);
                     break;
                 case "pageNum":
                     ReadPageNumber(element);
+                    break;
+                case "newNum":
+                    ReadNewNumber(element);
+                    break;
+                case "pageHiding":
+                    ReadPageHiding(element);
                     break;
                 case "footNote":
                     ReadNote(element, false, shape, runs);

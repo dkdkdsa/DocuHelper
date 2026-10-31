@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
+using DocuHelper.Tools.Word;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 using static DocuHelper.Importers.Hwp.HwpWordWriter;
@@ -9,6 +10,12 @@ namespace DocuHelper.Importers.Hwp
 {
     internal static class HwpWordRuns
     {
+        internal static void AppendField(Paragraph paragraph, HwpRun format)
+        {
+            foreach (var element in WordFields.Complex("PAGE", "1", RunFormat(format)))
+                paragraph.AppendChild(element);
+        }
+
         internal static void AppendRun(Paragraph paragraph, string text, HwpRun format)
         {
             if (string.IsNullOrEmpty(text))

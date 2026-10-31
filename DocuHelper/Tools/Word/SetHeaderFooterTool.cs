@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using DocuHelper.Docus;
+using DocuHelper.Importers.Hwp;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -63,11 +65,12 @@ namespace DocuHelper.Tools.Word
             }
             """;
 
-        protected override WordHwpSupport Hwp => WordHwpSupport.None;
+        protected override WordHwpSupport Hwp => WordHwpSupport.Partial;
 
         protected override ToolResult Run(WordDocu docu, ToolInput input)
         {
             var request = Request.Parse(input);
+            Check(docu, request);
             var snapshot = docu.Capture();
             try
             {
@@ -79,6 +82,63 @@ namespace DocuHelper.Tools.Word
                 throw;
             }
         }
+
+        private static void Check(WordDocu docu, Request request)
+        {
+            if (docu is not HwpDocu)
+                return;
+
+            if (request.Watermark != null)
+                HwpGuard.Refuse(docu, "워터마크");
+
+            if (request.Variant == "first" && request.VariantGiven)
+                HwpGuard.Refuse(docu, "첫 쪽에만 넣는 머리글·꼬리말");
+
+            if (request.Link == true)
+                HwpGuard.Refuse(docu, "이전 구역과 같은 머리글·꼬리말");
+
+            if (request.Preset == "page_x_of_y")
+                HwpGuard.Refuse(docu, "쪽 수(1 / 3)");
+
+            if (request.Preset == "title_page")
+                HwpGuard.Refuse(docu, "문서 제목 필드");
+
+            foreach (var text in new[] { request.Text, request.Left, request.Center, request.Right })
+            {
+                foreach (Match token in Regex.Matches(text ?? string.Empty, @"\{(\w+)\}"))
+                {
+                    var name = token.Groups[1].Value.ToLowerInvariant();
+                    if (name != "page")
+                        HwpGuard.Refuse(docu, FieldName(name));
+                }
+            }
+
+            if (request.PageNumber is JsonElement number)
+            {
+                if (NumberText(number, "position") == "current")
+                    HwpGuard.Refuse(docu, "글 자리의 쪽 번호");
+
+                if (NumberText(number, "align") is "outside" or "inside")
+                    HwpGuard.Refuse(docu, "바깥쪽·안쪽 쪽 번호 맞춤");
+
+                if (NumberText(number, "style") == "page_x_of_y")
+                    HwpGuard.Refuse(docu, "1 / 3 모양의 쪽 번호");
+            }
+        }
+
+        private static string FieldName(string name) => name switch
+        {
+            "pages" => "쪽 수 필드",
+            "date" => "날짜 필드",
+            "time" => "시간 필드",
+            "file" => "파일 이름 필드",
+            "title" => "제목 필드",
+            "author" => "작성자 필드",
+            _ => "이 필드",
+        };
+
+        private static string NumberText(JsonElement element, string name) =>
+            element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
         private sealed class Request
         {

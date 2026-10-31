@@ -28,7 +28,12 @@ namespace DocuHelper.Importers.Hwp
                 HwpWordRuns.AppendRun(paragraph, source.Label + " ", LabelFormat(source.Runs.FirstOrDefault()));
 
             foreach (var run in source.Runs)
-                HwpWordRuns.AppendRun(paragraph, run.Text, run);
+            {
+                if (run.Field == "PAGE")
+                    HwpWordRuns.AppendField(paragraph, run);
+                else
+                    HwpWordRuns.AppendRun(paragraph, run.Text, run);
+            }
 
             return paragraph;
         }

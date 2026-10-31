@@ -36,6 +36,14 @@ namespace DocuHelper.Importers.Hwp
             _locked = true;
         }
 
+        public void AppendField(string field, string text, HwpxCharShape shape)
+        {
+            var run = shape.ToRun(text);
+            run.Field = field;
+            Runs.Add(run);
+            _locked = true;
+        }
+
         public static string Clean(string text)
         {
             if (string.IsNullOrEmpty(text))

@@ -12,6 +12,16 @@ namespace DocuHelper.Importers.Hwp
 
         public HashSet<HwpSkipped> Skipped { get; set; } = new();
 
+        public List<HwpHeaderFooter> HeaderFooters { get; set; } = new();
+
+        public HwpPageNumber PageNumber { get; set; }
+
+        public bool HideFirstHeader { get; set; }
+
+        public bool HideFirstFooter { get; set; }
+
+        public int StartPage { get; set; }
+
         public bool Signed { get; set; }
     }
 }

@@ -11,6 +11,7 @@ namespace DocuHelper.Agents
             HwpLimits.PromptText(),
             "New 한글 files use 함초롬바탕 10pt with 160 % line spacing and A4 margins of 30 mm left and right; do not set fonts or line spacing unless the user asks.",
             "In 한글 files set_document_design theme and colors are not available, and table borders, row heights and set_style are not available (shading, alignment, text format, widths and structure are).",
+            "In 한글 files set_header_footer keeps the text, the page number (plain, dash or brackets; decimal, roman or letter numbers; a start number), the first-page option and odd and even headers. Watermarks, the date, time, file, title, author and page-count fields, page_x_of_y, title_page and first-page-only text are refused.",
         }.Where(line => line != null));
     }
 }

@@ -21,5 +21,7 @@
         public string Color { get; set; }
 
         public string Font { get; set; }
+
+        public string Field { get; set; }
     }
 }

@@ -48,6 +48,12 @@ namespace DocuHelper.Importers.Hwp
                 return;
             }
 
+            if (type == "PAGE")
+            {
+                runs.AppendField("PAGE", "1", shape);
+                return;
+            }
+
             var format = HwpxXml.Child(element, "autoNumFormat");
             var number = HwpxNumberFormat.Format(HwpxXml.Int(element, "num", 1), HwpxXml.Attribute(format, "type") ?? "DIGIT");
             Emit(HwpxXml.Attribute(format, "prefixChar") + number + HwpxXml.Attribute(format, "suffixChar"), shape, runs);

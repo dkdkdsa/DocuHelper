@@ -18,6 +18,8 @@ namespace DocuHelper.Importers.Hwp
         private int _deleted;
         private int _depth;
         private bool _pageBreak;
+        private string _pendingHiding;
+        private int? _pendingNewNumber;
 
         public HwpxBody(HwpxHeader header, HwpDocument document)
         {
@@ -44,6 +46,7 @@ namespace DocuHelper.Importers.Hwp
             {
                 _document.Page = Page(properties);
                 ApplyColumnsAndBorders(section, properties, _document.Page);
+                ReadSectionControls(properties);
             }
 
             _pageBreak = !first;
@@ -142,7 +145,11 @@ namespace DocuHelper.Importers.Hwp
             }
 
             paragraph.Runs = runs.Runs;
-            var empty = paragraph.Runs.Count == 0 && paragraph.Label == null && !paragraph.PageBreakBefore;
+            paragraph.PageHiding = _pendingHiding;
+            paragraph.NewPageNumber = _pendingNewNumber;
+            _pendingHiding = null;
+            _pendingNewNumber = null;
+            var empty = paragraph.Runs.Count == 0 && paragraph.Label == null && !paragraph.PageBreakBefore && paragraph.PageHiding == null && paragraph.NewPageNumber == null;
             if (!empty || (anchored.Count == 0 && _deleted == deleted))
                 output.Add(paragraph);
 
