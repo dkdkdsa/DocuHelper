@@ -39,6 +39,9 @@ namespace DocuHelper.Editors
             AddTool(new SplitTextTool());
             AddTool(new GoalSeekTool());
             AddTool(new BuildPivotSummaryTool());
+            AddTool(new InsertDrawingTool());
+            AddTool(new CreateChartTool());
+            AddTool(new ChangeObjectTool());
         }
 
         public override DocuType TargetType => DocuType.Excel;
