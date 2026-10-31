@@ -34,7 +34,7 @@ namespace DocuHelper.Importers.Hwp
             _defaultFont = FontOf(_styles.Root?.DocDefaults?.RunPropertiesDefault?.RunPropertiesBaseStyle?.RunFonts) ?? DefaultFont;
             _defaultHeight = HeightOf(_styles.Root?.DocDefaults?.RunPropertiesDefault?.RunPropertiesBaseStyle?.FontSize) ?? DefaultHeight;
             CharId(new HwpxCharKey(_defaultFont, _defaultHeight, false, false, false, false, null, false, false));
-            ParaId(new HwpxParaKey("JUSTIFY", 0, 0, 0, 0, 0, DefaultLineSpacing, false, "PERCENT", false, false, PlainBorder));
+            ParaId(new HwpxParaKey("JUSTIFY", 0, 0, 0, 0, 0, DefaultLineSpacing, false, "PERCENT", false, false, PlainBorder, 0));
         }
 
         private int BorderFillId(HwpBorderLine[] lines, string fill)

@@ -39,5 +39,7 @@ namespace DocuHelper.Importers.Hwp
         public string LineSpacingKind { get; set; } = "PERCENT";
 
         internal HwpxBorderFill Border { get; set; }
+
+        public List<HwpTabStop> Tabs { get; set; } = new();
     }
 }

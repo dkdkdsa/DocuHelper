@@ -143,6 +143,7 @@ namespace DocuHelper.Importers.Hwp
                 WidowControl = shape.WidowControl,
                 LineSpacingKind = shape.LineSpacingKind,
                 Border = BorderOf(shape.BorderFillId),
+                Tabs = new List<HwpTabStop>(_header.TabStops(shape.TabPrId)),
             };
             _pageBreak = false;
 

@@ -34,6 +34,7 @@ namespace DocuHelper.Importers.Hwp
         private readonly List<string> _fonts = new();
         private readonly Dictionary<HwpxCharKey, int> _chars = new();
         private readonly Dictionary<HwpxParaKey, int> _paras = new();
+        private readonly Dictionary<string, (int Id, List<HwpTabStop> Stops)> _tabs = new();
 
         private HwpxParaKey ParaKeyOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, Indentation listIndent)
         {
@@ -84,7 +85,7 @@ namespace DocuHelper.Importers.Hwp
             var keep = WordStyles.IsOn(_styles.ParagraphValue<KeepNext>(paragraph));
             var keepLines = WordStyles.IsOn(_styles.ParagraphValue<KeepLines>(paragraph));
             var widow = WordStyles.IsOn(_styles.ParagraphValue<WidowControl>(paragraph));
-            return new HwpxParaKey(align, Units(Math.Max(0, left)), Units(Math.Max(0, right)), Units(indent), Units(Math.Max(0, before)), Units(Math.Max(0, after)), line, keep, kind, keepLines, widow, BorderIdOf(paragraph));
+            return new HwpxParaKey(align, Units(Math.Max(0, left)), Units(Math.Max(0, right)), Units(indent), Units(Math.Max(0, before)), Units(Math.Max(0, after)), line, keep, kind, keepLines, widow, BorderIdOf(paragraph), TabId(StopsOf(paragraph)));
         }
 
         private int BorderIdOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
@@ -195,6 +196,53 @@ namespace DocuHelper.Importers.Hwp
             return id;
         }
 
+        private int TabId(List<HwpTabStop> stops)
+        {
+            if (stops.Count == 0)
+                return 0;
+
+            var key = string.Join("|", stops.Select(s => s.Position + "/" + s.Type + "/" + s.Leader));
+            if (_tabs.TryGetValue(key, out var found))
+                return found.Id;
+
+            var id = 1 + _tabs.Count;
+            _tabs[key] = (id, stops);
+            return id;
+        }
+
+        private List<HwpTabStop> StopsOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
+        {
+            var tabs = _styles.ParagraphValue<DocumentFormat.OpenXml.Wordprocessing.Tabs>(paragraph);
+            return (tabs?.Elements<TabStop>() ?? Enumerable.Empty<TabStop>())
+                .Where(t => t.Val?.Value != null && t.Position?.Value != null)
+                .Select(Stop)
+                .Where(s => s != null)
+                .ToList();
+        }
+
+        private static HwpTabStop Stop(TabStop tab)
+        {
+            var value = tab.Val.Value;
+            var type = value == TabStopValues.Center ? "CENTER"
+                : value == TabStopValues.Right || value == TabStopValues.End ? "RIGHT"
+                : value == TabStopValues.Decimal ? "DECIMAL"
+                : value == TabStopValues.Left || value == TabStopValues.Start ? "LEFT"
+                : null;
+            if (type == null)
+                return null;
+
+            var leader = tab.Leader?.Value;
+            return new HwpTabStop
+            {
+                Position = Units(tab.Position.Value),
+                Type = type,
+                Leader = leader == TabStopLeaderCharValues.Dot ? "DOT"
+                    : leader == TabStopLeaderCharValues.Hyphen ? "DASH"
+                    : leader == TabStopLeaderCharValues.Underscore ? "SOLID"
+                    : "NONE",
+            };
+        }
+
         private XElement CharProperty(int id, HwpxCharKey key)
         {
             var font = Number(_fonts.IndexOf(key.Font));
@@ -247,7 +295,7 @@ namespace DocuHelper.Importers.Hwp
 
             return new XElement(Hh + "paraPr",
                 new XAttribute("id", Number(id)),
-                new XAttribute("tabPrIDRef", "0"),
+                new XAttribute("tabPrIDRef", Number(key.Tab)),
                 new XAttribute("condense", "0"),
                 new XAttribute("fontLineHeight", "0"),
                 new XAttribute("snapToGrid", "1"),

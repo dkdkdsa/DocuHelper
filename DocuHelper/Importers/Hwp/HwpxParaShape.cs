@@ -35,5 +35,7 @@
         public string LineSpacingKind { get; set; } = "PERCENT";
 
         public int BorderFillId { get; set; }
+
+        public int TabPrId { get; set; }
     }
 }

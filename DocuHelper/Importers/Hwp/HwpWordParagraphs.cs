@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using DocumentFormat.OpenXml.Wordprocessing;
 using static DocuHelper.Importers.Hwp.HwpWordWriter;
@@ -29,6 +30,10 @@ namespace DocuHelper.Importers.Hwp
             var shading = Shade(source.Border);
             if (shading != null)
                 properties.AppendChild(shading);
+
+            var tabs = Stops(source.Tabs);
+            if (tabs != null)
+                properties.AppendChild(tabs);
 
             properties.AppendChild(Spacing(source));
             var indentation = Indent(source);
@@ -145,6 +150,34 @@ namespace DocuHelper.Importers.Hwp
 
         private static Shading Shade(HwpxBorderFill border) =>
             border?.FaceColor == null ? null : new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = border.FaceColor };
+
+        private static Tabs Stops(List<HwpTabStop> stops)
+        {
+            if (stops.Count == 0)
+                return null;
+
+            var tabs = new Tabs();
+            foreach (var stop in stops)
+                tabs.AppendChild(new TabStop { Val = Align(stop.Type), Leader = Leader(stop.Leader), Position = Twips(stop.Position) });
+
+            return tabs;
+        }
+
+        private static TabStopValues Align(string type) => type switch
+        {
+            "CENTER" => TabStopValues.Center,
+            "RIGHT" => TabStopValues.Right,
+            "DECIMAL" => TabStopValues.Decimal,
+            _ => TabStopValues.Left,
+        };
+
+        private static TabStopLeaderCharValues Leader(string leader) => leader switch
+        {
+            "DOT" => TabStopLeaderCharValues.Dot,
+            "DASH" => TabStopLeaderCharValues.Hyphen,
+            "SOLID" => TabStopLeaderCharValues.Underscore,
+            _ => TabStopLeaderCharValues.None,
+        };
 
         private static JustificationValues Justify(HwpAlignment alignment) => alignment switch
         {

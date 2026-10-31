@@ -15,6 +15,7 @@ namespace DocuHelper.Importers.Hwp
         private readonly Dictionary<int, HwpxNumberingLevel[]> _numberings = new();
         private readonly Dictionary<int, (string Normal, string Checked)> _bullets = new();
         private readonly Dictionary<int, HwpxBorderFill> _borderFills = new();
+        private readonly Dictionary<int, List<HwpTabStop>> _tabStops = new();
         private readonly HwpxCharShape _defaultChar = new();
         private readonly HwpxParaShape _defaultPara = new();
 
@@ -41,11 +42,24 @@ namespace DocuHelper.Importers.Hwp
                     case "borderFill" when parent == "borderFills":
                         _borderFills[HwpxXml.Int(element, "id", -1)] = HwpxBorderFill.Read(element);
                         break;
+                    case "tabPr" when parent == "tabProperties":
+                        _tabStops[HwpxXml.Int(element, "id", -1)] = TabStopsOf(element);
+                        break;
                 }
             }
         }
 
         public HwpxBorderFill BorderFill(int id) => _borderFills.TryGetValue(id, out var fill) ? fill : null;
+
+        public IReadOnlyList<HwpTabStop> TabStops(int id) => _tabStops.TryGetValue(id, out var stops) ? stops : new List<HwpTabStop>();
+
+        private static List<HwpTabStop> TabStopsOf(XElement element) =>
+            HwpxXml.Children(element, "tabItem").Select(item => new HwpTabStop
+            {
+                Position = HwpxXml.Int(item, "pos", 0),
+                Type = HwpxXml.Attribute(item, "type") ?? "LEFT",
+                Leader = HwpxXml.Attribute(item, "leader") ?? "NONE",
+            }).ToList();
 
         public HwpxCharShape CharShape(int id) => _charShapes.TryGetValue(id, out var shape) ? shape : _defaultChar;
 
@@ -146,6 +160,7 @@ namespace DocuHelper.Importers.Hwp
                 WidowControl = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "widowOrphan"),
                 RightIndent = Length(exact, legacy, "right"),
                 BorderFillId = HwpxXml.Int(HwpxXml.Child(element, "border"), "borderFillIDRef", 1),
+                TabPrId = HwpxXml.Int(element, "tabPrIDRef", 0),
                 HeadingType = HwpxXml.Attribute(heading, "type") ?? "NONE",
                 HeadingId = HwpxXml.Int(heading, "idRef", 0),
                 HeadingLevel = HwpxXml.Int(heading, "level", 0),

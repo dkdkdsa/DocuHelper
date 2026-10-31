@@ -23,7 +23,8 @@ namespace DocuHelper.Importers.Hwp
             HwpFeature.ParaDivide => true,
             HwpFeature.ParaBorder => true,
 
-            HwpFeature.TabStops => false,
+            HwpFeature.TabStops => true,
+            HwpFeature.StaticToc => false,
 
             HwpFeature.TableCellFormat => false,
 

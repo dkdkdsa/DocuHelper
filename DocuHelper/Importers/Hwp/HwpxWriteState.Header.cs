@@ -38,6 +38,19 @@ namespace DocuHelper.Importers.Hwp
             return element;
         }
 
+        private XElement TabProperties()
+        {
+            var element = new XElement(Hh + "tabProperties", new XAttribute("itemCnt", Number(1 + _tabs.Count)),
+                new XElement(Hh + "tabPr", new XAttribute("id", "0"), new XAttribute("autoTabLeft", "0"), new XAttribute("autoTabRight", "0")));
+            foreach (var pair in _tabs.Values.OrderBy(t => t.Id))
+            {
+                element.Add(new XElement(Hh + "tabPr", new XAttribute("id", Number(pair.Id)), new XAttribute("autoTabLeft", "0"), new XAttribute("autoTabRight", "0"),
+                    pair.Stops.Select(stop => new XElement(Hh + "tabItem", new XAttribute("pos", Number(stop.Position)), new XAttribute("type", stop.Type), new XAttribute("leader", stop.Leader), new XAttribute("unit", "HWPUNIT")))));
+            }
+
+            return element;
+        }
+
         public XElement Header()
         {
             var fontfaces = new XElement(Hh + "fontfaces", new XAttribute("itemCnt", Number(s_languages.Length)));
@@ -76,8 +89,7 @@ namespace DocuHelper.Importers.Hwp
                     fontfaces,
                     borders,
                     chars,
-                    new XElement(Hh + "tabProperties", new XAttribute("itemCnt", "1"),
-                        new XElement(Hh + "tabPr", new XAttribute("id", "0"), new XAttribute("autoTabLeft", "0"), new XAttribute("autoTabRight", "0"))),
+                    TabProperties(),
                     paras,
                     new XElement(Hh + "styles", new XAttribute("itemCnt", "1"),
                         new XElement(Hh + "style",
