@@ -195,6 +195,8 @@ namespace DocuHelper.Tools.Excel
                         plan.Actions.Add("format_rows");
                     if (input.Has("columns"))
                         plan.Actions.Add("format_columns");
+                    if (input.Has("summary_below") || input.Has("summary_right"))
+                        plan.Actions.Add("format_cells");
                     break;
                 case "merge_cells":
                     plan.Actions.Add("format_cells");
@@ -242,11 +244,13 @@ namespace DocuHelper.Tools.Excel
                     plan.Actions.Add("objects");
                     break;
                 case "add_subtotals":
+                    plan.Blocked.Add("부분합은 행을 끼워 넣고 칸을 쓰는 작업이라서 보호된 시트에서는 할 수 없어요.");
+                    break;
                 case "split_text":
-                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet));
+                    plan.Blocked.Add("텍스트를 여러 칸에 나누는 작업은 칸을 많이 바꾸므로 보호된 시트에서는 할 수 없어요.");
                     break;
                 case "goal_seek":
-                    plan.Cells.Add(TargetOf(book, input.GetString("cell"), plan.Sheet));
+                    plan.Cells.Add(TargetOf(book, input.GetString("changing_cell"), plan.Sheet));
                     break;
                 case "freeze_panes":
                 case "set_sheet_view":

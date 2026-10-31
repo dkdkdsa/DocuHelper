@@ -218,7 +218,7 @@ namespace DocuHelper.Tools.Excel
             }
         }
 
-        private static void ApplyHint(ExcelBook book, Cell cell, TypedInput value)
+        internal static void ApplyHint(ExcelBook book, Cell cell, TypedInput value)
         {
             if (value.FormatHint == null)
                 return;

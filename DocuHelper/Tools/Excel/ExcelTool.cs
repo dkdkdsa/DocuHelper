@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using DocumentFormat.OpenXml.Spreadsheet;
 using DocuHelper.Docus;
 
 namespace DocuHelper.Tools.Excel
@@ -133,6 +134,26 @@ namespace DocuHelper.Tools.Excel
             }
 
             return bounds;
+        }
+
+        protected static string DisplayAt(ExcelBook book, ExcelSheet sheet, int column, int row)
+        {
+            var cell = sheet.FindCell(column, row);
+            return cell == null ? string.Empty : book.DisplayText(book.ReadValue(cell), book.StyleOf(cell));
+        }
+
+        protected static void Emphasize(ExcelBook book, Cell cell)
+        {
+            var index = book.Styles.Apply(cell.StyleIndex?.Value ?? 0, new StyleChange { Bold = true });
+            cell.StyleIndex = index == 0 ? null : index;
+        }
+
+        protected static void InsertLine(Docu docu, ExcelBook book, ExcelSheet sheet, int at, List<CellKey> dirty)
+        {
+            var shift = new LineShift(true, at, 1);
+            var outcome = ExcelStructure.ShiftLines(book, sheet, shift, ExcelStructure.FormatBefore);
+            ShiftAnchors(docu, sheet.Name, shift);
+            dirty.AddRange(outcome.DirtyKeys(book));
         }
 
         protected static bool IsTotalRow(ExcelBook book, ExcelSheet sheet, int row)
