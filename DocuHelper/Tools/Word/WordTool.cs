@@ -30,6 +30,12 @@ namespace DocuHelper.Tools.Word
         protected IReadOnlyList<WordRange> Targets(WordScan scan, ToolInput input, string name = "targets") =>
             WordRangeTarget.Resolve(scan, input, name);
 
+        protected static void RefuseFormatInHwp(WordDocu docu, WordRunFormat format)
+        {
+            RefuseInHwp(docu, "대문자 효과", format.Caps != null);
+            RefuseInHwp(docu, "굵은 밑줄·낱말 밑줄", format.Underline is "thick" or "words");
+        }
+
         protected static void RefuseInHwp(WordDocu docu, string feature, bool used = true)
         {
             if (used)

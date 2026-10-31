@@ -11,6 +11,26 @@ namespace DocuHelper.Importers.Hwp
 {
     internal sealed partial class HwpxWriteState
     {
+        private static readonly (HighlightColorValues Name, string Hex)[] s_highlightHex =
+        {
+            (HighlightColorValues.Yellow, "FFFF00"),
+            (HighlightColorValues.Green, "00FF00"),
+            (HighlightColorValues.Cyan, "00FFFF"),
+            (HighlightColorValues.Magenta, "FF00FF"),
+            (HighlightColorValues.Blue, "0000FF"),
+            (HighlightColorValues.Red, "FF0000"),
+            (HighlightColorValues.DarkBlue, "000080"),
+            (HighlightColorValues.DarkCyan, "008080"),
+            (HighlightColorValues.DarkGreen, "008000"),
+            (HighlightColorValues.DarkMagenta, "800080"),
+            (HighlightColorValues.DarkRed, "800000"),
+            (HighlightColorValues.DarkYellow, "808000"),
+            (HighlightColorValues.DarkGray, "808080"),
+            (HighlightColorValues.LightGray, "C0C0C0"),
+            (HighlightColorValues.Black, "000000"),
+            (HighlightColorValues.White, "FFFFFF"),
+        };
+
         private readonly List<string> _fonts = new();
         private readonly Dictionary<HwpxCharKey, int> _chars = new();
         private readonly Dictionary<HwpxParaKey, int> _paras = new();
@@ -63,16 +83,23 @@ namespace DocuHelper.Importers.Hwp
                 color = null;
 
             var vertical = Value<VerticalTextAlignment>()?.Val?.Value;
+            var underline = Value<Underline>();
+            var underlined = WordStyles.IsUnderlined(underline);
             return new HwpxCharKey(
                 font,
                 height,
                 WordStyles.IsOn(Value<Bold>()),
                 WordStyles.IsOn(Value<Italic>()),
-                WordStyles.IsUnderlined(Value<Underline>()),
+                underlined,
                 WordStyles.IsOn(Value<Strike>()) || WordStyles.IsOn(Value<DoubleStrike>()),
                 color?.ToUpperInvariant(),
                 vertical == VerticalPositionValues.Superscript,
-                vertical == VerticalPositionValues.Subscript);
+                vertical == VerticalPositionValues.Subscript,
+                ShadeOf(Value<Shading>(), Value<DocumentFormat.OpenXml.Wordprocessing.Highlight>()),
+                SpacingOf(Value<Spacing>()?.Val?.Value ?? 0, height),
+                ScaleOf(Value<CharacterScale>()),
+                underlined ? UnderlineShapeOf(underline?.Val?.Value) : "SOLID",
+                WordStyles.IsOn(Value<DoubleStrike>()));
         }
 
         private static string FontOf(RunFonts fonts)
@@ -80,6 +107,29 @@ namespace DocuHelper.Importers.Hwp
             var name = fonts?.EastAsia?.Value ?? fonts?.Ascii?.Value ?? fonts?.HighAnsi?.Value;
             return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
         }
+
+        private static string ShadeOf(Shading shading, DocumentFormat.OpenXml.Wordprocessing.Highlight highlight)
+        {
+            var fill = shading?.Fill?.Value;
+            if (fill != null && fill.Length == 6 && fill.All(Uri.IsHexDigit))
+                return fill.ToUpperInvariant();
+
+            var name = highlight?.Val?.Value;
+            return name == null || name == HighlightColorValues.None ? null : HighlightHex(name);
+        }
+
+        private static string HighlightHex(HighlightColorValues? value) => s_highlightHex.FirstOrDefault(e => e.Name == value).Hex;
+
+        private static int SpacingOf(int twips, int height) => height > 0 ? (int)Math.Round(twips * 500.0 / height) : 0;
+
+        private static int ScaleOf(CharacterScale scale) => scale?.Val != null && scale.Val.Value > 0 ? (int)scale.Val.Value : 100;
+
+        private static string UnderlineShapeOf(UnderlineValues? value) =>
+            value == UnderlineValues.Double ? "DOUBLE_SLIM"
+            : value == UnderlineValues.Dotted ? "DOT"
+            : value == UnderlineValues.Dash ? "DASH"
+            : value == UnderlineValues.Wave ? "WAVE"
+            : "SOLID";
 
         private static int? HeightOf(FontSize size)
         {
@@ -117,14 +167,14 @@ namespace DocuHelper.Importers.Hwp
                 new XAttribute("id", Number(id)),
                 new XAttribute("height", Number(key.Height)),
                 new XAttribute("textColor", "#" + (key.Color ?? "000000")),
-                new XAttribute("shadeColor", "none"),
+                new XAttribute("shadeColor", key.Shade == null ? "none" : "#" + key.Shade),
                 new XAttribute("useFontSpace", "0"),
                 new XAttribute("useKerning", "0"),
                 new XAttribute("symMark", "NONE"),
                 new XAttribute("borderFillIDRef", Number(PlainBorder)),
                 LanguageValues("fontRef", font),
-                LanguageValues("ratio", "100"),
-                LanguageValues("spacing", "0"),
+                LanguageValues("ratio", Number(key.Scale)),
+                LanguageValues("spacing", Number(key.Spacing)),
                 LanguageValues("relSz", "100"),
                 LanguageValues("offset", "0"));
             if (key.Italic)
@@ -133,8 +183,8 @@ namespace DocuHelper.Importers.Hwp
             if (key.Bold)
                 element.Add(new XElement(Hh + "bold"));
 
-            element.Add(new XElement(Hh + "underline", new XAttribute("type", key.Underline ? "BOTTOM" : "NONE"), new XAttribute("shape", "SOLID"), new XAttribute("color", "#000000")));
-            element.Add(new XElement(Hh + "strikeout", new XAttribute("shape", key.Strike ? "SOLID" : "NONE"), new XAttribute("color", "#000000")));
+            element.Add(new XElement(Hh + "underline", new XAttribute("type", key.Underline ? "BOTTOM" : "NONE"), new XAttribute("shape", key.UnderlineShape), new XAttribute("color", "#000000")));
+            element.Add(new XElement(Hh + "strikeout", new XAttribute("shape", key.DoubleStrike ? "DOUBLE_SLIM" : key.Strike ? "SOLID" : "NONE"), new XAttribute("color", "#000000")));
             element.Add(new XElement(Hh + "outline", new XAttribute("type", "NONE")));
             element.Add(new XElement(Hh + "shadow", new XAttribute("type", "NONE"), new XAttribute("color", "#C0C0C0"), new XAttribute("offsetX", "10"), new XAttribute("offsetY", "10")));
             if (key.Superscript)

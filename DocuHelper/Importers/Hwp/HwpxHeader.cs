@@ -81,6 +81,7 @@ namespace DocuHelper.Importers.Hwp
             {
                 Size = height > 0 ? height : 1000,
                 Color = Color(HwpxXml.Attribute(element, "textColor")),
+                Shade = ShadeOf(HwpxXml.Attribute(element, "shadeColor")),
             };
             foreach (var child in HwpxXml.Children(element))
             {
@@ -95,12 +96,20 @@ namespace DocuHelper.Importers.Hwp
                     case "italic":
                         shape.Italic = true;
                         break;
+                    case "ratio":
+                        shape.Scale = ScaleOf(HwpxXml.Int(child, "hangul", 100));
+                        break;
+                    case "spacing":
+                        shape.Spacing = HwpxXml.Int(child, "hangul", 0);
+                        break;
                     case "underline":
                         shape.Underline = IsLine(HwpxXml.Attribute(child, "type"));
+                        shape.UnderlineShape = HwpxXml.Attribute(child, "shape") ?? "SOLID";
                         break;
                     case "strikeout":
                         var line = HwpxXml.Attribute(child, "shape");
                         shape.Strike = IsLine(line) && line != "3D";
+                        shape.DoubleStrike = line?.StartsWith("DOUBLE", StringComparison.Ordinal) == true;
                         break;
                     case "supscript":
                         shape.Superscript = true;
@@ -220,6 +229,14 @@ namespace DocuHelper.Importers.Hwp
             "DISTRIBUTE" or "DISTRIBUTE_SPACE" => HwpAlignment.Distribute,
             _ => HwpAlignment.Justify,
         };
+
+        private static string ShadeOf(string value)
+        {
+            var hex = value?.Trim().TrimStart('#');
+            return hex != null && hex.Length == 6 && hex.All(Uri.IsHexDigit) ? hex.ToUpperInvariant() : null;
+        }
+
+        private static int ScaleOf(int value) => value > 0 ? value : 100;
 
         private static bool IsLine(string type) => !string.IsNullOrEmpty(type) && type != "NONE";
 

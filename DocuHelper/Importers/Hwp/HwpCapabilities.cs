@@ -14,8 +14,8 @@ namespace DocuHelper.Importers.Hwp
 
         public static bool Has(HwpFeature feature) => feature switch
         {
-            HwpFeature.CharShade => false,
-            HwpFeature.CharSpacing => false,
+            HwpFeature.CharShade => true,
+            HwpFeature.CharSpacing => true,
 
             HwpFeature.ParaRightIndent => false,
             HwpFeature.ParaKeep => false,

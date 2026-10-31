@@ -87,11 +87,19 @@ namespace DocuHelper.Importers.Hwp
                 properties.AppendChild(new ItalicComplexScript());
             }
 
-            if (format.Strike)
+            if (format.DoubleStrike)
+                properties.AppendChild(new DoubleStrike());
+            else if (format.Strike)
                 properties.AppendChild(new Strike());
 
             if (IsColor(format.Color))
                 properties.AppendChild(new Color { Val = format.Color.ToUpperInvariant() });
+
+            if (format.Spacing != 0)
+                properties.AppendChild(new Spacing { Val = (int)Math.Round(format.Spacing * (format.Size > 0 ? format.Size : 1000) / 500.0) });
+
+            if (format.Scale != 100)
+                properties.AppendChild(new CharacterScale { Val = format.Scale });
 
             if (format.Size > 0)
             {
@@ -101,13 +109,25 @@ namespace DocuHelper.Importers.Hwp
             }
 
             if (format.Underline)
-                properties.AppendChild(new Underline { Val = UnderlineValues.Single });
+                properties.AppendChild(new Underline { Val = UnderlineValueOf(format.UnderlineShape) });
+
+            if (format.Shade != null)
+                properties.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = format.Shade });
 
             if (format.Superscript || format.Subscript)
                 properties.AppendChild(new VerticalTextAlignment { Val = format.Superscript ? VerticalPositionValues.Superscript : VerticalPositionValues.Subscript });
 
             return properties.HasChildren ? properties : null;
         }
+
+        private static UnderlineValues UnderlineValueOf(string shape) => shape switch
+        {
+            "DOUBLE_SLIM" => UnderlineValues.Double,
+            "DOT" => UnderlineValues.Dotted,
+            "DASH" => UnderlineValues.Dash,
+            "WAVE" => UnderlineValues.Wave,
+            _ => UnderlineValues.Single,
+        };
 
         private static bool IsColor(string color) =>
             color != null && color.Length == 6 && color.All(Uri.IsHexDigit) && !string.Equals(color, "000000", StringComparison.Ordinal);
