@@ -31,7 +31,14 @@ namespace DocuHelper.Editors
         public override Docu CreateBlank(string filePath)
         {
             var path = HwpDocu.IsHwpPath(filePath) && !CanWriteHwp ? Path.ChangeExtension(filePath, ".hwpx") : filePath;
-            return new HwpDocu(path, WordTemplate.Blank());
+            return new HwpDocu(path, HwpTemplate.Blank());
+        }
+
+        public override string Describe(Docu docu)
+        {
+            var text = base.Describe(docu);
+            var lost = docu is HwpDocu hwp ? HwpLimits.Names(hwp) : null;
+            return lost == null ? text : $"{text} · 저장하면 빠지는 것: {lost}";
         }
 
         public override string SavePath(Docu docu)

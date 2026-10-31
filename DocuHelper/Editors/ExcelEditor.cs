@@ -13,6 +13,27 @@ namespace DocuHelper.Editors
             AddTool(new FormatRangeTool());
             AddTool(new SortRangeTool());
             AddTool(new AddSheetTool());
+            AddTool(new InsertRowsColumnsTool());
+            AddTool(new DeleteRowsColumnsTool());
+            AddTool(new FormatRowsColumnsTool());
+            AddTool(new MergeCellsTool());
+            AddTool(new FreezePanesTool());
+            AddTool(new ChangeSheetTool());
+            AddTool(new CopySheetTool());
+            AddTool(new DeleteSheetTool());
+            AddTool(new ManageTableTool());
+            AddTool(new FilterRangeTool());
+            AddTool(new RemoveDuplicatesTool());
+            AddTool(new SetConditionalFormatTool());
+            AddTool(new CopyRangeTool());
+            AddTool(new ShiftCellsTool());
+            AddTool(new SetDataValidationTool());
+            AddTool(new SetHyperlinkTool());
+            AddTool(new EditCommentTool());
+            AddTool(new SetSheetViewTool());
+            AddTool(new SetWorkbookOptionsTool());
+            AddTool(new DefineNameTool());
+            AddTool(new SetPrintSetupTool());
         }
 
         public override DocuType TargetType => DocuType.Excel;

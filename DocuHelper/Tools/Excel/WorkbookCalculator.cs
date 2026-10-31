@@ -10,15 +10,17 @@ namespace DocuHelper.Tools.Excel
         private const long ReadBudget = 4_000_000;
 
         private readonly HashSet<CellKey> _written;
+        private readonly bool _strict;
         private readonly Dictionary<CellKey, FormulaCellState> _states = new();
         private readonly Dictionary<string, FormulaNode> _parsed = new(StringComparer.Ordinal);
         private readonly Dictionary<int, List<ExcelCellEntry>> _formulas = new();
         private long _reads;
 
-        public WorkbookCalculator(ExcelBook book, IEnumerable<CellKey> written)
+        public WorkbookCalculator(ExcelBook book, IEnumerable<CellKey> written, bool strict = true)
         {
             Book = book;
             _written = new HashSet<CellKey>(written ?? Enumerable.Empty<CellKey>());
+            _strict = strict;
         }
 
         public ExcelBook Book { get; }
@@ -133,7 +135,7 @@ namespace DocuHelper.Tools.Excel
             {
                 try
                 {
-                    value = new FormulaEvaluator(this, sheet, column, row).Evaluate(node);
+                    value = new FormulaEvaluator(this, sheet, column, row, written && _strict).Evaluate(node);
                 }
                 catch (UnknownValueException)
                 {
@@ -175,6 +177,17 @@ namespace DocuHelper.Tools.Excel
             return node;
         }
 
+        private List<ExcelCellEntry> FormulasOf(ExcelSheet sheet)
+        {
+            if (!_formulas.TryGetValue(sheet.Index, out var list))
+            {
+                list = sheet.Entries.Where(e => e.Cell.CellFormula != null).ToList();
+                _formulas[sheet.Index] = list;
+            }
+
+            return list;
+        }
+
         private bool AnyPrecedentChanged(FormulaNode node, ExcelSheet sheet)
         {
             foreach (var reference in node.Descendants().Where(n => n.Kind == FormulaNodeKind.Reference).Select(n => n.Reference))
@@ -190,7 +203,7 @@ namespace DocuHelper.Tools.Excel
                         return true;
                 }
 
-                foreach (var entry in _formulas[target.Index])
+                foreach (var entry in FormulasOf(target))
                 {
                     if (!range.Contains(entry.Column, entry.Row))
                         continue;

@@ -1,0 +1,96 @@
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+@inject IClipboardService Clipboard
+@inject IFileDialogService Files
+
+@if (Router != null)
+{
+    <div class="host">
+        <Ribbon Tabs="WordRibbon.Tabs"
+                ActiveTab="@State.Tab"
+                ActiveTabChanged="OnTabChanged"
+                IsOpen="@State.RibbonOpen"
+                IsOpenChanged="OnOpenChanged"
+                FileItems="WordRibbon.FileItems"
+                Host="Router"
+                Format="DocuType.Word"
+                Disabled="@Router.IsLocked">
+            <Trailing>
+                <IconButton Icon="undo" IconSize="18" Label="실행 취소" Title="@UndoTitle" Disabled="@Router.IsDisabled(UndoId)" OnClick="Undo" />
+                <IconButton Icon="redo" IconSize="18" Label="다시 실행" Title="@RedoTitle" Disabled="@Router.IsDisabled(RedoId)" OnClick="Redo" />
+            </Trailing>
+        </Ribbon>
+    </div>
+}
+
+@code {
+    private const string UndoId = "word.trailing.undo";
+    private const string RedoId = "word.trailing.redo";
+
+    private WorkspaceFile _boundFile;
+    private WordCommandRouter _subscribed;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private WordRibbonState State => WordRibbonState.Of(File);
+
+    private WordCommandRouter Router => State?.Router;
+
+    private string UndoTitle => Describe("실행 취소 (Ctrl+Z)", UndoId);
+
+    private string RedoTitle => Describe("다시 실행 (Ctrl+Y)", RedoId);
+
+    protected override void OnParametersSet()
+    {
+        var state = State;
+        if (state == null)
+        {
+            Unsubscribe();
+            return;
+        }
+
+        state.Router ??= new WordCommandRouter(Workspace, Assistant, JS, Clipboard, Files, state);
+        state.Router.File = File;
+        if (ReferenceEquals(_boundFile, File) && ReferenceEquals(_subscribed, state.Router))
+            return;
+
+        _boundFile = File;
+        Unsubscribe();
+        _subscribed = state.Router;
+        _subscribed.Changed += OnRouterChanged;
+        state.Changed += OnRouterChanged;
+    }
+
+    protected override void OnDispose() => Unsubscribe();
+
+    private string Describe(string title, string id)
+    {
+        var reason = Router.DisabledReasonOf(id);
+        return reason == null ? title : title + " - " + reason;
+    }
+
+    private void Unsubscribe()
+    {
+        if (_subscribed != null)
+        {
+            _subscribed.Changed -= OnRouterChanged;
+            _subscribed.State.Changed -= OnRouterChanged;
+            _subscribed = null;
+        }
+    }
+
+    private void OnRouterChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnTabChanged(string key)
+    {
+        State.Tab = key;
+        State.RibbonOpen = true;
+    }
+
+    private void OnOpenChanged(bool open) => State.RibbonOpen = open;
+
+    private Task Undo() => Router.InvokeAsync(UndoId, null);
+
+    private Task Redo() => Router.InvokeAsync(RedoId, null);
+}

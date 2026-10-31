@@ -1,4 +1,5 @@
 ﻿@using DocuHelperEditor.State.Papers
+@inject IJSRuntime JS
 
 <div class="sheet-bar">
     <div class="tabs">
@@ -8,10 +9,21 @@
             {
                 var index = i;
                 var sheet = Sheets[index];
+                if (sheet.IsHidden)
+                {
+                    continue;
+                }
+
                 var active = index == ActiveIndex;
+                if (index == _renaming)
+                {
+                    <input id="@RenameId" class="tab-edit" value="@_draft" maxlength="31" aria-label="새 시트 이름" autocomplete="off" spellcheck="false" @oninput="OnDraft" @onkeydown="OnRenameKey" @onblur="CommitRename" />
+                    continue;
+                }
+
                 var isNew = IsPendingNew(sheet);
                 var marked = !string.IsNullOrEmpty(HighlightChangeId) && sheet.ChangeId == HighlightChangeId;
-                <button type="button" @key="sheet.Name" class="tab @(active ? "on" : null) @(isNew ? "new" : null)" aria-pressed="@(active ? "true" : "false")" @onclick="() => OnSelect.InvokeAsync(index)">
+                <button type="button" @key="sheet.Name" class="tab @(active ? "on" : null) @(isNew ? "new" : null)" aria-pressed="@(active ? "true" : "false")" title="@(CanEdit ? "두 번 누르면 이름을 바꿔요. 오른쪽 클릭하면 시트 메뉴가 나와요" : null)" @onclick="() => OnSelect.InvokeAsync(index)" @ondblclick="() => BeginRename(index)" @oncontextmenu="e => OpenMenu(index, e)" @oncontextmenu:preventDefault="true">
                     @if (marked)
                     {
                         <span class="mk on" data-change="@HighlightChangeId">@sheet.Name</span>
@@ -39,6 +51,11 @@
 </div>
 
 @code {
+    private readonly string _uid = "tab" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private int _renaming = -1;
+    private string _draft = string.Empty;
+    private bool _focus;
+
     [Parameter]
     public IReadOnlyList<Sheet> Sheets { get; set; }
 
@@ -55,6 +72,9 @@
     public bool CanAdd { get; set; } = true;
 
     [Parameter]
+    public bool CanEdit { get; set; } = true;
+
+    [Parameter]
     public bool ShowAskLegend { get; set; }
 
     [Parameter]
@@ -63,7 +83,68 @@
     [Parameter]
     public EventCallback OnAdd { get; set; }
 
+    [Parameter]
+    public EventCallback<SheetMenuRequest> OnMenu { get; set; }
+
+    [Parameter]
+    public EventCallback<(int Index, string Name)> OnRename { get; set; }
+
+    private string RenameId => _uid + "-rename";
+
+    public void BeginRename(int index)
+    {
+        if (!CanEdit || Sheets == null || index < 0 || index >= Sheets.Count)
+            return;
+
+        _renaming = index;
+        _draft = Sheets[index].Name;
+        _focus = true;
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focus)
+            return;
+
+        _focus = false;
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.selectText", "#" + RenameId);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
     private Task Add() => OnAdd.InvokeAsync();
+
+    private Task OpenMenu(int index, MouseEventArgs e) => OnMenu.InvokeAsync(new SheetMenuRequest("tab", index, -1, e.ClientX, e.ClientY));
+
+    private void OnDraft(ChangeEventArgs e) => _draft = e.Value?.ToString() ?? string.Empty;
+
+    private async Task OnRenameKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await CommitRename();
+        else if (e.Key == "Escape")
+            _renaming = -1;
+    }
+
+    private async Task CommitRename()
+    {
+        if (_renaming < 0)
+            return;
+
+        var index = _renaming;
+        _renaming = -1;
+        var name = _draft.Trim();
+        if (name.Length > 0 && Sheets != null && index < Sheets.Count && name != Sheets[index].Name)
+            await OnRename.InvokeAsync((index, name));
+    }
 
     private bool IsPendingNew(Sheet sheet) =>
         sheet.IsNew && !string.IsNullOrEmpty(sheet.ChangeId) && LiveChangeIds != null && LiveChangeIds.Contains(sheet.ChangeId);

@@ -109,6 +109,18 @@ namespace DocuHelperEditor.State
             return result;
         }
 
+        public ToolResult ApplyEdits(WorkspaceFile file, IReadOnlyList<EditCommand> commands)
+        {
+            if (file?.Docu == null)
+                return ToolResult.Fail("이 화면은 예시라서 고칠 수 없어요.");
+
+            var result = _workspace.ApplyAll(file.Docu, commands);
+            if (result.IsError)
+                AppLog.Write($"Hand edits failed on {file.Name}: {result.Content}");
+
+            return result;
+        }
+
         public Task ImportAsync(IEnumerable<string> paths) => ImportAsync(paths, new List<string>());
 
         private async Task ImportAsync(IEnumerable<string> paths, List<string> problems)
@@ -133,6 +145,9 @@ namespace DocuHelperEditor.State
                     last = file;
                     if (file.Docu is HwpDocu hwp && hwp.Skipped.Count > 0)
                         notes.Add($"‘{file.Name}’의 {SkippedText(hwp.Skipped)}은 화면에 안 보이고, 저장하면 빠져요. 원래 모습은 [기록]에 남아 있어요.");
+
+                    if (file.Docu is HwpDocu signed && signed.IsSigned)
+                        notes.Add($"‘{file.Name}’은 서명이 있는 파일이라 저장하면 서명이 풀려요.");
                 }
             }
 

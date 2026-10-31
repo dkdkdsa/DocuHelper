@@ -10,8 +10,6 @@ namespace DocuHelper.Tools.Word
 {
     public class WordNumbering
     {
-        private static readonly string[] s_bullets = { "•", "◦", "▪" };
-
         private readonly WordprocessingDocument _document;
         private readonly WordStyles _styles;
         private readonly Dictionary<int, NumberingInstance> _instances = new();
@@ -116,45 +114,9 @@ namespace DocuHelper.Tools.Word
             return AddInstance(abstractId, true);
         }
 
-        public static Level[] BulletLevels()
-        {
-            var levels = new Level[9];
-            for (var i = 0; i < levels.Length; i++)
-            {
-                levels[i] = new Level(
-                    new StartNumberingValue { Val = 1 },
-                    new NumberingFormat { Val = NumberFormatValues.Bullet },
-                    new LevelText { Val = s_bullets[i % s_bullets.Length] },
-                    new LevelJustification { Val = LevelJustificationValues.Left },
-                    new PreviousParagraphProperties(new Indentation { Left = Indent(i), Hanging = "400" }))
-                {
-                    LevelIndex = i,
-                };
-            }
+        public static Level[] BulletLevels() => WordListPresets.Bullet(null);
 
-            return levels;
-        }
-
-        public static Level[] NumberLevels()
-        {
-            var levels = new Level[9];
-            for (var i = 0; i < levels.Length; i++)
-            {
-                var format = i % 2 == 1 ? NumberFormatValues.Ganada : NumberFormatValues.Decimal;
-                var suffix = i == 2 || i == 3 ? ")" : ".";
-                levels[i] = new Level(
-                    new StartNumberingValue { Val = 1 },
-                    new NumberingFormat { Val = format },
-                    new LevelText { Val = "%" + (i + 1).ToString(CultureInfo.InvariantCulture) + suffix },
-                    new LevelJustification { Val = LevelJustificationValues.Left },
-                    new PreviousParagraphProperties(new Indentation { Left = Indent(i), Hanging = "400" }))
-                {
-                    LevelIndex = i,
-                };
-            }
-
-            return levels;
-        }
+        public static Level[] NumberLevels() => WordListPresets.Outline();
 
         public static AbstractNum NewAbstract(int id, IEnumerable<Level> levels)
         {
@@ -177,7 +139,78 @@ namespace DocuHelper.Tools.Word
             return instance;
         }
 
-        private static string Indent(int level) => (800 + 400 * level).ToString(CultureInfo.InvariantCulture);
+        public IEnumerable<(int Level, int Start)> Overrides(int numId)
+        {
+            if (!_instances.TryGetValue(numId, out var instance))
+                yield break;
+
+            foreach (var over in instance.Elements<LevelOverride>())
+            {
+                var start = over.StartOverrideNumberingValue?.Val?.Value;
+                if (over.LevelIndex?.Value != null && start != null)
+                    yield return (over.LevelIndex.Value, start.Value);
+            }
+        }
+
+        public int AbstractIdOf(int numId) => _instances.TryGetValue(numId, out var instance) ? instance.AbstractNumId?.Val?.Value ?? -1 : -1;
+
+        public bool HasSignature(int numId, string signature)
+        {
+            var definition = _instances.TryGetValue(numId, out var instance) ? AbstractOf(instance) : null;
+            return definition != null && IsPlain(definition) && WordListPresets.Signature(definition.Elements<Level>()) == signature;
+        }
+
+        public int EnsureAbstract(IReadOnlyList<Level> levels, bool multilevel)
+        {
+            var signature = WordListPresets.Signature(levels);
+            foreach (var pair in _abstracts.OrderBy(p => p.Key))
+            {
+                if (IsPlain(pair.Value) && WordListPresets.Signature(pair.Value.Elements<Level>()) == signature)
+                    return pair.Key;
+            }
+
+            return AddAbstract(levels, multilevel);
+        }
+
+        public int SharedInstance(int abstractId)
+        {
+            foreach (var pair in _instances.OrderBy(p => p.Key))
+            {
+                if (pair.Value.AbstractNumId?.Val?.Value == abstractId && !pair.Value.Elements<LevelOverride>().Any())
+                    return pair.Key;
+            }
+
+            return AddInstance(abstractId, false);
+        }
+
+        public int StartedInstance(int abstractId, int level, int start, ISet<int> used)
+        {
+            foreach (var pair in _instances.OrderBy(p => p.Key))
+            {
+                if (used.Contains(pair.Key) || pair.Value.AbstractNumId?.Val?.Value != abstractId)
+                    continue;
+
+                var overrides = pair.Value.Elements<LevelOverride>().ToList();
+                if (overrides.Count == 1 && overrides[0].LevelIndex?.Value == level && overrides[0].StartOverrideNumberingValue?.Val?.Value == start)
+                    return pair.Key;
+            }
+
+            var numbering = AddInstance(abstractId, false);
+            _instances[numbering].AppendChild(new LevelOverride(new StartOverrideNumberingValue { Val = start }) { LevelIndex = level });
+            return numbering;
+        }
+
+        public int RestartedInstance(int numId, int level, int start)
+        {
+            var source = _instances[numId];
+            var numbering = AddInstance(source.AbstractNumId.Val.Value, false);
+            var instance = _instances[numbering];
+            foreach (var existing in source.Elements<LevelOverride>().Where(o => o.LevelIndex?.Value != level))
+                instance.AppendChild(existing.CloneNode(true));
+
+            instance.AppendChild(new LevelOverride(new StartOverrideNumberingValue { Val = start }) { LevelIndex = level });
+            return numbering;
+        }
 
         private static bool IsPlain(AbstractNum definition) =>
             definition != null
@@ -191,14 +224,24 @@ namespace DocuHelper.Tools.Word
             return id != null && _abstracts.TryGetValue(id.Value, out var definition) ? definition : null;
         }
 
-        private int AddAbstract(IEnumerable<Level> levels)
+        private int AddAbstract(IEnumerable<Level> levels, bool multilevel = false)
         {
             var root = EnsureRoot();
             var id = _abstracts.Count == 0 ? 0 : _abstracts.Keys.Max() + 1;
             var definition = NewAbstract(id, levels);
+            var taken = new HashSet<string>(_abstracts.Values.Select(a => a.Nsid?.Val?.Value ?? string.Empty), StringComparer.OrdinalIgnoreCase);
+            while (taken.Contains(definition.Nsid.Val.Value))
+                definition.Nsid.Val = Random.Shared.Next(1, int.MaxValue).ToString("X8", CultureInfo.InvariantCulture);
+
+            if (multilevel)
+                definition.MultiLevelType.Val = MultiLevelValues.Multilevel;
+
             var last = root.Elements<AbstractNum>().LastOrDefault();
+            var first = root.Elements<NumberingInstance>().FirstOrDefault();
             if (last != null)
                 last.InsertAfterSelf(definition);
+            else if (first != null)
+                first.InsertBeforeSelf(definition);
             else
                 root.AddChild(definition);
 

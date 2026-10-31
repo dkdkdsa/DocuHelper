@@ -1,0 +1,120 @@
+@inject IJSRuntime JS
+
+<div class="find" role="search" aria-label="찾기와 바꾸기" @onkeydown="OnBarKeyDown">
+    <div class="row">
+        <label for="@QueryId" class="sr-only">찾을 내용</label>
+        <input id="@QueryId" class="field" placeholder="찾을 내용" value="@Query" autocomplete="off" spellcheck="false" @oninput="OnQueryInput" @onkeydown="OnQueryKeyDownAsync" />
+        <span class="count" role="status">@Status</span>
+        <ActionButton Kind="ButtonKind.Ghost" Disabled="@(!HasMatches)" OnClick="OnPrevious">이전</ActionButton>
+        <ActionButton Kind="ButtonKind.Ghost" Disabled="@(!HasMatches)" OnClick="OnNext">다음</ActionButton>
+        <ActionButton Kind="ButtonKind.Ghost" Class="@(Replace ? "on" : null)" aria-expanded="@(Replace ? "true" : "false")" OnClick="OnToggleReplace">바꾸기</ActionButton>
+        <IconButton Icon="x" IconSize="16" Stroke="2.2" Label="찾기 닫기" OnClick="OnClose" />
+    </div>
+    @if (Replace)
+    {
+        <div class="row">
+            <label for="@ReplaceId" class="sr-only">바꿀 내용</label>
+            <input id="@ReplaceId" class="field" placeholder="바꿀 내용" value="@Replacement" autocomplete="off" spellcheck="false" @oninput="OnReplacementInput" @onkeydown="OnReplacementKeyDownAsync" />
+            <ActionButton Kind="ButtonKind.Secondary" Disabled="@(!HasMatches)" OnClick="OnReplaceOne">바꾸기</ActionButton>
+            <ActionButton Kind="ButtonKind.Secondary" Disabled="@(!HasMatches)" OnClick="OnReplaceAll">모두 바꾸기</ActionButton>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(Note))
+    {
+        <p class="note" role="status">@Note</p>
+    }
+</div>
+
+@code {
+    private int _focusedVersion = -1;
+
+    [Parameter]
+    public string Id { get; set; }
+
+    [Parameter]
+    public bool Replace { get; set; }
+
+    [Parameter]
+    public string Query { get; set; }
+
+    [Parameter]
+    public string Replacement { get; set; }
+
+    [Parameter]
+    public string Status { get; set; }
+
+    [Parameter]
+    public string Note { get; set; }
+
+    [Parameter]
+    public bool HasMatches { get; set; }
+
+    [Parameter]
+    public int FocusVersion { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnQuery { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnReplacementChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnNext { get; set; }
+
+    [Parameter]
+    public EventCallback OnPrevious { get; set; }
+
+    [Parameter]
+    public EventCallback OnReplaceOne { get; set; }
+
+    [Parameter]
+    public EventCallback OnReplaceAll { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggleReplace { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string QueryId => Id + "-q";
+
+    private string ReplaceId => Id + "-r";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (FocusVersion == _focusedVersion)
+            return;
+
+        _focusedVersion = FocusVersion;
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.selectText", "#" + QueryId);
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private Task OnQueryInput(ChangeEventArgs e) => OnQuery.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+
+    private Task OnReplacementInput(ChangeEventArgs e) => OnReplacementChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+
+    private async Task OnQueryKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.IsComposing || e.Key != "Enter")
+            return;
+
+        if (e.ShiftKey)
+            await OnPrevious.InvokeAsync();
+        else
+            await OnNext.InvokeAsync();
+    }
+
+    private async Task OnReplacementKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (!e.IsComposing && e.Key == "Enter")
+            await OnReplaceOne.InvokeAsync();
+    }
+
+    private Task OnBarKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
+}

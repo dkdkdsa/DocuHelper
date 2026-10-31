@@ -8,9 +8,14 @@ using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace DocuHelper.Tools.Excel
 {
-    public sealed class ExcelStyles
+    public sealed partial class ExcelStyles
     {
         public const string DefaultFontName = "맑은 고딕";
+
+        private const string AccountingKrw = "_-\"₩\"* #,##0_-;\\-\"₩\"* #,##0_-;_-\"₩\"* \"-\"_-;_-@_-";
+        private const string AccountingUsd = "_(\"$\"* #,##0.00_);_(\"$\"* \\(#,##0.00\\);_(\"$\"* \"-\"??_);_(@_)";
+        private const string AccountingEur = "_(\"€\"* #,##0.00_);_(\"€\"* \\(#,##0.00\\);_(\"€\"* \"-\"??_);_(@_)";
+        private const string AccountingJpy = "_(\"¥\"* #,##0_);_(\"¥\"* \\(#,##0\\);_(\"¥\"* \"-\"_);_(@_)";
 
         private static readonly string[] s_fontOrder =
         {
@@ -24,9 +29,11 @@ namespace DocuHelper.Tools.Excel
         private List<CellFormat> _formats;
         private List<Font> _fonts;
         private List<Fill> _fills;
+        private List<Border> _borders;
         private Dictionary<string, uint> _formatKeys;
         private Dictionary<string, uint> _fontKeys;
         private Dictionary<string, uint> _fillKeys;
+        private Dictionary<string, uint> _borderKeys;
         private Dictionary<uint, string> _customCodes;
 
         public ExcelStyles(WorkbookPart workbookPart)
@@ -74,16 +81,29 @@ namespace DocuHelper.Tools.Excel
                 var fills = Fills();
                 var fillId = format.FillId?.Value ?? 0;
                 var fill = fillId < fills.Count ? fills[(int)fillId] : null;
+                var borders = Borders();
+                var borderId = format.BorderId?.Value ?? 0;
+                var border = borderId < borders.Count ? borders[(int)borderId] : null;
                 style = new ExcelCellStyle
                 {
                     Bold = font?.Bold != null && IsOn(font.Bold.Val),
                     Italic = font?.Italic != null && IsOn(font.Italic.Val),
                     Underline = font?.Underline != null && (font.Underline.Val == null || font.Underline.Val.InnerText != "none"),
                     FontColor = _colors.Resolve(font?.Color),
+                    FontName = font?.FontName?.Val?.Value,
+                    FontSize = font?.FontSize?.Val?.Value,
                     FillColor = FillColor(fill),
                     Horizontal = format.Alignment?.Horizontal?.InnerText,
+                    Vertical = format.Alignment?.Vertical?.InnerText,
+                    Wrap = format.Alignment?.WrapText?.Value == true,
+                    Top = Side(border?.TopBorder),
+                    Bottom = Side(border?.BottomBorder),
+                    Left = Side(border?.LeftBorder),
+                    Right = Side(border?.RightBorder),
                     NumberFormatId = numberFormatId,
                     FormatCode = FormatCode(numberFormatId),
+                    Locked = IsLocked(format),
+                    StyleName = StyleNameOf(format.FormatId?.Value ?? 0),
                 };
             }
 
@@ -109,13 +129,25 @@ namespace DocuHelper.Tools.Excel
         public static string NamedFormatCode(string input)
         {
             var value = (input ?? string.Empty).Trim();
-            return value.ToLowerInvariant() switch
+            return value.ToLowerInvariant().Replace(' ', '_').Replace('-', '_') switch
             {
                 "general" => "General",
                 "thousands" => "#,##0",
                 "percent" => "0%",
                 "text" => "@",
                 "date" => ExcelNumberFormat.DateCode,
+                "number" => "0.00",
+                "currency" => "\"₩\"#,##0",
+                "accounting_krw" => AccountingKrw,
+                "accounting_usd" => AccountingUsd,
+                "accounting_eur" => AccountingEur,
+                "accounting_jpy" => AccountingJpy,
+                "short_date" => ExcelNumberFormat.DateCode,
+                "long_date" => "yyyy\"년\" m\"월\" d\"일\" dddd",
+                "time" => "h:mm:ss",
+                "percent2" => "0.00%",
+                "fraction" => "# ?/?",
+                "scientific" => "0.00E+00",
                 _ => value,
             };
         }
@@ -164,6 +196,9 @@ namespace DocuHelper.Tools.Excel
                 ? (CellFormat)source.CloneNode(true)
                 : new CellFormat { NumberFormatId = 0, FontId = 0, FillId = 0, BorderId = 0, FormatId = 0 };
 
+            if (change.StyleName != null)
+                ApplyCellStyle(format, ExcelCellStyleCatalog.Find(change.StyleName));
+
             if (change.HasFont)
             {
                 var fonts = Fonts();
@@ -180,35 +215,58 @@ namespace DocuHelper.Tools.Excel
                 format.ApplyFill = true;
             }
 
-            if (change.Horizontal != null)
+            if (change.HasAlignment)
             {
-                var alignment = format.Alignment;
-                if (change.Horizontal == "general")
+                var alignment = format.Alignment ?? new Alignment();
+                if (change.Horizontal != null)
                 {
-                    if (alignment != null)
-                    {
-                        alignment.Horizontal = null;
-                        if (!alignment.HasAttributes && !alignment.HasChildren)
-                            format.Alignment = null;
-                    }
-                }
-                else
-                {
-                    if (alignment == null)
-                    {
-                        alignment = new Alignment();
-                        format.Alignment = alignment;
-                    }
-
                     alignment.Horizontal = change.Horizontal switch
                     {
+                        "general" => null,
                         "left" => HorizontalAlignmentValues.Left,
                         "right" => HorizontalAlignmentValues.Right,
                         _ => HorizontalAlignmentValues.Center,
                     };
                 }
 
+                if (change.Vertical != null)
+                {
+                    alignment.Vertical = change.Vertical switch
+                    {
+                        "top" => VerticalAlignmentValues.Top,
+                        "center" => VerticalAlignmentValues.Center,
+                        _ => null,
+                    };
+                }
+
+                if (change.Wrap.HasValue)
+                    alignment.WrapText = change.Wrap.Value ? true : null;
+
+                format.Alignment = alignment.HasAttributes || alignment.HasChildren ? alignment : null;
                 format.ApplyAlignment = true;
+            }
+
+            if (change.HasBorder)
+            {
+                var borders = Borders();
+                var borderId = format.BorderId?.Value ?? 0;
+                var border = borderId < borders.Count
+                    ? (Border)borders[(int)borderId].CloneNode(true)
+                    : new Border(new LeftBorder(), new RightBorder(), new TopBorder(), new BottomBorder(), new DiagonalBorder());
+                if (change.Left != null)
+                    border.LeftBorder = SetSide(new LeftBorder(), change.Left);
+
+                if (change.Right != null)
+                    border.RightBorder = SetSide(new RightBorder(), change.Right);
+
+                if (change.Top != null)
+                    border.TopBorder = SetSide(new TopBorder(), change.Top);
+
+                if (change.Bottom != null)
+                    border.BottomBorder = SetSide(new BottomBorder(), change.Bottom);
+
+                format.BorderId = AddBorder(border);
+                format.ApplyBorder = true;
             }
 
             if (change.NumberFormatId.HasValue)
@@ -216,6 +274,9 @@ namespace DocuHelper.Tools.Excel
                 format.NumberFormatId = change.NumberFormatId.Value;
                 format.ApplyNumberFormat = true;
             }
+
+            if (change.Locked.HasValue)
+                ApplyLocked(format, change.Locked.Value);
 
             var index = AddFormat(format);
             _applied[cacheKey] = index;
@@ -252,6 +313,26 @@ namespace DocuHelper.Tools.Excel
             else if (change.FontColor != null)
                 font.Color = new Color { Rgb = "FF" + change.FontColor };
 
+            if (change.FontSize.HasValue)
+                font.FontSize = new FontSize { Val = change.FontSize.Value };
+
+            if (change.FontName != null)
+                SetFontName(font, change.FontName);
+
+            SortFont(font);
+        }
+
+        private static void SetFontName(Font font, string name)
+        {
+            var korean = name.Any(c => c >= 0xAC00 && c <= 0xD7A3);
+            font.FontName = new FontName { Val = name };
+            font.FontScheme = null;
+            font.FontFamilyNumbering = new FontFamilyNumbering { Val = korean ? 3 : 2 };
+            font.FontCharSet = korean ? new FontCharSet { Val = 129 } : null;
+        }
+
+        private static void SortFont(Font font)
+        {
             var children = font.ChildElements.ToList();
             var ordered = children.OrderBy(c =>
             {
@@ -292,7 +373,7 @@ namespace DocuHelper.Tools.Excel
                 changed = true;
             }
 
-            if (stylesheet.Borders == null)
+            if (stylesheet.Borders == null || !stylesheet.Borders.Elements<Border>().Any())
             {
                 stylesheet.Borders = new Borders(new Border(new LeftBorder(), new RightBorder(), new TopBorder(), new BottomBorder(), new DiagonalBorder())) { Count = 1 };
                 changed = true;
@@ -321,10 +402,14 @@ namespace DocuHelper.Tools.Excel
             _formats = null;
             _fonts = null;
             _fills = null;
+            _borders = null;
             _formatKeys = null;
             _fontKeys = null;
             _fillKeys = null;
+            _borderKeys = null;
             _customCodes = null;
+            _styleFormats = null;
+            _styleNames = null;
             _described.Clear();
         }
 
@@ -336,6 +421,54 @@ namespace DocuHelper.Tools.Excel
 
         private List<Fill> Fills() =>
             _fills ??= Stylesheet?.Fills?.Elements<Fill>().ToList() ?? new List<Fill>();
+
+        private List<Border> Borders() =>
+            _borders ??= Stylesheet?.Borders?.Elements<Border>().ToList() ?? new List<Border>();
+
+        private ExcelBorder Side(BorderPropertiesType side)
+        {
+            var style = side?.Style?.InnerText;
+            if (string.IsNullOrEmpty(style) || style == "none")
+                return null;
+
+            return new ExcelBorder(style, _colors.Resolve(side.Color));
+        }
+
+        private static T SetSide<T>(T side, ExcelBorder border) where T : BorderPropertiesType
+        {
+            if (border.IsNone)
+                return side;
+
+            side.Style = border.Style switch
+            {
+                "medium" => BorderStyleValues.Medium,
+                "thick" => BorderStyleValues.Thick,
+                "double" => BorderStyleValues.Double,
+                "dashed" => BorderStyleValues.Dashed,
+                "dotted" => BorderStyleValues.Dotted,
+                "hair" => BorderStyleValues.Hair,
+                _ => BorderStyleValues.Thin,
+            };
+            side.Color = border.Color == null ? new Color { Indexed = 64U } : new Color { Rgb = "FF" + border.Color };
+            return side;
+        }
+
+        private uint AddBorder(Border border)
+        {
+            var borders = Borders();
+            _borderKeys ??= BuildKeys(borders);
+            var key = Key(border);
+            if (_borderKeys.TryGetValue(key, out var existing))
+                return existing;
+
+            var container = Stylesheet.Borders;
+            container.Append(border);
+            var index = (uint)borders.Count;
+            borders.Add(border);
+            _borderKeys[key] = index;
+            container.Count = (uint)borders.Count;
+            return index;
+        }
 
         private string FillColor(Fill fill)
         {

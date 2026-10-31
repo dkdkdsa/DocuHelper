@@ -22,14 +22,28 @@ namespace DocuHelper.Tools.Excel
         private readonly string _text;
         private readonly Regex _pattern;
 
-        private FormulaCriteria(string op, int target, double number, string text)
+        private FormulaCriteria(string op, int target, double number, string text, bool wildcards = true)
         {
             _op = op;
             _target = target;
             _number = number;
             _text = text;
-            if (target == TextTarget && (op == "=" || op == "<>") && text.IndexOfAny(s_wildcards) >= 0)
+            if (wildcards && target == TextTarget && (op == "=" || op == "<>") && text.IndexOfAny(s_wildcards) >= 0)
                 _pattern = BuildPattern(text);
+        }
+
+        public static FormulaCriteria Exact(ExcelValue value, bool wildcards) => value.Kind switch
+        {
+            ExcelValueKind.Number => new FormulaCriteria("=", NumberTarget, value.Number, null),
+            ExcelValueKind.Boolean => new FormulaCriteria("=", BooleanTarget, value.Boolean ? 1 : 0, null),
+            ExcelValueKind.Error => new FormulaCriteria("=", ErrorTarget, 0, value.Text),
+            _ => new FormulaCriteria("=", TextTarget, 0, value.Text ?? string.Empty, wildcards),
+        };
+
+        public static Regex SearchPattern(string text)
+        {
+            var anchored = BuildPattern(text).ToString();
+            return new Regex(anchored.Substring(1, anchored.Length - 2), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline);
         }
 
         public static FormulaCriteria From(ExcelValue criteria)

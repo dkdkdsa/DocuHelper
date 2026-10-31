@@ -15,3 +15,42 @@
     font-size: 13px;
     line-height: 1.4;
 }
+
+.confirm {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--warn-line);
+    background: var(--warn-soft);
+}
+
+.confirm-text {
+    flex: 1;
+    min-width: 200px;
+    margin: 0;
+    color: var(--warn);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.confirm-go,
+.confirm-no {
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.confirm-go {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    font-weight: 700;
+}

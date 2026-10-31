@@ -1,0 +1,52 @@
+.find {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--hair);
+    background: var(--well-soft);
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.field {
+    flex: 1;
+    min-width: 140px;
+    max-width: 320px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+}
+
+.field:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px var(--hl-soft);
+}
+
+.count {
+    min-width: 96px;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.find ::deep .act.on {
+    background: var(--bubble);
+}
+
+.note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}

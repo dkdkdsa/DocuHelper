@@ -29,10 +29,17 @@ namespace DocuHelper.Tools.Ppt
             if (group == null)
                 return null;
 
-            var info = new PptChartInfo { Type = TypeOf(group) };
+            var info = new PptChartInfo
+            {
+                Type = TypeOf(group),
+                Grouping = AttributeOf(Child(group, "grouping"), "val"),
+                GroupCount = plotArea.ChildElements.Count(e => s_groups.Contains(e.LocalName)),
+            };
+
+            info.Stacked = info.Grouping is "stacked" or "percentStacked";
             foreach (var series in group.ChildElements.Where(e => e.LocalName == "ser"))
             {
-                var item = new PptSeriesInfo { Name = TextOf(Child(series, "tx")) };
+                var item = new PptSeriesInfo { Name = TextOf(Child(series, "tx")), Color = ColorOf(series, info.Type == "line") };
                 var categories = Points(Child(series, "cat") ?? Child(series, "xVal"));
                 var values = Points(Child(series, "val") ?? Child(series, "yVal"));
                 if (info.Categories.Count == 0 && categories.Count > 0)
@@ -44,8 +51,54 @@ namespace DocuHelper.Tools.Ppt
                 info.Series.Add(item);
             }
 
-            info.Title = TitleOf(chart) ?? (info.Series.Count == 1 ? info.Series[0].Name : null);
+            var title = TitleOf(chart);
+            info.HasTitle = title != null;
+            info.Title = title ?? (info.Series.Count == 1 ? info.Series[0].Name : null);
+            info.Legend = LegendOf(chart);
+            info.DataLabels = LabelsOf(plotArea);
             return info;
+        }
+
+        private static string AttributeOf(OpenXmlElement element, string name) =>
+            element?.GetAttributes().FirstOrDefault(a => a.LocalName == name).Value;
+
+        private static string LegendOf(C.Chart chart)
+        {
+            if (chart.Legend == null)
+                return "none";
+
+            return AttributeOf(Child(chart.Legend, "legendPos"), "val") switch
+            {
+                "t" => "top",
+                "l" => "left",
+                "r" or "tr" => "right",
+                _ => "bottom",
+            };
+        }
+
+        private static bool LabelsOf(OpenXmlElement plotArea)
+        {
+            foreach (var labels in plotArea.Descendants().Where(e => e.LocalName == "dLbls"))
+            {
+                if (labels.Parent?.LocalName == "dPt")
+                    continue;
+
+                foreach (var name in new[] { "showVal", "showPercent", "showCatName" })
+                {
+                    if (AttributeOf(Child(labels, name), "val") is "1" or "true")
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string ColorOf(OpenXmlElement series, bool line)
+        {
+            var properties = Child(series, "spPr");
+            var owner = line ? Child(properties, "ln") : properties;
+            var fill = Child(owner, "solidFill");
+            return fill == null ? null : PptColor.Read(fill)?.ToString();
         }
 
         private static string TypeOf(OpenXmlElement group)

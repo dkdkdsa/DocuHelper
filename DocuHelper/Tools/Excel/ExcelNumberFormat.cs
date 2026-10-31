@@ -120,10 +120,21 @@ namespace DocuHelper.Tools.Excel
                 return Compose(section, string.Empty, -1, -1);
             }
 
-            if (section.Tokens.Any(t => t.Kind == NumberFormatSection.Literal && t.Text == "/"))
-                return FormatGeneral(value);
+            string text;
+            var slash = section.Tokens.FindIndex(t => t.Kind == NumberFormatSection.Literal && t.Text == "/");
+            if (slash < 0)
+            {
+                text = FormatNumber(Math.Abs(value), section);
+            }
+            else
+            {
+                var fraction = FindFraction(section.Tokens, slash);
+                if (fraction == null)
+                    return FormatGeneral(value);
 
-            var text = FormatNumber(Math.Abs(value), section);
+                text = FormatFraction(Math.Abs(value), section, fraction);
+            }
+
             if (value < 0 && !negativeSection && text.Any(c => c >= '1' && c <= '9'))
                 text = "-" + text;
 
@@ -234,6 +245,123 @@ namespace DocuHelper.Tools.Excel
             }
 
             return Compose(section, number, first, end);
+        }
+
+        private static FractionLayout FindFraction(List<(char Kind, string Text)> tokens, int slash)
+        {
+            var numerator = slash;
+            while (numerator > 0 && tokens[numerator - 1].Kind == NumberFormatSection.Digit)
+                numerator--;
+
+            if (numerator == slash)
+                return null;
+
+            var end = slash;
+            var fixedDigits = new StringBuilder();
+            var placeholders = 0;
+            for (var i = slash + 1; i < tokens.Count; i++)
+            {
+                var (kind, text) = tokens[i];
+                if (kind == NumberFormatSection.Literal && text.Length > 0 && text.All(char.IsAsciiDigit))
+                    fixedDigits.Append(text);
+                else if (kind == NumberFormatSection.Digit && fixedDigits.Length > 0 && text == "0")
+                    fixedDigits.Append('0');
+                else if (kind == NumberFormatSection.Digit && fixedDigits.Length == 0)
+                    placeholders++;
+                else
+                    break;
+
+                end = i;
+            }
+
+            if (end == slash || fixedDigits.Length > 4)
+                return null;
+
+            var firstInteger = -1;
+            var lastInteger = -1;
+            for (var i = 0; i < numerator; i++)
+            {
+                if (tokens[i].Kind != NumberFormatSection.Digit)
+                    continue;
+
+                if (firstInteger < 0)
+                    firstInteger = i;
+
+                lastInteger = i;
+            }
+
+            var separator = lastInteger < 0
+                ? string.Empty
+                : string.Concat(tokens.Skip(lastInteger + 1).Take(numerator - lastInteger - 1).Where(t => t.Kind == NumberFormatSection.Literal).Select(t => t.Text));
+            return new FractionLayout
+            {
+                First = firstInteger < 0 ? numerator : firstInteger,
+                End = end,
+                HasInteger = firstInteger >= 0,
+                ZeroInteger = tokens.Take(numerator).Any(t => t.Kind == NumberFormatSection.Digit && t.Text == "0"),
+                Grouped = tokens.Take(numerator).Any(t => t.Kind == NumberFormatSection.Comma),
+                Separator = separator.Length > 0 ? separator : " ",
+                FixedDenominator = fixedDigits.Length > 0 ? int.Parse(fixedDigits.ToString(), CultureInfo.InvariantCulture) : 0,
+                DenominatorDigits = Math.Min(placeholders, 3),
+            };
+        }
+
+        private static string FormatFraction(double abs, NumberFormatSection section, FractionLayout layout)
+        {
+            if (abs >= 1e15)
+                return FormatGeneral(abs);
+
+            var whole = layout.HasInteger ? Math.Floor(abs) : 0;
+            var (numerator, denominator) = Approximate(abs - whole, layout);
+            if (layout.HasInteger && numerator >= denominator)
+            {
+                whole++;
+                numerator = 0;
+            }
+
+            var fraction = numerator.ToString(CultureInfo.InvariantCulture) + "/" + denominator.ToString(CultureInfo.InvariantCulture);
+            string text;
+            if (!layout.HasInteger)
+            {
+                text = fraction;
+            }
+            else
+            {
+                var digits = whole.ToString("0", CultureInfo.InvariantCulture);
+                var integer = layout.Grouped && digits.Length > 3 ? Group(digits) : digits;
+                if (numerator == 0)
+                    text = integer;
+                else if (whole == 0 && !layout.ZeroInteger)
+                    text = fraction;
+                else
+                    text = integer + layout.Separator + fraction;
+            }
+
+            return Compose(section, text, layout.First, layout.End);
+        }
+
+        private static (long Numerator, long Denominator) Approximate(double value, FractionLayout layout)
+        {
+            if (layout.FixedDenominator > 0)
+                return ((long)Math.Round(value * layout.FixedDenominator, MidpointRounding.AwayFromZero), layout.FixedDenominator);
+
+            var limit = (int)Math.Pow(10, layout.DenominatorDigits) - 1;
+            var bestNumerator = (long)Math.Round(value, MidpointRounding.AwayFromZero);
+            long bestDenominator = 1;
+            var bestError = Math.Abs(value - bestNumerator);
+            for (var denominator = 2; denominator <= limit && bestError > 1e-9; denominator++)
+            {
+                var numerator = Math.Round(value * denominator, MidpointRounding.AwayFromZero);
+                var error = Math.Abs(value - (numerator / denominator));
+                if (error < bestError - 1e-12)
+                {
+                    bestError = error;
+                    bestNumerator = (long)numerator;
+                    bestDenominator = denominator;
+                }
+            }
+
+            return (bestNumerator, bestDenominator);
         }
 
         private static string FormatFixed(double value, List<char> integerDigits, List<char> fractionDigits, bool thousands, bool hasPoint)
@@ -408,8 +536,8 @@ namespace DocuHelper.Tools.Excel
                     {
                         1 => date.Day.ToString(culture),
                         2 => date.Day.ToString("00", culture),
-                        3 => date.ToString("ddd", culture),
-                        _ => date.ToString("dddd", culture),
+                        3 => s_koreanDays[(int)date.DayOfWeek],
+                        _ => s_koreanDays[(int)date.DayOfWeek] + "요일",
                     };
                 case 'a':
                     return length == 3 ? s_koreanDays[(int)date.DayOfWeek] : s_koreanDays[(int)date.DayOfWeek] + "요일";
@@ -448,6 +576,25 @@ namespace DocuHelper.Tools.Excel
             }
 
             return false;
+        }
+
+        private sealed class FractionLayout
+        {
+            public int First { get; set; }
+
+            public int End { get; set; }
+
+            public bool HasInteger { get; set; }
+
+            public bool ZeroInteger { get; set; }
+
+            public bool Grouped { get; set; }
+
+            public string Separator { get; set; }
+
+            public int FixedDenominator { get; set; }
+
+            public int DenominatorDigits { get; set; }
         }
     }
 }

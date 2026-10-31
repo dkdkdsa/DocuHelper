@@ -1,0 +1,107 @@
+@inherits StoreComponentBase
+@implements IAsyncDisposable
+@using DocuHelperEditor.State.Ribbon.Excel
+@inject IJSRuntime JS
+
+<div class="excel-ribbon" @ref="_root">
+    <Ribbon Tabs="Tabs"
+            @bind-ActiveTab="s_tab"
+            @bind-IsOpen="s_open"
+            FileItems="ExcelRibbonDefinition.FileItems"
+            Host="Router"
+            Format="DocuType.Excel"
+            Disabled="Router.IsLocked">
+        <Trailing>
+            <IconButton Icon="undo" IconSize="18" Label="실행 취소" Title="@UndoTitle" Disabled="@Router.IsDisabled(UndoId)" OnClick="Undo" />
+            <IconButton Icon="redo" IconSize="18" Label="다시 실행" Title="@RedoTitle" Disabled="@Router.IsDisabled(RedoId)" OnClick="Redo" />
+        </Trailing>
+    </Ribbon>
+</div>
+
+@code {
+    private const string ModulePath = "./Components/Paper/Excel/ExcelRibbon.razor.js";
+    private const string UndoId = "excel.trailing.undo";
+    private const string RedoId = "excel.trailing.redo";
+
+    private static string s_tab = "home";
+    private static bool s_open = true;
+
+    private ElementReference _root;
+    private DotNetObjectReference<ExcelRibbon> _self;
+    private IJSObjectReference _module;
+    private IJSObjectReference _watch;
+    private int _measured;
+
+    [Parameter]
+    public ExcelCommandRouter Router { get; set; }
+
+    private IReadOnlyList<RibbonTab> Tabs => ExcelRibbonDefinition.Tabs(Level);
+
+    private int Level => _measured > 0
+        ? _measured
+        : 1 + (Workspace.IsFolderCollapsed ? 1 : 0) + (Assistant.IsPanelCollapsed ? 1 : 0);
+
+    private string UndoTitle => Router.DisabledReasonOf(UndoId) ?? "실행 취소 (Ctrl+Z)";
+
+    private string RedoTitle => Router.DisabledReasonOf(RedoId) ?? "다시 실행 (Ctrl+Y)";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            _watch = await _module.InvokeAsync<IJSObjectReference>("watch", _root, _self, ExcelRibbonDefinition.Breakpoints);
+        }
+        catch (JSException e)
+        {
+            AppLog.Write("Excel ribbon width watch failed", e);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    [JSInvokable]
+    public void SetLevel(int level)
+    {
+        if (level == _measured)
+            return;
+
+        _measured = level;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private Task Undo() => Router.InvokeAsync(UndoId, null);
+
+    private Task Redo() => Router.InvokeAsync(RedoId, null);
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_watch != null)
+            {
+                await _watch.InvokeVoidAsync("dispose");
+                await _watch.DisposeAsync();
+            }
+
+            if (_module != null)
+                await _module.DisposeAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        _self?.Dispose();
+    }
+}

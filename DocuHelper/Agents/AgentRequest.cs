@@ -18,6 +18,8 @@ namespace DocuHelper.Agents
 
         public bool AskBigChanges { get; set; } = true;
 
+        public bool TrackChanges { get; set; }
+
         public List<AgentAttachment> Attachments { get; set; } = new();
     }
 }

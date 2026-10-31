@@ -1,0 +1,51 @@
+.ctx-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+}
+
+.ctx {
+    position: fixed;
+    z-index: 61;
+    width: 220px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-card);
+    background: var(--paper);
+    color: var(--ink);
+    box-shadow: var(--shadow-menu);
+}
+
+.ctx-item {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.ctx-item:hover:not(:disabled),
+.ctx-item:focus-visible {
+    background: var(--bubble);
+    outline: none;
+}
+
+.ctx-item:disabled {
+    color: var(--ink-2);
+    opacity: 0.6;
+    cursor: default;
+}
+
+.sep {
+    height: 1px;
+    margin: 4px 6px;
+    background: var(--hair);
+}

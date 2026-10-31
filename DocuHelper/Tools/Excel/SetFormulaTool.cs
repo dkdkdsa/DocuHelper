@@ -11,8 +11,9 @@ namespace DocuHelper.Tools.Excel
             "Fill one formula into a range like Excel's fill down/right. Write the formula for the top-left cell of the range; "
             + "for the other cells relative references shift by their distance from that cell and $ references stay fixed "
             + "(e.g. formula \"=D2*E2\" on F2:F40 gives F3 = D3*E3). Each cell keeps its formatting. Results are calculated and returned. "
-            + "Supported for calculation here: + - * / ^ & comparisons, SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, ROUND, ROUNDUP, ROUNDDOWN, IF, IFERROR, "
-            + "SUMIF, SUMIFS, COUNTIF, COUNTIFS, AVERAGEIF, AND, OR, NOT, ABS; other functions are kept and Excel calculates them when the file is opened.";
+            + "Calculated here: + - * / ^ & comparisons, the range intersection operator (a space), and " + FormulaFunctions.SupportedList + ". "
+            + "Other Excel functions are kept and Excel calculates them when the file is opened; a name Excel does not know gives #NAME?. "
+            + "Formulas that refer back to themselves, even through other cells, are refused.";
 
         public override string InputSchema => """
             {
@@ -65,6 +66,11 @@ namespace DocuHelper.Tools.Excel
                 texts.Add((address, shifted));
             }
 
+            var pending = new Dictionary<CellAddress, string>();
+            foreach (var (address, text) in texts)
+                pending[address] = text;
+
+            CheckNoCycle(book, sheet, pending);
             sheet.PrepareForWrite();
             var written = new List<CellKey>();
             foreach (var (address, text) in texts)

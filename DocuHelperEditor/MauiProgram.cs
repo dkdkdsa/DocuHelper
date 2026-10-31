@@ -57,7 +57,9 @@ namespace DocuHelperEditor
             builder.Services.AddSingleton<IFileDialogService, FileDialogService>();
             builder.Services.AddSingleton<IConversationRepository, ConversationRepository>();
 #if WINDOWS
-            builder.Services.AddSingleton<IShellService, WindowsShellService>();
+            builder.Services.AddSingleton<IShellService>(_ => CreateShellService());
+            builder.Services.AddSingleton<IClipboardService, WindowsClipboardService>();
+            builder.Services.AddSingleton<IPrintService, WindowsPrintService>();
             builder.Services.AddSingleton<IUpdateService, VelopackUpdateService>();
             builder.Services.AddSingleton<ISecretStore, DpapiSecretStore>();
             builder.Services.AddSingleton<IOfficeInterop, OfficeComInterop>();
@@ -65,6 +67,17 @@ namespace DocuHelperEditor
 
             return builder.Build();
         }
+
+#if WINDOWS
+        private static IShellService CreateShellService()
+        {
+#if DEBUG
+            if (RecordingShellService.IsRequested)
+                return new RecordingShellService();
+#endif
+            return new WindowsShellService();
+        }
+#endif
 
         private static Workspace CreateWorkspace()
         {

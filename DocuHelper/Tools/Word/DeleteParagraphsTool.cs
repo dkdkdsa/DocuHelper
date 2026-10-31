@@ -11,7 +11,8 @@ namespace DocuHelper.Tools.Word
         public override string Name => "delete_paragraphs";
 
         public override string Description =>
-            "Delete whole paragraphs or tables by id. A paragraph that holds a section break keeps its place and only loses its text.";
+            "Delete whole paragraphs or tables by id. A paragraph that holds a section break keeps its place and only loses its text. "
+            + "When change tracking is on they are marked as tracked deletions instead of being removed.";
 
         public override string InputSchema => """
             {
@@ -41,12 +42,23 @@ namespace DocuHelper.Tools.Word
             targets.Sort((a, b) => a.Index.CompareTo(b.Index));
             var location = WordScan.PageLabel(targets);
             var used = WordIds.Collect(docu.Document);
+            var revision = WordRevisions.Active(docu);
             var cleared = new List<string>();
             foreach (var block in targets)
             {
+                if (revision != null)
+                {
+                    if (Track(block, revision))
+                        Remove(block.Element, used);
+                    else if (block.HasSectionBreak)
+                        cleared.Add(block.Id);
+
+                    continue;
+                }
+
                 if (block.HasSectionBreak)
                 {
-                    WordText.Write(block.Paragraph, string.Empty);
+                    WordText.Write(block.Paragraph, string.Empty, false);
                     cleared.Add(block.Id);
                     continue;
                 }
@@ -56,14 +68,34 @@ namespace DocuHelper.Tools.Word
 
             Repair(scan.Body, used);
 
-            var content = $"Deleted {targets.Count - cleared.Count} block(s).";
+            var content = revision == null
+                ? $"Deleted {targets.Count - cleared.Count} block(s)."
+                : $"Marked {targets.Count - cleared.Count} block(s) as tracked deletions.";
             if (cleared.Count > 0)
-                content += $" {string.Join(", ", cleared)} hold a section break, so only their text was removed.";
+                content += $" {string.Join(", ", cleared)} hold a section break, so only their text was {(revision == null ? "removed" : "marked as deleted")}.";
 
             return ToolResult.Changed(content, Change(location, "trash", targets.Select(b => b.Anchor)), $"{targets.Count}개 지움");
         }
 
-        private static void Remove(OpenXmlElement element, HashSet<string> used)
+        private static bool Track(WordBlock block, RevisionContext revision)
+        {
+            if (block.IsTable)
+            {
+                foreach (var row in block.Table.Elements<TableRow>())
+                {
+                    foreach (var paragraph in row.Descendants<Paragraph>().ToList())
+                        WordRevisionOps.RecordDeleted(paragraph, revision, true);
+
+                    WordRevisionOps.RecordRowDeleted(row, revision);
+                }
+
+                return false;
+            }
+
+            return WordRevisionOps.RecordDeleted(block.Paragraph, revision, !block.HasSectionBreak);
+        }
+
+        internal static void Remove(OpenXmlElement element, HashSet<string> used)
         {
             var parent = element.Parent;
             var previous = element.PreviousSibling();
@@ -77,7 +109,7 @@ namespace DocuHelper.Tools.Word
                 content.Parent?.Remove();
         }
 
-        private static void Repair(Body body, HashSet<string> used)
+        internal static void Repair(Body body, HashSet<string> used)
         {
             var section = body.Elements<SectionProperties>().LastOrDefault();
             var blocks = body.ChildElements.Where(e => e is Paragraph || e is Table || e is SdtBlock || e is CustomXmlBlock).ToList();

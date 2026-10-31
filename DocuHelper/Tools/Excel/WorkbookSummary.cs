@@ -50,10 +50,11 @@ namespace DocuHelper.Tools.Excel
 
         private static string Part(ExcelSheet sheet, CellRange used, List<string> headers, int limit)
         {
+            var name = sheet.IsHidden ? $"‘{sheet.Name}’(숨김)" : $"‘{sheet.Name}’";
             if (used == null)
-                return $"‘{sheet.Name}’ 비어 있음";
+                return $"{name} 비어 있음";
 
-            var text = $"‘{sheet.Name}’ {used}";
+            var text = $"{name} {used}";
             if (limit == 0 || headers.Count == 0)
                 return text;
 

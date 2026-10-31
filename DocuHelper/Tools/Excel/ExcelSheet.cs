@@ -7,7 +7,7 @@ using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace DocuHelper.Tools.Excel
 {
-    public sealed class ExcelSheet
+    public sealed partial class ExcelSheet
     {
         private Dictionary<long, Cell> _cells;
         private Dictionary<int, Row> _rows;
@@ -146,6 +146,54 @@ namespace DocuHelper.Tools.Excel
             return null;
         }
 
+        public double? StoredColumnWidth(int column, out bool hidden, out bool custom)
+        {
+            hidden = false;
+            custom = false;
+            var number = (uint)(column + 1);
+            foreach (var definition in Worksheet?.GetFirstChild<Columns>()?.Elements<Column>() ?? Enumerable.Empty<Column>())
+            {
+                if (definition.Min?.Value <= number && definition.Max?.Value >= number)
+                {
+                    hidden = definition.Hidden?.Value == true;
+                    custom = definition.CustomWidth?.Value == true && definition.BestFit?.Value != true;
+                    return definition.Width?.Value;
+                }
+            }
+
+            return null;
+        }
+
+        public Row FindRow(int row)
+        {
+            EnsureIndex();
+            return _rows.TryGetValue(row, out var element) ? element : null;
+        }
+
+        public bool IsRowHidden(int row) => FindRow(row)?.Hidden?.Value == true;
+
+        public double? RowHeight(int row, out bool custom)
+        {
+            var element = FindRow(row);
+            custom = element?.CustomHeight?.Value == true;
+            return element?.Height?.Value;
+        }
+
+        public double DefaultRowHeight => Worksheet?.SheetFormatProperties?.DefaultRowHeight?.Value ?? 15;
+
+        public (int Rows, int Columns) Freeze
+        {
+            get
+            {
+                var pane = Worksheet?.SheetViews?.Elements<SheetView>().FirstOrDefault()?.Pane;
+                var state = pane?.State?.InnerText;
+                if (state != "frozen" && state != "frozenSplit")
+                    return (0, 0);
+
+                return ((int)Math.Max(0, pane.VerticalSplit?.Value ?? 0), (int)Math.Max(0, pane.HorizontalSplit?.Value ?? 0));
+            }
+        }
+
         public IReadOnlyList<CellRange> MergedRanges()
         {
             var merges = Worksheet?.Elements<MergeCells>().FirstOrDefault();
@@ -160,6 +208,134 @@ namespace DocuHelper.Tools.Excel
             }
 
             return ranges;
+        }
+
+        public CellRange MergeAt(int column, int row) => MergedRanges().FirstOrDefault(m => m.Contains(column, row));
+
+        internal void AddMerge(CellRange range)
+        {
+            var worksheet = Worksheet;
+            var merges = worksheet.Elements<MergeCells>().FirstOrDefault() ?? WorksheetOrder.Insert(worksheet, new MergeCells());
+            merges.Append(new MergeCell { Reference = range.ToString() });
+            merges.Count = (uint)merges.Elements<MergeCell>().Count();
+        }
+
+        internal List<CellRange> RemoveMerges(CellRange range)
+        {
+            var removed = new List<CellRange>();
+            var merges = Worksheet?.Elements<MergeCells>().FirstOrDefault();
+            if (merges == null)
+                return removed;
+
+            foreach (var merge in merges.Elements<MergeCell>().ToList())
+            {
+                if (CellRange.TryParse(merge.Reference?.Value, out var existing) && existing.Intersects(range))
+                {
+                    merge.Remove();
+                    removed.Add(existing);
+                }
+            }
+
+            if (!merges.Elements<MergeCell>().Any())
+                merges.Remove();
+            else
+                merges.Count = (uint)merges.Elements<MergeCell>().Count();
+
+            return removed;
+        }
+
+        internal void SetRowHeight(int row, double? height)
+        {
+            if (height == null)
+            {
+                var existing = FindRow(row);
+                if (existing != null)
+                {
+                    existing.Height = null;
+                    existing.CustomHeight = null;
+                }
+
+                return;
+            }
+
+            var element = GetOrCreateRow(row);
+            element.Height = height.Value;
+            element.CustomHeight = true;
+        }
+
+        internal void SetRowHidden(int row, bool hidden)
+        {
+            if (!hidden)
+            {
+                var existing = FindRow(row);
+                if (existing != null)
+                    existing.Hidden = null;
+
+                return;
+            }
+
+            GetOrCreateRow(row).Hidden = true;
+        }
+
+        internal void SetColumnWidth(int first, int last, double width) =>
+            EditColumns(first, last, true, c =>
+            {
+                c.Width = width;
+                c.CustomWidth = true;
+                c.BestFit = null;
+            });
+
+        internal void SetColumnHidden(int first, int last, bool hidden) =>
+            EditColumns(first, last, hidden, c =>
+            {
+                c.Hidden = hidden ? true : null;
+                if (!hidden && (c.Width?.Value ?? 0) <= 0)
+                    c.Width = StoredDefaultWidth;
+            });
+
+        internal void SetFreeze(int rows, int columns)
+        {
+            var worksheet = Worksheet;
+            var views = worksheet.SheetViews ?? WorksheetOrder.Insert(worksheet, new SheetViews());
+            var view = views.Elements<SheetView>().FirstOrDefault();
+            if (view == null)
+            {
+                view = new SheetView { WorkbookViewId = 0 };
+                views.Append(view);
+            }
+
+            foreach (var old in view.Elements<Selection>().ToList())
+                old.Remove();
+
+            view.RemoveAllChildren<Pane>();
+            if (rows <= 0 && columns <= 0)
+            {
+                view.PrependChild(new Selection { ActiveCell = "A1", SequenceOfReferences = new ListValue<StringValue> { InnerText = "A1" } });
+                return;
+            }
+
+            var topLeft = new CellAddress(Math.Max(columns, 0), Math.Max(rows, 0)).ToString();
+            var active = rows > 0 && columns > 0 ? PaneValues.BottomRight : rows > 0 ? PaneValues.BottomLeft : PaneValues.TopRight;
+            var pane = new Pane { TopLeftCell = topLeft, ActivePane = active, State = PaneStateValues.Frozen };
+            if (columns > 0)
+                pane.HorizontalSplit = columns;
+
+            if (rows > 0)
+                pane.VerticalSplit = rows;
+
+            view.PrependChild(pane);
+            OpenXmlElement last = pane;
+            if (rows > 0 && columns > 0)
+            {
+                foreach (var side in new[] { PaneValues.TopRight, PaneValues.BottomLeft })
+                {
+                    var selection = new Selection { Pane = side };
+                    last.InsertAfterSelf(selection);
+                    last = selection;
+                }
+            }
+
+            last.InsertAfterSelf(new Selection { Pane = active, ActiveCell = topLeft, SequenceOfReferences = new ListValue<StringValue> { InnerText = topLeft } });
         }
 
         internal void PrepareForWrite()
@@ -281,7 +457,7 @@ namespace DocuHelper.Tools.Excel
             var existing = columns.Elements<Column>().FirstOrDefault(c => c.Min?.Value <= number && c.Max?.Value >= number);
             if (existing == null)
             {
-                var created = new Column { Min = number, Max = number, Width = width, CustomWidth = true };
+                var created = new Column { Min = number, Max = number, Width = width, CustomWidth = true, BestFit = true };
                 var next = columns.Elements<Column>().FirstOrDefault(c => c.Min?.Value > number);
                 if (next != null)
                     next.InsertBeforeSelf(created);
@@ -311,6 +487,80 @@ namespace DocuHelper.Tools.Excel
             existing.Max = number;
             existing.Width = width;
             existing.CustomWidth = true;
+            existing.BestFit = true;
+        }
+
+        private double StoredDefaultWidth => DefaultColumnWidth ?? 9.140625;
+
+        private void EditColumns(int first, int last, bool create, Action<Column> edit)
+        {
+            var data = EnsureData();
+            var columns = Worksheet.GetFirstChild<Columns>();
+            if (columns == null)
+            {
+                if (!create)
+                    return;
+
+                columns = new Columns();
+                data.InsertBeforeSelf(columns);
+            }
+
+            var min = (uint)(first + 1);
+            var max = (uint)(last + 1);
+            foreach (var definition in columns.Elements<Column>().ToList())
+            {
+                var start = definition.Min?.Value ?? 0;
+                var end = definition.Max?.Value ?? 0;
+                if (end < min || start > max)
+                    continue;
+
+                if (start < min)
+                {
+                    var before = (Column)definition.CloneNode(true);
+                    before.Max = min - 1;
+                    definition.InsertBeforeSelf(before);
+                    definition.Min = min;
+                }
+
+                if (end > max)
+                {
+                    var after = (Column)definition.CloneNode(true);
+                    after.Min = max + 1;
+                    definition.InsertAfterSelf(after);
+                    definition.Max = max;
+                }
+            }
+
+            if (create)
+            {
+                var number = min;
+                foreach (var definition in columns.Elements<Column>().Where(c => c.Max.Value >= min && c.Min.Value <= max).OrderBy(c => c.Min.Value).ToList())
+                {
+                    if (definition.Min.Value > number)
+                        InsertColumn(columns, number, definition.Min.Value - 1);
+
+                    number = definition.Max.Value + 1;
+                }
+
+                if (number <= max)
+                    InsertColumn(columns, number, max);
+            }
+
+            foreach (var definition in columns.Elements<Column>().Where(c => c.Min.Value >= min && c.Max.Value <= max))
+                edit(definition);
+
+            if (!columns.HasChildren)
+                columns.Remove();
+        }
+
+        private void InsertColumn(Columns columns, uint min, uint max)
+        {
+            var created = new Column { Min = min, Max = max, Width = StoredDefaultWidth };
+            var next = columns.Elements<Column>().FirstOrDefault(c => c.Min?.Value > max);
+            if (next != null)
+                next.InsertBeforeSelf(created);
+            else
+                columns.Append(created);
         }
 
         internal void UpdateDimension()
@@ -346,7 +596,7 @@ namespace DocuHelper.Tools.Excel
         private static int ColumnOf(Cell cell) => CellAddress.TryParse(cell.CellReference?.Value, out var address) ? address.Column : int.MaxValue;
 
         private static bool IsPlainRow(Row row) =>
-            row.StyleIndex == null && row.Height == null && row.Hidden == null && row.CustomHeight == null && row.OutlineLevel == null && row.CustomFormat == null;
+            row.StyleIndex == null && row.Height == null && row.Hidden == null && row.CustomHeight == null && row.OutlineLevel == null && row.CustomFormat == null && row.Collapsed == null;
 
         private void EnsureIndex()
         {
@@ -468,7 +718,7 @@ namespace DocuHelper.Tools.Excel
             return data;
         }
 
-        private Row GetOrCreateRow(int row)
+        internal Row GetOrCreateRow(int row)
         {
             EnsureIndex();
             if (_rows.TryGetValue(row, out var existing))

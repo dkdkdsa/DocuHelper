@@ -13,6 +13,10 @@ namespace DocuHelper.Docus
 
         public override DocuType Type => DocuType.Word;
 
+        public string AssistantRevisionAuthor { get; set; }
+
+        public override byte[] ToBytes() => WordDocumentProperties.WithCoreProperties(base.ToBytes(), Document);
+
         protected override WordprocessingDocument Open(Stream stream) => WordprocessingDocument.Open(stream, true);
 
         protected override void OnLoaded() => WordIds.Prepare(Document);

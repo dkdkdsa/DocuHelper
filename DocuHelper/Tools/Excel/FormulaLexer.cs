@@ -99,6 +99,22 @@ namespace DocuHelper.Tools.Excel
                 throw new FormulaException($"‘{c}’ 글자를 알아볼 수 없어요.");
             }
 
+            return MarkIntersections(text, tokens);
+        }
+
+        private static List<FormulaToken> MarkIntersections(string text, List<FormulaToken> tokens)
+        {
+            for (var k = tokens.Count - 2; k >= 0; k--)
+            {
+                var left = tokens[k];
+                var right = tokens[k + 1];
+                if (left.Kind != FormulaTokenKind.Reference || right.Kind != FormulaTokenKind.Reference || right.Start <= left.End)
+                    continue;
+
+                var gap = text.Substring(left.End, right.Start - left.End);
+                tokens.Insert(k + 1, new FormulaToken(FormulaTokenKind.Operator, left.End, right.Start, gap) { Value = " " });
+            }
+
             return tokens;
         }
 

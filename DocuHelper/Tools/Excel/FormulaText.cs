@@ -13,9 +13,58 @@ namespace DocuHelper.Tools.Excel
             return text.StartsWith("=", StringComparison.Ordinal) ? text.Substring(1).TrimStart() : text;
         }
 
+        public static string ForStorage(string formula) => RenameFunctions(formula, FormulaFunctions.StorageName);
+
+        public static string ForDisplay(string formula) => RenameFunctions(formula, FormulaFunctions.Normalize);
+
         public static string Rewrite(string formula, Func<FormulaReference, FormulaReference> map, out bool broken)
         {
-            broken = false;
+            var any = false;
+            var text = Rewrite(formula, reference =>
+            {
+                var mapped = map(reference);
+                if (mapped != null)
+                    return mapped.Render();
+
+                any = true;
+                return reference.RenderPrefix() + ExcelValue.BadReference;
+            }, FunctionText);
+            broken = any;
+            return text;
+        }
+
+        public static string Replace(string formula, Func<FormulaReference, string> replace) =>
+            Rewrite(formula, reference => replace(reference) ?? reference.Render(), FunctionText);
+
+        private static string RenameFunctions(string formula, Func<string, string> rename)
+        {
+            if (string.IsNullOrEmpty(formula))
+                return formula;
+
+            try
+            {
+                return Rewrite(formula, reference => reference.Render(), rename);
+            }
+            catch (FormulaException)
+            {
+                return formula;
+            }
+        }
+
+        private static string FunctionText(string name)
+        {
+            var upper = name.ToUpperInvariant();
+            foreach (var prefix in new[] { "_XLFN._XLWS.", "_XLFN.", "_XLWS." })
+            {
+                if (upper.StartsWith(prefix, StringComparison.Ordinal))
+                    return prefix.ToLowerInvariant() + upper.Substring(prefix.Length);
+            }
+
+            return upper;
+        }
+
+        private static string Rewrite(string formula, Func<FormulaReference, string> reference, Func<string, string> functionName)
+        {
             var tokens = FormulaLexer.Tokenize(formula);
             var builder = new StringBuilder();
             var last = 0;
@@ -25,19 +74,11 @@ namespace DocuHelper.Tools.Excel
                 switch (token.Kind)
                 {
                     case FormulaTokenKind.Reference:
-                        var mapped = map(token.Reference);
-                        if (mapped == null)
-                        {
-                            broken = true;
-                            builder.Append(token.Reference.RenderPrefix()).Append(ExcelValue.BadReference);
-                        }
-                        else
-                        {
-                            builder.Append(mapped.Render());
-                        }
-
+                        builder.Append(reference(token.Reference));
                         break;
                     case FormulaTokenKind.Function:
+                        builder.Append(functionName(token.Text));
+                        break;
                     case FormulaTokenKind.Boolean:
                         builder.Append(token.Text.ToUpperInvariant());
                         break;

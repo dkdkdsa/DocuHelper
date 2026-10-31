@@ -16,6 +16,8 @@ namespace DocuHelper.Docus
 
         public HashSet<HwpSkipped> Skipped { get; } = new();
 
+        public bool IsSigned { get; private set; }
+
         public bool IsHwpFile => IsHwpPath(FilePath);
 
         public static bool IsHwpPath(string filePath) =>
@@ -44,6 +46,7 @@ namespace DocuHelper.Docus
         {
             Skipped.Clear();
             Skipped.UnionWith(document.Skipped);
+            IsSigned = document.Signed;
             try
             {
                 return HwpWordWriter.Write(document);

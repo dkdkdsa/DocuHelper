@@ -1,0 +1,30 @@
+﻿<CascadingValue Name="RibbonFormat" Value="@_format" TValue="DocuType?">
+    <footer class="bar @FormatClass @Class" aria-label="@Label">
+        @Left
+        <span class="grow"></span>
+        @Right
+    </footer>
+</CascadingValue>
+
+@code {
+    private DocuType? _format;
+
+    [Parameter]
+    public DocuType Format { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "상태 표시줄";
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [Parameter]
+    public RenderFragment Left { get; set; }
+
+    [Parameter]
+    public RenderFragment Right { get; set; }
+
+    private string FormatClass => Format == DocuType.Excel ? "wrap" : Format == DocuType.Ppt ? "tight" : null;
+
+    protected override void OnParametersSet() => _format = Format;
+}

@@ -1,0 +1,29 @@
+﻿namespace DocuHelper.Importers.Hwp
+{
+    public enum HwpFeature
+    {
+        CharShade,
+        CharSpacing,
+        ParaRightIndent,
+        ParaKeep,
+        ParaFixedLine,
+        ParaDivide,
+        ParaBorder,
+        TabStops,
+        TableCellFormat,
+        HeaderFooter,
+        PageNumber,
+        PageControl,
+        Columns,
+        PageBorder,
+        Sections,
+        Pictures,
+        Notes,
+        Hyperlinks,
+        Bookmarks,
+        ClickHere,
+        NamedStyles,
+        RealNumbering,
+        KeepObjects,
+    }
+}

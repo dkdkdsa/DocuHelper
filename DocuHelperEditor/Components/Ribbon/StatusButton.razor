@@ -1,0 +1,58 @@
+﻿@if (IsInteractive)
+{
+    <button type="button" class="sx @(IconOnly ? "icon" : null) @(Pressed == true ? "on" : null) @Class" title="@(Tip ?? Label)" aria-label="@Label" aria-pressed="@PressedText" @onclick="OnClick" @attributes="Attributes">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <RibbonIcon Name="@Icon" Size="@(IconOnly ? 18 : 16)" Stroke="@Stroke" />
+        }
+        @ChildContent
+    </button>
+}
+else
+{
+    <span class="sx static @(Format == DocuType.Excel ? "dense" : null) @Class" title="@Tip" @attributes="Attributes">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <RibbonIcon Name="@Icon" Size="16" Stroke="@Stroke" />
+        }
+        @ChildContent
+    </span>
+}
+
+@code {
+    [Parameter]
+    public string Icon { get; set; }
+
+    [Parameter]
+    public double Stroke { get; set; } = 2;
+
+    [Parameter]
+    public string Label { get; set; }
+
+    [Parameter]
+    public string Tip { get; set; }
+
+    [Parameter]
+    public bool? Pressed { get; set; }
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> Attributes { get; set; }
+
+    [CascadingParameter(Name = "RibbonFormat")]
+    public DocuType? Format { get; set; }
+
+    private bool IsInteractive => OnClick.HasDelegate || Pressed != null;
+
+    private bool IconOnly => !string.IsNullOrEmpty(Icon) && ChildContent == null;
+
+    private string PressedText => Pressed == null ? null : Pressed.Value ? "true" : "false";
+}

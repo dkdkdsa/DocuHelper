@@ -1,9 +1,18 @@
 ﻿@using DocuHelperEditor.Components.Paper
+@using DocuHelperEditor.Components.Paper.Hwp
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 
-<div class="word">
-    <WordToolbar File="File" />
+<div class="word" style="@ZoomVariable">
+    @if (File?.Type == DocuType.Hwp)
+    {
+        <HwpRibbonHost File="File" />
+    }
+    else
+    {
+        <WordRibbonHost File="File" />
+    }
+
     <WordPage File="File" />
     <ChangeNavigator File="File" />
 </div>
@@ -13,6 +22,15 @@
 
     [Parameter]
     public WorkspaceFile File { get; set; }
+
+    private string ZoomVariable
+    {
+        get
+        {
+            var zoom = File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File)?.Zoom ?? 100 : WordRibbonState.Of(File)?.Zoom ?? 100;
+            return zoom == 100 ? null : "--word-zoom: " + (zoom / 100.0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
 
     protected override void OnParametersSet()
     {

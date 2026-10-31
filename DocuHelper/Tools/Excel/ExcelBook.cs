@@ -9,7 +9,7 @@ using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace DocuHelper.Tools.Excel
 {
-    public sealed class ExcelBook
+    public sealed partial class ExcelBook
     {
         private List<ExcelSheet> _sheets;
         private List<string> _strings;
@@ -48,6 +48,9 @@ namespace DocuHelper.Tools.Excel
         }
 
         public string SheetList() => string.Join(", ", Sheets.Select(s => "‘" + s.Name + "’"));
+
+        public string SheetNameAt(int position) =>
+            WorkbookPart?.Workbook?.Sheets?.Elements<Sheet>().ElementAtOrDefault(position)?.Name?.Value;
 
         public string SharedString(int index)
         {
@@ -164,7 +167,7 @@ namespace DocuHelper.Tools.Excel
             cell.InlineString = null;
             cell.CellValue = null;
             cell.DataType = null;
-            cell.CellFormula = new CellFormula(formula);
+            cell.CellFormula = new CellFormula(FormulaText.ForStorage(formula));
         }
 
         internal void MarkCalculationNeeded()
@@ -232,6 +235,9 @@ namespace DocuHelper.Tools.Excel
 
             return builder.ToString();
         }
+
+        public bool HasDefinedName(string name) =>
+            WorkbookPart?.Workbook?.DefinedNames?.Elements<DefinedName>().Any(d => string.Equals(d.Name?.Value, name, StringComparison.OrdinalIgnoreCase)) == true;
 
         private void ShiftSheetPositions(int position)
         {

@@ -1,0 +1,196 @@
+﻿@using System.Globalization
+
+@if (Item.Kind == RibbonItemKind.Separator)
+{
+    <RibbonDivider Gap="4" />
+}
+else
+{
+    <button type="button" @ref="_button" class="@ButtonClass" style="@ButtonStyle" title="@Tip" aria-label="@AriaLabel" role="@Role" aria-pressed="@PressedText" aria-checked="@CheckedText" aria-haspopup="@PopupText" aria-expanded="@ExpandedText" aria-description="@_reason" aria-disabled="@SoftDisabledText" disabled="@HardDisabled" data-ribbon-item @onclick="ClickAsync">
+        @switch (Item.Kind)
+        {
+            case RibbonItemKind.Field:
+                <span class="value">@(Item.Prefix + _value)</span>
+                <RibbonIcon Name="chevron-down" Size="14" Stroke="2.2" Class="chev" />
+                break;
+            case RibbonItemKind.Wide:
+                <span class="label" style="@Item.LabelStyle">@Item.Label</span>
+                break;
+            default:
+                if (!string.IsNullOrEmpty(IconName))
+                {
+                    <span class="ic" aria-hidden="true">
+                        <RibbonIcon Name="@IconName" Size="@IconSize" Stroke="@IconStroke" />
+                        @if (_bar != null)
+                        {
+                            <span class="bar" style="background: @_bar"></span>
+                        }
+                    </span>
+                }
+
+                if (!string.IsNullOrEmpty(Item.Glyph))
+                {
+                    <RibbonIcon Glyph="@Item.Glyph" Class="gx" />
+                }
+
+                if (Item.Kind != RibbonItemKind.Icon)
+                {
+                    <span class="label" style="@Item.LabelStyle">@Item.Label</span>
+                }
+
+                if (Item.Dropdown)
+                {
+                    <RibbonIcon Name="chevron-down" Size="14" Stroke="2.2" Class="chev" />
+                }
+
+                break;
+        }
+    </button>
+    @if (_open)
+    {
+        <RibbonMenu Items="_entries" Label="@Item.Label" OnPick="PickAsync" OnClose="CloseAsync" />
+    }
+}
+
+@code {
+    private ElementReference _button;
+    private IReadOnlyList<RibbonMenuItem> _entries;
+    private bool _open;
+    private bool _refocus;
+    private bool _on;
+    private bool _disabled;
+    private string _reason;
+    private string _value;
+    private string _bar;
+
+    [Parameter]
+    public RibbonItem Item { get; set; }
+
+    [CascadingParameter]
+    public RibbonContext Context { get; set; }
+
+    private IRibbonHost Host => Context?.Host;
+
+    private bool Flat => Context?.Flat == true;
+
+    private string KindClass => Item.Kind switch
+    {
+        RibbonItemKind.Large => "large",
+        RibbonItemKind.Small => "small",
+        RibbonItemKind.Icon => "icon",
+        RibbonItemKind.Field => "field",
+        RibbonItemKind.Wide => "wide",
+        _ => "check",
+    };
+
+    private string ButtonClass => "item " + KindClass + (_on && Item.Kind != RibbonItemKind.Check ? " on" : null) + (_open ? " open" : null) + (Flat ? " flat" : null);
+
+    private string ButtonStyle
+    {
+        get
+        {
+            var style = "min-width: " + Item.MinWidth.ToString(CultureInfo.InvariantCulture) + "px";
+            if (Flat && Item.Kind == RibbonItemKind.Field)
+                style += "; width: " + Item.MinWidth.ToString(CultureInfo.InvariantCulture) + "px";
+
+            if (Item.MarginLeft != 0)
+                style += "; margin-left: " + Item.MarginLeft.ToString(CultureInfo.InvariantCulture) + "px";
+
+            return _open ? style + "; anchor-name: --ribbon-anchor" : style;
+        }
+    }
+
+    private string Tip => _reason ?? Item.TipText(_value);
+
+    private bool HardDisabled => _disabled && _reason == null;
+
+    private string SoftDisabledText => _disabled && _reason != null ? "true" : null;
+
+    private string AriaLabel => Item.AriaText(_value);
+
+    private string Role => Item.Kind == RibbonItemKind.Check ? "checkbox" : null;
+
+    private string CheckedText => Item.Kind == RibbonItemKind.Check ? (_on ? "true" : "false") : null;
+
+    private string PressedText => Item.Kind != RibbonItemKind.Check && (Item.Toggle || _on) ? (_on ? "true" : "false") : null;
+
+    private string PopupText => Item.HasMenu ? "menu" : null;
+
+    private string ExpandedText => Item.HasMenu ? (_open ? "true" : "false") : null;
+
+    private string IconName => Item.Kind == RibbonItemKind.Check ? (_on ? "cbOn" : "cbOff") : Item.Icon;
+
+    private int IconSize => Flat ? 18 : (Item.Kind == RibbonItemKind.Large ? 24 : 20);
+
+    private double IconStroke => Item.Stroke ?? (Flat ? 2 : 1.9);
+
+    protected override void OnParametersSet()
+    {
+        var host = Host;
+        _on = host != null && Item.Id != null && host.IsOn(Item.Id);
+        _disabled = host == null || (Item.Id != null && host.IsDisabled(Item.Id));
+        var reason = _disabled && host != null && Item.Id != null ? host.DisabledReasonOf(Item.Id) : null;
+        _reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        _value = Item.Kind == RibbonItemKind.Field ? (host?.ValueOf(Item.Id) ?? Item.Value) : null;
+        _bar = Item.HasBar ? RibbonColor.ToCss(host?.ColorOf(Item.Id) ?? Item.ColorBar) : null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_refocus)
+            return;
+
+        _refocus = false;
+        try
+        {
+            await _button.FocusAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private async Task ClickAsync()
+    {
+        var host = Host;
+        if (_disabled || host == null)
+            return;
+
+        if (Item.HasMenu)
+        {
+            var entries = host.MenuFor(Item.Id);
+            if (entries != null && entries.Count > 0)
+            {
+                _entries = entries;
+                _open = true;
+                return;
+            }
+        }
+
+        await host.InvokeAsync(Item.Id, null);
+        await RefreshAsync();
+    }
+
+    private async Task PickAsync(string value)
+    {
+        _open = false;
+        _refocus = true;
+        var host = Host;
+        if (host != null)
+            await host.InvokeAsync(Item.Id, value);
+
+        await RefreshAsync();
+    }
+
+    private Task CloseAsync(bool returnFocus)
+    {
+        _open = false;
+        _refocus = returnFocus;
+        return Task.CompletedTask;
+    }
+
+    private Task RefreshAsync() => Context == null ? Task.CompletedTask : Context.RefreshAsync();
+}

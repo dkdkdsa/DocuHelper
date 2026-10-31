@@ -128,7 +128,16 @@ namespace DocuHelper.Tools.Excel
                 return unary;
             }
 
-            return ParsePrimary();
+            return ParseIntersection();
+        }
+
+        private FormulaNode ParseIntersection()
+        {
+            var left = ParsePrimary();
+            while (IsOperator(" "))
+                left = Binary(left, ParsePrimary);
+
+            return left;
         }
 
         private FormulaNode ParsePrimary()

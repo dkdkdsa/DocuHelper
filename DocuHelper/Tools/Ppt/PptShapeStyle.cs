@@ -46,6 +46,15 @@ namespace DocuHelper.Tools.Ppt
             }
         }
 
+        public string TextAnchor
+        {
+            get
+            {
+                var anchor = BodyValue(b => b.Anchor);
+                return anchor != null && anchor.HasValue ? anchor.InnerText : "t";
+            }
+        }
+
         public bool NoWrap
         {
             get
@@ -143,6 +152,11 @@ namespace DocuHelper.Tools.Ppt
             var underline = RunValue(runProps, level, r => r.Underline);
             info.Underline = underline != null && underline.HasValue && underline.Value != A.TextUnderlineValues.None;
 
+            var strike = RunValue(runProps, level, r => r.Strike);
+            info.Strike = strike != null && strike.HasValue && strike.Value != A.TextStrikeValues.NoStrike;
+            info.FontName = FontNameOf(runProps, level, info.Text);
+            info.Color = PptColor.Read(RunValue(runProps, level, r => r.GetFirstChild<A.SolidFill>()))?.ToString();
+
             var align = ParagraphValue(paragraph, level, p => p.Alignment);
             info.Align = align != null && align.HasValue ? align.InnerText : "l";
 
@@ -162,9 +176,28 @@ namespace DocuHelper.Tools.Ppt
             else if (beforePercent != null && beforePercent.HasValue)
                 info.SpaceBefore = beforePercent.Value / 100000.0 * info.FontSize;
 
+            var after = ParagraphValue(paragraph, level, p => p.SpaceAfter);
+            var afterPoints = after?.SpacingPoints?.Val;
+            var afterPercent = after?.SpacingPercent?.Val;
+            if (afterPoints != null && afterPoints.HasValue)
+                info.SpaceAfter = afterPoints.Value / 100.0;
+            else if (afterPercent != null && afterPercent.HasValue)
+                info.SpaceAfter = afterPercent.Value / 100000.0 * info.FontSize;
+
             var margin = ParagraphValue(paragraph, level, p => p.LeftMargin);
             info.LeftMargin = margin != null && margin.HasValue ? Math.Max(0, margin.Value / EmuPerPoint) : 0;
+            var indent = ParagraphValue(paragraph, level, p => p.Indent);
+            info.Indent = indent != null && indent.HasValue ? indent.Value / EmuPerPoint : 0;
+            info.TextAnchor = TextAnchor;
+            PptBullets.Fill(info, this, paragraph, level);
             return info;
+        }
+
+        private string FontNameOf(A.TextCharacterPropertiesType runProps, int level, string text)
+        {
+            var latin = RunValue(runProps, level, r => r.GetFirstChild<A.LatinFont>())?.Typeface?.Value;
+            var eastAsian = RunValue(runProps, level, r => r.GetFirstChild<A.EastAsianFont>())?.Typeface?.Value;
+            return PptText.HasHangul(text) ? eastAsian ?? latin : latin ?? eastAsian;
         }
 
         public double FallbackSize(int level) => Family switch

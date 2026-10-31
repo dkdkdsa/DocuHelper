@@ -18,6 +18,17 @@ namespace DocuHelper.Editors
             AddTool(new SetNotesTool());
             AddTool(new CheckOverflowTool());
             AddTool(new AddSlideTool());
+            AddTool(new FormatSlideParagraphsTool());
+            AddTool(new SetSlideLinkTool());
+            AddTool(new ArrangeSlidesTool());
+            AddTool(new SetSlideLayoutTool());
+            AddTool(new AddSlideShapeTool());
+            AddTool(new FormatSlideShapeTool());
+            AddTool(new ArrangeSlideShapesTool());
+            AddTool(new AddSlideDiagramTool());
+            AddTool(new AddSlidePictureTool());
+            AddTool(new EditSlideTableTool());
+            AddTool(new EditSlideChartTool());
         }
 
         public override DocuType TargetType => DocuType.Ppt;

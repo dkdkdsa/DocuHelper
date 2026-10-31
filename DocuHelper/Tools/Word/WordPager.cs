@@ -37,16 +37,21 @@ namespace DocuHelper.Tools.Word
             var section = body?.Elements<SectionProperties>().LastOrDefault();
             var size = section?.GetFirstChild<PageSize>();
             var margin = section?.GetFirstChild<PageMargin>();
-            var pageWidth = (int)(size?.Width?.Value ?? 11906U);
-            var pageHeight = (int)(size?.Height?.Value ?? 16838U);
-            width = pageWidth - (int)(margin?.Left?.Value ?? 1440U) - (int)(margin?.Right?.Value ?? 1440U);
-            height = pageHeight - Math.Abs(margin?.Top?.Value ?? 1701) - Math.Abs(margin?.Bottom?.Value ?? 1440);
+            var pageWidth = Twips(size?.Width, 11906);
+            var pageHeight = Twips(size?.Height, 16838);
+            width = pageWidth - Twips(margin?.Left, 1440) - Twips(margin?.Right, 1440);
+            height = pageHeight - Math.Abs(Twips(margin?.Top, 1701)) - Math.Abs(Twips(margin?.Bottom, 1440));
             if (width < 1440)
                 width = DefaultTextWidth;
 
             if (height < 1440)
                 height = DefaultTextHeight;
         }
+
+        private static int Twips(DocumentFormat.OpenXml.OpenXmlSimpleType value, int fallback) =>
+            value != null && double.TryParse(value.InnerText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) && Math.Abs(number) < int.MaxValue
+                ? (int)Math.Round(number)
+                : fallback;
 
         public void PlaceParagraph(WordBlock block, string marked, bool breakBefore, bool breakAfter)
         {

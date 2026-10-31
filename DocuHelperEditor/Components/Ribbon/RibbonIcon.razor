@@ -1,0 +1,48 @@
+﻿@using System.Globalization
+
+@if (!string.IsNullOrEmpty(Glyph))
+{
+    <span class="glyph @Class" style="@GlyphStyle" aria-hidden="true">@Glyph</span>
+}
+else
+{
+    <svg class="@Class" width="@SvgSize" height="@SvgSize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="@StrokeText" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        @if (_path != null)
+        {
+            <path d="@_path" />
+        }
+    </svg>
+}
+
+@code {
+    private string _path;
+
+    [Parameter]
+    public string Name { get; set; }
+
+    [Parameter]
+    public string Glyph { get; set; }
+
+    [Parameter]
+    public int? Size { get; set; }
+
+    [Parameter]
+    public double Stroke { get; set; } = 2;
+
+    [Parameter]
+    public DocuType? Format { get; set; }
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [CascadingParameter(Name = "RibbonFormat")]
+    public DocuType? CascadedFormat { get; set; }
+
+    private int SvgSize => Size ?? 20;
+
+    private string StrokeText => Stroke.ToString(CultureInfo.InvariantCulture);
+
+    private string GlyphStyle => Size.HasValue ? "font-size: " + Size.Value.ToString(CultureInfo.InvariantCulture) + "px" : null;
+
+    protected override void OnParametersSet() => _path = RibbonIcons.PathOf(Name, Format ?? CascadedFormat);
+}

@@ -222,6 +222,35 @@ namespace DocuHelper
             return result;
         }
 
+        public ToolResult ApplyAll(Docu docu, IReadOnlyList<EditCommand> commands)
+        {
+            if (commands == null || commands.Count == 0)
+                return ToolResult.Ok("Nothing to change.");
+
+            if (commands.Count == 1)
+                return Apply(docu, commands[0]);
+
+            if (docu.IsLocked)
+                return ToolResult.Fail("도우미가 이 파일을 고치는 중이에요. 끝나면 다시 고칠 수 있어요.");
+
+            var editor = GetEditor(docu);
+            var before = docu.Capture();
+            ToolResult result = null;
+            foreach (var command in commands)
+            {
+                result = editor.Apply(docu, command);
+                if (result.IsError)
+                {
+                    docu.Restore(before);
+                    return result;
+                }
+            }
+
+            PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [docu] = before }));
+            AddNote($"The user edited '{docu.Name}' by hand in {commands.Count} places at once.");
+            return result;
+        }
+
         public HistoryEntry RecordInitial(Docu docu)
         {
             if (!File.Exists(docu.FilePath) || History.List(docu.Name).Count > 0)

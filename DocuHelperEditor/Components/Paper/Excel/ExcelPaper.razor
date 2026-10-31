@@ -1,39 +1,68 @@
-﻿@inherits StoreComponentBase
+@inherits StoreComponentBase
+@using System.Text.RegularExpressions
+@using DocuHelper.Tools.Excel
 @using DocuHelperEditor.State.Papers
 @using DocuHelperEditor.Components.Paper
+@using Microsoft.Maui.ApplicationModel.DataTransfer
 @inject IJSRuntime JS
 
-<div class="excel-paper">
-    <SheetToolbar Cell="@SelectedCell"
-                  RowKind="@SelectedRowKind"
-                  Locked="@IsLocked"
-                  CanRedo="@Workspace.CanRedo"
-                  OnUndo="Undo"
-                  OnRedo="Redo"
-                  OnToggle="ToggleFormat"
-                  OnFontColor="ApplyFontColor"
-                  OnFillColor="ApplyFillColor"
-                  OnSort="SortTable"
-                  OnAutoSum="AutoSum" />
-    <FormulaBar RefId="@RefId"
-                ContentId="@ContentId"
-                CellRef="@SelectedRef"
-                Text="@BarText"
-                Version="@_editVersion"
-                Locked="@IsLocked"
-                OnGoTo="GoTo"
-                OnEdit="HandleBarEdit"
-                OnCommit="HandleBarCommit"
-                OnCancel="HandleBarCancel"
-                OnLeave="HandleBarLeave" />
+<div class="excel-paper @PaintingClass" id="@_uid">
+    <ExcelRibbon Router="_router" />
+    @if (_showFormulaBar)
+    {
+        <FormulaBar RefId="@RefId"
+                    ContentId="@ContentId"
+                    CellRef="@SelectedRef"
+                    Text="@BarText"
+                    Version="@_editVersion"
+                    Locked="@IsLocked"
+                    OnGoTo="GoTo"
+                    OnEdit="HandleBarEdit"
+                    OnCommit="HandleBarCommit"
+                    OnCancel="HandleBarCancel"
+                    OnLeave="HandleBarLeave" />
+    }
+    @if (_findOpen)
+    {
+        <SheetFindBar Id="@FindId"
+                      Replace="@_findReplace"
+                      Query="@_findQuery"
+                      Replacement="@_replaceWith"
+                      Status="@FindStatus"
+                      Note="@_findNote"
+                      HasMatches="@(_matches.Count > 0)"
+                      FocusVersion="@_findFocus"
+                      OnQuery="SetFindQuery"
+                      OnReplacementChanged="SetReplacement"
+                      OnNext="() => FindStep(1)"
+                      OnPrevious="() => FindStep(-1)"
+                      OnReplaceOne="ReplaceOne"
+                      OnReplaceAll="ReplaceAll"
+                      OnToggleReplace="ToggleReplace"
+                      OnClose="CloseFind" />
+    }
     @if (!string.IsNullOrEmpty(_editError))
     {
         <p class="edit-error" role="alert">@_editError</p>
+    }
+    @if (_confirm != null)
+    {
+        <div class="confirm" role="alertdialog" aria-label="확인">
+            <p class="confirm-text">@_confirm.Text</p>
+            <button type="button" class="confirm-go" @onclick="AcceptConfirm">@_confirm.Button</button>
+            <button type="button" class="confirm-no" @onclick="DismissConfirm">취소</button>
+        </div>
     }
     <SheetGrid @key="CurrentSheet.Name"
                Sheet="@CurrentSheet"
                SinkId="@SinkId"
                SelectedRef="@SelectedRef"
+               Selection="@Selection"
+               ExtentRef="@ExtentRef"
+               PointRegion="@(IsEditing ? _pointRegion : null)"
+               CutRegion="@ClipRegion"
+               FillPreview="@_fillPreview"
+               ShowFillHandle="@(!IsLocked && !IsEditing)"
                Locked="@IsLocked"
                EditingInCell="@_editInCell"
                EditingInBar="@_editInBar"
@@ -43,652 +72,29 @@
                HighlightChangeId="@HighlightChangeId"
                LiveChangeIds="@LiveChangeIds"
                ShowAsking="@IsAskingFile"
-               OnCellClick="SelectFromGrid"
+               OnPointer="HandlePointer"
+               OnPaste="HandlePaste"
+               OnResize="HandleResize"
+               OnMenu="OpenMenu"
                OnCellDoubleClick="EditFromGrid"
                OnSinkKeyDown="HandleGridKeyAsync"
                OnSinkInput="HandleSinkInput"
                OnSinkBlur="HandleSinkBlur" />
     <ChangeNavigator File="File" />
-    <SheetTabs Sheets="@Model.Sheets"
+    <SheetTabs @ref="_tabs"
+               Sheets="@Model.Sheets"
                ActiveIndex="@ActiveIndex"
                LiveChangeIds="@LiveChangeIds"
                HighlightChangeId="@HighlightChangeId"
                CanAdd="@(!IsLocked)"
+               CanEdit="@(!IsLocked)"
                ShowAskLegend="@ShowAskLegend"
                OnSelect="SelectSheet"
-               OnAdd="AddSheet" />
+               OnAdd="AddSheet"
+               OnMenu="OpenMenu"
+               OnRename="RenameSheet" />
+    @if (_menu != null)
+    {
+        <SheetMenu Label="@MenuLabel" X="@_menu.X" Y="@_menu.Y" Items="@_menuItems" OnPick="PickMenuAsync" OnClose="CloseMenu" />
+    }
 </div>
-
-@code {
-    private const string SheetNamePrefix = "시트";
-
-    private readonly string _uid = "xl" + Guid.NewGuid().ToString("N").Substring(0, 8);
-    private ExcelPaperModel _fallback;
-    private WorkspaceFile _file;
-    private string _editSheet;
-    private string _editRef;
-    private string _editError;
-    private bool _editInCell;
-    private bool _editInBar;
-    private bool _editTyped;
-    private string _draft = string.Empty;
-    private string _sinkSeed = string.Empty;
-    private int _editVersion;
-    private bool _focusSink;
-    private string _scrollTarget;
-
-    [Parameter]
-    public WorkspaceFile File { get; set; }
-
-    private string SinkId => _uid + "-cell";
-
-    private string RefId => _uid + "-ref";
-
-    private string ContentId => _uid + "-fx";
-
-    private ExcelPaperModel Model
-    {
-        get
-        {
-            var model = File?.Paper as ExcelPaperModel;
-            if (model == null)
-            {
-                _fallback ??= ExcelPaperModel.CreateEmpty();
-                model = _fallback;
-            }
-
-            model.EnsureSheet();
-            return model;
-        }
-    }
-
-    private int ActiveIndex => Math.Clamp(Model.ActiveSheetIndex, 0, Model.Sheets.Count - 1);
-
-    private Sheet CurrentSheet => Model.Sheets[ActiveIndex];
-
-    private string SelectedRef
-    {
-        get
-        {
-            var sheet = CurrentSheet;
-            if (!SheetRef.TryParse(sheet.SelectedRef, out var column, out var row))
-                return SheetRef.Make(0, 0);
-
-            column = Math.Clamp(column, 0, Math.Max(0, sheet.Columns.Count - 1));
-            row = Math.Clamp(row, 0, sheet.DisplayRowCount - 1);
-            return SheetRef.Make(column, row);
-        }
-    }
-
-    private SheetCell SelectedCell => CurrentSheet.FindCell(SelectedRef);
-
-    private SheetRowKind SelectedRowKind
-    {
-        get
-        {
-            if (!SheetRef.TryParse(SelectedRef, out _, out var row))
-                return SheetRowKind.Normal;
-
-            return CurrentSheet.FindRow(row)?.Kind ?? SheetRowKind.Normal;
-        }
-    }
-
-    private bool IsLocked => File?.Activity == FileActivity.Editing;
-
-    private bool IsAskingFile => File?.Activity == FileActivity.Asking;
-
-    private bool ShowAskLegend => IsAskingFile && Model.HasAskingCells;
-
-    private bool IsEditing => _editRef != null;
-
-    private string BarText => _editInCell ? _draft : (SelectedCell?.EditText ?? string.Empty);
-
-    private string HighlightChangeId
-    {
-        get
-        {
-            var id = Workspace.SelectedChangeId;
-            if (string.IsNullOrEmpty(id) || File?.Changes == null || Workspace.ActiveFile != File)
-                return null;
-
-            return File.Changes.Any(c => c != null && c.Id == id) ? id : null;
-        }
-    }
-
-    private HashSet<string> LiveChangeIds => File?.Changes == null
-        ? new HashSet<string>()
-        : new HashSet<string>(File.Changes.Where(c => c != null && !string.IsNullOrEmpty(c.Id)).Select(c => c.Id));
-
-    protected override void OnParametersSet()
-    {
-        if (File == _file)
-            return;
-
-        _file = File;
-        _fallback = null;
-        _editError = null;
-        ResetEdit();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_focusSink)
-        {
-            _focusSink = false;
-            await RunJsAsync("docuHelper.focus", "#" + SinkId);
-        }
-
-        if (_scrollTarget != null)
-        {
-            var target = _scrollTarget;
-            _scrollTarget = null;
-            await RunJsAsync("docuHelper.scrollIntoView", target);
-        }
-
-        if (IsLocked && IsEditing)
-        {
-            ResetEdit();
-            StateHasChanged();
-            return;
-        }
-
-        if (RevealSelectedChange())
-            return;
-
-        SyncSelectionLabel();
-    }
-
-    private bool RevealSelectedChange()
-    {
-        var changeId = HighlightChangeId;
-        var model = Model;
-        if (changeId == null)
-        {
-            model.RevealedChangeId = null;
-            return false;
-        }
-
-        if (changeId == model.RevealedChangeId && Workspace.ChangePickVersion == model.RevealedPickVersion)
-            return false;
-
-        model.RevealedChangeId = changeId;
-        model.RevealedPickVersion = Workspace.ChangePickVersion;
-        if (!model.TryLocateChange(changeId, out var sheetIndex, out var cellRef))
-            return false;
-
-        if (IsEditing)
-        {
-            CommitEdit();
-            model = Model;
-            if (!model.TryLocateChange(changeId, out sheetIndex, out cellRef))
-                return false;
-        }
-
-        model.ActiveSheetIndex = sheetIndex;
-        var sheet = model.Sheets[sheetIndex];
-        if (!string.IsNullOrEmpty(cellRef))
-            sheet.SelectedRef = cellRef;
-
-        _scrollTarget = "[data-change=\"" + changeId + "\"]";
-        Workspace.SetSelection(LabelFor(sheet, SelectedRef));
-        return true;
-    }
-
-    private void SyncSelectionLabel()
-    {
-        if (File == null || Workspace.ActiveFile != File || !string.IsNullOrEmpty(Workspace.SelectionLabel))
-            return;
-
-        Workspace.SetSelection(LabelFor(CurrentSheet, SelectedRef));
-    }
-
-    private static string LabelFor(Sheet sheet, string cellRef) => sheet.Name + " " + cellRef;
-
-    private void SelectCell(string cellRef, bool focus)
-    {
-        if (focus)
-            _focusSink = true;
-
-        if (cellRef == SelectedRef)
-            return;
-
-        _editError = null;
-        if (IsEditing)
-            CommitEdit();
-
-        var sheet = CurrentSheet;
-        sheet.SelectedRef = cellRef;
-        Workspace.SetSelection(LabelFor(sheet, cellRef));
-    }
-
-    private void SelectFromGrid(string cellRef) => SelectCell(cellRef, true);
-
-    private void EditFromGrid(string cellRef)
-    {
-        SelectCell(cellRef, true);
-        BeginCellEdit(true);
-    }
-
-    private void Move(int rowStep, int columnStep)
-    {
-        var sheet = CurrentSheet;
-        if (!SheetRef.TryParse(SelectedRef, out var column, out var row))
-        {
-            column = 0;
-            row = 0;
-        }
-
-        var nextRow = Math.Clamp(row + rowStep, 0, sheet.DisplayRowCount - 1);
-        var nextColumn = Math.Clamp(column + columnStep, 0, Math.Max(0, sheet.Columns.Count - 1));
-        SelectCell(SheetRef.Make(nextColumn, nextRow), true);
-    }
-
-    private void MoveByKey(string key)
-    {
-        switch (key)
-        {
-            case "ArrowUp":
-                Move(-1, 0);
-                break;
-            case "ArrowDown":
-                Move(1, 0);
-                break;
-            case "ArrowLeft":
-                Move(0, -1);
-                break;
-            case "ArrowRight":
-                Move(0, 1);
-                break;
-        }
-    }
-
-    private async Task HandleGridKeyAsync(KeyboardEventArgs e)
-    {
-        if (e.IsComposing)
-            return;
-
-        if (_editInCell)
-        {
-            switch (e.Key)
-            {
-                case "Enter":
-                    CommitEdit();
-                    _focusSink = true;
-                    break;
-                case "Escape":
-                    CancelEdit();
-                    _focusSink = true;
-                    break;
-                case "ArrowUp":
-                case "ArrowDown":
-                case "ArrowLeft":
-                case "ArrowRight":
-                    if (_editTyped)
-                    {
-                        CommitEdit();
-                        MoveByKey(e.Key);
-                    }
-                    break;
-            }
-
-            return;
-        }
-
-        if (e.CtrlKey || e.MetaKey)
-        {
-            if (!e.AltKey && !e.ShiftKey && e.Code == "KeyZ")
-                await Workspace.UndoAsync();
-            else if (!e.AltKey && ((!e.ShiftKey && e.Code == "KeyY") || (e.ShiftKey && e.Code == "KeyZ")))
-                await Workspace.RedoAsync();
-
-            return;
-        }
-
-        switch (e.Key)
-        {
-            case "ArrowUp":
-            case "ArrowDown":
-            case "ArrowLeft":
-            case "ArrowRight":
-                MoveByKey(e.Key);
-                break;
-            case "Enter":
-            case "F2":
-                BeginCellEdit(true);
-                break;
-            case "Backspace":
-                BeginCellEdit(false);
-                break;
-            case "Delete":
-                ClearSelectedCell();
-                break;
-        }
-    }
-
-    private void BeginCellEdit(bool keepText)
-    {
-        if (IsLocked)
-            return;
-
-        if (IsEditing)
-            CommitEdit();
-
-        var text = keepText ? (SelectedCell?.EditText ?? string.Empty) : string.Empty;
-        _editSheet = CurrentSheet.Name;
-        _editRef = SelectedRef;
-        _editInCell = true;
-        _editInBar = false;
-        _editTyped = false;
-        _draft = text;
-        _sinkSeed = text;
-        _focusSink = true;
-    }
-
-    private void HandleSinkInput(string value)
-    {
-        if (IsLocked || _editInBar)
-            return;
-
-        if (!_editInCell)
-        {
-            _editSheet = CurrentSheet.Name;
-            _editRef = SelectedRef;
-            _editInCell = true;
-            _editTyped = true;
-            _sinkSeed = string.Empty;
-        }
-
-        _draft = value ?? string.Empty;
-    }
-
-    private void HandleSinkBlur()
-    {
-        if (_editInCell)
-            CommitEdit();
-    }
-
-    private void HandleBarEdit(string value)
-    {
-        if (IsLocked || _editInCell)
-            return;
-
-        if (!_editInBar)
-        {
-            _editSheet = CurrentSheet.Name;
-            _editRef = SelectedRef;
-            _editInBar = true;
-            _editTyped = false;
-        }
-
-        _draft = value ?? string.Empty;
-    }
-
-    private void HandleBarCommit()
-    {
-        if (_editInBar)
-            CommitEdit();
-
-        _focusSink = true;
-    }
-
-    private void HandleBarCancel()
-    {
-        if (_editInBar)
-            CancelEdit();
-
-        _focusSink = true;
-    }
-
-    private void HandleBarLeave()
-    {
-        if (_editInBar)
-            CommitEdit();
-    }
-
-    private void GoTo(string text)
-    {
-        var sheet = CurrentSheet;
-        if (!SheetRef.TryParse(text, out var column, out var row))
-            return;
-
-        if (column >= sheet.Columns.Count || row >= sheet.DisplayRowCount)
-            return;
-
-        SelectCell(SheetRef.Make(column, row), true);
-    }
-
-    private void CommitEdit()
-    {
-        if (!IsEditing)
-            return;
-
-        var sheet = _editSheet;
-        var cellRef = _editRef;
-        var value = _draft ?? string.Empty;
-        ResetEdit();
-        ApplyText(sheet, cellRef, value);
-    }
-
-    private void CancelEdit()
-    {
-        if (IsEditing)
-            ResetEdit();
-    }
-
-    private void ResetEdit()
-    {
-        _editSheet = null;
-        _editRef = null;
-        _editInCell = false;
-        _editInBar = false;
-        _editTyped = false;
-        _draft = string.Empty;
-        _sinkSeed = string.Empty;
-        _editVersion++;
-    }
-
-    private void ClearSelectedCell()
-    {
-        if (IsLocked)
-            return;
-
-        ApplyText(CurrentSheet.Name, SelectedRef, string.Empty);
-    }
-
-    private void ApplyText(string sheetName, string cellRef, string value)
-    {
-        if (string.IsNullOrEmpty(sheetName) || IsLocked || !SheetRef.TryParse(cellRef, out var column, out var row))
-            return;
-
-        var sheet = Model.Sheets.FirstOrDefault(s => s.Name == sheetName);
-        var before = sheet?.FindCell(row, column)?.EditText ?? string.Empty;
-        if (value == before)
-            return;
-
-        Edit(EditCommand.Create("write_cells", new { sheet = sheetName, start = cellRef, values = new[] { new[] { value } } }));
-    }
-
-    private void ToggleFormat(string format)
-    {
-        if (IsLocked)
-            return;
-
-        if (IsEditing)
-            CommitEdit();
-
-        var sheet = CurrentSheet;
-        var cellRef = SelectedRef;
-        if (!SheetRef.TryParse(cellRef, out var column, out var row))
-            return;
-
-        var kind = sheet.FindRow(row)?.Kind ?? SheetRowKind.Normal;
-        var cell = sheet.FindCell(row, column);
-        object arguments = format switch
-        {
-            "bold" => new { sheet = sheet.Name, range = cellRef, bold = !(cell?.IsBoldIn(kind) ?? kind != SheetRowKind.Normal) },
-            "italic" => new { sheet = sheet.Name, range = cellRef, italic = cell?.Italic != true },
-            "underline" => new { sheet = sheet.Name, range = cellRef, underline = cell?.Underline != true },
-            "center" => new { sheet = sheet.Name, range = cellRef, align = cell?.Align == SheetAlign.Center ? "general" : "center" },
-            "thousands" when cell?.NumberFormat != SheetNumberFormat.Thousands => new { sheet = sheet.Name, range = cellRef, number_format = "thousands" },
-            "percent" when cell?.NumberFormat != SheetNumberFormat.Percent => new { sheet = sheet.Name, range = cellRef, number_format = "percent" },
-            _ => null,
-        };
-
-        if (arguments != null)
-            Edit(EditCommand.Create("format_range", arguments));
-    }
-
-    private void SelectSheet(int index)
-    {
-        if (index < 0 || index >= Model.Sheets.Count)
-            return;
-
-        if (IsEditing)
-            CommitEdit();
-
-        var model = Model;
-        model.ActiveSheetIndex = Math.Clamp(index, 0, model.Sheets.Count - 1);
-        _editError = null;
-        Workspace.SetSelection(LabelFor(CurrentSheet, SelectedRef));
-    }
-
-    private void AddSheet()
-    {
-        if (IsLocked)
-            return;
-
-        if (IsEditing)
-            CommitEdit();
-
-        var name = NextSheetName();
-        if (!Edit(EditCommand.Create("add_sheet", new { name })))
-            return;
-
-        var model = Model;
-        var index = model.Sheets.FindIndex(s => s.Name == name);
-        if (index >= 0)
-            model.ActiveSheetIndex = index;
-
-        Workspace.SetSelection(LabelFor(CurrentSheet, SelectedRef));
-    }
-
-    private string NextSheetName()
-    {
-        var names = Model.Sheets.Select(s => s.Name).ToList();
-        var number = names.Count + 1;
-        while (names.Any(n => string.Equals(n, SheetNamePrefix + number, StringComparison.OrdinalIgnoreCase)))
-            number++;
-
-        return SheetNamePrefix + number;
-    }
-
-    private bool Edit(EditCommand command)
-    {
-        var result = Workspace.ApplyEdit(File, command);
-        _editError = result.IsError ? result.Content : null;
-        return !result.IsError;
-    }
-
-    private Task Undo() => Workspace.UndoAsync();
-
-    private Task Redo() => Workspace.RedoAsync();
-
-    private void ApplyFontColor(string color) => ApplyColor(new { sheet = CurrentSheet.Name, range = SelectedRef, font_color = color });
-
-    private void ApplyFillColor(string color) => ApplyColor(new { sheet = CurrentSheet.Name, range = SelectedRef, fill_color = color });
-
-    private void ApplyColor(object arguments)
-    {
-        if (IsLocked)
-            return;
-
-        if (IsEditing)
-            CommitEdit();
-
-        _focusSink = true;
-        Edit(EditCommand.Create("format_range", arguments));
-    }
-
-    private void SortTable(bool descending)
-    {
-        if (IsLocked)
-            return;
-
-        if (IsEditing)
-            CommitEdit();
-
-        _focusSink = true;
-        var sheet = CurrentSheet;
-        if (!SheetRef.TryParse(SelectedRef, out var column, out var row))
-            return;
-
-        var region = SheetRegion.Around(sheet, column, row);
-        if (region == null)
-        {
-            _editError = "정렬할 표를 찾지 못했어요. 표 안의 칸을 하나 고른 뒤 눌러 주세요.";
-            return;
-        }
-
-        if (sheet.IsClipped && region.Value.TouchesEdge(sheet))
-        {
-            _editError = "표가 너무 커서 여기서는 정렬할 수 없어요. 도우미에게 정렬해 달라고 부탁해 주세요.";
-            return;
-        }
-
-        var (top, left, bottom, right) = region.Value;
-        if (SheetRegion.StartsWithHeader(sheet, top, left, right, column))
-            top++;
-
-        while (bottom > top && sheet.FindRow(bottom)?.Kind == SheetRowKind.Total)
-            bottom--;
-
-        if (bottom <= top)
-        {
-            _editError = "정렬하려면 표에 두 줄 이상이 있어야 해요.";
-            return;
-        }
-
-        var range = SheetRef.Make(left, top) + ":" + SheetRef.Make(right, bottom);
-        Edit(EditCommand.Create("sort_range", new { sheet = sheet.Name, range, by = SheetRef.ColumnName(column), descending }));
-    }
-
-    private void AutoSum()
-    {
-        if (IsLocked)
-            return;
-
-        if (IsEditing)
-            CommitEdit();
-
-        _focusSink = true;
-        var sheet = CurrentSheet;
-        if (!SheetRef.TryParse(SelectedRef, out var column, out var row))
-            return;
-
-        var plan = SheetRegion.PlanSum(sheet, column, row);
-        if (plan.Problem != null)
-        {
-            _editError = plan.Problem;
-            return;
-        }
-
-        var target = SheetRef.Make(plan.Column, plan.Row);
-        ApplyText(sheet.Name, target, "=SUM(" + plan.Range + ")");
-        if (_editError == null)
-            SelectCell(target, true);
-    }
-
-    private async Task RunJsAsync(string identifier, string argument)
-    {
-        try
-        {
-            await JS.InvokeVoidAsync(identifier, argument);
-        }
-        catch (JSException)
-        {
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-    }
-}

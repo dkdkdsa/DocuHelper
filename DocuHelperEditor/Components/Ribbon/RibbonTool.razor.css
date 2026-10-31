@@ -1,0 +1,45 @@
+.tool {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--hit);
+    height: var(--hit);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+}
+
+.tool.text {
+    width: auto;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tool:hover {
+    background: var(--bubble);
+}
+
+.tool.on {
+    background: var(--hair);
+    box-shadow: inset 0 0 0 1px var(--thumb-line);
+}
+
+.tool:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+}
+
+.tool:disabled,
+.tool:disabled:hover {
+    background: transparent;
+    color: var(--ink-disabled);
+    cursor: default;
+}

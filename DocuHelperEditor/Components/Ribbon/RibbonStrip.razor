@@ -1,0 +1,46 @@
+﻿@inherits RibbonRegionBase
+
+<CascadingValue Value="_context" IsFixed="true">
+    <CascadingValue Name="RibbonFormat" Value="@_format" TValue="DocuType?">
+        <div class="strip @Class" role="toolbar" aria-label="@Label" data-ribbon-strip @ref="Root">
+            @foreach (var item in Items ?? Array.Empty<RibbonItem>())
+            {
+                <RibbonButton Item="item" />
+            }
+            @ChildContent
+        </div>
+    </CascadingValue>
+</CascadingValue>
+
+@code {
+    private readonly RibbonContext _context = new RibbonContext();
+    private DocuType? _format;
+
+    [Parameter]
+    public IReadOnlyList<RibbonItem> Items { get; set; } = Array.Empty<RibbonItem>();
+
+    [Parameter]
+    public IRibbonHost Host { get; set; }
+
+    [Parameter]
+    public DocuType Format { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "서식 도구 상자";
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        _format = Format;
+        _context.Host = Host;
+        _context.Flat = true;
+        _context.Refresh = RefreshAsync;
+    }
+
+    private Task RefreshAsync() => InvokeAsync(StateHasChanged);
+}

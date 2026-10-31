@@ -1,0 +1,35 @@
+﻿<RibbonMenu Items="_entries" Label="@Label" Class="file" OnPick="OnPick" OnClose="OnClose" />
+
+@code {
+    private IReadOnlyList<RibbonMenuItem> _entries = Array.Empty<RibbonMenuItem>();
+
+    [Parameter]
+    public IReadOnlyList<RibbonFileItem> Items { get; set; } = Array.Empty<RibbonFileItem>();
+
+    [Parameter]
+    public IRibbonHost Host { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "파일 메뉴";
+
+    [Parameter]
+    public EventCallback<string> OnPick { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnClose { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var entries = new List<RibbonMenuItem>();
+        foreach (var item in Items ?? Array.Empty<RibbonFileItem>())
+        {
+            if (item.Separated && entries.Count > 0)
+                entries.Add(RibbonMenus.Separator());
+
+            var disabled = Host != null && Host.IsDisabled(item.Id);
+            entries.Add(RibbonMenus.Item(item.Id, item.Label, key: item.Shortcut, disabled: disabled, reason: disabled ? Host.DisabledReasonOf(item.Id) : null));
+        }
+
+        _entries = entries;
+    }
+}

@@ -1,0 +1,27 @@
+.changes {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--bar-gap, 2px);
+}
+
+.chip {
+    flex: none;
+    width: 28px;
+    height: 13px;
+    margin-right: 6px;
+    border-radius: 3px 8px 4px 9px;
+    background: var(--hl-stroke);
+}
+
+.name {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.pos {
+    margin-left: 4px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}

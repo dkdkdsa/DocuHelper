@@ -1,0 +1,198 @@
+﻿@using System.Globalization
+@inject IJSRuntime JS
+
+<div class="layer" @onkeydown="OnKeyDownAsync">
+    <div class="scrim" @onclick="DismissAsync" @oncontextmenu="DismissAsync" @oncontextmenu:preventDefault="true"></div>
+    <div class="menu @Class" role="menu" aria-label="@Label" style="@MenuStyle" data-ribbon-menu @ref="_menu">
+        @for (var index = 0; index < ItemList.Count; index++)
+        {
+            var at = index;
+            var item = ItemList[at];
+            switch (item.Kind)
+            {
+                case RibbonMenuKind.Separator:
+                    <div class="sep" role="separator"></div>
+                    break;
+                case RibbonMenuKind.Heading:
+                    <div class="heading" role="presentation">@item.Label</div>
+                    break;
+                case RibbonMenuKind.Swatches:
+                    <div class="swatches" role="group" aria-label="@item.Label" style="@SwatchStyle(item)">
+                        @foreach (var swatch in item.Swatches)
+                        {
+                            var on = RibbonColor.SameColor(item.Current, swatch.Value);
+                            <button type="button" class="chip @(on ? "on" : null)" role="menuitemradio" aria-checked="@(on ? "true" : "false")" aria-label="@swatch.Name" title="@swatch.Name" tabindex="-1" style="background-color: @RibbonColor.ToCss(swatch.Color)" data-menu-item @onclick="() => PickAsync(swatch.Value)"></button>
+                        }
+                    </div>
+                    break;
+                case RibbonMenuKind.Input:
+                    <div class="field">
+                        <label class="field-label" for="@InputId(at)">@item.Label</label>
+                        <input id="@InputId(at)" class="field-input" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" tabindex="-1" value="@DraftOf(at, item)" data-menu-item @oninput="e => SetDraft(at, e)" @onkeydown="e => OnInputKeyDownAsync(at, item, e)" />
+                        @if (!string.IsNullOrEmpty(item.Hint))
+                        {
+                            <span class="field-hint">@item.Hint</span>
+                        }
+                    </div>
+                    break;
+                default:
+                    <button type="button" class="entry @(item.Checked == true ? "on" : null)" role="@(item.Checked.HasValue ? "menuitemradio" : "menuitem")" aria-checked="@(item.Checked.HasValue ? (item.Checked.Value ? "true" : "false") : null)" title="@SoftReasonOf(item)" aria-description="@SoftReasonOf(item)" aria-disabled="@(SoftReasonOf(item) != null ? "true" : null)" disabled="@(item.Disabled && SoftReasonOf(item) == null)" tabindex="-1" data-menu-item @onclick="() => PickEntryAsync(item)">
+                        @if (_anyChecked)
+                        {
+                            <span class="mark" aria-hidden="true">
+                                @if (item.Checked == true)
+                                {
+                                    <RibbonIcon Name="check" Size="16" Stroke="2.4" />
+                                }
+                            </span>
+                        }
+                        @if (!string.IsNullOrEmpty(item.Swatch))
+                        {
+                            <span class="swatch" aria-hidden="true" style="background-color: @RibbonColor.ToCss(item.Swatch)"></span>
+                        }
+                        @if (!string.IsNullOrEmpty(item.Icon))
+                        {
+                            <RibbonIcon Name="@item.Icon" Size="18" Stroke="1.9" />
+                        }
+                        <span class="text">
+                            <span class="main" style="@FontStyle(item)">@item.Label</span>
+                            @if (!string.IsNullOrEmpty(DetailOf(item)))
+                            {
+                                <span class="detail">@DetailOf(item)</span>
+                            }
+                        </span>
+                        @if (!string.IsNullOrEmpty(item.Shortcut))
+                        {
+                            <span class="key">@item.Shortcut</span>
+                        }
+                    </button>
+                    break;
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private const string ModulePath = "./Components/Ribbon/Ribbon.razor.js";
+
+    private readonly string _uid = "rm" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private readonly Dictionary<int, string> _drafts = new Dictionary<int, string>();
+    private ElementReference _menu;
+    private bool _anyChecked;
+
+    [Parameter]
+    public IReadOnlyList<RibbonMenuItem> Items { get; set; } = Array.Empty<RibbonMenuItem>();
+
+    [Parameter]
+    public string Label { get; set; }
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [Parameter]
+    public int Width { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnPick { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnClose { get; set; }
+
+    private IReadOnlyList<RibbonMenuItem> ItemList => Items ?? Array.Empty<RibbonMenuItem>();
+
+    private string MenuStyle => Width > 0 ? "width: " + Width.ToString(CultureInfo.InvariantCulture) + "px" : null;
+
+    protected override void OnParametersSet()
+    {
+        _anyChecked = false;
+        foreach (var item in Items ?? Array.Empty<RibbonMenuItem>())
+        {
+            if (item.Kind == RibbonMenuKind.Item && item.Checked.HasValue)
+            {
+                _anyChecked = true;
+                break;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        IJSObjectReference module = null;
+        try
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await module.InvokeVoidAsync("focusFirst", _menu);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        finally
+        {
+            if (module != null)
+            {
+                try
+                {
+                    await module.DisposeAsync();
+                }
+                catch (JSDisconnectedException)
+                {
+                }
+            }
+        }
+    }
+
+    private string InputId(int index) => _uid + "-" + index.ToString(CultureInfo.InvariantCulture);
+
+    private string DraftOf(int index, RibbonMenuItem item) => _drafts.TryGetValue(index, out var draft) ? draft : item.Value;
+
+    private void SetDraft(int index, ChangeEventArgs e) => _drafts[index] = e.Value?.ToString() ?? string.Empty;
+
+    private static string SwatchStyle(RibbonMenuItem item) => "--cols: " + Math.Max(1, item.Columns).ToString(CultureInfo.InvariantCulture);
+
+    private static string FontStyle(RibbonMenuItem item) => string.IsNullOrEmpty(item.FontFamily) ? null : "font-family: '" + item.FontFamily.Replace("'", string.Empty) + "', var(--font-body)";
+
+    private static string SoftReasonOf(RibbonMenuItem item)
+    {
+        if (!item.Disabled)
+            return null;
+
+        var reason = string.IsNullOrWhiteSpace(item.Reason) ? item.Detail : item.Reason;
+        return string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+    }
+
+    private static string DetailOf(RibbonMenuItem item) => item.Disabled && !string.IsNullOrWhiteSpace(item.Reason) ? item.Reason : item.Detail;
+
+    private Task PickAsync(string value) => OnPick.InvokeAsync(value);
+
+    private Task PickEntryAsync(RibbonMenuItem item) => item.Disabled ? Task.CompletedTask : PickAsync(item.Value);
+
+    private Task DismissAsync() => OnClose.InvokeAsync(true);
+
+    private Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape":
+                return OnClose.InvokeAsync(true);
+            case "Tab":
+            case "F6":
+                return OnClose.InvokeAsync(false);
+            default:
+                return Task.CompletedTask;
+        }
+    }
+
+    private Task OnInputKeyDownAsync(int index, RibbonMenuItem item, KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || e.IsComposing)
+            return Task.CompletedTask;
+
+        return PickAsync(DraftOf(index, item));
+    }
+}

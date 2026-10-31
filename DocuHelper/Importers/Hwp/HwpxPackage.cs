@@ -13,6 +13,8 @@ namespace DocuHelper.Importers.Hwp
     {
         private const string ContainerPath = "META-INF/container.xml";
         private const string ManifestPath = "META-INF/manifest.xml";
+        private const string SignaturesPath = "META-INF/signatures.xml";
+        private const string DocumentSignaturesPath = "META-INF/documentsignatures.xml";
         private const string DefaultRoot = "Contents/content.hpf";
         private const string DefaultHeader = "Contents/header.xml";
 
@@ -46,6 +48,8 @@ namespace DocuHelper.Importers.Hwp
             var manifest = Load(ManifestPath);
             return manifest != null && manifest.Descendants().Any(e => e.Name.LocalName == "encryption-data");
         }
+
+        public bool IsSigned() => _entries.ContainsKey(SignaturesPath) || _entries.ContainsKey(DocumentSignaturesPath);
 
         public XElement Header() => Load(HeaderPath()) ?? throw new InvalidDataException("header.xml is missing.");
 

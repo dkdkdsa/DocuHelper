@@ -7,7 +7,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace DocuHelper.Tools.Word
 {
-    public class WordStyles
+    public partial class WordStyles
     {
         private const int MaxDepth = 16;
         private const int DefaultFontSize = 20;

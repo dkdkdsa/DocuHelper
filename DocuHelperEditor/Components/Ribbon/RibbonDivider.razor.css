@@ -1,0 +1,7 @@
+.divider {
+    flex: none;
+    align-self: center;
+    width: 1px;
+    height: 24px;
+    background: var(--hair);
+}

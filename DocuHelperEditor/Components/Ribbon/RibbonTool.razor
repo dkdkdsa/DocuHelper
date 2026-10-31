@@ -1,0 +1,54 @@
+﻿<button type="button" class="tool @(HasText ? "text" : null) @(Pressed == true ? "on" : null) @Class" title="@(Tip ?? Label ?? Text)" aria-label="@(HasText ? null : Label)" aria-pressed="@PressedText" aria-expanded="@ExpandedText" aria-haspopup="@(Expanded.HasValue ? "menu" : null)" disabled="@Disabled" @onclick="OnClick" @attributes="Attributes">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <RibbonIcon Name="@Icon" Size="@IconSize" Stroke="@Stroke" />
+    }
+    @if (HasText)
+    {
+        <span>@Text</span>
+    }
+</button>
+
+@code {
+    [Parameter]
+    public string Icon { get; set; }
+
+    [Parameter]
+    public int IconSize { get; set; } = 18;
+
+    [Parameter]
+    public double Stroke { get; set; } = 2;
+
+    [Parameter]
+    public string Label { get; set; }
+
+    [Parameter]
+    public string Tip { get; set; }
+
+    [Parameter]
+    public string Text { get; set; }
+
+    [Parameter]
+    public bool? Pressed { get; set; }
+
+    [Parameter]
+    public bool? Expanded { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public string Class { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> Attributes { get; set; }
+
+    private bool HasText => !string.IsNullOrEmpty(Text);
+
+    private string PressedText => Pressed == null ? null : Pressed.Value ? "true" : "false";
+
+    private string ExpandedText => Expanded == null ? null : Expanded.Value ? "true" : "false";
+}

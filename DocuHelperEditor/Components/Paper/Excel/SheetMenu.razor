@@ -1,0 +1,89 @@
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+
+<div class="ctx-scrim" @onclick="Close" @oncontextmenu="Close" @oncontextmenu:preventDefault="true"></div>
+<div class="ctx" role="menu" aria-label="@Label" style="@Position" @onkeydown="OnKeyDown" @oncontextmenu:preventDefault="true">
+    @for (var i = 0; i < Items.Count; i++)
+    {
+        var index = i;
+        var item = Items[index];
+        if (item.Separator)
+        {
+            <div class="sep" role="separator"></div>
+            continue;
+        }
+
+        <button type="button" class="ctx-item" role="menuitem" disabled="@item.Disabled" @ref="_refs[index]" @onclick="() => Pick(item)">@item.Label</button>
+    }
+</div>
+
+@code {
+    private const int ItemHeight = 34;
+    private const int MenuWidth = 220;
+
+    private ElementReference[] _refs = Array.Empty<ElementReference>();
+    private bool _focused;
+
+    [Parameter]
+    public string Label { get; set; }
+
+    [Parameter]
+    public double X { get; set; }
+
+    [Parameter]
+    public double Y { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SheetMenuItem> Items { get; set; } = Array.Empty<SheetMenuItem>();
+
+    [Parameter]
+    public EventCallback<string> OnPick { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string Position
+    {
+        get
+        {
+            var height = (Items.Count * ItemHeight) + 16;
+            var x = X.ToString("0", CultureInfo.InvariantCulture);
+            var y = Y.ToString("0", CultureInfo.InvariantCulture);
+            return $"left: min({x}px, calc(100vw - {MenuWidth + 8}px)); top: min({y}px, calc(100vh - {height}px));";
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_refs.Length != Items.Count)
+            _refs = new ElementReference[Items.Count];
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focused)
+            return;
+
+        var first = Enumerable.Range(0, Items.Count).FirstOrDefault(i => !Items[i].Separator && !Items[i].Disabled, -1);
+        if (first < 0)
+            return;
+
+        _focused = true;
+        try
+        {
+            await _refs[first].FocusAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private Task Pick(SheetMenuItem item) => item.Disabled ? Task.CompletedTask : OnPick.InvokeAsync(item.Key);
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? Close() : Task.CompletedTask;
+}

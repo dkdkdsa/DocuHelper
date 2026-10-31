@@ -46,6 +46,39 @@
         case "sigma":
             <path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2" />
             break;
+        case "wrap":
+            <path d="m16 16-2 2 2 2" /><path d="M3 12h15a3 3 0 1 1 0 6h-4" /><path d="M3 18h7" /><path d="M3 6h18" />
+            break;
+        case "merge":
+            <path d="M12 21v-6" /><path d="M12 9V3" /><path d="M3 15h18" /><path d="M3 9h18" /><rect width="18" height="18" x="3" y="3" rx="2" />
+            break;
+        case "border":
+            <rect width="18" height="18" x="3" y="3" stroke-dasharray="2 2.6" /><path d="M12 3v18" stroke-dasharray="2 2.6" /><path d="M3 12h18" stroke-dasharray="2 2.6" /><path d="M2.5 21h19" stroke-width="2.8" />
+            break;
+        case "valign":
+            <path d="M3 3h18" /><path d="M3 21h18" /><rect width="10" height="8" x="7" y="8" rx="1.5" />
+            break;
+        case "row-insert":
+            <rect width="13" height="7" x="8" y="3" rx="1" /><path d="m2 9 3 3-3 3" /><rect width="13" height="7" x="8" y="14" rx="1" />
+            break;
+        case "column-insert":
+            <rect width="7" height="13" x="3" y="8" rx="1" /><path d="m15 2-3 3-3-3" /><rect width="7" height="13" x="14" y="8" rx="1" />
+            break;
+        case "freeze":
+            <path d="m10 20-1.25-2.5L6 18" /><path d="M10 4 8.75 6.5 6 6" /><path d="m14 20 1.25-2.5L18 18" /><path d="m14 4 1.25 2.5L18 6" /><path d="m17 21-3-6h-4" /><path d="m17 3-3 6 1.5 3" /><path d="M2 12h6.5L10 9" /><path d="m20 10-1.5 2 1.5 2" /><path d="M22 12h-6.5L14 15" /><path d="m4 10 1.5 2L4 14" /><path d="m7 21 3-6-1.5-3" /><path d="m7 3 3 6h4" />
+            break;
+        case "eye-off":
+            <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" /><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" /><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" /><path d="m2 2 20 20" />
+            break;
+        case "copy":
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+            break;
+        case "move":
+            <path d="M8 3 4 7l4 4" /><path d="M4 7h16" /><path d="m16 21 4-4-4-4" /><path d="M20 17H4" />
+            break;
+        case "resize":
+            <path d="m18 8 4 4-4 4" /><path d="M2 12h20" /><path d="m6 8-4 4 4 4" />
+            break;
         case "list":
             <path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />
             break;
@@ -202,6 +235,12 @@
         case "import":
             <path d="M12 3v12" /><path d="m8 11 4 4 4-4" /><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4" />
             break;
+        default:
+            if (FallbackPath != null)
+            {
+                <path d="@FallbackPath" />
+            }
+            break;
     }
 </svg>
 
@@ -219,4 +258,6 @@
     public string Class { get; set; }
 
     private string StrokeText => Stroke.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private string FallbackPath => RibbonIcons.PathOf(Name);
 }

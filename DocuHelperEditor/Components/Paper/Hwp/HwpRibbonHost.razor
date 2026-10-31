@@ -1,0 +1,97 @@
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+@inject IClipboardService Clipboard
+@inject IFileDialogService Files
+
+@if (Router != null)
+{
+    <div class="host">
+        <Ribbon Tabs="HwpRibbon.Tabs"
+                ActiveTab="@State.Tab"
+                ActiveTabChanged="OnTabChanged"
+                IsOpen="@State.RibbonOpen"
+                IsOpenChanged="OnOpenChanged"
+                FileItems="HwpRibbon.FileItems"
+                Host="Router"
+                Format="DocuType.Hwp"
+                HideGroupLabels="true"
+                Disabled="@Router.IsLocked"
+                Label="기본 도구 상자"
+                TabsLabel="메뉴 탭"
+                CollapseLabel="도구 상자 접기"
+                ExpandLabel="도구 상자 펴기">
+            <Trailing>
+                <RibbonTool Icon="external" IconSize="15" Stroke="2.2" Text="한글에서 열기" Tip="@OpenTip" Disabled="@Router.IsDisabled(OpenId)" OnClick="OpenInHancom" />
+            </Trailing>
+        </Ribbon>
+        <RibbonStrip Items="HwpFormatRow.Items" Host="Router" Format="DocuType.Hwp" />
+    </div>
+}
+
+@code {
+    private const string OpenId = "hwp.file.openapp";
+
+    private WorkspaceFile _boundFile;
+    private HwpCommandRouter _subscribed;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private HwpRibbonState State => HwpRibbonState.Of(File);
+
+    private HwpCommandRouter Router => State?.Router;
+
+    private string OpenTip
+    {
+        get
+        {
+            var reason = Router.DisabledReasonOf(OpenId);
+            return reason == null ? "한글에서 열기" : "한글에서 열기 - " + reason;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        var state = State;
+        if (state == null)
+        {
+            Unsubscribe();
+            return;
+        }
+
+        state.Router ??= new HwpCommandRouter(Workspace, Assistant, JS, Clipboard, Files, Settings, state);
+        state.Router.File = File;
+        if (ReferenceEquals(_boundFile, File) && ReferenceEquals(_subscribed, state.Router))
+            return;
+
+        _boundFile = File;
+        Unsubscribe();
+        _subscribed = state.Router;
+        _subscribed.Changed += OnRouterChanged;
+        state.Changed += OnRouterChanged;
+    }
+
+    protected override void OnDispose() => Unsubscribe();
+
+    private void Unsubscribe()
+    {
+        if (_subscribed != null)
+        {
+            _subscribed.Changed -= OnRouterChanged;
+            _subscribed.State.Changed -= OnRouterChanged;
+            _subscribed = null;
+        }
+    }
+
+    private void OnRouterChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnTabChanged(string key)
+    {
+        State.Tab = key;
+        State.RibbonOpen = true;
+    }
+
+    private void OnOpenChanged(bool open) => State.RibbonOpen = open;
+
+    private Task OpenInHancom() => Router.InvokeAsync(OpenId, null);
+}

@@ -17,7 +17,7 @@ namespace DocuHelper.Importers.Hwp
                 if (package.IsEncrypted())
                     throw new HwpException(Locked);
 
-                var document = new HwpDocument();
+                var document = new HwpDocument { Signed = package.IsSigned() };
                 var body = new HwpxBody(new HwpxHeader(package.Header()), document);
                 var first = true;
                 foreach (var section in package.Sections())

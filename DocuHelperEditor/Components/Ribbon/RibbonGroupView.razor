@@ -1,0 +1,40 @@
+﻿<div class="group @(HideLabel ? "bare" : null)" role="group" aria-label="@Group.Title" title="@(HideLabel ? Group.Title : null)" data-ribbon-group>
+    @if (Group.Layout == RibbonGroupLayout.Rows)
+    {
+        <div class="rows">
+            <div class="row">
+                @foreach (var item in Group.Row1 ?? Array.Empty<RibbonItem>())
+                {
+                    <RibbonButton Item="item" />
+                }
+            </div>
+            <div class="row">
+                @foreach (var item in Group.Row2 ?? Array.Empty<RibbonItem>())
+                {
+                    <RibbonButton Item="item" />
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="cells">
+            @foreach (var item in Group.Items ?? Array.Empty<RibbonItem>())
+            {
+                <RibbonButton Item="item" />
+            }
+        </div>
+    }
+    @if (!HideLabel)
+    {
+        <span class="title" aria-hidden="true">@Group.Title</span>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public RibbonGroup Group { get; set; }
+
+    [Parameter]
+    public bool HideLabel { get; set; }
+}

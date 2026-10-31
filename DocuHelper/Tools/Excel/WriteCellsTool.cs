@@ -17,7 +17,8 @@ namespace DocuHelper.Tools.Excel
             "Write values into a block of cells, starting at `start` and going right and down; each cell keeps its formatting. "
             + "JSON numbers become numbers. Strings are read like typing into Excel: \"=D2*E2\" or \"=SUM(F2:F40)\" is a formula, \"1,200\" and \"15%\" become numbers "
             + "with that format, \"2026-06-30\" becomes a date, TRUE/FALSE become logical values, a leading ' keeps the rest as plain text (use it for codes like '00123), "
-            + "and \"\" clears the cell. null leaves a cell as it is. Formulas are calculated right away and their results are returned.";
+            + "and \"\" clears the cell. null leaves a cell as it is. Formulas are calculated right away and their results are returned "
+            + "(set_formula lists the functions calculated here); formulas that refer back to themselves are refused.";
 
         public override string InputSchema => """
             {
@@ -60,6 +61,26 @@ namespace DocuHelper.Tools.Excel
 
             if (writes.Count > MaxCells)
                 throw new ToolInputException($"한 번에 {MaxCells}칸까지만 쓸 수 있어요. 나눠서 써 주세요.");
+
+            var merges = sheet.MergedRanges();
+            foreach (var (address, value) in writes)
+            {
+                if (value.Kind == TypedInputKind.Clear)
+                    continue;
+
+                var merge = merges.FirstOrDefault(m => m.Contains(address.Column, address.Row));
+                if (merge != null && !merge.Start.Equals(address))
+                    throw new ToolInputException($"{address} 칸은 {merge}로 합쳐진 칸 안에 가려져 있어서 값을 쓸 수 없어요. {merge.Start} 칸에 써 주세요.");
+            }
+
+            if (writes.Any(w => w.Value.Kind == TypedInputKind.Formula))
+            {
+                var pending = new Dictionary<CellAddress, string>();
+                foreach (var (address, value) in writes)
+                    pending[address] = value.Kind == TypedInputKind.Formula ? value.Text : null;
+
+                CheckNoCycle(book, sheet, pending);
+            }
 
             sheet.PrepareForWrite();
             var written = new List<CellKey>();

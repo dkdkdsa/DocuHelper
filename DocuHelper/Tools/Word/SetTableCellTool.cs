@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -10,7 +11,8 @@ namespace DocuHelper.Tools.Word
 
         public override string Description =>
             "Replace the text of one table cell, keeping the cell's formatting. row and column are 1-based and count the header row; "
-            + "a merged cell is reached from any row or column it covers. Use \\n for a line break inside the cell.";
+            + "a merged cell is reached from any row or column it covers. Use \\n for a line break inside the cell. "
+            + "When change tracking is on the change is recorded as a tracked change.";
 
         public override string InputSchema => """
             {
@@ -59,17 +61,48 @@ namespace DocuHelper.Tools.Word
                 cell.AppendChild(paragraph);
             }
 
-            foreach (var extra in cell.ChildElements.Where(e => e is not TableCellProperties && !ReferenceEquals(e, paragraph)).ToList())
-                extra.Remove();
+            var revision = WordRevisions.Active(docu);
+            if (revision == null)
+            {
+                foreach (var extra in cell.ChildElements.Where(e => e is not TableCellProperties && !ReferenceEquals(e, paragraph)).ToList())
+                    extra.Remove();
 
-            WordText.Write(paragraph, text);
+                WordText.Write(paragraph, text, false);
+            }
+            else
+            {
+                Track(docu, scan, cell, paragraph, text, revision);
+            }
 
             var updated = WordScan.Read(docu.Document).Of(block.Table) ?? block;
             var location = WordScan.PageLabel(new[] { updated });
             return ToolResult.Changed(
-                $"Set row {row}, column {column} of table {updated.Id}.",
+                $"Set row {row}, column {column} of table {updated.Id}{(revision == null ? string.Empty : " as a tracked change")}.",
                 Change(location, "table", new[] { updated.Anchor }),
                 $"{row}행 {column}열");
+        }
+
+        private static void Track(WordDocu docu, WordScan scan, TableCell cell, Paragraph paragraph, string text, RevisionContext revision)
+        {
+            if (cell.ChildElements.Any(e => e is not TableCellProperties && e is not Paragraph))
+                throw new ToolInputException("표나 콘텐츠 컨트롤이 들어 있는 칸은 변경 내용 추적 중에 바꿀 수 없어요. 추적을 끄거나 다른 칸을 골라 주세요.");
+
+            var editor = new WordTextEditor(docu, scan.Styles, revision);
+            var transaction = WordTransaction.Begin(new[] { scan.Body });
+            try
+            {
+                WordRunDiff.Rewrite(editor, paragraph, text, true);
+                foreach (var extra in cell.Elements<Paragraph>().Where(p => !ReferenceEquals(p, paragraph)).ToList())
+                {
+                    if (WordRevisionOps.RecordDeleted(extra, revision, true))
+                        extra.Remove();
+                }
+            }
+            catch (Exception)
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
     }
 }

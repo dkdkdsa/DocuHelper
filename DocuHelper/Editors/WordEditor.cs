@@ -14,6 +14,20 @@ namespace DocuHelper.Editors
             AddTool(new DeleteParagraphsTool());
             AddTool(new FormatParagraphTool());
             AddTool(new SetTableCellTool());
+            AddTool(new EditTextTool());
+            AddTool(new ReplaceTextTool());
+            AddTool(new FormatTextTool());
+            AddTool(new EditTableTool());
+            AddTool(new ReadDocumentTool());
+            AddTool(new SetListTool());
+            AddTool(new EditStyleTool());
+            AddTool(new SetDocumentDesignTool());
+            AddTool(new ManageCommentsTool());
+            AddTool(new ManageRevisionsTool());
+            AddTool(new SetDocumentSettingsTool());
+            AddTool(new SetPageSetupTool());
+            AddTool(new SetHeaderFooterTool());
+            AddTool(new InsertPageTool());
         }
 
         public override DocuType TargetType => DocuType.Word;

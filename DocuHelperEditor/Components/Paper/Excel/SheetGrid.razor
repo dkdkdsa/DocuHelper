@@ -1,23 +1,37 @@
-﻿@using DocuHelperEditor.State.Papers
+﻿@using System.Globalization
+@using Microsoft.AspNetCore.Components.Rendering
+@using DocuHelperEditor.State.Papers
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
-<div class="grid @(Locked ? "locked" : null)">
+<div class="grid @(Locked ? "locked" : null)" @ref="_grid">
     @if (Sheet != null)
     {
-        <table class="sheet" aria-label="@TableLabel">
+        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" aria-label="@TableLabel">
             <colgroup>
                 <col class="rh" />
                 @foreach (var column in Sheet.Columns)
                 {
+                    if (column.Hidden)
+                    {
+                        continue;
+                    }
+
                     <col style="@WidthStyle(column)" />
                 }
             </colgroup>
             <thead>
                 <tr>
-                    <th scope="col"><span class="sr-only">행</span></th>
+                    <th scope="col" title="모두 고르기"><span class="sr-only">행</span></th>
                     @for (var c = 0; c < Sheet.Columns.Count; c++)
                     {
                         var columnIndex = c;
-                        <th scope="col" class="@(columnIndex == _selectedColumn ? "sel" : null)">@ColumnName(columnIndex)</th>
+                        if (Sheet.Columns[columnIndex].Hidden)
+                        {
+                            continue;
+                        }
+
+                        <th scope="col" data-c="@columnIndex" class="@ColumnHeadClass(columnIndex)" style="@FrozenLeft(columnIndex)">@ColumnName(columnIndex)</th>
                     }
                 </tr>
             </thead>
@@ -26,50 +40,67 @@
                 {
                     var rowIndex = r;
                     var row = Sheet.FindRow(rowIndex);
+                    if (row?.Hidden == true)
+                    {
+                        continue;
+                    }
+
                     var barId = BarChangeId(row);
-                    <tr class="@RowClass(rowIndex, row)" data-change="@barId">
-                        <th scope="row" class="@RowHeadClass(rowIndex, barId)">@(rowIndex + 1)</th>
+                    <tr class="@RowClass(rowIndex, row)" style="@HeightStyle(row)" data-r="@rowIndex" data-change="@barId">
+                        <th scope="row" class="@RowHeadClass(rowIndex, barId)">
+                            @(rowIndex + 1)
+                            @if (RowDecorations != null)
+                            {
+                                @RowDecorations(new SheetRowContext(Sheet, row, rowIndex))
+                            }
+                        </th>
                         @for (var c = 0; c < Sheet.Columns.Count; c++)
                         {
                             var columnIndex = c;
-                            var cell = Sheet.FindCell(rowIndex, columnIndex);
-                            var cellRef = SheetRef.Make(columnIndex, rowIndex);
-                            var selected = rowIndex == _selectedRow && columnIndex == _selectedColumn;
-                            <td class="@CellClass(cell, row, selected)" style="@ColorStyle(cell)" @onclick="() => OnCellClick.InvokeAsync(cellRef)" @ondblclick="() => OnCellDoubleClick.InvokeAsync(cellRef)">
-                                @if (selected)
+                            if (Sheet.Columns[columnIndex].Hidden)
+                            {
+                                continue;
+                            }
+
+                            var merge = Sheet.MergeAt(rowIndex, columnIndex);
+                            if (merge.HasValue && !IsAnchor(merge.Value, rowIndex, columnIndex))
+                            {
+                                continue;
+                            }
+
+                            var area = merge ?? new SheetRegion(rowIndex, columnIndex, rowIndex, columnIndex);
+                            var cell = Sheet.FindCell(area.Top, area.Left);
+                            var cellRef = SheetRef.Make(area.Left, area.Top);
+                            var active = area.Contains(_selectedRow, _selectedColumn);
+                            var context = new SheetCellContext(Sheet, row, cell, rowIndex, columnIndex, area, active);
+                            <td data-c="@columnIndex" rowspan="@Span(merge, true)" colspan="@Span(merge, false)" class="@WithExtra(CellClass(cell, row, area, columnIndex, active), CellClassHook, context, " ")" style="@WithExtra(CellStyle(cell, merge, columnIndex), CellStyleHook, context, "; ")" data-x="@(cellRef == ExtentRef ? "1" : null)" @ondblclick="() => OnCellDoubleClick.InvokeAsync(cellRef)">
+                                @if (active)
                                 {
                                     var sinkKey = cellRef + "-" + Version;
                                     <input id="@SinkId" @key="sinkKey" class="sink @(EditingInCell ? "on" : null)" value="@(EditingInCell ? SinkSeed : string.Empty)" readonly="@Locked" autocomplete="off" spellcheck="false" aria-label="@SinkLabel(cellRef, cell)" @oninput="HandleSinkInput" @onkeydown="HandleSinkKeyDown" @onblur="HandleSinkBlur" />
                                 }
-                                @if (selected && EditingInBar)
+                                @if (active && EditingInBar)
                                 {
                                     @Draft
                                 }
                                 else if (cell != null && !string.IsNullOrEmpty(cell.Text))
                                 {
-                                    var marked = cell.HasChange(HighlightChangeId);
-                                    var asking = ShowAsking && cell.IsAsking;
-                                    if (marked)
+                                    if (cell.OverflowWidth.HasValue)
                                     {
-                                        <span class="mk on" data-change="@HighlightChangeId" style="@DelayStyle(rowIndex)" @key="HighlightChangeId">
-                                            @if (asking)
-                                            {
-                                                <span class="pc">@cell.Text</span>
-                                            }
-                                            else
-                                            {
-                                                @cell.Text
-                                            }
-                                        </span>
-                                    }
-                                    else if (asking)
-                                    {
-                                        <span class="pc">@cell.Text</span>
+                                        <span class="ov" style="@("width: " + cell.OverflowWidth.Value + "px")">@{ RenderText(__builder, cell, rowIndex); }</span>
                                     }
                                     else
                                     {
-                                        @cell.Text
+                                        RenderText(__builder, cell, rowIndex);
                                     }
+                                }
+                                @if (ShowFillHandle && area.Contains(Selection.Bottom, Selection.Right))
+                                {
+                                    <span class="fh" title="끌어서 채우기" aria-hidden="true"></span>
+                                }
+                                @if (CellDecorations != null)
+                                {
+                                    @CellDecorations(context)
                                 }
                             </td>
                         }
@@ -77,14 +108,25 @@
                 }
             </tbody>
         </table>
+        @if (Overlay != null)
+        {
+            <div class="overlay">@Overlay(Sheet)</div>
+        }
     }
 </div>
 
 @code {
+    private const string ModulePath = "./Components/Paper/Excel/SheetGrid.razor.js";
+    private const double PixelsPerPoint = 14.0 / 11.0;
+
+    private ElementReference _grid;
+    private IJSObjectReference _module;
+    private DotNetObjectReference<SheetGrid> _self;
     private int _rowCount;
     private int _selectedRow = -1;
     private int _selectedColumn = -1;
     private int _firstMarkedRow;
+    private int _lastFrozenRow = -1;
 
     [Parameter]
     public Sheet Sheet { get; set; }
@@ -94,6 +136,24 @@
 
     [Parameter]
     public string SelectedRef { get; set; }
+
+    [Parameter]
+    public SheetRegion Selection { get; set; }
+
+    [Parameter]
+    public string ExtentRef { get; set; }
+
+    [Parameter]
+    public SheetRegion? PointRegion { get; set; }
+
+    [Parameter]
+    public SheetRegion? CutRegion { get; set; }
+
+    [Parameter]
+    public SheetRegion? FillPreview { get; set; }
+
+    [Parameter]
+    public bool ShowFillHandle { get; set; }
 
     [Parameter]
     public bool Locked { get; set; }
@@ -123,7 +183,31 @@
     public bool ShowAsking { get; set; }
 
     [Parameter]
-    public EventCallback<string> OnCellClick { get; set; }
+    public RenderFragment<SheetCellContext> CellDecorations { get; set; }
+
+    [Parameter]
+    public RenderFragment<SheetRowContext> RowDecorations { get; set; }
+
+    [Parameter]
+    public RenderFragment<Sheet> Overlay { get; set; }
+
+    [Parameter]
+    public Func<SheetCellContext, string> CellClassHook { get; set; }
+
+    [Parameter]
+    public Func<SheetCellContext, string> CellStyleHook { get; set; }
+
+    [Parameter]
+    public EventCallback<SheetPointer> OnPointer { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnPaste { get; set; }
+
+    [Parameter]
+    public EventCallback<SheetResize> OnResize { get; set; }
+
+    [Parameter]
+    public EventCallback<SheetMenuRequest> OnMenu { get; set; }
 
     [Parameter]
     public EventCallback<string> OnCellDoubleClick { get; set; }
@@ -139,6 +223,8 @@
 
     private string TableLabel => Sheet.Name + " 시트";
 
+    private bool IsMulti => !Selection.IsSingle;
+
     protected override void OnParametersSet()
     {
         _rowCount = Sheet?.DisplayRowCount ?? 0;
@@ -149,6 +235,107 @@
         }
 
         _firstMarkedRow = FindFirstMarkedRow();
+        _lastFrozenRow = -1;
+        for (var r = Math.Min(Sheet?.FreezeRows ?? 0, _rowCount) - 1; r >= 0; r--)
+        {
+            if (!Sheet.IsRowHidden(r))
+            {
+                _lastFrozenRow = r;
+                break;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _self = DotNetObjectReference.Create(this);
+                _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+                await _module.InvokeVoidAsync("attach", _grid, _self);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        if (_module != null && Sheet != null && (Sheet.FreezeRows > 0 || Sheet.FreezeColumns > 0))
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("layout", _grid, Sheet.FreezeRows, Sheet.FreezeColumns);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+
+    [JSInvokable]
+    public Task Pointer(string phase, int row, int column, bool shift) => OnPointer.InvokeAsync(new SheetPointer(phase, row, column, shift));
+
+    [JSInvokable]
+    public Task Paste(string text) => OnPaste.InvokeAsync(text);
+
+    [JSInvokable]
+    public Task Resize(bool rows, int index, int pixels) => OnResize.InvokeAsync(new SheetResize(rows, index, pixels));
+
+    [JSInvokable]
+    public Task Menu(string kind, int row, int column, double x, double y) => OnMenu.InvokeAsync(new SheetMenuRequest(kind, row, column, x, y));
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module != null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("detach", _grid);
+                await _module.DisposeAsync();
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        _self?.Dispose();
+    }
+
+    private void RenderText(RenderTreeBuilder __builder, SheetCell cell, int rowIndex)
+    {
+        var marked = cell.HasChange(HighlightChangeId);
+        var asking = ShowAsking && cell.IsAsking;
+        if (marked)
+        {
+            <span class="mk on" data-change="@HighlightChangeId" style="@DelayStyle(rowIndex)" @key="HighlightChangeId">
+                @if (asking)
+                {
+                    <span class="pc">@cell.Text</span>
+                }
+                else
+                {
+                    @cell.Text
+                }
+            </span>
+        }
+        else if (asking)
+        {
+            <span class="pc">@cell.Text</span>
+        }
+        else
+        {
+            @cell.Text
+        }
     }
 
     private int FindFirstMarkedRow()
@@ -166,7 +353,45 @@
         return string.IsNullOrEmpty(letter) ? SheetRef.ColumnName(index) : letter;
     }
 
+    private static string WithExtra(string value, Func<SheetCellContext, string> hook, SheetCellContext context, string separator)
+    {
+        var extra = hook?.Invoke(context);
+        if (string.IsNullOrEmpty(extra))
+            return value;
+
+        return string.IsNullOrEmpty(value) ? extra : value + separator + extra;
+    }
+
     private static string WidthStyle(SheetColumn column) => column.Width.HasValue ? "width: " + column.Width.Value + "px" : null;
+
+    private static string HeightStyle(SheetRow row) => row?.Height is int height ? "--rh: " + height + "px" : null;
+
+    private bool IsAnchor(SheetRegion merge, int rowIndex, int columnIndex)
+    {
+        var firstRow = merge.Top;
+        while (firstRow < merge.Bottom && Sheet.IsRowHidden(firstRow))
+            firstRow++;
+
+        var firstColumn = merge.Left;
+        while (firstColumn < merge.Right && Sheet.IsColumnHidden(firstColumn))
+            firstColumn++;
+
+        return rowIndex == firstRow && columnIndex == firstColumn;
+    }
+
+    private int? Span(SheetRegion? merge, bool rows)
+    {
+        if (!merge.HasValue)
+            return null;
+
+        var region = merge.Value;
+        var count = rows
+            ? Enumerable.Range(region.Top, region.RowCount).Count(r => r < _rowCount && !Sheet.IsRowHidden(r))
+            : Enumerable.Range(region.Left, region.ColumnCount).Count(c => !Sheet.IsColumnHidden(c));
+        return count > 1 ? count : null;
+    }
+
+    private string FrozenLeft(int columnIndex) => columnIndex < Sheet.FreezeColumns ? "left: var(--fz-l" + columnIndex + ")" : null;
 
     private string BarChangeId(SheetRow row)
     {
@@ -187,26 +412,52 @@
 
     private string RowClass(int rowIndex, SheetRow row)
     {
+        var classes = new List<string>();
         if (row?.Kind == SheetRowKind.Total)
-            return "tot";
+            classes.Add("tot");
+        else if (Sheet.FindRow(rowIndex + 1)?.Kind == SheetRowKind.Total)
+            classes.Add("pre-tot");
 
-        return Sheet.FindRow(rowIndex + 1)?.Kind == SheetRowKind.Total ? "pre-tot" : null;
+        if (row?.Height != null)
+            classes.Add("hx");
+
+        if (rowIndex < Sheet.FreezeRows)
+            classes.Add(rowIndex == _lastFrozenRow ? "fz fz-end" : "fz");
+
+        return classes.Count == 0 ? null : string.Join(" ", classes);
+    }
+
+    private string ColumnHeadClass(int columnIndex)
+    {
+        var classes = new List<string>();
+        if (columnIndex >= Selection.Left && columnIndex <= Selection.Right)
+            classes.Add("sel");
+
+        if (Sheet.IsColumnHidden(columnIndex + 1))
+            classes.Add("gap");
+
+        if (columnIndex < Sheet.FreezeColumns)
+            classes.Add(columnIndex == Sheet.FreezeColumns - 1 ? "fzc fzc-end" : "fzc");
+
+        return classes.Count == 0 ? null : string.Join(" ", classes);
     }
 
     private string RowHeadClass(int rowIndex, string barId)
     {
-        var selected = rowIndex == _selectedRow;
-        var bar = barId != null;
-        if (selected && bar)
-            return "sel bar";
+        var classes = new List<string>();
+        if (rowIndex >= Selection.Top && rowIndex <= Selection.Bottom)
+            classes.Add("sel");
 
-        if (selected)
-            return "sel";
+        if (barId != null)
+            classes.Add("bar");
 
-        return bar ? "bar" : null;
+        if (Sheet.IsRowHidden(rowIndex + 1))
+            classes.Add("gap");
+
+        return classes.Count == 0 ? null : string.Join(" ", classes);
     }
 
-    private static string CellClass(SheetCell cell, SheetRow row, bool selected)
+    private string CellClass(SheetCell cell, SheetRow row, SheetRegion area, int columnIndex, bool active)
     {
         var kind = row?.Kind ?? SheetRowKind.Normal;
         var classes = new List<string>();
@@ -219,6 +470,9 @@
             if (cell.Italic)
                 classes.Add("i");
 
+            if (cell.IsPending)
+                classes.Add("pend");
+
             if (cell.Underline)
                 classes.Add("u");
 
@@ -226,21 +480,102 @@
                 classes.Add("al-c");
             else if (cell.Align == SheetAlign.Right || (cell.Align == SheetAlign.Auto && cell.IsNumber))
                 classes.Add("al-r");
+
+            if (cell.Wrap)
+                classes.Add("wr");
+
+            if (cell.VAlign == "top")
+                classes.Add("va-t");
+            else if (cell.VAlign == "center")
+                classes.Add("va-m");
+            else if (cell.VAlign == "bottom")
+                classes.Add("va-b");
+
+            if (cell.OverflowWidth.HasValue)
+                classes.Add("ovf");
         }
 
-        if (selected)
-            classes.Add("sel");
+        if (columnIndex < Sheet.FreezeColumns)
+            classes.Add(area.Right >= Sheet.FreezeColumns - 1 ? "fzc fzc-end" : "fzc");
+
+        if (active)
+            classes.Add(IsMulti ? "sel act" : "sel");
+
+        if (IsMulti && Selection.Contains(area.Top, area.Left))
+            AddEdges(classes, "in", "e", Selection, area);
+
+        var (mark, region) = MarkAt(area.Top, area.Left);
+        if (mark != null)
+            AddEdges(classes, "mark " + mark, "m", region, area);
 
         return classes.Count == 0 ? null : string.Join(" ", classes);
     }
 
-    private static string ColorStyle(SheetCell cell)
+    private (string Mark, SheetRegion Region) MarkAt(int rowIndex, int columnIndex)
     {
-        if (cell == null || (cell.FillColor == null && cell.FontColor == null))
-            return null;
+        if (PointRegion is { } point && point.Contains(rowIndex, columnIndex))
+            return ("m-pt", point);
 
-        var style = cell.FillColor == null ? string.Empty : "background-color: #" + cell.FillColor + ";";
-        return cell.FontColor == null ? style : style + " color: #" + cell.FontColor + ";";
+        if (FillPreview is { } fill && fill.Contains(rowIndex, columnIndex))
+            return ("m-fp", fill);
+
+        if (CutRegion is { } cut && cut.Contains(rowIndex, columnIndex))
+            return ("m-ct", cut);
+
+        return (null, default);
+    }
+
+    private static void AddEdges(List<string> classes, string name, string prefix, SheetRegion region, SheetRegion area)
+    {
+        classes.Add(name);
+        if (area.Top == region.Top)
+            classes.Add(prefix + "-t");
+
+        if (area.Bottom == region.Bottom)
+            classes.Add(prefix + "-b");
+
+        if (area.Left == region.Left)
+            classes.Add(prefix + "-l");
+
+        if (area.Right == region.Right)
+            classes.Add(prefix + "-r");
+    }
+
+    private string CellStyle(SheetCell cell, SheetRegion? merge, int columnIndex)
+    {
+        var parts = new List<string>();
+        if (cell != null)
+        {
+            if (cell.FillColor != null)
+                parts.Add("background-color: #" + cell.FillColor);
+
+            if (cell.FontColor != null)
+                parts.Add("color: #" + cell.FontColor);
+
+            if (cell.FontFamily != null)
+                parts.Add("font-family: '" + cell.FontFamily.Replace("'", string.Empty) + "', var(--font-body)");
+
+            if (cell.FontSize.HasValue)
+                parts.Add("font-size: " + (cell.FontSize.Value * PixelsPerPoint).ToString("0.#", CultureInfo.InvariantCulture) + "px");
+        }
+
+        var right = merge.HasValue ? Sheet.FindCell(merge.Value.Top, merge.Value.Right) : cell;
+        var bottom = merge.HasValue ? Sheet.FindCell(merge.Value.Bottom, merge.Value.Left) : cell;
+        AddBorder(parts, "top", cell?.BorderTop);
+        AddBorder(parts, "left", cell?.BorderLeft);
+        AddBorder(parts, "right", right?.BorderRight);
+        AddBorder(parts, "bottom", bottom?.BorderBottom);
+        var left = FrozenLeft(columnIndex);
+        if (left != null)
+            parts.Add(left);
+
+        return parts.Count == 0 ? null : string.Join("; ", parts);
+    }
+
+    private static void AddBorder(List<string> parts, string side, string border)
+    {
+        if (border != null)
+            parts.Add("border-" + side + ": " + border);
     }
 
     private string DelayStyle(int rowIndex)
@@ -251,10 +586,11 @@
 
     private string SinkLabel(string cellRef, SheetCell cell)
     {
+        var label = IsMulti ? Selection.ToRef() + " 고름, " : string.Empty;
         if (cell == null || string.IsNullOrEmpty(cell.Text))
-            return cellRef + " 칸";
+            return label + cellRef + " 칸";
 
-        var label = cellRef + " 칸, " + cell.Text;
+        label += cellRef + " 칸, " + cell.Text;
         if (ShowAsking && cell.IsAsking)
             label += ", 도우미가 물어보는 칸";
 

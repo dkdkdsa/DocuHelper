@@ -1,0 +1,8 @@
+﻿<span class="divider" style="@Style" aria-hidden="true"></span>
+
+@code {
+    [Parameter]
+    public int Gap { get; set; } = 4;
+
+    private string Style => "margin: 0 " + Gap + "px";
+}

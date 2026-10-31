@@ -1,0 +1,64 @@
+﻿@using System.Globalization
+
+<div class="zoom" role="group" aria-label="@Label">
+    <RibbonTool Icon="minus" IconSize="16" Stroke="2.4" Label="축소" OnClick="ZoomOutAsync" />
+    <input type="range" class="slider" min="@Min" max="@Max" step="@Step" value="@Shown" style="@SliderStyle" aria-label="@Label" aria-valuetext="@ShownText" @oninput="OnInput" @onchange="OnChange" />
+    <RibbonTool Icon="plus" IconSize="16" Stroke="2.4" Label="확대" OnClick="ZoomInAsync" />
+    <StatusButton Class="percent" Tip="확대/축소 비율 (누르면 100%)" OnClick="ResetAsync">@ShownText</StatusButton>
+</div>
+
+@code {
+    private int? _preview;
+
+    [Parameter]
+    public int Value { get; set; } = 100;
+
+    [Parameter]
+    public EventCallback<int> ValueChanged { get; set; }
+
+    [Parameter]
+    public int Min { get; set; } = 50;
+
+    [Parameter]
+    public int Max { get; set; } = 200;
+
+    [Parameter]
+    public int Step { get; set; } = 10;
+
+    [Parameter]
+    public int Reset { get; set; } = 100;
+
+    [Parameter]
+    public int SliderWidth { get; set; } = 92;
+
+    [Parameter]
+    public string Label { get; set; } = "확대/축소";
+
+    private int Shown => _preview ?? Value;
+
+    private string ShownText => Shown.ToString(CultureInfo.InvariantCulture) + "%";
+
+    private string SliderStyle => "width: " + SliderWidth.ToString(CultureInfo.InvariantCulture) + "px";
+
+    protected override void OnParametersSet() => _preview = null;
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            _preview = Clamp(value);
+    }
+
+    private Task OnChange(ChangeEventArgs e)
+    {
+        _preview = null;
+        return int.TryParse(e.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? ValueChanged.InvokeAsync(Clamp(value)) : Task.CompletedTask;
+    }
+
+    private Task ZoomOutAsync() => ValueChanged.InvokeAsync(Clamp(Value - Step));
+
+    private Task ZoomInAsync() => ValueChanged.InvokeAsync(Clamp(Value + Step));
+
+    private Task ResetAsync() => ValueChanged.InvokeAsync(Clamp(Reset));
+
+    private int Clamp(int value) => Math.Max(Min, Math.Min(Max, value));
+}

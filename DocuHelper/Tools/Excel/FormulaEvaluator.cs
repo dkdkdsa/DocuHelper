@@ -5,19 +5,21 @@ using System.Linq;
 
 namespace DocuHelper.Tools.Excel
 {
-    internal sealed class FormulaEvaluator
+    internal sealed partial class FormulaEvaluator
     {
         private readonly WorkbookCalculator _calculator;
         private readonly ExcelSheet _sheet;
         private readonly int _column;
         private readonly int _row;
+        private readonly bool _strict;
 
-        public FormulaEvaluator(WorkbookCalculator calculator, ExcelSheet sheet, int column, int row)
+        public FormulaEvaluator(WorkbookCalculator calculator, ExcelSheet sheet, int column, int row, bool strict = false)
         {
             _calculator = calculator;
             _sheet = sheet;
             _column = column;
             _row = row;
+            _strict = strict;
         }
 
         public ExcelValue Evaluate(FormulaNode node)
@@ -42,14 +44,16 @@ namespace DocuHelper.Tools.Excel
                     return FormulaOperand.Of(ExcelValue.Blank);
                 case FormulaNodeKind.Reference:
                     return Reference(node.Reference);
+                case FormulaNodeKind.Name:
+                    return DefinedName(node, 0);
                 case FormulaNodeKind.Unary:
                     return FormulaOperand.Of(Unary(node));
                 case FormulaNodeKind.Percent:
                     return FormulaOperand.Of(Percent(node));
                 case FormulaNodeKind.Binary:
-                    return FormulaOperand.Of(Binary(node));
+                    return node.Value == " " ? Intersection(node) : FormulaOperand.Of(Binary(node));
                 case FormulaNodeKind.Function:
-                    return FormulaOperand.Of(Call(node));
+                    return CallOperand(node);
                 default:
                     throw new UnknownValueException();
             }
@@ -106,26 +110,36 @@ namespace DocuHelper.Tools.Excel
             return range.Intersect(new CellRange(0, 0, sheet.MaxColumn, sheet.MaxRow));
         }
 
-        private ExcelValue Unary(FormulaNode node)
+        private FormulaOperand Intersection(FormulaNode node)
         {
-            var value = Scalar(node.Children[0]);
-            if (node.Value == "+")
+            var left = Eval(node.Children[0]);
+            var right = Eval(node.Children[1]);
+            if (!left.IsRange || !right.IsRange || left.Sheet != right.Sheet)
+                return FormulaOperand.Of(ExcelValue.FromError(ExcelValue.BadValue));
+
+            var overlap = left.Range.Intersect(right.Range);
+            return overlap == null ? FormulaOperand.Of(ExcelValue.FromError(ExcelValue.NullError)) : FormulaOperand.Of(left.Sheet, overlap);
+        }
+
+        private ExcelValue Unary(FormulaNode node) => UnaryValue(node.Value, Scalar(node.Children[0]));
+
+        private static ExcelValue UnaryValue(string op, ExcelValue value)
+        {
+            if (op == "+")
                 return value;
 
             return TryNumber(value, out var number, out var error) ? ExcelValue.FromNumber(-number) : error;
         }
 
-        private ExcelValue Percent(FormulaNode node)
-        {
-            var value = Scalar(node.Children[0]);
-            return TryNumber(value, out var number, out var error) ? ExcelValue.FromNumber(number / 100) : error;
-        }
+        private ExcelValue Percent(FormulaNode node) => PercentValue(Scalar(node.Children[0]));
 
-        private ExcelValue Binary(FormulaNode node)
+        private static ExcelValue PercentValue(ExcelValue value) =>
+            TryNumber(value, out var number, out var error) ? ExcelValue.FromNumber(number / 100) : error;
+
+        private ExcelValue Binary(FormulaNode node) => BinaryValues(node.Value, Scalar(node.Children[0]), Scalar(node.Children[1]));
+
+        private static ExcelValue BinaryValues(string op, ExcelValue left, ExcelValue right)
         {
-            var left = Scalar(node.Children[0]);
-            var right = Scalar(node.Children[1]);
-            var op = node.Value;
             if (op == "&")
             {
                 if (left.IsError)
@@ -183,10 +197,23 @@ namespace DocuHelper.Tools.Excel
             }
         }
 
-        private ExcelValue Call(FormulaNode node)
+        private FormulaOperand CallOperand(FormulaNode node)
         {
-            var args = node.Children;
-            switch (FormulaFunctions.Normalize(node.Value))
+            var name = FormulaFunctions.Normalize(node.Value);
+            if (!FormulaFunctions.AcceptsCount(name, node.Children.Count))
+                throw new UnknownValueException();
+
+            return name switch
+            {
+                "INDEX" => Index(node.Children),
+                "XLOOKUP" => XLookup(node.Children),
+                _ => FormulaOperand.Of(Call(name, node.Children)),
+            };
+        }
+
+        private ExcelValue Call(string name, List<FormulaNode> args)
+        {
+            switch (name)
             {
                 case "SUM":
                     return Aggregate(args, numbers => numbers.Sum());
@@ -228,10 +255,23 @@ namespace DocuHelper.Tools.Excel
                 case "COUNTIFS":
                     return CountIfs(args);
                 case "SUMIFS":
-                    return SumIfs(args);
-                default:
-                    throw new UnknownValueException();
+                    return Ifs(args, IfsMode.Sum);
+                case "AVERAGEIFS":
+                    return Ifs(args, IfsMode.Average);
+                case "MAXIFS":
+                    return Ifs(args, IfsMode.Max);
+                case "MINIFS":
+                    return Ifs(args, IfsMode.Min);
             }
+
+            var result = CallMath(name, args) ?? CallText(name, args) ?? CallDates(name, args) ?? CallInfo(name, args) ?? CallLookup(name, args);
+            if (result != null)
+                return result;
+
+            if (_strict && !FormulaFunctions.IsExcelFunction(name))
+                return ExcelValue.FromError(ExcelValue.BadName);
+
+            throw new UnknownValueException();
         }
 
         private ExcelValue Aggregate(List<FormulaNode> args, Func<List<double>, double> combine, bool average = false)
@@ -329,7 +369,11 @@ namespace DocuHelper.Tools.Excel
             if (!TryNumber(Scalar(args[1]), out var digitsValue, out error))
                 return error;
 
-            var digits = (int)Math.Truncate(digitsValue);
+            return RoundValue(number, (int)Math.Truncate(digitsValue), mode);
+        }
+
+        private static ExcelValue RoundValue(double number, int digits, MidpointRounding mode)
+        {
             if (digits > 15 || Math.Abs(number) * Math.Pow(10, Math.Max(0, digits)) >= 7.9e27)
                 return ExcelValue.FromNumber(number);
 
@@ -487,7 +531,7 @@ namespace DocuHelper.Tools.Excel
             return ExcelValue.FromNumber(count);
         }
 
-        private ExcelValue SumIfs(List<FormulaNode> args)
+        private ExcelValue Ifs(List<FormulaNode> args, IfsMode mode)
         {
             var target = Eval(args[0]);
             if (!target.IsRange)
@@ -509,28 +553,42 @@ namespace DocuHelper.Tools.Excel
 
             var clipped = Clip(target.Sheet, shape);
             double total = 0;
-            if (clipped == null)
-                return ExcelValue.Zero;
-
-            for (var row = clipped.Top; row <= clipped.Bottom; row++)
+            var count = 0;
+            var max = double.MinValue;
+            var min = double.MaxValue;
+            if (clipped != null)
             {
-                for (var column = clipped.Left; column <= clipped.Right; column++)
+                for (var row = clipped.Top; row <= clipped.Bottom; row++)
                 {
-                    var dr = row - shape.Top;
-                    var dc = column - shape.Left;
-                    if (!pairs.All(p => p.Criteria.Matches(_calculator.GetValue(p.Range.Sheet, p.Range.Range.Left + dc, p.Range.Range.Top + dr))))
-                        continue;
+                    for (var column = clipped.Left; column <= clipped.Right; column++)
+                    {
+                        var dr = row - shape.Top;
+                        var dc = column - shape.Left;
+                        if (!pairs.All(p => p.Criteria.Matches(_calculator.GetValue(p.Range.Sheet, p.Range.Range.Left + dc, p.Range.Range.Top + dr))))
+                            continue;
 
-                    var value = _calculator.GetValue(target.Sheet, column, row);
-                    if (value.IsError)
-                        return value;
+                        var value = _calculator.GetValue(target.Sheet, column, row);
+                        if (value.IsError)
+                            return value;
 
-                    if (value.IsNumber)
+                        if (!value.IsNumber)
+                            continue;
+
                         total += value.Number;
+                        count++;
+                        max = Math.Max(max, value.Number);
+                        min = Math.Min(min, value.Number);
+                    }
                 }
             }
 
-            return ExcelValue.FromNumber(total);
+            return mode switch
+            {
+                IfsMode.Average => count == 0 ? ExcelValue.FromError(ExcelValue.DivideByZero) : ExcelValue.FromNumber(total / count),
+                IfsMode.Max => count == 0 ? ExcelValue.Zero : ExcelValue.FromNumber(max),
+                IfsMode.Min => count == 0 ? ExcelValue.Zero : ExcelValue.FromNumber(min),
+                _ => ExcelValue.FromNumber(total),
+            };
         }
 
         private static bool TryNumber(ExcelValue value, out double number, out ExcelValue error)

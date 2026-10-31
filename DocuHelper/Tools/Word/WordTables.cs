@@ -9,9 +9,6 @@ namespace DocuHelper.Tools.Word
 {
     public static class WordTables
     {
-        private const string BorderColor = "999999";
-        private const string HeaderFill = "F2F2F2";
-
         private static readonly Regex s_number = new(
             @"^\(?[+\-−±]?[₩$€£¥]?\s*\d[\d,]*(\.\d+)?\s*(%|％|원|만|억|천|만\s?원|억\s?원|천\s?원|개|건|명|회|배|시간|일|kg|g|km|m|점|p|pt)?\)?$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -128,39 +125,46 @@ namespace DocuHelper.Tools.Word
             return runs.Count > 0 && runs.All(x => WordStyles.IsOn(styles.RunValue<Bold>(x.Run, x.Paragraph)));
         }
 
-        public static Table Build(IReadOnlyList<IReadOnlyList<string>> rows, bool header, int width, HashSet<string> used)
+        public static Table Build(
+            IReadOnlyList<IReadOnlyList<string>> rows,
+            bool header,
+            int width,
+            HashSet<string> used,
+            IReadOnlyList<double> widths = null,
+            string style = null,
+            TableRowAlignmentValues? align = null)
         {
             var columns = Math.Max(1, rows.Max(r => r.Count));
             var numeric = NumericColumns(rows, header);
             var cellWidth = Math.Max(400, width / columns);
-            var cellText = cellWidth.ToString(CultureInfo.InvariantCulture);
+            var sizes = widths != null ? WordTableOps.Fit(widths, width) : Enumerable.Repeat(cellWidth, columns).ToList();
+            var preset = style ?? WordTableStyle.Grid;
 
             var table = new Table();
-            table.AppendChild(new TableProperties(
-                new TableWidth { Width = (cellWidth * columns).ToString(CultureInfo.InvariantCulture), Type = TableWidthUnitValues.Dxa },
-                new TableBorders(
-                    new TopBorder { Val = BorderValues.Single, Size = 4U, Space = 0U, Color = BorderColor },
-                    new LeftBorder { Val = BorderValues.Single, Size = 4U, Space = 0U, Color = BorderColor },
-                    new BottomBorder { Val = BorderValues.Single, Size = 4U, Space = 0U, Color = BorderColor },
-                    new RightBorder { Val = BorderValues.Single, Size = 4U, Space = 0U, Color = BorderColor },
-                    new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4U, Space = 0U, Color = BorderColor },
-                    new InsideVerticalBorder { Val = BorderValues.Single, Size = 4U, Space = 0U, Color = BorderColor }),
-                new TableLayout { Type = TableLayoutValues.Fixed },
-                new TableCellMarginDefault(
-                    new TopMargin { Width = "40", Type = TableWidthUnitValues.Dxa },
-                    new TableCellLeftMargin { Width = 100, Type = TableWidthValues.Dxa },
-                    new BottomMargin { Width = "40", Type = TableWidthUnitValues.Dxa },
-                    new TableCellRightMargin { Width = 100, Type = TableWidthValues.Dxa })));
+            var properties = new TableProperties(new TableWidth { Width = sizes.Sum().ToString(CultureInfo.InvariantCulture), Type = TableWidthUnitValues.Dxa });
+            if (align != null)
+                properties.AppendChild(new TableJustification { Val = align.Value });
+
+            properties.AppendChild(WordTableStyles.Borders(preset));
+            properties.AppendChild(new TableLayout { Type = TableLayoutValues.Fixed });
+            properties.AppendChild(new TableCellMarginDefault(
+                new TopMargin { Width = "40", Type = TableWidthUnitValues.Dxa },
+                new TableCellLeftMargin { Width = 100, Type = TableWidthValues.Dxa },
+                new BottomMargin { Width = "40", Type = TableWidthUnitValues.Dxa },
+                new TableCellRightMargin { Width = 100, Type = TableWidthValues.Dxa }));
+            table.AppendChild(properties);
 
             var grid = new TableGrid();
             for (var c = 0; c < columns; c++)
-                grid.AppendChild(new GridColumn { Width = cellText });
+                grid.AppendChild(new GridColumn { Width = sizes[c].ToString(CultureInfo.InvariantCulture) });
 
             table.AppendChild(grid);
 
+            var banded = preset == WordTableStyle.Banded;
             for (var r = 0; r < rows.Count; r++)
             {
                 var isHeader = header && r == 0;
+                var shaded = banded && r >= (header ? 1 : 0) && (r - (header ? 1 : 0)) % 2 == 0;
                 var row = new TableRow();
                 if (isHeader)
                     row.AppendChild(new TableRowProperties(new TableHeader()));
@@ -168,11 +172,13 @@ namespace DocuHelper.Tools.Word
                 for (var c = 0; c < columns; c++)
                 {
                     var text = c < rows[r].Count ? rows[r][c] ?? string.Empty : string.Empty;
-                    var properties = new TableCellProperties(new TableCellWidth { Width = cellText, Type = TableWidthUnitValues.Dxa });
+                    var cellProperties = new TableCellProperties(new TableCellWidth { Width = sizes[c].ToString(CultureInfo.InvariantCulture), Type = TableWidthUnitValues.Dxa });
                     if (isHeader)
-                        properties.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = HeaderFill });
+                        cellProperties.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = WordTableStyles.HeaderFill });
+                    else if (shaded)
+                        cellProperties.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = WordTableStyles.BandFill });
 
-                    row.AppendChild(new TableCell(properties, CellParagraph(text, isHeader, numeric.Contains(c), used)));
+                    row.AppendChild(new TableCell(cellProperties, CellParagraph(text, isHeader, numeric.Contains(c), used)));
                 }
 
                 table.AppendChild(row);

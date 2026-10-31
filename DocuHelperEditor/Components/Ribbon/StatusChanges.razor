@@ -1,0 +1,28 @@
+﻿<div class="changes" role="group" aria-label="@Label">
+    <span class="chip" aria-hidden="true"></span>
+    <span class="name">@Label</span>
+    <span class="pos" aria-live="polite">@Position / @Count</span>
+    <RibbonTool Icon="chevron-left" Stroke="2.2" Label="이전 바뀐 곳" OnClick="OnPrevious" />
+    <RibbonTool Icon="chevron-right" Stroke="2.2" Label="다음 바뀐 곳" OnClick="OnNext" />
+    <RibbonTool Icon="rotate-ccw" IconSize="15" Stroke="2.2" Text="전부 되돌리기" OnClick="OnRevertAll" />
+</div>
+
+@code {
+    [Parameter]
+    public string Label { get; set; } = "바뀐 곳";
+
+    [Parameter]
+    public int Position { get; set; } = 1;
+
+    [Parameter]
+    public int Count { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnPrevious { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnNext { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnRevertAll { get; set; }
+}

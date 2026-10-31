@@ -10,5 +10,9 @@ namespace DocuHelperEditor.Services
         Task<string> PickFolderAsync();
 
         Task<string> PickSaveFileAsync(string suggestedName);
+
+        Task<string> PickImageAsync();
+
+        Task<string> PickAudioAsync();
     }
 }

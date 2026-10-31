@@ -1,4 +1,5 @@
 .grid {
+    position: relative;
     flex: 1;
     min-height: 0;
     overflow: auto;
@@ -8,6 +9,16 @@
 
 .grid.locked {
     opacity: 0.55;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 2;
+    pointer-events: none;
 }
 
 .sheet {
@@ -38,7 +49,7 @@
 .sheet thead th {
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 5;
     height: 28px;
     border-top: 0;
     background: var(--paper-2);
@@ -90,6 +101,12 @@
     text-decoration: underline;
 }
 
+.sheet td.pend {
+    color: var(--ink-2);
+    font-size: 12px;
+    font-style: italic;
+}
+
 .sheet td.al-c {
     text-align: center;
 }
@@ -98,8 +115,203 @@
     text-align: right;
 }
 
+.sheet tr.hx > th,
+.sheet tr.hx > td {
+    height: var(--rh);
+}
+
+.sheet td.wr {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+}
+
+.sheet td.va-t {
+    vertical-align: top;
+}
+
+.sheet td.va-m {
+    vertical-align: middle;
+}
+
+.sheet td.va-b {
+    vertical-align: bottom;
+}
+
+.sheet td.ovf {
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.ov {
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+    max-width: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+}
+
+.sheet tr.fz > td,
+.sheet tr.fz > th {
+    position: sticky;
+    top: var(--fz-top, 28px);
+    z-index: 2;
+}
+
+.sheet tr.fz > td,
+.sheet td.fzc {
+    background: var(--paper);
+}
+
+.sheet td.fzc,
+.sheet th.fzc {
+    position: sticky;
+    z-index: 2;
+}
+
+.sheet thead th.fzc {
+    z-index: 6;
+}
+
+.sheet tr.fz > td.fzc {
+    z-index: 3;
+}
+
+.sheet.fzcols tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+}
+
+.sheet.fzcols tr.fz > th {
+    z-index: 4;
+}
+
+.sheet.fzcols thead th:first-child {
+    left: 0;
+    z-index: 7;
+}
+
+.sheet tr.fz-end > td,
+.sheet tr.fz-end > th {
+    border-bottom: 2px solid var(--ink-2);
+}
+
+.sheet td.fzc-end,
+.sheet th.fzc-end {
+    border-right: 2px solid var(--ink-2);
+}
+
+.sheet thead th.gap {
+    border-right: 3px double var(--ink-2);
+}
+
+.sheet tbody th.gap {
+    border-bottom: 3px double var(--ink-2);
+}
+
+.grid.rz-c thead th,
+.grid.rz-r tbody th {
+    cursor: col-resize;
+}
+
+.grid.rz-r tbody th {
+    cursor: row-resize;
+}
+
 .sheet td.sel {
     box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.sheet td.sel.act {
+    box-shadow: none;
+}
+
+.sheet td.in::after,
+.sheet td.mark::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border: 0 solid var(--ink);
+}
+
+.sheet td.in::after {
+    background: rgba(var(--ink-rgb), 0.08);
+}
+
+.sheet td.in.act::after {
+    background: transparent;
+}
+
+.sheet td.e-t::after {
+    border-top-width: 2px;
+}
+
+.sheet td.e-b::after {
+    border-bottom-width: 2px;
+}
+
+.sheet td.e-l::after {
+    border-left-width: 2px;
+}
+
+.sheet td.e-r::after {
+    border-right-width: 2px;
+}
+
+.sheet td.m-pt::before {
+    border-color: var(--docx);
+}
+
+.sheet td.m-fp::before {
+    border-style: dashed;
+    border-color: var(--ink-2);
+}
+
+.sheet td.m-ct::before {
+    border-style: dashed;
+    border-color: var(--ink);
+}
+
+.sheet td.m-t::before {
+    border-top-width: 2px;
+}
+
+.sheet td.m-b::before {
+    border-bottom-width: 2px;
+}
+
+.sheet td.m-l::before {
+    border-left-width: 2px;
+}
+
+.sheet td.m-r::before {
+    border-right-width: 2px;
+}
+
+.fh {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    width: 8px;
+    height: 8px;
+    border: 1px solid var(--paper);
+    background: var(--ink);
+    cursor: crosshair;
+}
+
+.sheet thead th:first-child {
+    cursor: pointer;
+}
+
+.sheet thead th,
+.sheet tbody th {
+    cursor: default;
 }
 
 .sheet tr.tot td {

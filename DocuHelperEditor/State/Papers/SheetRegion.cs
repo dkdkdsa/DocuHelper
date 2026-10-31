@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace DocuHelperEditor.State.Papers
 {
-    public readonly struct SheetRegion
+    public readonly struct SheetRegion : IEquatable<SheetRegion>
     {
         public SheetRegion(int top, int left, int bottom, int right)
         {
@@ -21,6 +21,17 @@ namespace DocuHelperEditor.State.Papers
 
         public int Right { get; }
 
+        public int RowCount => Bottom - Top + 1;
+
+        public int ColumnCount => Right - Left + 1;
+
+        public int CellCount => RowCount * ColumnCount;
+
+        public bool IsSingle => Top == Bottom && Left == Right;
+
+        public static SheetRegion Span(int row1, int column1, int row2, int column2) =>
+            new(Math.Min(row1, row2), Math.Min(column1, column2), Math.Max(row1, row2), Math.Max(column1, column2));
+
         public void Deconstruct(out int top, out int left, out int bottom, out int right)
         {
             top = Top;
@@ -29,7 +40,29 @@ namespace DocuHelperEditor.State.Papers
             right = Right;
         }
 
+        public bool Contains(int row, int column) => row >= Top && row <= Bottom && column >= Left && column <= Right;
+
+        public bool Contains(SheetRegion other) => Contains(other.Top, other.Left) && Contains(other.Bottom, other.Right);
+
+        public bool Intersects(SheetRegion other) => other.Top <= Bottom && other.Bottom >= Top && other.Left <= Right && other.Right >= Left;
+
+        public string ToRef()
+        {
+            var start = SheetRef.Make(Left, Top);
+            return IsSingle ? start : start + ":" + SheetRef.Make(Right, Bottom);
+        }
+
         public bool TouchesEdge(Sheet sheet) => Bottom >= sheet.Rows.Count - 1 || Right >= sheet.Columns.Count - 2;
+
+        public bool Equals(SheetRegion other) => Top == other.Top && Left == other.Left && Bottom == other.Bottom && Right == other.Right;
+
+        public override bool Equals(object obj) => obj is SheetRegion other && Equals(other);
+
+        public override int GetHashCode() => HashCode.Combine(Top, Left, Bottom, Right);
+
+        public static bool operator ==(SheetRegion a, SheetRegion b) => a.Equals(b);
+
+        public static bool operator !=(SheetRegion a, SheetRegion b) => !a.Equals(b);
 
         public static SheetRegion? Around(Sheet sheet, int column, int row)
         {
@@ -149,13 +182,9 @@ namespace DocuHelperEditor.State.Papers
             return SumPlan.Fail("더할 숫자를 찾지 못했어요. 숫자들 바로 아래나 오른쪽의 빈칸을 고른 뒤 눌러 주세요.");
         }
 
-        private static string Range(int left, int top, int right, int bottom)
-        {
-            var start = SheetRef.Make(left, top);
-            return left == right && top == bottom ? start : start + ":" + SheetRef.Make(right, bottom);
-        }
-
-        private static bool HasValue(SheetCell cell) =>
+        public static bool HasValue(SheetCell cell) =>
             cell != null && (!string.IsNullOrEmpty(cell.Text) || !string.IsNullOrEmpty(cell.Formula));
+
+        private static string Range(int left, int top, int right, int bottom) => Span(top, left, bottom, right).ToRef();
     }
 }

@@ -17,6 +17,14 @@ namespace DocuHelperEditor.State.Papers
 
         public int RevealedPickVersion { get; set; }
 
+        public string DefaultFontName { get; set; } = "맑은 고딕";
+
+        public double DefaultFontSize { get; set; } = 11;
+
+        public List<SheetName> Names { get; set; } = new();
+
+        public bool StructureLocked { get; set; }
+
         public Sheet ActiveSheet => Sheets.Count == 0 ? null : Sheets[Math.Clamp(ActiveSheetIndex, 0, Sheets.Count - 1)];
 
         public string SelectedCellRef
@@ -39,14 +47,14 @@ namespace DocuHelperEditor.State.Papers
         public static ExcelPaperModel CreateEmpty()
         {
             var model = new ExcelPaperModel();
-            model.Sheets.Add(Sheet.CreateEmpty(SheetName(1)));
+            model.Sheets.Add(Sheet.CreateEmpty(DefaultSheetName(1)));
             return model;
         }
 
         public Sheet EnsureSheet()
         {
             if (Sheets.Count == 0)
-                Sheets.Add(Sheet.CreateEmpty(SheetName(1)));
+                Sheets.Add(Sheet.CreateEmpty(DefaultSheetName(1)));
 
             return ActiveSheet;
         }
@@ -54,10 +62,10 @@ namespace DocuHelperEditor.State.Papers
         public Sheet AddSheet()
         {
             var number = Sheets.Count + 1;
-            while (Sheets.Any(s => s.Name == SheetName(number)))
+            while (Sheets.Any(s => s.Name == DefaultSheetName(number)))
                 number++;
 
-            var sheet = Sheet.CreateEmpty(SheetName(number));
+            var sheet = Sheet.CreateEmpty(DefaultSheetName(number));
             sheet.IsNew = true;
             Sheets.Add(sheet);
             ActiveSheetIndex = Sheets.Count - 1;
@@ -108,6 +116,6 @@ namespace DocuHelperEditor.State.Papers
             return false;
         }
 
-        private static string SheetName(int number) => SheetNamePrefix + number.ToString(CultureInfo.InvariantCulture);
+        private static string DefaultSheetName(int number) => SheetNamePrefix + number.ToString(CultureInfo.InvariantCulture);
     }
 }

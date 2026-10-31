@@ -1,0 +1,56 @@
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+@inject IFileDialogService Dialogs
+
+<Ribbon Tabs="PptRibbonData.Tabs" @bind-ActiveTab="State.Tab" @bind-IsOpen="State.RibbonOpen" FileItems="PptRibbonData.FileItems" Host="_commands" Format="DocuType.Ppt" Disabled="_commands.IsLocked">
+    <Trailing>
+        <IconButton Icon="undo" IconSize="18" Label="실행 취소" Title="@TitleOf(PptRibbonCommands.UndoId, "실행 취소 (Ctrl+Z)")" Disabled="@_commands.IsDisabled(PptRibbonCommands.UndoId)" OnClick="Undo" />
+        <IconButton Icon="redo" IconSize="18" Label="다시 실행" Title="@TitleOf(PptRibbonCommands.RedoId, "다시 실행 (Ctrl+Y)")" Disabled="@_commands.IsDisabled(PptRibbonCommands.RedoId)" OnClick="Redo" />
+    </Trailing>
+</Ribbon>
+
+@code {
+    private PptRibbonCommands _commands;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    [Parameter]
+    public PptRibbonState State { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _commands = new PptRibbonCommands(Workspace, Assistant, JS, Dialogs, State);
+        _commands.Changed += OnCommandsChanged;
+    }
+
+    protected override void OnParametersSet() => _commands.File = File;
+
+    protected override void OnDispose()
+    {
+        if (_commands != null)
+            _commands.Changed -= OnCommandsChanged;
+    }
+
+    private Task Undo() => _commands.InvokeAsync(PptRibbonCommands.UndoId, null);
+
+    private Task Redo() => _commands.InvokeAsync(PptRibbonCommands.RedoId, null);
+
+    private string TitleOf(string id, string title)
+    {
+        var reason = _commands.DisabledReasonOf(id);
+        return string.IsNullOrEmpty(reason) ? title : $"{title} · {reason}";
+    }
+
+    private void OnCommandsChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await OnChanged.InvokeAsync();
+        });
+    }
+}

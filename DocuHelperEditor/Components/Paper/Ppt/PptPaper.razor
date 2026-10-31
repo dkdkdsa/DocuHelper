@@ -7,12 +7,15 @@
 {
     var slide = _model.ActiveSlide;
     <div class="ppt">
-        <SlideToolbar Box="_model.SelectedBox" Locked="ReadOnly" OnSmaller="() => ChangeFontSize(-1)" OnBigger="() => ChangeFontSize(1)" OnBold="ToggleBold" OnItalic="ToggleItalic" OnUnderline="ToggleUnderline" OnAlign="SetAlign" OnNewSlide="AddSlide" />
+        <PptRibbon File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
             <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
             <div class="stage">
                 <SlideCanvas Slide="slide" Number="_model.ActiveIndex + 1" Footer="@_model.Footer" SelectedBoxId="@_model.SelectedBoxId" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnSelectBox="SelectBox" OnClearSelection="ClearSelection" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
-                <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+                @if (_ribbon.NotesOpen)
+                {
+                    <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+                }
             </div>
         </div>
         <ChangeNavigator File="File" />
@@ -20,7 +23,7 @@
 }
 
 @code {
-    private static readonly double[] s_fontSizes = { 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96 };
+    private readonly PptRibbonState _ribbon = new();
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -44,6 +47,13 @@
     private bool ReadOnly => Locked || File?.Docu == null;
 
     private bool IsActive => File != null && Workspace.ActiveFile != null && Workspace.ActiveFile.Id == File.Id;
+
+    protected override void OnInitialized()
+    {
+        _ribbon.ModelSource = () => File?.Paper as PptPaperModel ?? _model;
+        _ribbon.CommitDraft = CommitDraft;
+        _ribbon.ActivateSlide = ActivateSlide;
+    }
 
     protected override void OnParametersSet() => Sync();
 
@@ -148,7 +158,7 @@
         if (_model.SelectedBox != null)
             return $"{number}번 슬라이드 글상자";
 
-        return _notesFocused ? $"{number}번 슬라이드 발표 메모" : $"{number}번 슬라이드";
+        return _notesFocused && _ribbon.NotesOpen ? $"{number}번 슬라이드 발표 메모" : $"{number}번 슬라이드";
     }
 
     private void Report()
@@ -314,89 +324,19 @@
             Edit(file, "set_slide_text", new { slide = index + 1, shape = box.ShapeKey, lines });
     }
 
-    private void ChangeFontSize(int direction)
+    private void Redraw() => StateHasChanged();
+
+    private void ActivateSlide(int index)
     {
-        var target = EditableTarget();
-        if (target == null)
+        _model = ResolveModel();
+        if (_model == null || _model.Slides.Count == 0)
             return;
 
-        var (number, box) = target.Value;
-        var current = box.PointSize > 0 ? box.PointSize : 18;
-        var next = direction > 0
-            ? s_fontSizes.FirstOrDefault(s => s > current + 0.01)
-            : s_fontSizes.LastOrDefault(s => s < current - 0.01);
-
-        if (next > 0)
-            Edit("set_font", new { slide = number, shape = box.ShapeKey, size = next });
-    }
-
-    private void ToggleBold()
-    {
-        var target = EditableTarget();
-        if (target != null)
-            Edit("set_font", new { slide = target.Value.Number, shape = target.Value.Box.ShapeKey, bold = !target.Value.Box.Bold });
-    }
-
-    private void ToggleItalic()
-    {
-        var target = EditableTarget();
-        if (target != null)
-            Edit("set_font", new { slide = target.Value.Number, shape = target.Value.Box.ShapeKey, italic = !target.Value.Box.Italic });
-    }
-
-    private void ToggleUnderline()
-    {
-        var target = EditableTarget();
-        if (target != null)
-            Edit("set_font", new { slide = target.Value.Number, shape = target.Value.Box.ShapeKey, underline = !target.Value.Box.Underline });
-    }
-
-    private void SetAlign(SlideTextAlign align)
-    {
-        var target = EditableTarget();
-        if (target == null)
-            return;
-
-        var box = target.Value.Box;
-        var next = box.Align == align ? SlideTextAlign.Left : align;
-        if (next != box.Align)
-            Edit("set_font", new { slide = target.Value.Number, shape = box.ShapeKey, align = next == SlideTextAlign.Center ? "center" : "left" });
-    }
-
-    private void AddSlide()
-    {
-        if (_model == null || ReadOnly)
-            return;
-
-        CommitDraft();
-        if (_model == null)
-            return;
-
-        var after = Math.Clamp(_model.ActiveIndex + 1, 0, _model.Slides.Count(IsRealSlide));
-        if (!Edit("add_slide", new { after, layout = "title_content" }) || _model == null)
-            return;
-
-        _model.ActiveIndex = Math.Clamp(after, 0, _model.Slides.Count - 1);
+        _model.ActiveIndex = Math.Clamp(index, 0, _model.Slides.Count - 1);
         _model.SelectedBoxId = null;
         _notesFocused = false;
         Report();
     }
-
-    private (int Number, SlideBoxModel Box)? EditableTarget()
-    {
-        if (_model == null || ReadOnly || string.IsNullOrEmpty(_model.SelectedBoxId))
-            return null;
-
-        CommitDraft();
-        var slide = _model?.ActiveSlide;
-        var box = slide?.FindBox(_model.SelectedBoxId);
-        if (box == null || !IsRealSlide(slide) || string.IsNullOrEmpty(box.ShapeKey))
-            return null;
-
-        return (_model.Slides.IndexOf(slide) + 1, box);
-    }
-
-    private bool Edit(string tool, object arguments) => Edit(File, tool, arguments);
 
     private bool Edit(WorkspaceFile file, string tool, object arguments)
     {

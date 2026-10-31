@@ -1,0 +1,73 @@
+.group {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0 3px;
+    border-right: 1px solid var(--hair);
+}
+
+.group:last-child {
+    border-right: 0;
+}
+
+.group.bare {
+    justify-content: flex-start;
+}
+
+.cells {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: var(--hit) var(--hit);
+    gap: 2px;
+    align-items: center;
+    justify-content: start;
+}
+
+.rows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--hit);
+}
+
+.title {
+    padding: 2px 0 4px;
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--ink-2);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.group[data-compact] ::deep .item:not(.wide):not(.field):not(.check) .label {
+    display: none;
+}
+
+.group[data-compact] ::deep .item.large {
+    grid-row: auto;
+    align-self: center;
+    height: var(--hit);
+    max-width: none;
+    flex-direction: row;
+    gap: 4px;
+    padding: 0 8px;
+}
+
+.group[data-compact] ::deep .item.large .ic svg {
+    width: 20px;
+    height: 20px;
+}
+
+.group[data-compact] .title {
+    width: 0;
+    min-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

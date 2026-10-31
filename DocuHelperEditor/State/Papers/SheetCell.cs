@@ -14,6 +14,8 @@ namespace DocuHelperEditor.State.Papers
 
         public bool IsNumber { get; set; }
 
+        public bool IsPending { get; set; }
+
         public List<string> ChangeIds { get; set; } = new();
 
         public bool IsAsking { get; set; }
@@ -28,9 +30,45 @@ namespace DocuHelperEditor.State.Papers
 
         public string FillColor { get; set; }
 
+        public string FontFamily { get; set; }
+
+        public double? FontSize { get; set; }
+
+        public bool Wrap { get; set; }
+
+        public string VAlign { get; set; }
+
+        public string BorderTop { get; set; }
+
+        public string BorderRight { get; set; }
+
+        public string BorderBottom { get; set; }
+
+        public string BorderLeft { get; set; }
+
+        public int? OverflowWidth { get; set; }
+
         public SheetAlign Align { get; set; }
 
         public SheetNumberFormat NumberFormat { get; set; }
+
+        public string NumberCategory { get; set; }
+
+        public string NumberFormatCode { get; set; }
+
+        public string StyleName { get; set; }
+
+        public bool Locked { get; set; } = true;
+
+        public SheetVisual Visual { get; set; }
+
+        public SheetTableLook TableLook { get; set; }
+
+        public SheetLink Hyperlink { get; set; }
+
+        public SheetNote Note { get; set; }
+
+        public int? ValidationIndex { get; set; }
 
         public string EditText => string.IsNullOrEmpty(Formula) ? (Input ?? Text ?? string.Empty) : Formula;
 

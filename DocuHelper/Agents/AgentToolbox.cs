@@ -100,7 +100,6 @@ namespace DocuHelper.Agents
         private readonly Workspace _workspace;
         private readonly AgentRequest _request;
         private readonly IReadOnlyList<string> _notes;
-        private readonly List<AgentToolDefinition> _definitions = new();
         private readonly Dictionary<Docu, DocuState> _before = new();
         private readonly HashSet<Docu> _locked = new();
         private readonly List<Docu> _read = new();
@@ -108,13 +107,18 @@ namespace DocuHelper.Agents
         private readonly List<string> _untouched = new();
         private readonly List<string> _followUps = new();
 
+        private IReadOnlyList<DocuType> _types = Array.Empty<DocuType>();
+        private IReadOnlyList<AgentToolDefinition> _definitions;
+
         public AgentToolbox(Workspace workspace, AgentRequest request, IReadOnlyList<string> notes)
         {
             _workspace = workspace;
             _request = request;
             _notes = notes;
-            BuildDefinitions();
+            Reveal();
         }
+
+        public IReadOnlyList<DocuType> Types => _types;
 
         public IReadOnlyList<AgentToolDefinition> Definitions => _definitions;
 
@@ -314,6 +318,7 @@ namespace DocuHelper.Agents
 
         private ToolResult ListFiles()
         {
+            Reveal();
             if (_workspace.Docus.Count == 0)
                 return ToolResult.Ok("The working folder has no Excel, Word, 한글 or PowerPoint files yet.", "파일 없음");
 
@@ -347,6 +352,7 @@ namespace DocuHelper.Agents
             docu.AddChange(change);
             _changes.Add(new AgentChange { Docu = docu, Change = change });
             docu.MarkDirty();
+            Reveal();
 
             return ToolResult.Ok($"Created '{docu.Name}' in the working folder. It is blank. Fill it with the {KindName(docu.Type)} tools using file=\"{docu.Name}\".", "새 파일");
         }
@@ -505,26 +511,68 @@ namespace DocuHelper.Agents
 
         private string FileList() => _workspace.Docus.Count == 0 ? "none" : string.Join(", ", _workspace.Docus.Select(d => d.Name));
 
-        private void BuildDefinitions()
+        private void Reveal()
         {
+            var types = FolderTypes()
+                .Where(_workspace.Editors.ContainsKey)
+                .Concat(_types)
+                .Distinct()
+                .OrderBy(type => type)
+                .ToList();
+            if (_definitions != null && types.Count == _types.Count)
+                return;
+
+            _types = types;
+            _definitions = BuildDefinitions();
+        }
+
+        private IEnumerable<DocuType> FolderTypes()
+        {
+            foreach (var docu in _workspace.Docus)
+                yield return docu.Type;
+
+            foreach (var path in FolderFiles())
+            {
+                var editor = _workspace.FindEditor(path);
+                if (editor != null)
+                    yield return editor.TargetType;
+            }
+        }
+
+        private IReadOnlyList<string> FolderFiles()
+        {
+            try
+            {
+                return _workspace.ListFolderFiles();
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                return Array.Empty<string>();
+            }
+        }
+
+        private List<AgentToolDefinition> BuildDefinitions()
+        {
+            var definitions = new List<AgentToolDefinition>();
             var defined = new HashSet<string>();
-            foreach (var editor in _workspace.Editors.Values.OrderBy(e => e.TargetType))
+            foreach (var editor in _workspace.Editors.Values.Where(e => _types.Contains(e.TargetType)).OrderBy(e => e.TargetType))
             {
                 var kind = KindName(editor.TargetType);
-                if (editor.TargetType == DocuType.Word && _workspace.Editors.ContainsKey(DocuType.Hwp))
+                if (editor.TargetType == DocuType.Word && _types.Contains(DocuType.Hwp))
                     kind = "Word or 한글";
 
                 foreach (var tool in editor.Tools.Values)
                 {
                     if (defined.Add(tool.Name))
-                        _definitions.Add(Define(tool.Name, tool.Description, WithCommonFields(tool.InputSchema, !tool.IsReadOnly, kind)));
+                        definitions.Add(Define(tool.Name, tool.Description, WithCommonFields(tool.InputSchema, !tool.IsReadOnly, kind)));
                 }
             }
 
-            _definitions.Add(Define(ListFilesTool, "List the files in the user's working folder with a one-line summary of each.", ListFilesSchema));
-            _definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word, 한글 or PowerPoint file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves.", CreateFileSchema));
-            _definitions.Add(Define(AskUserTool, "Ask the user one question and wait for the answer. Use it only when you cannot pick a sensible default.", AskUserSchema));
-            _definitions.Add(Define(FinishTool, "Report the result to the user and end the task. Call it once, after all changes are made.", FinishSchema));
+            definitions.Add(Define(ListFilesTool, "List the files in the user's working folder with a one-line summary of each.", ListFilesSchema));
+            definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word, 한글 or PowerPoint file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves. If you have no editing tools for that kind of file yet, you get them on your next step.", CreateFileSchema));
+            definitions.Add(Define(AskUserTool, "Ask the user one question and wait for the answer. Use it only when you cannot pick a sensible default.", AskUserSchema));
+            definitions.Add(Define(FinishTool, "Report the result to the user and end the task. Call it once, after all changes are made.", FinishSchema));
+            return definitions;
         }
 
         private static AgentToolDefinition Define(string name, string description, string schema) =>

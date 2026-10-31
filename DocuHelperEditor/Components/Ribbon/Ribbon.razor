@@ -1,0 +1,213 @@
+﻿@inherits RibbonRegionBase
+
+<CascadingValue Value="_context" IsFixed="true">
+    <CascadingValue Name="RibbonFormat" Value="@_format" TValue="DocuType?">
+        <div class="ribbon @FormatClass @(HideGroupLabels ? "bare" : null) @Class" style="@RootStyle" role="group" aria-label="@Label" data-ribbon @ref="Root">
+            <div class="probe" aria-hidden="true" data-ribbon-probe></div>
+            <div class="tabrow">
+                <button type="button" @ref="_fileButton" class="tab file @(_fileOpen ? "open" : null)" style="@(_fileOpen ? "anchor-name: --ribbon-anchor" : null)" aria-haspopup="menu" aria-expanded="@(_fileOpen ? "true" : "false")" @onclick="ToggleFile">파일</button>
+                <div class="tabs" role="tablist" aria-label="@TabsLabel" data-ribbon-tabs>
+                    @foreach (var tab in TabList)
+                    {
+                        var selected = tab.Key == CurrentKey;
+                        <button type="button" @key="tab.Key" id="@TabId(tab)" class="tab" role="tab" aria-selected="@(selected ? "true" : "false")" aria-controls="@(IsExpanded ? PanelId : null)" tabindex="@(selected ? 0 : -1)" @onclick="() => SelectAsync(tab)">@tab.Title</button>
+                    }
+                </div>
+                <span class="grow"></span>
+                @Trailing
+                <RibbonTool Icon="@(IsExpanded ? "chevron-up" : "chevron-down")" Stroke="2.2" Label="@ToggleLabel" Tip="@(ToggleLabel + " (Ctrl+F1)")" aria-expanded="@(IsExpanded ? "true" : "false")" data-ribbon-toggle="" OnClick="ToggleOpenAsync" />
+                @if (_fileOpen)
+                {
+                    <RibbonFileMenu Items="FileItems" Host="Host" OnPick="PickFileAsync" OnClose="CloseFileAsync" />
+                }
+            </div>
+            @if (IsExpanded && Current != null)
+            {
+                <div id="@PanelId" class="panel @(Disabled ? "locked" : null)" role="tabpanel" aria-labelledby="@TabId(Current)" inert="@Disabled" data-ribbon-panel>
+                    @foreach (var group in Current.Groups ?? Array.Empty<RibbonGroup>())
+                    {
+                        <RibbonGroupView Group="group" HideLabel="HideGroupLabels" />
+                    }
+                </div>
+            }
+        </div>
+    </CascadingValue>
+</CascadingValue>
+
+@code {
+    private readonly string _uid = "rb" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private readonly RibbonContext _context = new RibbonContext();
+    private ElementReference _fileButton;
+    private DocuType? _format;
+    private string _localTab;
+    private string _seenTab;
+    private bool? _localOpen;
+    private bool _seenOpen = true;
+    private bool _fileOpen;
+    private bool _fileRefocus;
+
+    [Parameter]
+    public IReadOnlyList<RibbonTab> Tabs { get; set; } = Array.Empty<RibbonTab>();
+
+    [Parameter]
+    public string ActiveTab { get; set; }
+
+    [Parameter]
+    public EventCallback<string> ActiveTabChanged { get; set; }
+
+    [Parameter]
+    public bool IsOpen { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<RibbonFileItem> FileItems { get; set; } = Array.Empty<RibbonFileItem>();
+
+    [Parameter]
+    public IRibbonHost Host { get; set; }
+
+    [Parameter]
+    public DocuType Format { get; set; }
+
+    [Parameter]
+    public string Accent { get; set; }
+
+    [Parameter]
+    public bool HideGroupLabels { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public RenderFragment Trailing { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "리본";
+
+    [Parameter]
+    public string TabsLabel { get; set; } = "리본 탭";
+
+    [Parameter]
+    public string CollapseLabel { get; set; } = "리본 접기";
+
+    [Parameter]
+    public string ExpandLabel { get; set; } = "리본 펼치기";
+
+    [Parameter]
+    public string Class { get; set; }
+
+    private string PanelId => _uid + "-panel";
+
+    private string FormatClass => Format switch
+    {
+        DocuType.Excel => "excel",
+        DocuType.Ppt => "ppt",
+        DocuType.Hwp => "hwp",
+        _ => "word",
+    };
+
+    private string RootStyle => string.IsNullOrWhiteSpace(Accent) ? null : "--ribbon-accent: " + RibbonColor.ToCss(Accent);
+
+    private bool IsExpanded => IsOpenChanged.HasDelegate ? IsOpen : (_localOpen ?? IsOpen);
+
+    private string ToggleLabel => IsExpanded ? CollapseLabel : ExpandLabel;
+
+    private string CurrentKey
+    {
+        get
+        {
+            var key = ActiveTabChanged.HasDelegate ? ActiveTab : (_localTab ?? ActiveTab);
+            return TabList.Any(t => t.Key == key) ? key : TabList.FirstOrDefault()?.Key;
+        }
+    }
+
+    private IReadOnlyList<RibbonTab> TabList => Tabs ?? Array.Empty<RibbonTab>();
+
+    private RibbonTab Current => TabList.FirstOrDefault(t => t.Key == CurrentKey);
+
+    protected override void OnParametersSet()
+    {
+        if (ActiveTab != _seenTab)
+        {
+            _seenTab = ActiveTab;
+            _localTab = null;
+        }
+
+        if (IsOpen != _seenOpen)
+        {
+            _seenOpen = IsOpen;
+            _localOpen = null;
+        }
+
+        _format = Format;
+        _context.Host = Host;
+        _context.Flat = false;
+        _context.Refresh = RefreshAsync;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (!_fileRefocus)
+            return;
+
+        _fileRefocus = false;
+        try
+        {
+            await _fileButton.FocusAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private string TabId(RibbonTab tab) => _uid + "-tab-" + tab.Key;
+
+    private Task RefreshAsync() => InvokeAsync(StateHasChanged);
+
+    private void ToggleFile() => _fileOpen = !_fileOpen;
+
+    private async Task SelectAsync(RibbonTab tab)
+    {
+        _fileOpen = false;
+        if (!IsExpanded)
+            await SetOpenAsync(true);
+
+        if (tab.Key == CurrentKey)
+            return;
+
+        _localTab = tab.Key;
+        if (ActiveTabChanged.HasDelegate)
+            await ActiveTabChanged.InvokeAsync(tab.Key);
+    }
+
+    private Task ToggleOpenAsync() => SetOpenAsync(!IsExpanded);
+
+    private async Task SetOpenAsync(bool open)
+    {
+        _localOpen = open;
+        if (IsOpenChanged.HasDelegate)
+            await IsOpenChanged.InvokeAsync(open);
+    }
+
+    private async Task PickFileAsync(string id)
+    {
+        _fileOpen = false;
+        _fileRefocus = true;
+        if (Host != null)
+            await Host.InvokeAsync(id, null);
+
+        await RefreshAsync();
+    }
+
+    private Task CloseFileAsync(bool returnFocus)
+    {
+        _fileOpen = false;
+        _fileRefocus = returnFocus;
+        return Task.CompletedTask;
+    }
+}

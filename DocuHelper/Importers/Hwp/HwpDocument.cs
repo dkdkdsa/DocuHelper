@@ -11,5 +11,7 @@ namespace DocuHelper.Importers.Hwp
         public List<HwpNote> Notes { get; set; } = new();
 
         public HashSet<HwpSkipped> Skipped { get; set; } = new();
+
+        public bool Signed { get; set; }
     }
 }

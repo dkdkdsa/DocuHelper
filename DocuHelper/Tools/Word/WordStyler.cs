@@ -105,9 +105,11 @@ namespace DocuHelper.Tools.Word
             return paragraph;
         }
 
-        public static void ApplyKind(WordScan scan, WordBlock block, WordKind kind)
+        public static void ApplyKind(WordScan scan, WordBlock block, WordKind kind) =>
+            ApplyKind(scan, block.Paragraph, scan.Before(block), scan.After(block), kind);
+
+        public static void ApplyKind(WordScan scan, Paragraph paragraph, WordBlock before, WordBlock after, WordKind kind)
         {
-            var paragraph = block.Paragraph;
             var properties = paragraph.ParagraphProperties ?? (paragraph.ParagraphProperties = new ParagraphProperties());
             properties.RemoveAllChildren<OutlineLevel>();
             var styleId = properties.ParagraphStyleId?.Val?.Value;
@@ -127,7 +129,7 @@ namespace DocuHelper.Tools.Word
 
                     var numId = 0;
                     var level = 0;
-                    var neighbor = new[] { scan.Before(block), scan.After(block) }.FirstOrDefault(b => b != null && b.Kind == kind);
+                    var neighbor = new[] { before, after }.FirstOrDefault(b => b != null && b.Kind == kind);
                     if (neighbor != null)
                         scan.Numbering.Of(neighbor.Paragraph, out numId, out level);
 

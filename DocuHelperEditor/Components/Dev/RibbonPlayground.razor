@@ -1,0 +1,231 @@
+﻿@page "/dev/ribbon"
+@inherits StoreComponentBase
+@using System.Globalization
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IClipboardService Clipboard
+@inject IFileDialogService Dialogs
+@inject IPrintService Prints
+
+@if (DevMode.Enabled)
+{
+    _host.File = TargetFile();
+    <div class="stage">
+        <div class="bench">
+            <div class="formats" role="group" aria-label="프로그램">
+                @foreach (var option in s_formats)
+                {
+                    <button type="button" class="pill" aria-pressed="@(_format == option.Format ? "true" : "false")" @onclick="() => SetFormat(option.Format)">@option.Name</button>
+                }
+            </div>
+            <label class="knob"><input type="checkbox" checked="@_locked" @onchange="e => _locked = IsChecked(e)" /> 리본 막아 보이기</label>
+            <label class="knob"><input type="checkbox" id="file-lock" checked="@_host.IsEditing" disabled="@(_host.File?.Docu == null)" @onchange="e => _host.SetEditing(IsChecked(e))" /> 도우미가 고치는 중 (파일 잠금)</label>
+            <label class="knob"><input type="checkbox" checked="@_bare" @onchange="e => _bare = IsChecked(e)" /> 그룹 이름 숨기기</label>
+            <label class="knob"><input type="checkbox" checked="@_host.NothingSelected" @onchange="e => _host.NothingSelected = IsChecked(e)" /> 고른 것 없음</label>
+            <label class="knob"><input type="checkbox" checked="@_host.DisableSave" @onchange="e => _host.DisableSave = IsChecked(e)" /> 저장 끄기</label>
+            @if (_format == DocuType.Excel)
+            {
+                <label class="knob">
+                    단계
+                    <select @onchange="e => _level = int.Parse(e.Value.ToString(), CultureInfo.InvariantCulture)">
+                        @for (var level = 1; level <= 3; level++)
+                        {
+                            <option value="@level" selected="@(level == _level)">@level</option>
+                        }
+                    </select>
+                </label>
+            }
+            <label class="knob">
+                너비 @_width
+                <input type="range" min="520" max="1500" step="10" value="@_width" @oninput="e => _width = int.Parse(e.Value.ToString(), CultureInfo.InvariantCulture)" />
+            </label>
+            <output class="last" aria-live="polite" data-probe="last">마지막 명령: @(_host.Last ?? "없음")</output>
+        </div>
+        <div class="probes">
+            <output data-probe="target">대상 파일: @(_host.File?.Name ?? "없음")</output>
+            <output data-probe="locked">잠금: @(_host.IsLocked ? "예" : "아니요")</output>
+            <output data-probe="notice">알림: @(_host.LastNotice ?? "없음")</output>
+            <output data-probe="draft">입력창 초안: @(string.IsNullOrEmpty(Assistant.Draft) ? "없음" : Assistant.Draft)</output>
+            <output data-probe="pasted">읽은 클립보드: @(_host.Pasted ?? "없음")</output>
+            <output data-probe="kinds">클립보드 종류: @Clipboard.Kinds</output>
+            <output data-probe="picked">고른 것: @(_host.Picked ?? "없음")</output>
+        </div>
+        <div class="row">
+        <section class="frame" style="width: @(_width)px" aria-label="견본 문서">
+            <Ribbon Tabs="Tabs"
+                    @bind-ActiveTab="_tab"
+                    @bind-IsOpen="_open"
+                    FileItems="FileItems"
+                    Host="_host"
+                    Format="_format"
+                    HideGroupLabels="@(_bare || _format == DocuType.Hwp)"
+                    Disabled="_locked"
+                    Label="@(_format == DocuType.Hwp ? "기본 도구 상자" : "리본")"
+                    TabsLabel="@(_format == DocuType.Hwp ? "메뉴 탭" : "리본 탭")"
+                    CollapseLabel="@(_format == DocuType.Hwp ? "도구 상자 접기" : "리본 접기")"
+                    ExpandLabel="@(_format == DocuType.Hwp ? "도구 상자 펴기" : "리본 펼치기")">
+                <Trailing>
+                    @if (_format == DocuType.Hwp)
+                    {
+                        <RibbonTool Icon="external" IconSize="15" Stroke="2.2" Text="한글에서 열기" OnClick='() => Command("open-app")' />
+                    }
+                    else
+                    {
+                        <IconButton Icon="undo" IconSize="18" Label="실행 취소" Title="실행 취소 (Ctrl+Z)" />
+                        <IconButton Icon="redo" IconSize="18" Label="다시 실행" Title="다시 실행 (Ctrl+Y)" />
+                    }
+                </Trailing>
+            </Ribbon>
+            @if (_format == DocuType.Hwp)
+            {
+                <RibbonStrip Items="RibbonPlaygroundCatalog.HwpFormatRow()" Host="_host" Format="_format" />
+            }
+            <div class="body">
+                <p>편집 영역</p>
+            </div>
+            <StatusBar Format="_format" Left="Left" Right="Right" />
+        </section>
+        <aside class="dock" aria-label="도우미 입력창">
+            <Composer />
+        </aside>
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly (DocuType Format, string Name)[] s_formats =
+    {
+        (DocuType.Excel, "엑셀"),
+        (DocuType.Word, "워드"),
+        (DocuType.Hwp, "한글"),
+        (DocuType.Ppt, "파워포인트"),
+    };
+
+    private DocuType _format = DocuType.Word;
+    private RibbonPlaygroundHost _host;
+    private string _tab;
+    private bool _open = true;
+    private bool _locked;
+    private bool _bare;
+    private int _level = 1;
+    private int _width = 960;
+    private int _zoom = 100;
+
+    private IReadOnlyList<RibbonTab> Tabs => RibbonPlaygroundCatalog.TabsFor(_format, _level);
+
+    private IReadOnlyList<RibbonFileItem> FileItems => RibbonPlaygroundCatalog.FileItemsFor(_format);
+
+    protected override void OnInitialized()
+    {
+        if (!DevMode.Enabled)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        _host = CreateHost(_format);
+        _host.Changed += OnHostChanged;
+        Clipboard.Changed += OnHostChanged;
+    }
+
+    protected override void OnDispose()
+    {
+        if (_host == null)
+            return;
+
+        _host.SetEditing(false);
+        _host.Changed -= OnHostChanged;
+        Clipboard.Changed -= OnHostChanged;
+    }
+
+    private RibbonPlaygroundHost CreateHost(DocuType format) => new RibbonPlaygroundHost(format, Workspace, Assistant, JS, Clipboard, Dialogs, Prints);
+
+    private WorkspaceFile TargetFile() => Workspace.Files.FirstOrDefault(f => f.Docu != null && f.Type == DocuType.Excel);
+
+    private void OnHostChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void SetFormat(DocuType format)
+    {
+        _host.SetEditing(false);
+        _host.Changed -= OnHostChanged;
+        _format = format;
+        _host = CreateHost(format);
+        _host.Changed += OnHostChanged;
+        _tab = null;
+        _open = true;
+        _zoom = 100;
+    }
+
+    private static bool IsChecked(ChangeEventArgs e) => e.Value is bool on && on;
+
+    private Task Command(string id) => _host.InvokeAsync(id, null);
+
+    private RenderFragment Left => __builder =>
+    {
+        switch (_format)
+        {
+            case DocuType.Excel:
+                <StatusButton>준비</StatusButton>
+                break;
+            case DocuType.Ppt:
+                <StatusButton>슬라이드 4/6</StatusButton>
+                <StatusButton Icon="notes" Pressed="true" Tip="슬라이드 노트 보이기">노트</StatusButton>
+                <RibbonDivider Gap="4" />
+                <StatusChanges Count="2" />
+                break;
+            case DocuType.Hwp:
+                <StatusButton Tip="쪽 찾아가기 (Alt+G)" OnClick='() => Command("goto-page")'>1/2쪽</StatusButton>
+                <StatusButton Tip="줄 찾아가기" OnClick='() => Command("goto-line")'>12줄 5칸</StatusButton>
+                <StatusButton Tip="삽입/수정 바꾸기 (Insert)" OnClick='() => Command("overwrite")'>삽입</StatusButton>
+                <RibbonDivider Gap="6" />
+                <StatusChanges Count="2" />
+                break;
+            default:
+                <StatusButton Tip="이동 (Ctrl+G)" OnClick='() => Command("goto-page")'>1/3 페이지</StatusButton>
+                <StatusButton Tip="단어 개수" OnClick='() => Command("word-count")'>412단어</StatusButton>
+                <RibbonDivider Gap="6" />
+                <StatusChanges Count="2" />
+                break;
+        }
+    };
+
+    private RenderFragment Right => __builder =>
+    {
+        switch (_format)
+        {
+            case DocuType.Excel:
+                <StatusButton Tip="고른 칸의 평균">평균: 7,829,000</StatusButton>
+                <StatusButton Tip="고른 칸 중 값이 있는 칸 수">개수: 6</StatusButton>
+                <StatusButton Tip="고른 칸의 합계" style="font-weight: 700">합계: 46,974,000</StatusButton>
+                <span class="views">
+                    <StatusButton Icon="normal" Stroke="1.9" Label="기본" Pressed="true" />
+                    <StatusButton Icon="plview" Stroke="1.9" Label="페이지 레이아웃" Pressed="false" />
+                    <StatusButton Icon="pbview" Stroke="1.9" Label="페이지 나누기 미리 보기" Pressed="false" />
+                </span>
+                <ZoomControl @bind-Value="_zoom" SliderWidth="84" />
+                break;
+            case DocuType.Ppt:
+                <StatusButton Icon="normal" Label="기본" Pressed="true" />
+                <StatusButton Icon="grid" Label="여러 슬라이드" Pressed="false" />
+                <StatusButton Icon="read" Label="읽기용 보기" Pressed="false" />
+                <StatusButton Icon="slide-show" Label="슬라이드 쇼" Tip="슬라이드 쇼 (Shift+F5)" Pressed="false" />
+                <RibbonDivider Gap="2" />
+                <ZoomControl @bind-Value="_zoom" SliderWidth="88" />
+                <StatusButton Icon="fit" Label="창에 맞춤" OnClick='() => Command("fit")' />
+                break;
+            case DocuType.Hwp:
+                <StatusButton Icon="view-page" Label="쪽 윤곽" Tip="쪽 윤곽 (Ctrl+G,L)" Pressed="true" />
+                <StatusButton Icon="side" Label="여러 쪽" Pressed="false" />
+                <RibbonDivider Gap="4" />
+                <ZoomControl @bind-Value="_zoom" />
+                break;
+            default:
+                <StatusButton Icon="read" Label="읽기 모드" Pressed="false" />
+                <StatusButton Icon="view-print" Label="인쇄 모양" Pressed="true" />
+                <StatusButton Icon="web" Label="웹 모양" Pressed="false" />
+                <RibbonDivider Gap="4" />
+                <ZoomControl @bind-Value="_zoom" />
+                break;
+        }
+    };
+}

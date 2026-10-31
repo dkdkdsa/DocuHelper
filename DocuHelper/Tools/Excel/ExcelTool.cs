@@ -17,7 +17,12 @@ namespace DocuHelper.Tools.Excel
             if (docu is not ExcelDocu excel || excel.Document?.WorkbookPart?.Workbook == null)
                 return ToolResult.Fail("엑셀 파일이 아니라서 이 도구를 쓸 수 없어요.");
 
-            return Run(excel, new ExcelBook(excel.Document), input);
+            var book = new ExcelBook(excel.Document);
+            var result = Run(excel, book, input);
+            if (!IsReadOnly && !result.IsError)
+                ExcelTables.Reconcile(book);
+
+            return result;
         }
 
         public static bool IsTotalLabel(string text)
@@ -176,6 +181,100 @@ namespace DocuHelper.Tools.Excel
             }
         }
 
+        protected static void CheckNoCycle(ExcelBook book, ExcelSheet sheet, IReadOnlyDictionary<CellAddress, string> pending)
+        {
+            const int MaxVisits = 20000;
+            var existing = new Dictionary<int, HashSet<CellAddress>>();
+
+            HashSet<CellAddress> FormulaCells(ExcelSheet target)
+            {
+                if (!existing.TryGetValue(target.Index, out var cells))
+                {
+                    cells = new HashSet<CellAddress>(target.Entries.Where(e => e.Cell.CellFormula != null).Select(e => new CellAddress(e.Column, e.Row)));
+                    existing[target.Index] = cells;
+                }
+
+                return cells;
+            }
+
+            string FormulaAt((ExcelSheet Sheet, CellAddress Address) node)
+            {
+                if (node.Sheet == sheet && pending.TryGetValue(node.Address, out var text))
+                    return text;
+
+                var cell = node.Sheet.FindCell(node.Address.Column, node.Address.Row);
+                return cell?.CellFormula == null ? null : node.Sheet.FormulaOf(cell, node.Address.Column, node.Address.Row);
+            }
+
+            IEnumerable<(ExcelSheet Sheet, CellAddress Address)> FormulasIn(ExcelSheet target, CellRange range)
+            {
+                var cells = FormulaCells(target);
+                var inRange = range.CellCount <= cells.Count
+                    ? range.Cells().Where(cells.Contains)
+                    : cells.Where(a => range.Contains(a.Column, a.Row));
+                foreach (var address in inRange)
+                {
+                    if (target != sheet || !pending.ContainsKey(address))
+                        yield return (target, address);
+                }
+
+                if (target != sheet)
+                    yield break;
+
+                foreach (var pair in pending)
+                {
+                    if (pair.Value != null && range.Contains(pair.Key.Column, pair.Key.Row))
+                        yield return (target, pair.Key);
+                }
+            }
+
+            string Label((ExcelSheet Sheet, CellAddress Address) node) =>
+                node.Sheet == sheet ? node.Address.ToString() : $"‘{node.Sheet.Name}’!{node.Address}";
+
+            foreach (var start in pending.Where(p => p.Value != null).Select(p => (Sheet: sheet, Address: p.Key)))
+            {
+                var parents = new Dictionary<(ExcelSheet, CellAddress), (ExcelSheet, CellAddress)>();
+                var queue = new Queue<(ExcelSheet Sheet, CellAddress Address)>();
+                queue.Enqueue(start);
+                parents[start] = start;
+                while (queue.Count > 0 && parents.Count < MaxVisits)
+                {
+                    var node = queue.Dequeue();
+                    var formula = FormulaAt(node);
+                    if (string.IsNullOrEmpty(formula))
+                        continue;
+
+                    foreach (var reference in FormulaText.References(formula))
+                    {
+                        var target = reference.Sheet == null ? node.Sheet : book.FindSheet(reference.Sheet);
+                        if (target == null)
+                            continue;
+
+                        foreach (var next in FormulasIn(target, reference.ToFullRange()))
+                        {
+                            if (next.Equals(start))
+                            {
+                                var path = new List<string>();
+                                for (var step = node; ; step = parents[step])
+                                {
+                                    path.Add(Label(step));
+                                    if (step.Equals(start))
+                                        break;
+                                }
+
+                                path.Reverse();
+                                path.Add(Label(start));
+                                throw new ToolInputException($"{start.Address} 칸 수식이 다른 칸을 거쳐 자기 자신을 다시 가리켜서 순환 참조가 돼요: {string.Join(" → ", path)}. 수식을 고쳐 주세요.");
+                            }
+
+                            if (parents.TryAdd(next, node))
+                                queue.Enqueue(next);
+                        }
+                    }
+                }
+            }
+        }
+
         protected static void FitNumbers(ExcelBook book, ExcelSheet sheet, IEnumerable<CellAddress> cells)
         {
             var widths = new Dictionary<int, double>();
@@ -199,12 +298,133 @@ namespace DocuHelper.Tools.Excel
                 sheet.EnsureColumnWidth(pair.Key, pair.Value);
         }
 
-        protected static CalculationResult Recalculate(ExcelBook book, IEnumerable<CellKey> written)
+        protected static CalculationResult Recalculate(ExcelBook book, IEnumerable<CellKey> written, bool strict = true)
         {
-            var result = new WorkbookCalculator(book, written).Run();
+            var result = new WorkbookCalculator(book, written, strict).Run();
             book.MarkCalculationNeeded();
             return result;
         }
+
+        protected static (bool Rows, int First, int Last) ParseLines(ToolInput input)
+        {
+            var rows = input.GetOptionalString("rows");
+            var columns = input.GetOptionalString("columns");
+            var hasRows = !string.IsNullOrWhiteSpace(rows);
+            if (hasRows == !string.IsNullOrWhiteSpace(columns))
+                throw new ToolInputException("rows와 columns 중 하나만 알려 주세요. 예: rows \"5:7\" 또는 columns \"C\".");
+
+            var (first, last) = ParseSpan(hasRows ? rows : columns, hasRows);
+            return (hasRows, first, last);
+        }
+
+        protected static string LineLabel(bool rows, int first, int last)
+        {
+            var start = rows ? (first + 1).ToString() : CellAddress.ColumnName(first);
+            var end = rows ? (last + 1).ToString() : CellAddress.ColumnName(last);
+            var unit = rows ? "행" : "열";
+            return first == last ? start + unit : start + "-" + end + unit;
+        }
+
+        protected static string LineText(bool rows, int first, int last)
+        {
+            if (rows)
+                return first == last ? $"row {first + 1}" : $"rows {first + 1}-{last + 1}";
+
+            return first == last ? $"column {CellAddress.ColumnName(first)}" : $"columns {CellAddress.ColumnName(first)}:{CellAddress.ColumnName(last)}";
+        }
+
+        protected static List<string> LineAnchors(ExcelSheet sheet, bool rows, int first, int last)
+        {
+            var anchors = new List<string>();
+            for (var line = first; line <= Math.Min(last, first + 499); line++)
+                anchors.Add(ExcelAnchor.Cell(sheet.Name, rows ? new CellAddress(0, line) : new CellAddress(line, 0)));
+
+            return anchors;
+        }
+
+        protected static void ShiftAnchors(Docu docu, string sheetName, LineShift shift)
+        {
+            foreach (var change in docu.Changes)
+            {
+                for (var i = change.Anchors.Count - 1; i >= 0; i--)
+                {
+                    if (!ExcelAnchor.TryParse(change.Anchors[i], out var sheet, out var cellRef) || sheet != sheetName || !CellAddress.TryParse(cellRef, out var address))
+                        continue;
+
+                    var mapped = shift.Map(address);
+                    if (mapped == null)
+                        change.Anchors.RemoveAt(i);
+                    else
+                        change.Anchors[i] = ExcelAnchor.Cell(sheetName, mapped.Value);
+                }
+            }
+        }
+
+        protected static void RenameAnchors(Docu docu, string oldName, string newName)
+        {
+            foreach (var change in docu.Changes)
+            {
+                for (var i = 0; i < change.Anchors.Count; i++)
+                {
+                    if (ExcelAnchor.TryParse(change.Anchors[i], out var sheet, out var cellRef) && sheet == oldName)
+                        change.Anchors[i] = newName + "!" + cellRef;
+                }
+            }
+        }
+
+        protected static void DropSheetAnchors(Docu docu, string name)
+        {
+            foreach (var change in docu.Changes)
+                change.Anchors.RemoveAll(a => ExcelAnchor.TryParse(a, out var sheet, out _) && sheet == name);
+        }
+
+        protected static ExcelSheet FindSheet(ExcelBook book, ToolInput input)
+        {
+            var name = input.GetString("sheet");
+            return book.FindSheet(name) ?? throw new ToolInputException($"‘{name.Trim()}’ 시트를 찾을 수 없어요. 있는 시트: {book.SheetList()}");
+        }
+
+        protected static int? ParsePosition(ToolInput input, int count)
+        {
+            var position = input.GetOptionalInt("position");
+            if (!position.HasValue)
+                return null;
+
+            if (position.Value < 1 || position.Value > count)
+                throw new ToolInputException($"position은 1부터 {count} 사이로 알려 주세요.");
+
+            return position.Value - 1;
+        }
+
+        private static (int First, int Last) ParseSpan(string text, bool rows)
+        {
+            var value = text.Trim().Replace("$", string.Empty).Replace(" ", string.Empty).TrimEnd('행', '열');
+            var parts = value.Split(new[] { ':', '-', '~' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length is < 1 or > 2)
+                throw SpanError(text, rows);
+
+            int Parse(string part)
+            {
+                if (rows && CellAddress.TryParseRow(part, out var row))
+                    return row;
+
+                if (!rows && CellAddress.TryParseColumn(part, out var column))
+                    return column;
+
+                if (CellAddress.TryParse(part, out var address))
+                    return rows ? address.Row : address.Column;
+
+                throw SpanError(text, rows);
+            }
+
+            var first = Parse(parts[0]);
+            var last = parts.Length == 2 ? Parse(parts[1]) : first;
+            return (Math.Min(first, last), Math.Max(first, last));
+        }
+
+        private static ToolInputException SpanError(string text, bool rows) => new(rows
+            ? $"행 번호를 알아볼 수 없어요: ‘{text}’. \"5\"나 \"5:7\"처럼 알려 주세요."
+            : $"열 글자를 알아볼 수 없어요: ‘{text}’. \"C\"나 \"C:D\"처럼 알려 주세요.");
 
         protected static string FormulaReport(CalculationResult result, IReadOnlyList<CellKey> formulas, int limit)
         {
@@ -229,7 +449,11 @@ namespace DocuHelper.Tools.Excel
 
                 var errors = formulas.Where(k => result.Values.TryGetValue(k, out var v) && v.IsError).ToList();
                 if (errors.Count > 0)
-                    text.Append($" {errors.Count} formula cell(s) show an error, e.g. {errors[0].Address} = {result.Values[errors[0]].Text}; check the references.");
+                {
+                    var first = result.Values[errors[0]].Text;
+                    var hint = first == ExcelValue.BadName ? "#NAME? means a function or name Excel does not know, so check the spelling." : "check the references.";
+                    text.Append($" {errors.Count} formula cell(s) show an error, e.g. {errors[0].Address} = {first}; {hint}");
+                }
 
                 var unknown = formulas.Where(result.Unknown.Contains).ToList();
                 if (unknown.Count > 0)

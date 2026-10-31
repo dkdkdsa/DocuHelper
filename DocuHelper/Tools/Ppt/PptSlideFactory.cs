@@ -9,28 +9,63 @@ namespace DocuHelper.Tools.Ppt
 {
     public static class PptSlideFactory
     {
-        public const string TitleKind = "title";
+        public const string TitleKind = PptLayoutKinds.Title;
 
-        public const string ContentKind = "title_content";
+        public const string ContentKind = PptLayoutKinds.Content;
 
-        private const uint FirstSlideId = 256;
+        private const int MaxListedLayouts = 12;
 
         public static SlideLayoutPart FindLayout(PresentationDocument document, string kind, SlidePart near)
         {
-            var masters = new List<SlideMasterPart>();
-            var nearMaster = near?.SlideLayoutPart?.SlideMasterPart;
-            if (nearMaster != null)
-                masters.Add(nearMaster);
+            var masters = Masters(document, near);
+            return kind == null ? null : FindByKind(masters, kind);
+        }
 
-            masters.AddRange(document.PresentationPart.SlideMasterParts.Where(m => m != nearMaster));
-            foreach (var master in masters)
+        public static PptLayoutChoice Resolve(PresentationDocument document, string request, SlidePart near)
+        {
+            var masters = Masters(document, near);
+            if (masters.Count == 0)
+                throw new ToolInputException("이 파일에는 슬라이드 마스터가 없어서 레이아웃을 쓸 수 없어요.");
+
+            var text = (request ?? string.Empty).Trim();
+            if (text.Length == 0)
+                text = PptLayoutKinds.Content;
+
+            var named = FindByName(masters, text);
+            if (named != null)
+                return new PptLayoutChoice(named, PptLayoutKinds.Classify(named), named.SlideMasterPart);
+
+            var kind = PptLayoutKinds.Parse(text);
+            if (kind == null)
             {
-                var found = Pick(Layouts(master), kind);
-                if (found != null)
-                    return found;
+                var names = masters.SelectMany(Layouts).Select(LayoutName).Distinct().Take(MaxListedLayouts);
+                throw new ToolInputException(
+                    $"'{text}' 레이아웃을 찾지 못했어요. {string.Join(", ", PptLayoutKinds.All)} 중 하나나 이 파일의 레이아웃 이름({string.Join(", ", names)})으로 알려 주세요.");
             }
 
-            return null;
+            var found = FindByKind(masters, kind);
+            return found != null
+                ? new PptLayoutChoice(found, kind, found.SlideMasterPart)
+                : new PptLayoutChoice(null, kind, masters[0]);
+        }
+
+        public static PptLayoutChoice Existing(SlideLayoutPart layout) =>
+            new(layout, PptLayoutKinds.Classify(layout), layout.SlideMasterPart);
+
+        public static void Materialize(PresentationDocument document, IEnumerable<PptLayoutChoice> choices)
+        {
+            var made = new Dictionary<(SlideMasterPart, string), SlideLayoutPart>();
+            foreach (var choice in choices.Where(c => c.IsNew))
+            {
+                var key = (choice.Master, choice.Kind);
+                if (!made.TryGetValue(key, out var layout))
+                {
+                    layout = PptLayoutTemplates.Create(document, choice.Master, choice.Kind);
+                    made[key] = layout;
+                }
+
+                choice.Attach(layout);
+            }
         }
 
         public static string LayoutName(SlideLayoutPart layout) =>
@@ -39,9 +74,8 @@ namespace DocuHelper.Tools.Ppt
         public static PptSlideRef Add(PresentationDocument document, int after, SlideLayoutPart layout, string title, IReadOnlyList<PptLine> lines)
         {
             var presentationPart = document.PresentationPart;
-            var presentation = presentationPart.Presentation;
             var slidePart = presentationPart.AddNewPart<SlidePart>();
-            slidePart.AddPart(layout);
+            slidePart.AddPart(layout, "rId1");
 
             var tree = new P.ShapeTree(
                 new P.NonVisualGroupShapeProperties(
@@ -76,19 +110,7 @@ namespace DocuHelper.Tools.Ppt
             if (textShape != null && lines != null && lines.Count > 0)
                 PptText.SetLines(textShape.TextBody, lines);
 
-            presentation.SlideIdList ??= new P.SlideIdList();
-            var list = presentation.SlideIdList;
-            var existing = list.Elements<P.SlideId>().ToList();
-            var id = existing.Count == 0 ? FirstSlideId : Math.Max(FirstSlideId, existing.Max(s => s.Id?.Value ?? 0) + 1);
-            var slideId = new P.SlideId { Id = id, RelationshipId = presentationPart.GetIdOfPart(slidePart) };
-
-            var position = Math.Clamp(after, 0, existing.Count);
-            if (position == 0)
-                list.PrependChild(slideId);
-            else
-                existing[position - 1].InsertAfterSelf(slideId);
-
-            return new PptSlideRef(position + 1, slideId, slidePart);
+            return PptSlideOrder.Insert(document, slidePart, after);
         }
 
         public static P.Shape PlaceholderFrom(P.Shape layoutShape, uint id)
@@ -105,10 +127,7 @@ namespace DocuHelper.Tools.Ppt
                 new P.TextBody(new A.BodyProperties(), new A.ListStyle(), PptText.EmptyParagraph()));
         }
 
-        private static PptShapeRole RoleOf(P.Shape shape) =>
-            PptPlaceholder.RoleOf(PptPlaceholder.TypeOf(PptPlaceholder.Of(shape)));
-
-        private static IEnumerable<P.Shape> TextPlaceholders(SlideLayoutPart layout)
+        public static IEnumerable<P.Shape> TextPlaceholders(SlideLayoutPart layout)
         {
             var tree = layout.SlideLayout?.CommonSlideData?.ShapeTree;
             if (tree == null)
@@ -121,7 +140,26 @@ namespace DocuHelper.Tools.Ppt
             });
         }
 
-        private static List<SlideLayoutPart> Layouts(SlideMasterPart master)
+        public static List<SlideMasterPart> Masters(PresentationDocument document, SlidePart near)
+        {
+            var presentationPart = document.PresentationPart;
+            var masters = new List<SlideMasterPart>();
+            var nearMaster = near?.SlideLayoutPart?.SlideMasterPart;
+            if (nearMaster != null)
+                masters.Add(nearMaster);
+
+            foreach (var masterId in presentationPart.Presentation.SlideMasterIdList?.Elements<P.SlideMasterId>() ?? Enumerable.Empty<P.SlideMasterId>())
+            {
+                var relationshipId = masterId.RelationshipId?.Value;
+                if (!string.IsNullOrEmpty(relationshipId) && presentationPart.TryGetPartById(relationshipId, out var part) && part is SlideMasterPart master && !masters.Contains(master))
+                    masters.Add(master);
+            }
+
+            masters.AddRange(presentationPart.SlideMasterParts.Where(m => !masters.Contains(m)));
+            return masters;
+        }
+
+        public static List<SlideLayoutPart> Layouts(SlideMasterPart master)
         {
             var layouts = new List<SlideLayoutPart>();
             var ids = master.SlideMaster?.SlideLayoutIdList;
@@ -139,18 +177,52 @@ namespace DocuHelper.Tools.Ppt
             return layouts;
         }
 
+        private static PptShapeRole RoleOf(P.Shape shape) =>
+            PptPlaceholder.RoleOf(PptPlaceholder.TypeOf(PptPlaceholder.Of(shape)));
+
+        private static SlideLayoutPart FindByName(List<SlideMasterPart> masters, string name)
+        {
+            foreach (var master in masters)
+            {
+                var found = Layouts(master).FirstOrDefault(l => string.Equals(LayoutName(l).Trim(), name, StringComparison.OrdinalIgnoreCase));
+                if (found != null)
+                    return found;
+            }
+
+            return null;
+        }
+
+        private static SlideLayoutPart FindByKind(List<SlideMasterPart> masters, string kind)
+        {
+            foreach (var master in masters)
+            {
+                var found = Pick(Layouts(master), kind);
+                if (found != null)
+                    return found;
+            }
+
+            return null;
+        }
+
         private static SlideLayoutPart Pick(List<SlideLayoutPart> layouts, string kind)
         {
+            var exact = layouts.FirstOrDefault(l => PptLayoutKinds.Classify(l) == kind);
+            if (exact != null)
+                return exact;
+
             if (kind == TitleKind)
             {
-                return layouts.FirstOrDefault(l => TypeOf(l) == P.SlideLayoutValues.Title)
-                    ?? layouts.FirstOrDefault(l => Types(l).Contains("ctrTitle"))
+                return layouts.FirstOrDefault(l => Types(l).Contains("ctrTitle"))
                     ?? layouts.FirstOrDefault(l => Types(l).Contains("subTitle") && HasTitle(l));
             }
 
-            return layouts.FirstOrDefault(l => TypeOf(l) == P.SlideLayoutValues.Object && HasTitle(l) && HasBody(l))
-                ?? layouts.FirstOrDefault(l => TypeOf(l) == P.SlideLayoutValues.Text && HasTitle(l) && HasBody(l))
-                ?? layouts.Where(l => HasTitle(l) && HasBody(l)).OrderBy(l => Types(l).Count(t => t == "body" || t == "obj")).FirstOrDefault();
+            if (kind == ContentKind)
+            {
+                return layouts.FirstOrDefault(l => TypeOf(l) == P.SlideLayoutValues.Text && HasTitle(l) && HasBody(l))
+                    ?? layouts.Where(l => HasTitle(l) && HasBody(l)).OrderBy(l => Types(l).Count(t => t == "body" || t == "obj")).FirstOrDefault();
+            }
+
+            return null;
         }
 
         private static P.SlideLayoutValues? TypeOf(SlideLayoutPart layout)

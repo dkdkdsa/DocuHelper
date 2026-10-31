@@ -1,0 +1,38 @@
+.bar {
+    --bar-gap: 2px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--bar-gap);
+    min-height: 52px;
+    padding: 4px 6px 4px 12px;
+    border-top: 1px solid var(--hair);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 13px;
+}
+
+.bar.tight {
+    padding: 4px 4px 4px 8px;
+}
+
+.bar.tight ::deep .tool.text {
+    padding: 0 8px;
+}
+
+.bar.tight ::deep .percent {
+    min-width: 48px;
+}
+
+.bar.wrap {
+    --bar-gap: 4px;
+    flex-wrap: wrap;
+    gap: 2px var(--bar-gap);
+    min-height: 48px;
+    padding: 2px 6px 2px 12px;
+    border-top-color: var(--rule);
+}
+
+.grow {
+    flex: 1;
+}

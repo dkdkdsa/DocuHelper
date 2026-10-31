@@ -15,6 +15,16 @@ namespace DocuHelperEditor.Services
             { DevicePlatform.WinUI, new[] { ".xlsx", ".docx", ".pptx", ".hwp", ".hwpx", ".xls", ".doc", ".ppt" } },
         });
 
+        private static readonly FilePickerFileType s_images = new(new Dictionary<DevicePlatform, IEnumerable<string>>
+        {
+            { DevicePlatform.WinUI, new[] { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff" } },
+        });
+
+        private static readonly FilePickerFileType s_audio = new(new Dictionary<DevicePlatform, IEnumerable<string>>
+        {
+            { DevicePlatform.WinUI, new[] { ".wav", ".mp3" } },
+        });
+
         public async Task<IReadOnlyList<string>> PickDocumentsAsync()
         {
             IEnumerable<FileResult> results;
@@ -85,6 +95,28 @@ namespace DocuHelperEditor.Services
 #else
             return await Task.FromResult<string>(null);
 #endif
+        }
+
+        public Task<string> PickImageAsync() => PickOneAsync("그림 고르기", s_images);
+
+        public Task<string> PickAudioAsync() => PickOneAsync("소리 고르기", s_audio);
+
+        private static async Task<string> PickOneAsync(string title, FilePickerFileType types)
+        {
+            try
+            {
+                var result = await FilePicker.Default.PickAsync(new PickOptions
+                {
+                    PickerTitle = title,
+                    FileTypes = types,
+                });
+                return result?.FullPath;
+            }
+            catch (Exception e)
+            {
+                AppLog.Write($"File picker failed ({title})", e);
+                return null;
+            }
         }
 
 #if WINDOWS

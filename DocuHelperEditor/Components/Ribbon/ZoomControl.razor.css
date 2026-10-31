@@ -1,0 +1,24 @@
+.zoom {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--bar-gap, 2px);
+}
+
+.slider {
+    flex: none;
+    height: var(--hit);
+    margin: 0;
+    accent-color: var(--ink);
+    cursor: pointer;
+}
+
+.slider:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+}
+
+.zoom ::deep .percent {
+    min-width: 52px;
+    justify-content: center;
+}

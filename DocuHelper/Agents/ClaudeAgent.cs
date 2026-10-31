@@ -35,7 +35,6 @@ namespace DocuHelper.Agents
         public override async Task<AgentResult> RunAsync(AgentRequest request, AgentToolbox toolbox, IAgentHost host, CancellationToken cancellationToken)
         {
             var client = ClientFor(request.ApiKey);
-            var tools = toolbox.Definitions.Select(ToTool).ToList();
             var attachments = request.Attachments.Where(a => a != null).ToList();
             var addedBytes = attachments.Sum(SizeOf);
             var addedImages = attachments.Count(a => a.Kind == AgentAttachmentKind.Image);
@@ -57,7 +56,7 @@ namespace DocuHelper.Agents
             {
                 for (var turn = 0; turn < MaxTurns; turn++)
                 {
-                    var response = await CreateWithRetryAsync(client, CreateParams(request, tools), host, cancellationToken);
+                    var response = await CreateWithRetryAsync(client, CreateParams(request, toolbox), host, cancellationToken);
                     if (response.StopReason == "refusal")
                         throw new AgentException(AgentFailure.Refused, "이 부탁은 도와드리기 어려워요. 다르게 말해 주시면 다시 해 볼게요.");
 
@@ -198,17 +197,19 @@ namespace DocuHelper.Agents
             return new AnthropicClient { ApiKey = apiKey.Trim(), MaxRetries = 0 };
         }
 
-        private MessageCreateParams CreateParams(AgentRequest request, List<BetaToolUnion> tools)
+        private MessageCreateParams CreateParams(AgentRequest request, AgentToolbox toolbox)
         {
             var model = string.IsNullOrWhiteSpace(request.Model) ? DefaultModel : request.Model.Trim();
             var effort = ParseEffort(request.Effort);
+            var system = ClaudePrompt.Compose(toolbox.Types);
+            var tools = toolbox.Definitions.Select(ToTool).ToList();
             if (model.StartsWith("claude-haiku", StringComparison.Ordinal))
             {
                 return new MessageCreateParams
                 {
                     Model = model,
                     MaxTokens = MaxTokens,
-                    System = ClaudePrompt.System,
+                    System = system,
                     Tools = tools,
                     Messages = _messages.ToList(),
                     OutputConfig = new BetaOutputConfig { Effort = effort },
@@ -220,7 +221,7 @@ namespace DocuHelper.Agents
             {
                 Model = model,
                 MaxTokens = MaxTokens,
-                System = ClaudePrompt.System,
+                System = system,
                 Tools = tools,
                 Messages = _messages.ToList(),
                 OutputConfig = new BetaOutputConfig { Effort = effort },

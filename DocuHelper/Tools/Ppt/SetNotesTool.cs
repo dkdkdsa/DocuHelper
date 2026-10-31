@@ -35,7 +35,7 @@ namespace DocuHelper.Tools.Ppt
 
             var text = input.GetOptionalString("text") ?? string.Empty;
             if (text.Length > MaxLength)
-                throw new ToolInputException("발표 메모가 너무 길어요. 줄여서 넣어 주세요.");
+                throw new ToolInputException("노트가 너무 길어요. 줄여서 넣어 주세요.");
 
             var lines = PptLine.FromText(text);
             if (lines.Count == 0 && PptNotes.Body(slide.Part.NotesSlidePart) == null)
@@ -53,12 +53,12 @@ namespace DocuHelper.Tools.Ppt
 
             var change = new DocuChange
             {
-                Location = $"{slide.Number.ToString(CultureInfo.InvariantCulture)}번 메모",
+                Location = $"{slide.Number.ToString(CultureInfo.InvariantCulture)}번 노트",
                 Icon = "note",
                 Anchors = { PptAnchor.Notes(slide.SlideId) },
             };
 
-            return ToolResult.Changed(content, change, count == 0 ? "메모 지움" : $"메모 {count}줄");
+            return ToolResult.Changed(content, change, count == 0 ? "노트 지움" : $"노트 {count}줄");
         }
     }
 }

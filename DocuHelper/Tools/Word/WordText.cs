@@ -98,8 +98,32 @@ namespace DocuHelper.Tools.Word
         public static ParagraphMarkRunProperties ToMark(RunProperties props) =>
             new(props.ChildElements.Where(c => c is not RunPropertiesChange).Select(c => c.CloneNode(true)));
 
-        public static void Write(Paragraph paragraph, string text)
+        public static string OfWithAtoms(Paragraph paragraph, char marker = '\uFFFC')
         {
+            var map = WordTextMap.Build(paragraph);
+            var result = new StringBuilder(map.Length + 8);
+            var from = 0;
+            foreach (var segment in map.Segments)
+            {
+                if (!segment.IsAtom || (segment.AtomKind != WordAtomKind.Object && segment.AtomKind != WordAtomKind.Note && segment.AtomKind != WordAtomKind.Symbol))
+                    continue;
+
+                result.Append(map.Text, from, segment.Start - from).Append(marker);
+                from = segment.Start;
+            }
+
+            result.Append(map.Text, from, map.Length - from);
+            return result.ToString();
+        }
+
+        public static void Write(Paragraph paragraph, string text, bool preserve = true)
+        {
+            if (preserve)
+            {
+                WritePreserving(paragraph, text);
+                return;
+            }
+
             var props = TemplateProperties(paragraph);
             var starts = new List<OpenXmlElement>();
             var ends = new List<OpenXmlElement>();
@@ -140,6 +164,49 @@ namespace DocuHelper.Tools.Word
             foreach (var run in references)
                 Move(paragraph, run);
 
+            WordIds.Renew(paragraph);
+        }
+
+        private static void WritePreserving(Paragraph paragraph, string text)
+        {
+            var value = Clean(text);
+            var map = WordTextMap.Build(paragraph);
+            var hunks = WordTextDiff.Compute(map.Text, value);
+            if (hunks.Count == 0)
+                return;
+
+            if (value.Length == 0 && paragraph.ParagraphProperties?.ParagraphMarkRunProperties == null)
+            {
+                var template = TemplateProperties(paragraph);
+                if (template != null)
+                {
+                    paragraph.ParagraphProperties ??= new ParagraphProperties();
+                    paragraph.ParagraphProperties.ParagraphMarkRunProperties = ToMark(template);
+                }
+            }
+
+            for (var i = hunks.Count - 1; i >= 0; i--)
+            {
+                var hunk = hunks[i];
+                var replaced = hunk.OldEnd > hunk.OldStart;
+                var props = replaced ? map.PropertiesAt(hunk.OldStart) ?? new RunProperties() : null;
+                var linked = replaced && map.InHyperlink(hunk.OldStart);
+                if (replaced)
+                    map.Remove(hunk.OldStart, hunk.OldEnd);
+
+                if (hunk.Insert.Length == 0)
+                    continue;
+
+                var run = map.InsertRunAt(hunk.OldStart, hunk.Insert, props);
+                if (linked && run?.RunProperties?.RunStyle != null && !run.Ancestors<Hyperlink>().Any())
+                {
+                    run.RunProperties.RunStyle = null;
+                    if (!run.RunProperties.HasChildren)
+                        run.RunProperties = null;
+                }
+            }
+
+            map.Normalize();
             WordIds.Renew(paragraph);
         }
 
@@ -226,7 +293,7 @@ namespace DocuHelper.Tools.Word
             }
         }
 
-        private static bool IsContainer(OpenXmlElement element) =>
+        public static bool IsContainer(OpenXmlElement element) =>
             element.HasChildren
             && element is not ParagraphProperties
             && element is not RunProperties

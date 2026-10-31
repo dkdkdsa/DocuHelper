@@ -1,0 +1,9 @@
+.glyph {
+    display: inline-block;
+    font-family: var(--ribbon-glyph-font, var(--font-display));
+    font-size: var(--ribbon-glyph-size, 17px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: var(--ribbon-glyph-tracking, normal);
+    text-align: center;
+}

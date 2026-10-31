@@ -1,0 +1,49 @@
+.sx {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--hit);
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.sx.icon {
+    width: var(--hit);
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius);
+}
+
+.sx:hover {
+    background: var(--bubble);
+}
+
+.sx.on {
+    background: var(--hair);
+    box-shadow: inset 0 0 0 1px var(--thumb-line);
+}
+
+.sx:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+}
+
+.sx.static,
+.sx.static:hover {
+    background: transparent;
+    cursor: default;
+}
+
+.sx.dense {
+    height: 40px;
+    padding: 0 6px;
+}

@@ -102,7 +102,42 @@ namespace DocuHelper.Tools.Excel
             if (merged.Count > 0)
                 text.AppendLine("Merged cells: " + string.Join(", ", merged));
 
+            var hiddenRows = Spans(Enumerable.Range(first, last - first + 1).Where(sheet.IsRowHidden), r => (r + 1).ToString());
+            if (hiddenRows.Length > 0)
+                text.AppendLine("Hidden rows: " + hiddenRows);
+
+            var hiddenColumns = Spans(Enumerable.Range(range.Left, range.ColumnCount).Where(c => { sheet.ColumnWidth(c, out var hidden); return hidden; }), CellAddress.ColumnName);
+            if (hiddenColumns.Length > 0)
+                text.AppendLine("Hidden columns: " + hiddenColumns);
+
+            var (frozenRows, frozenColumns) = sheet.Freeze;
+            if (frozenRows > 0 || frozenColumns > 0)
+                text.AppendLine($"Frozen panes: {frozenRows} row(s), {frozenColumns} column(s).");
+
             return ToolResult.Ok(text.ToString().TrimEnd(), $"{printed}줄");
+        }
+
+        private static string Spans(IEnumerable<int> indexes, Func<int, string> label)
+        {
+            var parts = new List<string>();
+            int? start = null;
+            var previous = -2;
+            foreach (var index in indexes.Append(int.MinValue))
+            {
+                if (start.HasValue && index != previous + 1)
+                {
+                    parts.Add(start.Value == previous ? label(previous) : label(start.Value) + "-" + label(previous));
+                    start = null;
+                }
+
+                if (index == int.MinValue || parts.Count >= 20)
+                    break;
+
+                start ??= index;
+                previous = index;
+            }
+
+            return string.Join(", ", parts);
         }
 
         private static string SheetSummary(ExcelSheet sheet)
@@ -115,7 +150,7 @@ namespace DocuHelper.Tools.Excel
         private static string CellText(ExcelBook book, ExcelSheet sheet, ExcelCellEntry entry)
         {
             var cell = entry.Cell;
-            var formula = sheet.FormulaOf(cell, entry.Column, entry.Row);
+            var formula = FormulaText.ForDisplay(sheet.FormulaOf(cell, entry.Column, entry.Row));
             var value = book.ReadValue(cell);
             string shown;
             if (formula != null && cell.CellValue == null)

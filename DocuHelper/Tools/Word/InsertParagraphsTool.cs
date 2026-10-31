@@ -17,7 +17,8 @@ namespace DocuHelper.Tools.Word
             + "Each item is one paragraph with its text and a style: body, heading1, heading2, bullet or number. "
             + "New paragraphs copy the look of similar paragraphs nearby. Consecutive bullet or number items form one list; "
             + "a number item next to an existing numbered list continues it, otherwise a new list starts at 1. "
-            + "Do not type bullet marks or list numbers into bullet and number items. Returns the ids of the new paragraphs.";
+            + "Do not type bullet marks or list numbers into bullet and number items. "
+            + "When change tracking is on the new paragraphs are recorded as tracked insertions. Returns the ids of the new paragraphs.";
 
         public override string InputSchema => """
             {
@@ -50,6 +51,7 @@ namespace DocuHelper.Tools.Word
             var insertion = WordInsertion.Resolve(scan, after);
             var used = WordIds.Collect(docu.Document);
 
+            var revision = WordRevisions.Active(docu);
             var created = new List<Paragraph>();
             Paragraph lastNew = null;
             var lastKind = WordKind.Body;
@@ -57,6 +59,9 @@ namespace DocuHelper.Tools.Word
             {
                 var paragraph = WordStyler.Create(scan, kind, text, insertion, lastNew, lastKind, used);
                 insertion.Insert(paragraph);
+                if (revision != null)
+                    WordRevisionOps.RecordInserted(paragraph, revision);
+
                 created.Add(paragraph);
                 lastNew = paragraph;
                 lastKind = kind;
@@ -70,7 +75,7 @@ namespace DocuHelper.Tools.Word
                 : "lines";
 
             return ToolResult.Changed(
-                $"Inserted {created.Count} paragraph(s) {insertion.Describe}. New ids in order: {string.Join(", ", ids)}.",
+                $"Inserted {created.Count} paragraph(s) {insertion.Describe}{(revision == null ? string.Empty : " as tracked insertions")}. New ids in order: {string.Join(", ", ids)}.",
                 Change(location, icon, ids.Select(WordIds.ParagraphAnchor)),
                 $"문단 {created.Count}개");
         }
