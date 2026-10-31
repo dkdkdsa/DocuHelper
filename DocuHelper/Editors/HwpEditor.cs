@@ -2,6 +2,7 @@
 using System.IO;
 using DocuHelper.Docus;
 using DocuHelper.Importers.Hwp;
+using DocuHelper.Tools.Hwp;
 using DocuHelper.Tools.Word;
 
 namespace DocuHelper.Editors
@@ -11,6 +12,7 @@ namespace DocuHelper.Editors
         public HwpEditor(IHancomOffice hancom)
         {
             Hancom = hancom;
+            AddTool(new SetPageControlTool());
         }
 
         public IHancomOffice Hancom { get; }

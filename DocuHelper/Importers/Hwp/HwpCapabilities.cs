@@ -29,7 +29,7 @@ namespace DocuHelper.Importers.Hwp
 
             HwpFeature.HeaderFooter => true,
             HwpFeature.PageNumber => true,
-            HwpFeature.PageControl => false,
+            HwpFeature.PageControl => true,
 
             HwpFeature.Columns => true,
             HwpFeature.PageBorder => true,
