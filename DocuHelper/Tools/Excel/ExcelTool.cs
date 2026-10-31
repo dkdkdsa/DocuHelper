@@ -18,6 +18,9 @@ namespace DocuHelper.Tools.Excel
                 return ToolResult.Fail("엑셀 파일이 아니라서 이 도구를 쓸 수 없어요.");
 
             var book = new ExcelBook(excel.Document);
+            if (!IsReadOnly)
+                ProtectionGuard.Check(book, Name, input);
+
             var result = Run(excel, book, input);
             if (!IsReadOnly && !result.IsError)
                 ExcelTables.Reconcile(book);
