@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace DocuHelper.Tools.Word
@@ -9,31 +10,42 @@ namespace DocuHelper.Tools.Word
     {
         public const int DefaultTextWidth = 9026;
         public const int DefaultTextHeight = 13697;
-
-        private const double CharsPerLine = 45;
         public const double LinesPerPage = 1700.0 / 45;
 
-        private readonly double _charsPerLine;
-        private readonly double _linesPerPage;
-        private readonly double _limit;
+        private readonly WordLayoutContext _context;
+        private readonly List<SectionProperties> _marks;
+        private int _current;
         private double _used;
         private bool _fresh = true;
 
-        public WordPager(Body body, int normalFontSize)
+        public WordPager(WordLayoutContext context, Body body)
         {
-            TextArea(body, out var width, out var height);
-            var font = 20.0 / Math.Max(10, normalFontSize);
-            _charsPerLine = Math.Max(10, CharsPerLine * width / DefaultTextWidth * font);
-            _linesPerPage = Math.Max(10, LinesPerPage * height / DefaultTextHeight * font);
-            _limit = body != null && body.Descendants<LastRenderedPageBreak>().Any() ? _linesPerPage * 1.3 : _linesPerPage;
-            Layout = LayoutOf(body, normalFontSize, _limit);
+            _context = context;
+            _marks = body?.Descendants<SectionProperties>().ToList() ?? new List<SectionProperties>();
+            Sections = WordSectionLayout.Build(context, _marks);
         }
+
+        public IReadOnlyList<WordSectionLayout> Sections { get; }
 
         public int Page { get; private set; } = 1;
 
-        public WordPageLayout Layout { get; }
+        public WordPageLayout Layout => Sections[^1].Page;
 
         public int LastPage => _fresh && Page > 1 ? Page - 1 : Page;
+
+        public void Place(WordBlock block)
+        {
+            var section = Sections[_current];
+            if (block.IsTable)
+                PlaceTable(block, section);
+            else
+                PlaceParagraph(block, section);
+
+            var mark = block.Paragraph?.ParagraphProperties?.SectionProperties;
+            var index = mark == null ? -1 : _marks.IndexOf(mark);
+            if (index >= 0 && index + 1 < Sections.Count)
+                Transition(index + 1);
+        }
 
         public static void TextArea(Body body, out int width, out int height)
         {
@@ -63,93 +75,6 @@ namespace DocuHelper.Tools.Word
                 normalFontSize);
         }
 
-        private static int Positive(int value, int fallback) => value > 0 ? value : fallback;
-
-        private static int Twips(DocumentFormat.OpenXml.OpenXmlSimpleType value, int fallback) =>
-            value != null && double.TryParse(value.InnerText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) && Math.Abs(number) < int.MaxValue
-                ? (int)Math.Round(number)
-                : fallback;
-
-        public void PlaceParagraph(WordBlock block, string marked, bool breakBefore, bool breakAfter)
-        {
-            if (breakBefore)
-                Break(false);
-
-            var segments = Split(marked);
-            var hasText = segments.Any(s => s.Text.Length > 0);
-            var index = 0;
-            if (hasText)
-            {
-                while (index < segments.Count - 1 && segments[index].Text.Length == 0)
-                {
-                    Break(segments[index].Mark == WordText.PageBreakMark);
-                    index++;
-                }
-            }
-
-            var height = Height(block.Kind);
-            var spacing = Spacing(block.Kind);
-            if (!_fresh)
-            {
-                var first = Lines(segments[index].Text, _charsPerLine) * height;
-                var needed = block.IsHeading ? first + spacing + 2 : Math.Min(first, 1);
-                if (_used + needed > _limit)
-                    Break(false);
-            }
-
-            block.Page = Page;
-            for (var start = index; index < segments.Count; index++)
-            {
-                if (index == start || segments[index].Text.Length > 0)
-                    Add(Lines(segments[index].Text, _charsPerLine) * height);
-
-                if (index < segments.Count - 1)
-                    Break(segments[index].Mark == WordText.PageBreakMark);
-            }
-
-            if (!_fresh)
-                Add(spacing);
-
-            if (breakAfter)
-                Break(false);
-        }
-
-        public void PlaceTable(WordBlock block, List<List<WordCell>> grid)
-        {
-            var columns = Math.Max(1, WordTables.ColumnCount(grid));
-            var cellChars = Math.Max(4, _charsPerLine / columns - 2);
-            var placed = false;
-            foreach (var row in grid)
-            {
-                var owners = row.Where(c => c.IsOrigin && c.Owner != null).Select(c => c.Owner).ToList();
-                if (owners.Any(o => o.Descendants<LastRenderedPageBreak>().Any()))
-                    Break(false);
-
-                if (!placed)
-                {
-                    if (!_fresh && _used + 1.5 > _limit)
-                        Break(false);
-
-                    block.Page = Page;
-                    placed = true;
-                }
-
-                var lines = 1.0;
-                foreach (var owner in owners)
-                {
-                    var count = owner.Elements<Paragraph>().Sum(p => Lines(WordText.Of(p), cellChars));
-                    lines = Math.Max(lines, count);
-                }
-
-                Add(lines + 0.3);
-            }
-
-            if (!placed)
-                block.Page = Page;
-
-            Add(0.6);
-        }
-
         public static double Width(string text)
         {
             var width = 0.0;
@@ -159,64 +84,120 @@ namespace DocuHelper.Tools.Word
             return width;
         }
 
-        private static double Lines(string text, double charsPerLine)
-        {
-            var lines = 0.0;
-            foreach (var line in text.Split('\n'))
-                lines += Math.Max(1, Math.Ceiling(Width(line) / charsPerLine));
+        private static int Positive(int value, int fallback) => value > 0 ? value : fallback;
 
-            return lines;
-        }
+        private static int Twips(OpenXmlSimpleType value, int fallback) =>
+            value != null && double.TryParse(value.InnerText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) && Math.Abs(number) < int.MaxValue
+                ? (int)Math.Round(number)
+                : fallback;
 
-        private static double Height(WordKind kind) => kind switch
+        private void PlaceParagraph(WordBlock block, WordSectionLayout section)
         {
-            WordKind.Title => 2.0,
-            WordKind.Heading1 => 1.5,
-            WordKind.Heading2 => 1.3,
-            _ => 1.0,
-        };
+            var box = WordParagraphMetrics.Measure(_context, block.Paragraph, section.TextWidthPt);
+            if (box.PageBefore)
+                NewPage(false);
 
-        private static double Spacing(WordKind kind) => kind switch
-        {
-            WordKind.Title => 1.2,
-            WordKind.Heading1 => 1.0,
-            WordKind.Heading2 => 0.8,
-            _ => 0.35,
-        };
-
-        private static List<(string Text, char Mark)> Split(string marked)
-        {
-            var segments = new List<(string Text, char Mark)>();
-            var start = 0;
-            for (var i = 0; i < marked.Length; i++)
+            var spacing = _fresh ? 0 : box.Before;
+            block.LineHeight = box.Lines.Select(l => l.Height).FirstOrDefault(h => h > 0);
+            block.FontSize = WordParagraphMetrics.FontSizeOf(_context, block.Paragraph);
+            var placed = false;
+            foreach (var line in box.Lines)
             {
-                var c = marked[i];
-                if (c != WordText.PageBreakMark && c != WordText.RenderedBreakMark)
-                    continue;
+                var extra = placed ? 0 : spacing;
+                if (!_fresh && _used + extra + line.Height > section.CapacityPt)
+                    NewPage(false);
 
-                segments.Add((marked.Substring(start, i - start), c));
-                start = i + 1;
+                if (!placed)
+                {
+                    block.Page = Page;
+                    placed = true;
+                    if (!_fresh && spacing > 0)
+                    {
+                        _used += spacing;
+                        block.SpaceBefore = spacing;
+                        Add(block, spacing);
+                    }
+                }
+
+                if (line.Height > 0)
+                {
+                    _used += line.Height;
+                    _fresh = false;
+                    Add(block, line.Height);
+                }
+
+                if (line.PageBreak)
+                    NewPage(true);
             }
 
-            segments.Add((marked.Substring(start), '\0'));
-            return segments;
+            if (!placed)
+                block.Page = Page;
+
+            if (!_fresh)
+            {
+                _used += box.After;
+                Add(block, box.After);
+            }
         }
 
-        private void Add(double lines)
+        private void PlaceTable(WordBlock block, WordSectionLayout section)
         {
-            if (lines <= 0)
+            var rows = WordTableMetrics.RowHeights(_context, block.Table, section.TextWidthPt);
+            block.RowHeights.AddRange(rows);
+            block.LineHeight = WordFontMetrics.For(_context.LatinFamily(null, null)).LineHeight * _context.NormalSizePt;
+            var placed = false;
+            foreach (var height in rows)
+            {
+                if (!_fresh && _used + height > section.CapacityPt)
+                    NewPage(false);
+
+                if (!placed)
+                {
+                    block.Page = Page;
+                    placed = true;
+                }
+
+                if (height > 0)
+                {
+                    _used += height;
+                    _fresh = false;
+                    Add(block, height);
+                }
+            }
+
+            if (!placed)
+                block.Page = Page;
+        }
+
+        private void Add(WordBlock block, double height)
+        {
+            if (height <= 0)
                 return;
 
-            _used += lines;
-            _fresh = false;
-            while (_used > _limit)
+            if (block.Fragments.Count > 0 && block.Fragments[^1].Page == Page)
             {
-                Page++;
-                _used -= _linesPerPage;
+                var last = block.Fragments[^1];
+                block.Fragments[^1] = last with { Height = last.Height + height };
+                return;
             }
+
+            var offset = block.Fragments.Count == 0 ? 0 : block.Fragments[^1].Offset + block.Fragments[^1].Height;
+            block.Fragments.Add(new WordFragment(Page, offset, height));
         }
 
-        private void Break(bool always)
+        private void Transition(int next)
+        {
+            _current = next;
+            var start = Sections[next].Start;
+            if (start == SectionMarkValues.Continuous)
+                return;
+
+            NewPage(false);
+            if ((start == SectionMarkValues.EvenPage && Page % 2 != 0) || (start == SectionMarkValues.OddPage && Page % 2 == 0))
+                NewPage(true);
+        }
+
+        private void NewPage(bool always)
         {
             if (_fresh && !always)
                 return;

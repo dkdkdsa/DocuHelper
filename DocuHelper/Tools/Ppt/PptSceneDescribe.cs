@@ -12,14 +12,7 @@ namespace DocuHelper.Tools.Ppt
 
         private const int MaxLayouts = 20;
 
-        public static string Layout(PptSceneSlide slide)
-        {
-            var text = new StringBuilder();
-            foreach (var shape in Flatten(slide.Shapes))
-                AppendLayout(text, shape, 0);
-
-            return text.ToString();
-        }
+        public static IEnumerable<PptSceneShape> All(PptSceneSlide slide) => Flatten(slide.Shapes);
 
         public static string Effects(PptSceneSlide slide)
         {
@@ -81,22 +74,10 @@ namespace DocuHelper.Tools.Ppt
 
         public static string AspectOf(PptScene scene) => Aspect(scene.SlideWidthEmu, scene.SlideHeightEmu);
 
-        private static IEnumerable<PptSceneShape> Flatten(IEnumerable<PptSceneShape> shapes)
+        public static string Position(PptSceneShape shape)
         {
-            foreach (var shape in shapes)
-            {
-                yield return shape;
-                foreach (var child in Flatten(shape.Children))
-                    yield return child;
-            }
-        }
-
-        private static void AppendLayout(StringBuilder text, PptSceneShape shape, int depth)
-        {
-            var id = shape.Id.ToString(CultureInfo.InvariantCulture);
-            var name = string.IsNullOrWhiteSpace(shape.Name) ? string.Empty : $" \"{PptOutput.Shorten(shape.Name, 40)}\"";
             var line = new StringBuilder();
-            line.Append($"[{id}] {KindName(shape.Kind)}{name} x={Cm(shape.X / EmuPerCm)} y={Cm(shape.Y / EmuPerCm)} w={Cm(shape.W / EmuPerCm)} h={Cm(shape.H / EmuPerCm)} cm");
+            line.Append($"x={Cm(shape.X / EmuPerCm)} y={Cm(shape.Y / EmuPerCm)} w={Cm(shape.W / EmuPerCm)} h={Cm(shape.H / EmuPerCm)} cm");
             if (shape.RotationDeg != 0)
                 line.Append($", rotated {shape.RotationDeg.ToString("0.#", CultureInfo.InvariantCulture)} deg");
 
@@ -106,17 +87,41 @@ namespace DocuHelper.Tools.Ppt
             if (shape.Line != null && shape.Line.Color != null)
                 line.Append($", line #{shape.Line.Color} {shape.Line.WidthPt.ToString("0.##", CultureInfo.InvariantCulture)}pt");
 
-            if (shape.Kind == PptShapeKind.Picture && !string.IsNullOrEmpty(shape.AltText))
-                line.Append($", alt \"{PptOutput.Shorten(shape.AltText, 60)}\"");
+            return line.ToString();
+        }
 
-            text.AppendLine(new string(' ', depth * 2) + line);
-            if (shape.Kind == PptShapeKind.Table && shape.Table != null)
+        public static IEnumerable<string> TableRows(PptSceneShape shape)
+        {
+            if (shape?.Table == null)
+                yield break;
+
+            for (var r = 0; r < shape.Table.Rows.Count; r++)
             {
-                for (var r = 0; r < shape.Table.Rows.Count; r++)
-                {
-                    var cells = shape.Table.Rows[r].Cells.Select(c => PptOutput.Shorten(string.Join(" ", c.Paragraphs.Select(p => string.Concat(p.Runs.Select(run => run.Text)))), 30));
-                    text.AppendLine($"  row {(r + 1).ToString(CultureInfo.InvariantCulture)}: {string.Join(" | ", cells)}");
-                }
+                var cells = shape.Table.Rows[r].Cells.Select(c => PptOutput.Shorten(string.Join(" ", c.Paragraphs.Select(p => string.Concat(p.Runs.Select(run => run.Text)))), 30));
+                yield return $"row {(r + 1).ToString(CultureInfo.InvariantCulture)}: {string.Join(" | ", cells)}";
+            }
+        }
+
+        public static string Standalone(PptSceneShape shape)
+        {
+            var id = shape.Id.ToString(CultureInfo.InvariantCulture);
+            var name = string.IsNullOrWhiteSpace(shape.Name) ? string.Empty : $" \"{PptOutput.Shorten(shape.Name, 40)}\"";
+            var alt = shape.Kind == PptShapeKind.Picture && !string.IsNullOrEmpty(shape.AltText) ? $", alt \"{PptOutput.Shorten(shape.AltText, 60)}\"" : string.Empty;
+            var text = new StringBuilder();
+            text.AppendLine($"[{id}] {KindName(shape.Kind)}{name}, {Position(shape)}{alt}");
+            foreach (var row in TableRows(shape))
+                text.AppendLine("  " + row);
+
+            return text.ToString();
+        }
+
+        private static IEnumerable<PptSceneShape> Flatten(IEnumerable<PptSceneShape> shapes)
+        {
+            foreach (var shape in shapes)
+            {
+                yield return shape;
+                foreach (var child in Flatten(shape.Children))
+                    yield return child;
             }
         }
 

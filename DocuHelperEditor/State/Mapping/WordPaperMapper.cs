@@ -37,6 +37,11 @@ namespace DocuHelperEditor.State.Mapping
                 var model = block.IsTable ? MapTable(scan, block) : MapParagraph(block, look);
                 model.Id = block.Id == null ? $"b:{block.Index}" : block.Anchor;
                 model.Page = block.Page;
+                model.Fragments = block.Fragments.ToList();
+                model.SpaceBefore = block.SpaceBefore;
+                model.LineHeight = block.LineHeight;
+                model.FontSize = block.FontSize;
+                model.RowHeights = block.RowHeights.ToList();
                 model.IsBold = look.Bold;
                 model.IsItalic = look.Italic;
                 model.IsUnderline = look.Underline;

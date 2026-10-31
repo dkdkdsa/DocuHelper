@@ -1,4 +1,5 @@
 ﻿@using System.Globalization
+@using DocuHelper.Tools.Word
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
@@ -25,7 +26,7 @@
                             <ol class="list" @key="run.Key">
                                 @foreach (var block in run.Blocks)
                                 {
-                                    <li @key="block.Id">@(BlockView(block))</li>
+                                    <li @key="block.Id">@(BlockView(block, page))</li>
                                 }
                             </ol>
                         }
@@ -34,13 +35,13 @@
                             <ul class="list" @key="run.Key">
                                 @foreach (var block in run.Blocks)
                                 {
-                                    <li @key="block.Id">@(BlockView(block))</li>
+                                    <li @key="block.Id">@(BlockView(block, page))</li>
                                 }
                             </ul>
                         }
                         else
                         {
-                            @(BlockView(run.Blocks[0]))
+                            @(BlockView(run.Blocks[0], page))
                         }
                     }
                 </div></article>
@@ -55,6 +56,8 @@
 
 @code {
     private const double PitchAllowance = 0.98;
+
+    private const double PxPerPt = 4.0 / 3.0;
 
     private readonly Dictionary<string, ElementReference> _refs = new();
     private readonly Dictionary<string, int> _versions = new();
@@ -80,7 +83,7 @@
                 return null;
 
             var pitch = (layout.Height - layout.Top - layout.Bottom) / 15.0 / layout.Capacity * PitchAllowance;
-            var body = 14.0 * Math.Max(10, layout.NormalFontSize) / 20.0;
+            var body = layout.NormalFontSize * 2.0 / 3.0;
             return $"--paper-width: {Css(layout.Width / 15.0)}; --paper-ratio: {Css(layout.Width / (double)layout.Height)}; "
                 + $"--paper-top: {Css(layout.Top / 15.0)}; --paper-right: {Css(layout.Right / 15.0)}; "
                 + $"--paper-bottom: {Css(layout.Bottom / 15.0)}; --paper-left: {Css(layout.Left / 15.0)}; "
@@ -125,8 +128,43 @@
         }
     }
 
-    private RenderFragment BlockView(WordBlockModel block) =>
-        @<div class="@BlockClass(block)" data-change="@ChangeOf(block)" @key="block.Id">
+    private RenderFragment BlockView(WordBlockModel block, int page)
+    {
+        var fragments = Model.FragmentsOn(block, page);
+        if (fragments.Count == 0)
+            return BlockBody(block, null);
+
+        var fragment = fragments[0];
+        var split = block.Fragments.Count > 1;
+        return fragment.Offset > 0
+            ? FragmentFrame(fragment, split, ReadOnlyBody(block, fragment))
+            : FragmentFrame(fragment, split, BlockBody(block, fragment));
+    }
+
+    private static RenderFragment FragmentFrame(WordFragment fragment, bool split, RenderFragment content) =>
+        @<div class="frag" data-split="@(split ? "true" : "false")" style="@FrameStyle(fragment)">@content</div>;
+
+    private RenderFragment ReadOnlyBody(WordBlockModel block, WordFragment fragment) =>
+        block.Table == null
+            ? @<div class="@BlockClass(block)" style="@BlockStyle(block, fragment)"><p class="@TextClass(block)">@block.Text</p></div>
+            : @<div class="@BlockClass(block)" style="@BlockStyle(block, fragment)"><table class="@TableClass(block, block.Table)" style="--pitch: 0; line-height: calc(var(--lh, 1.2em) - 1px)">@ReadOnlyRows(block)</table></div>;
+
+    private RenderFragment ReadOnlyRows(WordBlockModel block) =>
+        @<tbody>
+            @for (var r = 0; r < block.Table.Rows.Count; r++)
+            {
+                var row = r;
+                <tr style="@RowStyle(block, row)">
+                    @foreach (var cell in block.Table.Rows[row])
+                    {
+                        <td>@cell</td>
+                    }
+                </tr>
+            }
+        </tbody>;
+
+    private RenderFragment BlockBody(WordBlockModel block, WordFragment? fragment) =>
+        @<div class="@BlockClass(block)" data-change="@ChangeOf(block)" style="@BlockStyle(block, fragment)" @key="block.Id">
             @if (IsLive(block))
             {
                 <span class="bar" aria-hidden="true"></span>
@@ -161,7 +199,7 @@
         </div>;
 
     private RenderFragment TableView(WordBlockModel block, WordTableModel table) =>
-        @<table class="@TableClass(block, table)">
+        @<table class="@TableClass(block, table)" style="--pitch: 0; line-height: calc(var(--lh, 1.2em) - 1px)">
             @if (!string.IsNullOrEmpty(table.Caption))
             {
                 <caption class="sr-only">@table.Caption</caption>
@@ -178,7 +216,7 @@
             @if (table.HasHeaderRow)
             {
                 <thead>
-                    <tr style="--row: 0">
+                    <tr style="@RowStyle(block, 0)">
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
@@ -193,7 +231,7 @@
             <tbody>
                 @foreach (var row in table.BodyRows)
                 {
-                    <tr style="--row: @row">
+                    <tr style="@RowStyle(block, row)">
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
@@ -209,7 +247,7 @@
             {
                 var footer = table.FooterRow;
                 <tfoot>
-                    <tr style="--row: @footer">
+                    <tr style="@RowStyle(block, footer)">
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
@@ -281,6 +319,38 @@
     private static string TableClass(WordBlockModel block, WordTableModel table) => FormatClass(table.HasColumnWidths ? "dt fixed" : "dt", block);
 
     private static string ColumnStyle(double width) => "width: " + width.ToString("0.##", CultureInfo.InvariantCulture) + "%";
+
+    private static string FrameStyle(WordFragment fragment) =>
+        $"display: flow-root; height: {Length(fragment.Height)}; overflow-y: clip;";
+
+    private static string BlockStyle(WordBlockModel block, WordFragment? fragment)
+    {
+        var style = new List<string> { "margin: 0" };
+        if (block.FontSize > 0)
+            style.Add("font-size: " + Length(block.FontSize));
+
+        if (block.LineHeight > 0)
+            style.Add("--lh: " + Length(block.LineHeight));
+
+        if (block.SpaceBefore > 0)
+            style.Add("padding-top: " + Length(block.SpaceBefore));
+
+        if (fragment is { Offset: > 0 } continued)
+            style.Add($"margin-top: calc(-{Css(continued.Offset * PxPerPt)} * var(--u))");
+
+        return string.Join("; ", style);
+    }
+
+    private static string RowStyle(WordBlockModel block, int row)
+    {
+        var style = $"--row: {row.ToString(CultureInfo.InvariantCulture)}";
+        if (row >= 0 && row < block.RowHeights.Count)
+            style += "; height: " + Length(block.RowHeights[row]);
+
+        return style;
+    }
+
+    private static string Length(double points) => $"calc({Css(points * PxPerPt)} * var(--u))";
 
     private static string CellClass(WordTableModel table, int column) => table.IsNumeric(column) ? "n" : null;
 

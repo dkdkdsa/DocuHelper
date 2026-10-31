@@ -24,7 +24,7 @@ namespace DocuHelper.Tools.Word
 
         public override string Description =>
             "Read the Word document as numbered blocks (paragraphs and tables) in body order. Each line shows the block index, its [id], "
-            + "kind (title, heading1, heading2, body, bullet, number, table), estimated page and text. Line breaks inside a paragraph appear as \\n "
+            + "kind (title, heading1, heading2, body, bullet, number, table), estimated page and text. Page numbers are an approximate layout (font metrics, spacing, tables, pictures, headers and footers), not Word's exact pagination. Line breaks inside a paragraph appear as \\n "
             + "and tabs as \\t. Tables show their id, size and rows as \"a | b | c\". Use the ids with the other Word tools. "
             + "detail=\"format\" adds the look of each paragraph (style, alignment, spacing, indents, base font) and marks the characters that differ from the paragraph's base look inline: "
             + "{b}..{/b}, {!b} (turned off), {i}, {u}, {s}, {size:14}, {color:C0392B}, {hl:yellow}, {font:바탕}, {sup}, {sub}, {ins:author} for tracked insertions; a literal { is shown as \\{. "
@@ -99,7 +99,7 @@ namespace DocuHelper.Tools.Word
 
             var last = shown[^1].Index;
             var text = new StringBuilder();
-            text.Append(CultureInfo.InvariantCulture, $"Blocks {start}-{last} of {blocks.Count}, about {scan.PageCount} page(s); page numbers are estimates.\n");
+            text.Append(CultureInfo.InvariantCulture, $"Blocks {start}-{last} of {blocks.Count}, about {scan.PageCount} page(s); page numbers are an approximate layout, not Word's exact pagination.\n");
             text.Append(body);
             if (last < blocks.Count)
                 text.Append(CultureInfo.InvariantCulture, $"More blocks follow. Call read_paragraphs with start={last + 1} to continue.");
@@ -137,7 +137,7 @@ namespace DocuHelper.Tools.Word
             }
 
             var text = new StringBuilder();
-            text.Append(CultureInfo.InvariantCulture, $"Blocks {string.Join(", ", shown.Select(b => b.Index))} of {scan.Blocks.Count}, about {scan.PageCount} page(s); page numbers are estimates.\n");
+            text.Append(CultureInfo.InvariantCulture, $"Blocks {string.Join(", ", shown.Select(b => b.Index))} of {scan.Blocks.Count}, about {scan.PageCount} page(s); page numbers are an approximate layout, not Word's exact pagination.\n");
             text.Append(body);
             if (shown.Count < wanted.Count)
                 text.Append(CultureInfo.InvariantCulture, $"Output cap reached. Call read_paragraphs with ids=[{string.Join(", ", wanted.Skip(shown.Count).Select(b => "\"" + b.Id + "\""))}] to continue.");

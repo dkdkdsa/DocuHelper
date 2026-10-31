@@ -30,7 +30,8 @@ namespace DocuHelper.Tools.Word
             + "line numbers, which headers/footers apply), headers_footers (text, fields as {PAGE}), styles (use counts and look), comments, revisions (tracked changes), notes (footnotes and endnotes), "
             + "bookmarks, fields, objects (pictures, shapes, text boxes, charts), captions, stats (pages estimate, words, characters, paragraphs, lines), properties (document info and settings), or all. "
             + "Items carry the ids other tools take: paragraph ids, c:3 comments, r:4 revisions, o:12 objects, fn:2 / en:1 notes. section limits page_setup and headers_footers to one section; "
-            + "start and limit page through long lists. Output is capped at about 8000 characters and says how to continue.";
+            + "start and limit page through long lists. Page numbers are an approximate layout (font metrics, line and paragraph spacing, table rows, pictures, headers and footers), not Word's exact pagination. "
+            + "Output is capped at about 8000 characters and says how to continue.";
 
         public override string InputSchema => """
             {
@@ -480,7 +481,7 @@ namespace DocuHelper.Tools.Word
         {
             var counts = WordStats.Count(docu, true, scan);
             var listing = new Listing("Statistics (text boxes, footnotes and endnotes included)", $"단어 {counts.Words}개, 약 {counts.Pages}쪽");
-            listing.Items.Add($"Pages (estimate): {counts.Pages}");
+            listing.Items.Add($"Pages (approximate layout): {counts.Pages}");
             listing.Items.Add($"Words: {counts.Words}");
             listing.Items.Add($"Characters (with spaces): {counts.Characters}");
             listing.Items.Add($"Characters (no spaces): {counts.CharactersNoSpaces}");

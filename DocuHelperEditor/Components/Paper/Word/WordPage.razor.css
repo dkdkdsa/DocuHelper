@@ -24,7 +24,9 @@
     position: relative;
     flex: 0 1 calc(var(--paper-width, 793.7) * 1px);
     min-width: 0;
+    min-height: 0;
     aspect-ratio: var(--paper-ratio, 0.70711);
+    overflow-y: clip;
     container-type: inline-size;
     background: var(--paper);
     box-shadow: var(--shadow-page);
@@ -97,6 +99,15 @@
     margin: 0;
     min-height: calc(var(--pitch, 24.2) * var(--u));
     white-space: pre-wrap;
+}
+
+.blk > .txt {
+    min-height: 0;
+    line-height: var(--lh, inherit);
+}
+
+.blk > .dt {
+    line-height: var(--lh, inherit);
 }
 
 .txt:focus-visible {

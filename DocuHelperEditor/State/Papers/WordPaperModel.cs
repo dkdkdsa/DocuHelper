@@ -27,12 +27,18 @@ namespace DocuHelperEditor.State.Papers
         {
             get
             {
-                var last = Blocks.Count == 0 ? 1 : Blocks.Max(b => b.Page);
+                var last = Blocks.Count == 0 ? 1 : Blocks.SelectMany(PagesOf).Max();
                 return Enumerable.Range(1, Math.Max(1, last)).ToList();
             }
         }
 
-        public IReadOnlyList<WordBlockModel> BlocksOnPage(int page) => Blocks.Where(b => b.Page == page).ToList();
+        public IReadOnlyList<WordBlockModel> BlocksOnPage(int page) => Blocks.Where(b => PagesOf(b).Contains(page)).ToList();
+
+        public IReadOnlyList<WordFragment> FragmentsOn(WordBlockModel block, int page) =>
+            block.Fragments.Where(f => f.Page == page).ToList();
+
+        private static IEnumerable<int> PagesOf(WordBlockModel block) =>
+            block.Fragments.Count == 0 ? new[] { block.Page } : block.Fragments.Select(f => f.Page);
 
         public WordBlockModel FindBlock(string blockId) => string.IsNullOrEmpty(blockId) ? null : Blocks.FirstOrDefault(b => b.Id == blockId);
 
