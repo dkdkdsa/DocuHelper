@@ -27,5 +27,17 @@ namespace DocuHelper.Importers.Hwp
         public string PageHiding { get; set; }
 
         public int? NewPageNumber { get; set; }
+
+        public int RightIndent { get; set; }
+
+        public bool KeepWithNext { get; set; }
+
+        public bool KeepLines { get; set; }
+
+        public bool WidowControl { get; set; }
+
+        public string LineSpacingKind { get; set; } = "PERCENT";
+
+        internal HwpxBorderFill Border { get; set; }
     }
 }

@@ -16,6 +16,8 @@ namespace DocuHelper.Importers.Hwp
 
         public string FaceColor { get; private set; }
 
+        public bool Visible => Top != null || Left != null || Bottom != null || Right != null || FaceColor != null;
+
         public static HwpxBorderFill Read(XElement element)
         {
             var fill = new HwpxBorderFill

@@ -24,7 +24,7 @@ namespace DocuHelper.Importers.Hwp
         private readonly int _defaultHeight;
         private int _depth;
         private readonly Dictionary<string, int> _pageBorders = new(StringComparer.Ordinal);
-        private readonly List<(int Id, HwpBorderLine[] Lines, string Fill)> _pageBorderSpecs = new();
+        private readonly List<(int Id, HwpBorderLine[] Lines, string Fill)> _borderSpecs = new();
 
         public HwpxWriteState(WordprocessingDocument document)
         {
@@ -34,18 +34,18 @@ namespace DocuHelper.Importers.Hwp
             _defaultFont = FontOf(_styles.Root?.DocDefaults?.RunPropertiesDefault?.RunPropertiesBaseStyle?.RunFonts) ?? DefaultFont;
             _defaultHeight = HeightOf(_styles.Root?.DocDefaults?.RunPropertiesDefault?.RunPropertiesBaseStyle?.FontSize) ?? DefaultHeight;
             CharId(new HwpxCharKey(_defaultFont, _defaultHeight, false, false, false, false, null, false, false));
-            ParaId(new HwpxParaKey("JUSTIFY", 0, 0, 0, 0, 0, DefaultLineSpacing, false));
+            ParaId(new HwpxParaKey("JUSTIFY", 0, 0, 0, 0, 0, DefaultLineSpacing, false, "PERCENT", false, false, PlainBorder));
         }
 
-        private int PageBorderId(HwpBorderLine[] lines, string fill)
+        private int BorderFillId(HwpBorderLine[] lines, string fill)
         {
             var key = string.Join("|", lines.Select(l => l == null ? "-" : l.Type + "/" + l.WidthMm.ToString("0.00", CultureInfo.InvariantCulture) + "/" + l.Color)) + "|" + (fill ?? "-");
             if (_pageBorders.TryGetValue(key, out var id))
                 return id;
 
-            id = 3 + _fills.Count + _pageBorderSpecs.Count;
+            id = 3 + _fills.Count + _borderSpecs.Count;
             _pageBorders[key] = id;
-            _pageBorderSpecs.Add((id, lines, fill));
+            _borderSpecs.Add((id, lines, fill));
             return id;
         }
 

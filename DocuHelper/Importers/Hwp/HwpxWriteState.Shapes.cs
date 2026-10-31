@@ -50,6 +50,8 @@ namespace DocuHelper.Importers.Hwp
                     align = "CENTER";
                 else if (value == JustificationValues.Distribute)
                     align = "DISTRIBUTE";
+                else if (value == JustificationValues.ThaiDistribute)
+                    align = "DISTRIBUTE_SPACE";
             }
 
             var indentation = paragraph.ParagraphProperties?.Indentation ?? listIndent ?? _styles.ParagraphValue<Indentation>(paragraph);
@@ -64,12 +66,45 @@ namespace DocuHelper.Importers.Hwp
             var before = ParseInt(spacing?.Before?.Value, 0);
             var after = ParseInt(spacing?.After?.Value, 0);
             var line = DefaultLineSpacing;
+            var kind = "PERCENT";
             var rule = spacing?.LineRule?.Value;
             if (spacing?.Line != null && (rule == null || rule == LineSpacingRuleValues.Auto))
                 line = Math.Clamp(ParseInt(spacing.Line.Value, 240) * 160 / 240, 50, 500);
+            else if (spacing?.Line != null && rule == LineSpacingRuleValues.Exact)
+            {
+                kind = "FIXED";
+                line = Units(ParseInt(spacing.Line.Value, 240));
+            }
+            else if (spacing?.Line != null && rule == LineSpacingRuleValues.AtLeast)
+            {
+                kind = "AT_LEAST";
+                line = Units(ParseInt(spacing.Line.Value, 240));
+            }
 
             var keep = WordStyles.IsOn(_styles.ParagraphValue<KeepNext>(paragraph));
-            return new HwpxParaKey(align, Units(Math.Max(0, left)), Units(Math.Max(0, right)), Units(indent), Units(Math.Max(0, before)), Units(Math.Max(0, after)), line, keep);
+            var keepLines = WordStyles.IsOn(_styles.ParagraphValue<KeepLines>(paragraph));
+            var widow = WordStyles.IsOn(_styles.ParagraphValue<WidowControl>(paragraph));
+            return new HwpxParaKey(align, Units(Math.Max(0, left)), Units(Math.Max(0, right)), Units(indent), Units(Math.Max(0, before)), Units(Math.Max(0, after)), line, keep, kind, keepLines, widow, BorderIdOf(paragraph));
+        }
+
+        private int BorderIdOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
+        {
+            var borders = _styles.ParagraphValue<ParagraphBorders>(paragraph);
+            var lines = new[]
+            {
+                BorderLine(borders?.GetFirstChild<TopBorder>()),
+                BorderLine(borders?.GetFirstChild<LeftBorder>()),
+                BorderLine(borders?.GetFirstChild<BottomBorder>()),
+                BorderLine(borders?.GetFirstChild<RightBorder>()),
+            };
+            var fill = FillOf(_styles.ParagraphValue<Shading>(paragraph));
+            return lines.All(l => l == null) && fill == null ? PlainBorder : BorderFillId(lines, fill);
+        }
+
+        private static string FillOf(Shading shading)
+        {
+            var fill = shading?.Fill?.Value;
+            return fill != null && fill.Length == 6 && fill.All(Uri.IsHexDigit) ? fill.ToUpperInvariant() : null;
         }
 
         private HwpxCharKey CharKeyOf(Run run, DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
@@ -208,7 +243,7 @@ namespace DocuHelper.Importers.Hwp
                 Length("prev", key.Before * scale),
                 Length("next", key.After * scale));
 
-            XElement Spacing() => new(Hh + "lineSpacing", new XAttribute("type", "PERCENT"), new XAttribute("value", Number(key.LineSpacing)), new XAttribute("unit", "HWPUNIT"));
+            XElement Spacing() => new(Hh + "lineSpacing", new XAttribute("type", key.LineKind), new XAttribute("value", Number(key.LineSpacing)), new XAttribute("unit", "HWPUNIT"));
 
             return new XElement(Hh + "paraPr",
                 new XAttribute("id", Number(id)),
@@ -222,14 +257,14 @@ namespace DocuHelper.Importers.Hwp
                 new XElement(Hh + "heading", new XAttribute("type", "NONE"), new XAttribute("idRef", "0"), new XAttribute("level", "0")),
                 new XElement(Hh + "breakSetting",
                     new XAttribute("breakLatinWord", "KEEP_WORD"), new XAttribute("breakNonLatinWord", "KEEP_WORD"),
-                    new XAttribute("widowOrphan", "0"), new XAttribute("keepWithNext", key.KeepWithNext ? "1" : "0"),
-                    new XAttribute("keepLines", "0"), new XAttribute("pageBreakBefore", "0"), new XAttribute("lineWrap", "BREAK")),
+                    new XAttribute("widowOrphan", key.WidowControl ? "1" : "0"), new XAttribute("keepWithNext", key.KeepWithNext ? "1" : "0"),
+                    new XAttribute("keepLines", key.KeepLines ? "1" : "0"), new XAttribute("pageBreakBefore", "0"), new XAttribute("lineWrap", "BREAK")),
                 new XElement(Hh + "autoSpacing", new XAttribute("eAsianEng", "0"), new XAttribute("eAsianNum", "0")),
                 new XElement(Hp + "switch",
                     new XElement(Hp + "case", new XAttribute(Hp + "required-namespace", UnitChar.NamespaceName), Margins(1), Spacing()),
                     new XElement(Hp + "default", Margins(2), Spacing())),
                 new XElement(Hh + "border",
-                    new XAttribute("borderFillIDRef", Number(PlainBorder)), new XAttribute("offsetLeft", "0"), new XAttribute("offsetRight", "0"),
+                    new XAttribute("borderFillIDRef", Number(key.Border)), new XAttribute("offsetLeft", "0"), new XAttribute("offsetRight", "0"),
                     new XAttribute("offsetTop", "0"), new XAttribute("offsetBottom", "0"), new XAttribute("connect", "0"), new XAttribute("ignoreMargin", "0")));
         }
 

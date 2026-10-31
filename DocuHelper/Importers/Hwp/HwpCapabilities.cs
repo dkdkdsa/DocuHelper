@@ -17,11 +17,11 @@ namespace DocuHelper.Importers.Hwp
             HwpFeature.CharShade => true,
             HwpFeature.CharSpacing => true,
 
-            HwpFeature.ParaRightIndent => false,
-            HwpFeature.ParaKeep => false,
-            HwpFeature.ParaFixedLine => false,
-            HwpFeature.ParaDivide => false,
-            HwpFeature.ParaBorder => false,
+            HwpFeature.ParaRightIndent => true,
+            HwpFeature.ParaKeep => true,
+            HwpFeature.ParaFixedLine => true,
+            HwpFeature.ParaDivide => true,
+            HwpFeature.ParaBorder => true,
 
             HwpFeature.TabStops => false,
 

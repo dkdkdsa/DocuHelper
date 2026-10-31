@@ -129,7 +129,8 @@ namespace DocuHelper.Importers.Hwp
             var exact = Find(element, "margin", true);
             var legacy = Find(element, "margin", false);
             var spacing = Find(element, "lineSpacing", true) ?? Find(element, "lineSpacing", false);
-            var percent = spacing != null && (HwpxXml.Attribute(spacing, "type") ?? "PERCENT") == "PERCENT";
+            var spacingType = HwpxXml.Attribute(spacing, "type") ?? "PERCENT";
+            var kind = spacingType is "FIXED" or "AT_LEAST" ? spacingType : "PERCENT";
             return new HwpxParaShape
             {
                 Alignment = Alignment(HwpxXml.Attribute(HwpxXml.Child(element, "align"), "horizontal")),
@@ -137,8 +138,14 @@ namespace DocuHelper.Importers.Hwp
                 FirstLineIndent = Length(exact, legacy, "intent"),
                 SpaceBefore = Length(exact, legacy, "prev"),
                 SpaceAfter = Length(exact, legacy, "next"),
-                LineSpacing = percent ? Math.Max(0, HwpxXml.Int(spacing, "value", 0)) : 0,
+                LineSpacing = spacing != null && spacingType is "PERCENT" or "FIXED" or "AT_LEAST" ? Math.Max(0, HwpxXml.Int(spacing, "value", 0)) : 0,
+                LineSpacingKind = kind,
                 PageBreakBefore = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "pageBreakBefore"),
+                KeepWithNext = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "keepWithNext"),
+                KeepLines = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "keepLines"),
+                WidowControl = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "widowOrphan"),
+                RightIndent = Length(exact, legacy, "right"),
+                BorderFillId = HwpxXml.Int(HwpxXml.Child(element, "border"), "borderFillIDRef", 1),
                 HeadingType = HwpxXml.Attribute(heading, "type") ?? "NONE",
                 HeadingId = HwpxXml.Int(heading, "idRef", 0),
                 HeadingLevel = HwpxXml.Int(heading, "level", 0),
@@ -226,7 +233,8 @@ namespace DocuHelper.Importers.Hwp
             "LEFT" => HwpAlignment.Left,
             "RIGHT" => HwpAlignment.Right,
             "CENTER" => HwpAlignment.Center,
-            "DISTRIBUTE" or "DISTRIBUTE_SPACE" => HwpAlignment.Distribute,
+            "DISTRIBUTE" => HwpAlignment.Distribute,
+            "DISTRIBUTE_SPACE" => HwpAlignment.Divide,
             _ => HwpAlignment.Justify,
         };
 

@@ -451,7 +451,7 @@ namespace DocuHelper.Tools.Word
                 "right" or "end" => "right",
                 "both" => "justify",
                 "distribute" => "distribute",
-                "thaiDistribute" => "distribute",
+                "thaiDistribute" => "divide",
                 _ => null,
             };
 

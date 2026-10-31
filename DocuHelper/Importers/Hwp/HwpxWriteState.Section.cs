@@ -148,7 +148,7 @@ namespace DocuHelper.Importers.Hwp
                 return new PageBorderSetting(PlainBorder, true, DefaultOffset, DefaultOffset, DefaultOffset, DefaultOffset);
 
             return new PageBorderSetting(
-                PageBorderId(lines, fill),
+                BorderFillId(lines, fill),
                 borders?.OffsetFrom?.Value != PageBorderOffsetValues.Text,
                 SideOffset(borders?.GetFirstChild<LeftBorder>()),
                 SideOffset(borders?.GetFirstChild<RightBorder>()),

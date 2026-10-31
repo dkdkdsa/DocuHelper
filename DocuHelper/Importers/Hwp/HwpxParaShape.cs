@@ -23,5 +23,17 @@
         public int HeadingLevel { get; set; }
 
         public bool Checked { get; set; }
+
+        public int RightIndent { get; set; }
+
+        public bool KeepWithNext { get; set; }
+
+        public bool KeepLines { get; set; }
+
+        public bool WidowControl { get; set; }
+
+        public string LineSpacingKind { get; set; } = "PERCENT";
+
+        public int BorderFillId { get; set; }
     }
 }

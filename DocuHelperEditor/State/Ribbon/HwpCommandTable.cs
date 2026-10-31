@@ -698,7 +698,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"divide"}""",
-                Reason = "나눔 정렬은 아직 한글 파일에 저장되지 않아요. 배분 정렬을 써 주세요.",
+                Reason = "문단을 골라야 나눔 정렬을 쓸 수 있어요.",
                 Gates = new[] { "ParaDivide" },
             },
             new HwpCommandSpec
@@ -720,7 +720,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Label = "300 %", Args = """{"value":300}""" },
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
                     new HwpMenuSpec { Label = "직접 입력…", Args = """{"dialog":"lineSpacing"}""", Detail = "50~500 %" },
-                    new HwpMenuSpec { Label = "고정 값 (pt)…", Args = """{"dialog":"lineSpacing","mode":"fixed"}""", Detail = "줄 간격을 pt로 고정해요", Gates = new[] { "ParaFixedLine" }, Reason = "고정 값 줄 간격은 아직 저장되지 않아서 쓸 수 없어요." },
+                    new HwpMenuSpec { Label = "고정 값 (pt)…", Args = """{"dialog":"lineSpacing","mode":"fixed"}""", Detail = "줄 간격을 pt로 고정해요", Gates = new[] { "ParaFixedLine" }, Reason = "고정 값 줄 간격은 한글 파일에 저장돼요. 이 대화상자는 아직 이 앱에서 열 수 없어요." },
                 },
                 Dialog = new WordDialogSpec("줄 간격", new[]
                 {

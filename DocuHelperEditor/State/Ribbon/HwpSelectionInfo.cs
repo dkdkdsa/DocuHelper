@@ -12,6 +12,7 @@ namespace DocuHelperEditor.State.Ribbon
     internal sealed class HwpSelectionInfo
     {
         private const int HalfPointsPerPoint = 2;
+        private const double TwipsPerPoint = 20;
         private const double LinePercentPerMultiple = 160;
         private const double SingleLineTwips = 240;
 
@@ -20,6 +21,8 @@ namespace DocuHelperEditor.State.Ribbon
         public string Font { get; private init; }
 
         public double? SizePt { get; private init; }
+
+        public double? SpacingPt { get; private init; }
 
         public int? LineSpacingPercent { get; private init; }
 
@@ -47,6 +50,7 @@ namespace DocuHelperEditor.State.Ribbon
             var runs = WordText.TextRuns(paragraph).ToList();
             var fonts = runs.Select(r => FontOf(styles.RunValue<RunFonts>(r, paragraph))).Distinct().ToList();
             var sizes = runs.Select(r => SizeOf(styles.RunValue<FontSize>(r, paragraph))).Distinct().ToList();
+            var spacings = runs.Select(r => SpacingOf(styles.RunValue<Spacing>(r, paragraph))).Distinct().ToList();
             var spacing = styles.ParagraphValue<SpacingBetweenLines>(paragraph);
             var indent = styles.ParagraphValue<Indentation>(paragraph);
             return new HwpSelectionInfo
@@ -55,6 +59,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Style = StyleOf(scan, paragraph),
                 Font = fonts.Count == 1 ? fonts[0] : runs.Count == 0 ? FontOf(styles.StyleRunValue<RunFonts>(paragraph)) : null,
                 SizePt = sizes.Count == 1 ? sizes[0] : runs.Count == 0 ? SizeOf(styles.StyleRunValue<FontSize>(paragraph)) : null,
+                SpacingPt = spacings.Count == 1 ? spacings[0] : runs.Count == 0 ? SpacingOf(styles.StyleRunValue<Spacing>(paragraph)) : null,
                 LineSpacingPercent = PercentOf(spacing),
                 Align = AlignOf(styles.ParagraphValue<Justification>(paragraph)),
                 FirstLineCm = CmOf(indent?.FirstLine?.Value),
@@ -81,6 +86,8 @@ namespace DocuHelperEditor.State.Ribbon
         }
 
         private static string FontOf(RunFonts fonts) => fonts?.EastAsia?.Value ?? fonts?.Ascii?.Value ?? fonts?.HighAnsi?.Value;
+
+        private static double SpacingOf(Spacing spacing) => spacing?.Val?.Value is int twips ? twips / TwipsPerPoint : 0;
 
         private static double? SizeOf(FontSize size) =>
             double.TryParse(size?.Val?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var half) ? half / HalfPointsPerPoint : null;

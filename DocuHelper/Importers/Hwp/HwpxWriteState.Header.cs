@@ -50,12 +50,12 @@ namespace DocuHelper.Importers.Hwp
                 fontfaces.Add(face);
             }
 
-            var borders = new XElement(Hh + "borderFills", new XAttribute("itemCnt", Number(2 + _fills.Count + _pageBorderSpecs.Count)),
+            var borders = new XElement(Hh + "borderFills", new XAttribute("itemCnt", Number(2 + _fills.Count + _borderSpecs.Count)),
                 BorderFill(PlainBorder, false, null),
                 BorderFill(CellBorder, true, null));
             foreach (var pair in _fills.OrderBy(p => p.Value))
                 borders.Add(BorderFill(pair.Value, true, pair.Key));
-            foreach (var spec in _pageBorderSpecs)
+            foreach (var spec in _borderSpecs)
                 borders.Add(PageBorderFill(spec.Id, spec.Lines, spec.Fill));
 
             var chars = new XElement(Hh + "charProperties", new XAttribute("itemCnt", Number(_chars.Count)));

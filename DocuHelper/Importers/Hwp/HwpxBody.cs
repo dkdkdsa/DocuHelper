@@ -117,6 +117,12 @@ namespace DocuHelper.Importers.Hwp
             _deleting = deleting;
         }
 
+        private HwpxBorderFill BorderOf(int id)
+        {
+            var fill = _header.BorderFill(id);
+            return fill != null && fill.Visible ? fill : null;
+        }
+
         private void ReadParagraph(XElement element, List<HwpBlock> output)
         {
             var shape = _header.ParaShape(HwpxXml.Int(element, "paraPrIDRef", -1));
@@ -131,6 +137,12 @@ namespace DocuHelper.Importers.Hwp
                 PageBreakBefore = _pageBreak || shape.PageBreakBefore || HwpxXml.Flag(element, "pageBreak"),
                 ColumnBreakBefore = HwpxXml.Flag(element, "columnBreak"),
                 Label = _numbering.Next(shape, _outline),
+                RightIndent = shape.RightIndent,
+                KeepWithNext = shape.KeepWithNext,
+                KeepLines = shape.KeepLines,
+                WidowControl = shape.WidowControl,
+                LineSpacingKind = shape.LineSpacingKind,
+                Border = BorderOf(shape.BorderFillId),
             };
             _pageBreak = false;
 

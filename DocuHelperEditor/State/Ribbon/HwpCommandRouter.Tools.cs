@@ -268,7 +268,7 @@ namespace DocuHelperEditor.State.Ribbon
                 case "lineSpacingPercent":
                     return info?.LineSpacingPercent == null ? null : JsonValue.Create(info.LineSpacingPercent.Value);
                 case "spacingPt":
-                    return JsonValue.Create(0);
+                    return info?.SpacingPt == null ? null : JsonValue.Create(info.SpacingPt.Value);
             }
 
             return null;
@@ -281,6 +281,9 @@ namespace DocuHelperEditor.State.Ribbon
 
             if (value.TryGetValue<double>(out var number))
                 return number;
+
+            if (value.TryGetValue<int>(out var narrow))
+                return narrow;
 
             if (value.TryGetValue<long>(out var wide))
                 return wide;
