@@ -257,6 +257,8 @@ namespace DocuHelper.Tools.Excel
                 case "goal_seek":
                     plan.Cells.Add(TargetOf(book, input.GetString("changing_cell"), plan.Sheet));
                     break;
+                case "protect":
+                    break;
                 case "freeze_panes":
                 case "set_sheet_view":
                 case "set_workbook_options":

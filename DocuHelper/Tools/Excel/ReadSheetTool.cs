@@ -18,7 +18,8 @@ namespace DocuHelper.Tools.Excel
             "Read cells from one sheet of an Excel workbook. The answer starts with every sheet and its used range, then lists the rows of the requested range as "
             + "`row | ref: value | ref: value`, skipping empty cells. Values are shown the way Excel displays them (dates as 2026-06-02, 1,234, 12%); a formula cell "
             + "also shows its formula, e.g. `F2: 480,000 (=D2*E2)`. Text that only looks like a number starts with '. "
-            + "At most 200 rows or about 8000 characters come back per call; use offset to read further.";
+            + "At most 200 rows or about 8000 characters come back per call; use offset to read further. "
+            + "A Features line names what the sheet holds (tables, filters, charts, validations, protection); show=features lists each one with its place, show=all adds the cells.";
 
         public override string InputSchema => """
             {
@@ -27,7 +28,8 @@ namespace DocuHelper.Tools.Excel
                 "sheet": {"type": "string", "description": "Sheet name. Defaults to the first sheet."},
                 "range": {"type": "string", "description": "A1 range to read, e.g. \"A1:F20\" or \"B:D\". Defaults to the sheet's used range."},
                 "offset": {"type": "integer", "description": "Rows of the range to skip, for paging. Default 0."},
-                "limit": {"type": "integer", "description": "Maximum rows to return, 1-200. Default 200."}
+                "limit": {"type": "integer", "description": "Maximum rows to return, 1-200. Default 200."},
+                "show": {"type": "string", "enum": ["cells", "features", "all"], "description": "cells (default), features (the detailed list of tables, filters, objects and other features instead of cells), or all (both)."}
               }
             }
             """;
@@ -37,6 +39,14 @@ namespace DocuHelper.Tools.Excel
         protected override ToolResult Run(ExcelDocu docu, ExcelBook book, ToolInput input)
         {
             var sheet = ResolveSheet(book, input, "range", false);
+            var show = (input.GetOptionalString("show") ?? "cells").Trim().ToLowerInvariant();
+            if (show is not ("cells" or "features" or "all"))
+                throw new ToolInputException("show는 cells, features, all 중 하나로 알려 주세요.");
+
+            var features = ExcelFeatures.Describe(book, sheet);
+            if (show == "features")
+                return ToolResult.Ok(string.Join(Environment.NewLine, SheetsLine(book), ExcelFeatures.Listing(sheet.Name, features)), $"기능 {features.Count}개");
+
             var used = sheet.UsedRange;
             var rangeText = input.GetOptionalString("range");
             var range = string.IsNullOrWhiteSpace(rangeText) ? used : ParseRange(sheet, rangeText);
@@ -44,7 +54,11 @@ namespace DocuHelper.Tools.Excel
             var limit = Math.Clamp(input.GetOptionalInt("limit") ?? MaxRows, 1, MaxRows);
 
             var text = new StringBuilder();
-            text.Append("Sheets: ").AppendLine(string.Join(", ", book.Sheets.Select(SheetSummary)));
+            text.AppendLine(SheetsLine(book));
+            var headline = ExcelFeatures.Headline(features);
+            if (headline != null)
+                text.AppendLine(headline);
+
             if (range == null)
             {
                 text.Append($"‘{sheet.Name}’ is empty.");
@@ -93,6 +107,9 @@ namespace DocuHelper.Tools.Excel
             if (printed == 0)
                 text.AppendLine("(no values in these rows)");
 
+            if (show == "all")
+                text.AppendLine(ExcelFeatures.Listing(sheet.Name, features));
+
             if (stoppedAt.HasValue)
                 text.AppendLine($"Stopped before row {stoppedAt.Value + 1} to keep this short. Call read_sheet again with offset={stoppedAt.Value - range.Top} for the rest.");
             else if (last < range.Bottom)
@@ -116,6 +133,9 @@ namespace DocuHelper.Tools.Excel
 
             return ToolResult.Ok(text.ToString().TrimEnd(), $"{printed}줄");
         }
+
+        private static string SheetsLine(ExcelBook book) =>
+            "Sheets: " + string.Join(", ", book.Sheets.Select(SheetSummary));
 
         private static string Spans(IEnumerable<int> indexes, Func<int, string> label)
         {

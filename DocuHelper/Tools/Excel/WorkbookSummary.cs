@@ -16,11 +16,12 @@ namespace DocuHelper.Tools.Excel
 
             var details = sheets.Select(s => (Sheet: s, Used: s.UsedRange)).ToList();
             var headers = details.Select(d => d.Used == null ? new List<string>() : HeaderNames(book, d.Sheet, d.Used)).ToList();
+            var features = details.Select(d => ExcelFeatures.Brief(ExcelFeatures.Describe(book, d.Sheet))).ToList();
             foreach (var limit in new[] { 8, 5, 3, 0 })
             {
                 var parts = new List<string>();
                 for (var i = 0; i < details.Count; i++)
-                    parts.Add(Part(details[i].Sheet, details[i].Used, headers[i], limit));
+                    parts.Add(Part(details[i].Sheet, details[i].Used, headers[i], limit, features[i]));
 
                 var text = Join(parts, details.Count, parts.Count);
                 if (text.Length <= MaxLength)
@@ -48,13 +49,16 @@ namespace DocuHelper.Tools.Excel
             return count < total ? text + $" 외 {total - count}개" : text;
         }
 
-        private static string Part(ExcelSheet sheet, CellRange used, List<string> headers, int limit)
+        private static string Part(ExcelSheet sheet, CellRange used, List<string> headers, int limit, string features)
         {
             var name = sheet.IsHidden ? $"‘{sheet.Name}’(숨김)" : $"‘{sheet.Name}’";
             if (used == null)
                 return $"{name} 비어 있음";
 
             var text = $"{name} {used}";
+            if (features != null)
+                text += $" [{features}]";
+
             if (limit == 0 || headers.Count == 0)
                 return text;
 
