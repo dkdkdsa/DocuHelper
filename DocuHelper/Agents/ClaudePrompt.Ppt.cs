@@ -10,6 +10,7 @@
             add_slide_picture takes the picture as attachment (the app injects the bytes), path (a file in the deck folder) or image_base64, plus a short Korean alt_text; leave x, y, w and h out to fill the free area or the empty content placeholder, give only w or only h to keep proportions, and replace swaps the picture of an existing picture shape.
             edit_slide_table create takes data (first row is the header) or rows and columns; edit later with set_cells, insert_rows, insert_columns, delete_rows, delete_columns, merge, unmerge, style and format (1-based numbers); keep cell text short and use set_font for sizes; set_cells outside the table is refused, so insert rows or columns first.
             edit_slide_chart create needs chart_type, categories and series with one value per category (null for gaps); never invent numbers. An update with only title, legend or data_labels keeps the chart as it is; changing chart_type, categories or series rebuilds the chart and replaces custom formatting; pie and doughnut use the first series only.
+            set_slide_background sets a solid, gradient, picture or inherited background on the given slides, or on the slide masters with slides "all"; set_slide_size changes the deck size and scales everything (ensure_fit or maximize); set_deck_theme applies a theme, colors, fonts or a dark background style; set_slide_footer shows or hides footer text, slide number and date, using the layout placeholders (a layout without them is skipped and reported).
             """;
     }
 }
