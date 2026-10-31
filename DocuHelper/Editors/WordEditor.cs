@@ -28,6 +28,9 @@ namespace DocuHelper.Editors
             AddTool(new SetPageSetupTool());
             AddTool(new SetHeaderFooterTool());
             AddTool(new InsertPageTool());
+            AddTool(new InsertReferenceTool());
+            AddTool(new InsertFieldTool());
+            AddTool(new ManageTocTool());
         }
 
         public override DocuType TargetType => DocuType.Word;
