@@ -31,6 +31,7 @@ namespace DocuHelper.Editors
             AddTool(new InsertReferenceTool());
             AddTool(new InsertFieldTool());
             AddTool(new ManageTocTool());
+            AddTool(new EditObjectTool());
         }
 
         public override DocuType TargetType => DocuType.Word;
