@@ -251,13 +251,17 @@ namespace DocuHelper.Tools.Ppt
             if (effect == "fly_in" && option is not ("from_bottom" or "from_top" or "from_left" or "from_right"))
                 throw new ToolInputException("fly_in의 option은 from_bottom, from_top, from_left, from_right 중 하나로 알려 주세요.");
 
+            if (effect == "zoom" && option is "out")
+                throw new ToolInputException("확대/축소 나가기는 확인된 형식이 없어서 아직 지원하지 않아요. 나타내기(in)만 쓸 수 있어요.");
+
             if (effect == "zoom")
-                option ??= "in";
+                option = "in";
 
-            if (effect == "zoom" && option is not ("in" or "out"))
-                throw new ToolInputException("zoom의 option은 in이나 out으로 알려 주세요.");
+            var phase = Phase(input);
+            if (effect == "zoom" && phase == "exit")
+                throw new ToolInputException("확대/축소 나가기는 확인된 형식이 없어서 아직 지원하지 않아요. 나타내기로 바꿔 주세요.");
 
-            return (effect, Phase(input), option);
+            return (effect, phase, option);
         }
 
         private static string Phase(ToolInput input)

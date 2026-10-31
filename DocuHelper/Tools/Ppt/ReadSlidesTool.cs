@@ -21,6 +21,7 @@ namespace DocuHelper.Tools.Ppt
             "Read the slides of a PowerPoint file. For each slide: its number, layout, the text shapes with their shape id in brackets, "
             + "role (title, subtitle, body, text box), font size and paragraphs (indentation shows the bullet level), the speaker notes, "
             + "and chart data. Pass the shape id or title/subtitle/body as `shape` to the editing tools. "
+            + "detail adds layout (positions, fills, tables), effects (transitions, animations, links, comments) or design (theme, layouts, show settings). "
             + "Returns up to 10 slides per call; use start and count to read more.";
 
         public override string InputSchema => """
@@ -28,7 +29,8 @@ namespace DocuHelper.Tools.Ppt
               "type": "object",
               "properties": {
                 "start": {"type": "integer", "minimum": 1, "description": "First slide number to read (1-based). Default 1."},
-                "count": {"type": "integer", "minimum": 1, "maximum": 30, "description": "How many slides to read. Default 10."}
+                "count": {"type": "integer", "minimum": 1, "maximum": 30, "description": "How many slides to read. Default 10."},
+                "detail": {"type": "string", "enum": ["text", "layout", "effects", "design"], "description": "text (default), layout (positions in cm, fills, lines, whole tables), effects (transitions, animations, links, comments, footer), or design (the deck as a whole: size, theme, layouts, show settings, custom shows, sections; ignores start and count)."}
               }
             }
             """;
@@ -37,7 +39,17 @@ namespace DocuHelper.Tools.Ppt
 
         public override ToolResult Execute(Docu docu, ToolInput input)
         {
-            var deck = PptReader.Read(PptSlides.DocumentOf(docu));
+            var detail = (input.GetOptionalString("detail") ?? "text").Trim().ToLowerInvariant();
+            if (detail is not ("text" or "layout" or "effects" or "design"))
+                throw new ToolInputException("detail은 text, layout, effects, design 중 하나로 알려 주세요.");
+            var document = PptSlides.DocumentOf(docu);
+            if (detail == "design")
+            {
+                var scene = PptSceneBuilder.Build(document);
+                return ToolResult.Ok($"\"{docu.Name}\": {scene.Slides.Count} slide(s).\n" + PptSceneDescribe.Design(scene, docu.Name), "디자인");
+            }
+            var deck = PptReader.Read(document);
+            var scenes = detail == "text" ? null : PptSceneBuilder.Build(document).Slides;
             var total = deck.Slides.Count;
             if (total == 0)
                 return ToolResult.Ok($"\"{docu.Name}\" has no slides yet. Use add_slide to add one.", "슬라이드 0장");
@@ -56,6 +68,8 @@ namespace DocuHelper.Tools.Ppt
             for (var number = start; number <= end; number++)
             {
                 var block = Describe(deck.Slides[number - 1]);
+                if (scenes != null && number - 1 < scenes.Count)
+                    block += Extra(scenes[number - 1], detail);
                 if (blocks.Count > 0 && length + block.Length > MaxLength)
                     break;
 
@@ -79,6 +93,15 @@ namespace DocuHelper.Tools.Ppt
             return ToolResult.Ok(text.ToString().TrimEnd(), $"슬라이드 {blocks.Count}장");
         }
 
+        private static string Extra(PptSceneSlide slide, string detail)
+        {
+            var text = new StringBuilder();
+            if (detail == "layout")
+                text.Append(PptSceneDescribe.Layout(slide));
+            else
+                text.Append(PptSceneDescribe.Effects(slide));
+            return text.ToString();
+        }
         private static string Describe(PptSlideInfo slide)
         {
             var text = new StringBuilder();

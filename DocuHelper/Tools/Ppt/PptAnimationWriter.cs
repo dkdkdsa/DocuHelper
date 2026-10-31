@@ -234,7 +234,7 @@ namespace DocuHelper.Tools.Ppt
             var subtype = info.Effect switch
             {
                 "fly_in" => s_flySubtype.GetValueOrDefault(direction, 4),
-                "zoom" => direction == "out" ? 32 : 16,
+                "zoom" => 0,
                 _ => 0,
             };
             var target = Target(info);
@@ -263,7 +263,7 @@ namespace DocuHelper.Tools.Ppt
                     behaviors.Append(Anim(target, fixedAxis, "#" + fixedAxis, "#" + fixedAxis, duration, counter, numeric: false));
                     break;
                 case "zoom":
-                    var grow = subtype == 16;
+                    var grow = true;
                     behaviors.Append(Anim(target, "ppt_w", grow ? "0" : "#ppt_w", grow ? "#ppt_w" : "0", duration, counter, numeric: true));
                     behaviors.Append(Anim(target, "ppt_h", grow ? "0" : "#ppt_h", grow ? "#ppt_h" : "0", duration, counter, numeric: true));
                     behaviors.Append(AnimEffect(target, exit ? "out" : "in", duration, counter));
@@ -317,7 +317,7 @@ namespace DocuHelper.Tools.Ppt
             var target = effect.Descendants().FirstOrDefault(d => d.LocalName == "spTgt");
             var shape = uint.TryParse(Attribute(target, "spid"), NumberStyles.None, CultureInfo.InvariantCulture, out var spid) ? spid : 0u;
             var name = Named(presetId);
-            var recognized = name != null && shape != 0 && (presetClass == "entr" || presetClass == "exit");
+            var recognized = name != null && shape != 0 && (presetClass == "entr" || (presetClass == "exit" && name != "zoom"));
             if (!recognized)
                 return new PptEffect { Info = new PptAnimationInfo { ShapeId = shape, Start = start, IsOther = true }, Raw = effect.CloneNode(true) };
 
@@ -355,7 +355,7 @@ namespace DocuHelper.Tools.Ppt
                 return s_flySubtype.FirstOrDefault(p => p.Value.ToString(CultureInfo.InvariantCulture) == subtype).Key ?? "from_bottom";
 
             if (name == "zoom")
-                return subtype == "32" ? "out" : "in";
+                return "in";
 
             return null;
         }
