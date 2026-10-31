@@ -9,21 +9,7 @@ namespace DocuHelper.Importers.Hwp
 {
     internal sealed partial class HwpxWriteState
     {
-        private readonly Dictionary<string, int> _fills = new(StringComparer.OrdinalIgnoreCase);
         private int _tableId = 1000;
-
-        private int FillId(string color)
-        {
-            if (string.IsNullOrEmpty(color))
-                return CellBorder;
-
-            if (_fills.TryGetValue(color, out var id))
-                return id;
-
-            id = 3 + _fills.Count;
-            _fills[color] = id;
-            return id;
-        }
 
         private static XElement BorderFill(int id, bool lines, string fill)
         {
@@ -61,6 +47,8 @@ namespace DocuHelper.Importers.Hwp
                 .ToList() ?? new List<int>();
             var rows = table.Elements<TableRow>().ToList();
             var layout = rows.Select(r => Cells(r).ToList()).ToList();
+            var heights = rows.Select(HeightOf).ToList();
+            var borders = table.TableProperties?.TableBorders;
             var columns = Math.Max(grid.Count, layout.Count == 0 ? 0 : layout.Max(r => r.Sum(c => c.Span)));
             while (grid.Count < columns)
                 grid.Add(grid.Count > 0 ? (int)grid.Average() : 2000);
@@ -74,7 +62,7 @@ namespace DocuHelper.Importers.Hwp
                 new XAttribute("lock", "0"),
                 new XAttribute("dropcapstyle", "None"),
                 new XAttribute("pageBreak", "CELL"),
-                new XAttribute("repeatHeader", "1"),
+                new XAttribute("repeatHeader", rows.Any(IsHeaderRow) ? "1" : "0"),
                 new XAttribute("rowCnt", Number(rows.Count)),
                 new XAttribute("colCnt", Number(columns)),
                 new XAttribute("cellSpacing", "0"),
@@ -82,7 +70,7 @@ namespace DocuHelper.Importers.Hwp
                 new XAttribute("noAdjust", "0"),
                 new XElement(Hp + "sz",
                     new XAttribute("width", Number(Units(grid.Sum()))), new XAttribute("widthRelTo", "ABSOLUTE"),
-                    new XAttribute("height", Number(rows.Count * RowHeight)), new XAttribute("heightRelTo", "ABSOLUTE"), new XAttribute("protect", "0")),
+                    new XAttribute("height", Number(heights.Sum())), new XAttribute("heightRelTo", "ABSOLUTE"), new XAttribute("protect", "0")),
                 new XElement(Hp + "pos",
                     new XAttribute("treatAsChar", "1"), new XAttribute("affectLSpacing", "0"), new XAttribute("flowWithText", "1"),
                     new XAttribute("allowOverlap", "0"), new XAttribute("holdAnchorAndSO", "0"), new XAttribute("vertRelTo", "PARA"),
@@ -107,7 +95,7 @@ namespace DocuHelper.Importers.Hwp
                     }
 
                     var width = Units(grid.Skip(cell.Column).Take(cell.Span).Sum());
-                    line.Add(Cell(cell, r, rowSpan, width));
+                    line.Add(Cell(cell, r, rowSpan, width, heights.Skip(r).Take(rowSpan).Sum(), borders, IsHeaderRow(rows[r])));
                 }
 
                 element.Add(line);
@@ -117,7 +105,7 @@ namespace DocuHelper.Importers.Hwp
             return paragraph;
         }
 
-        private XElement Cell(HwpxCellInfo cell, int row, int rowSpan, int width)
+        private XElement Cell(HwpxCellInfo cell, int row, int rowSpan, int width, int height, TableBorders borders, bool header)
         {
             var properties = cell.Source.TableCellProperties;
             var fill = properties?.Shading?.Fill?.Value;
@@ -133,12 +121,12 @@ namespace DocuHelper.Importers.Hwp
 
             return new XElement(Hp + "tc",
                 new XAttribute("name", ""),
-                new XAttribute("header", "0"),
+                new XAttribute("header", header ? "1" : "0"),
                 new XAttribute("hasMargin", "0"),
                 new XAttribute("protect", "0"),
                 new XAttribute("editable", "0"),
                 new XAttribute("dirty", "0"),
-                new XAttribute("borderFillIDRef", Number(FillId(fill?.ToUpperInvariant()))),
+                new XAttribute("borderFillIDRef", Number(BorderFillId(LinesOf(cell.Source, borders), fill?.ToUpperInvariant()))),
                 new XElement(Hp + "subList",
                     new XAttribute("id", ""), new XAttribute("textDirection", "HORIZONTAL"), new XAttribute("lineWrap", "BREAK"),
                     new XAttribute("vertAlign", align), new XAttribute("linkListIDRef", "0"), new XAttribute("linkListNextIDRef", "0"),
@@ -146,9 +134,32 @@ namespace DocuHelper.Importers.Hwp
                     paragraphs),
                 new XElement(Hp + "cellAddr", new XAttribute("colAddr", Number(cell.Column)), new XAttribute("rowAddr", Number(row))),
                 new XElement(Hp + "cellSpan", new XAttribute("colSpan", Number(cell.Span)), new XAttribute("rowSpan", Number(rowSpan))),
-                new XElement(Hp + "cellSz", new XAttribute("width", Number(width)), new XAttribute("height", Number(RowHeight * rowSpan))),
+                new XElement(Hp + "cellSz", new XAttribute("width", Number(width)), new XAttribute("height", Number(height))),
                 Margin("cellMargin", 510, 510, 141, 141));
         }
+
+        private static int HeightOf(TableRow row)
+        {
+            var height = row.TableRowProperties?.GetFirstChild<TableRowHeight>()?.Val?.Value;
+            return height is uint twips && twips > 0 ? Units((int)twips) : RowHeight;
+        }
+
+        private static bool IsHeaderRow(TableRow row) => row.TableRowProperties?.GetFirstChild<TableHeader>() != null;
+
+        private static HwpBorderLine[] LinesOf(TableCell cell, TableBorders borders)
+        {
+            var own = cell?.TableCellProperties?.TableCellBorders;
+            return new[]
+            {
+                LineOf(own?.GetFirstChild<TopBorder>(), borders?.GetFirstChild<TopBorder>()),
+                LineOf(own?.GetFirstChild<LeftBorder>(), borders?.GetFirstChild<LeftBorder>()),
+                LineOf(own?.GetFirstChild<BottomBorder>(), borders?.GetFirstChild<BottomBorder>()),
+                LineOf(own?.GetFirstChild<RightBorder>(), borders?.GetFirstChild<RightBorder>()),
+            };
+        }
+
+        private static HwpBorderLine LineOf(BorderType cellSide, BorderType tableSide) =>
+            cellSide != null ? BorderLine(cellSide) : tableSide != null ? BorderLine(tableSide) : new HwpBorderLine { WidthMm = 0.12 };
 
         private static XElement Margin(string name, int left, int right, int top, int bottom) => new(Hp + name,
             new XAttribute("left", Number(left)), new XAttribute("right", Number(right)),

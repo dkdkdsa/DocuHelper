@@ -27,6 +27,10 @@ namespace DocuHelper.Importers.Hwp
                         RowSpan = Math.Max(1, HwpxXml.Int(span, "rowSpan", 1)),
                         ColumnSpan = Math.Max(1, HwpxXml.Int(span, "colSpan", 1)),
                         Width = Math.Max(0, HwpxXml.Int(HwpxXml.Child(item, "cellSz"), "width", 0)),
+                        Height = Math.Max(0, HwpxXml.Int(HwpxXml.Child(item, "cellSz"), "height", 0)),
+                        Border = BorderOf(HwpxXml.Int(item, "borderFillIDRef", 1)),
+                        VerticalAlign = HwpxXml.Attribute(HwpxXml.Child(item, "subList"), "vertAlign") ?? "TOP",
+                        IsHeader = HwpxXml.Flag(item, "header"),
                     };
                     ReadList(HwpxXml.Child(item, "subList"), cell.Blocks);
                     table.Cells.Add(cell);

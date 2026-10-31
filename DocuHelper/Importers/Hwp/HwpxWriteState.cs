@@ -43,7 +43,7 @@ namespace DocuHelper.Importers.Hwp
             if (_pageBorders.TryGetValue(key, out var id))
                 return id;
 
-            id = 3 + _fills.Count + _borderSpecs.Count;
+            id = 3 + _borderSpecs.Count;
             _pageBorders[key] = id;
             _borderSpecs.Add((id, lines, fill));
             return id;

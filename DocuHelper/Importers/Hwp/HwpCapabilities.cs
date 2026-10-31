@@ -26,7 +26,7 @@ namespace DocuHelper.Importers.Hwp
             HwpFeature.TabStops => true,
             HwpFeature.StaticToc => false,
 
-            HwpFeature.TableCellFormat => false,
+            HwpFeature.TableCellFormat => true,
 
             HwpFeature.HeaderFooter => true,
             HwpFeature.PageNumber => true,

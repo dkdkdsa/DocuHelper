@@ -63,11 +63,9 @@ namespace DocuHelper.Importers.Hwp
                 fontfaces.Add(face);
             }
 
-            var borders = new XElement(Hh + "borderFills", new XAttribute("itemCnt", Number(2 + _fills.Count + _borderSpecs.Count)),
+            var borders = new XElement(Hh + "borderFills", new XAttribute("itemCnt", Number(2 + _borderSpecs.Count)),
                 BorderFill(PlainBorder, false, null),
                 BorderFill(CellBorder, true, null));
-            foreach (var pair in _fills.OrderBy(p => p.Value))
-                borders.Add(BorderFill(pair.Value, true, pair.Key));
             foreach (var spec in _borderSpecs)
                 borders.Add(PageBorderFill(spec.Id, spec.Lines, spec.Fill));
 
