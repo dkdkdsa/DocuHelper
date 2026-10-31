@@ -14,6 +14,7 @@ namespace DocuHelper.Importers.Hwp
         private readonly Dictionary<int, HwpxParaShape> _paraShapes = new();
         private readonly Dictionary<int, HwpxNumberingLevel[]> _numberings = new();
         private readonly Dictionary<int, (string Normal, string Checked)> _bullets = new();
+        private readonly Dictionary<int, HwpxBorderFill> _borderFills = new();
         private readonly HwpxCharShape _defaultChar = new();
         private readonly HwpxParaShape _defaultPara = new();
 
@@ -37,9 +38,14 @@ namespace DocuHelper.Importers.Hwp
                     case "bullet" when parent == "bullets":
                         _bullets[HwpxXml.Int(element, "id", -1)] = Bullet(element);
                         break;
+                    case "borderFill" when parent == "borderFills":
+                        _borderFills[HwpxXml.Int(element, "id", -1)] = HwpxBorderFill.Read(element);
+                        break;
                 }
             }
         }
+
+        public HwpxBorderFill BorderFill(int id) => _borderFills.TryGetValue(id, out var fill) ? fill : null;
 
         public HwpxCharShape CharShape(int id) => _charShapes.TryGetValue(id, out var shape) ? shape : _defaultChar;
 

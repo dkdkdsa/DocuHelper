@@ -21,6 +21,9 @@ namespace DocuHelper.Importers.Hwp
             properties.AppendChild(new Justification { Val = Justify(source.Alignment) });
 
             var paragraph = new Paragraph(properties);
+            if (source.ColumnBreakBefore)
+                paragraph.AppendChild(new Run(new Break { Type = BreakValues.Column }));
+
             if (!string.IsNullOrEmpty(source.Label))
                 HwpWordRuns.AppendRun(paragraph, source.Label + " ", LabelFormat(source.Runs.FirstOrDefault()));
 

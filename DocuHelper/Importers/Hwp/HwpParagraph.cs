@@ -21,5 +21,7 @@ namespace DocuHelper.Importers.Hwp
         public int LineSpacing { get; set; }
 
         public bool PageBreakBefore { get; set; }
+
+        public bool ColumnBreakBefore { get; set; }
     }
 }

@@ -30,6 +30,7 @@ namespace DocuHelper.Importers.Hwp
                     paragraph.Remove();
 
                 var width = HwpWordPage.ApplyPage(section, document.Page);
+                HwpWordPage.ApplyBackground(word, document.Page);
                 var elements = ToElements(document.Blocks, width);
                 if (document.Notes.Count > 0)
                 {

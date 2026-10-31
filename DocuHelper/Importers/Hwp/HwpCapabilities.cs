@@ -31,8 +31,8 @@ namespace DocuHelper.Importers.Hwp
             HwpFeature.PageNumber => false,
             HwpFeature.PageControl => false,
 
-            HwpFeature.Columns => false,
-            HwpFeature.PageBorder => false,
+            HwpFeature.Columns => true,
+            HwpFeature.PageBorder => true,
 
             HwpFeature.Sections => false,
 

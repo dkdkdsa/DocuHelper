@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Globalization;
+using System.Linq;
 using System.Xml.Linq;
 using static DocuHelper.Importers.Hwp.HwpxNames;
 
@@ -7,6 +8,35 @@ namespace DocuHelper.Importers.Hwp
     internal sealed partial class HwpxWriteState
     {
         private static readonly string[] s_languages = { "HANGUL", "LATIN", "HANJA", "JAPANESE", "OTHER", "SYMBOL", "USER" };
+
+        private static XElement PageBorderFill(int id, HwpBorderLine[] lines, string fill)
+        {
+            XElement Side(string name, HwpBorderLine line) => new(Hh + name,
+                new XAttribute("type", line == null ? "NONE" : line.Type),
+                new XAttribute("width", line == null ? "0.1 mm" : line.WidthMm.ToString("0.00", CultureInfo.InvariantCulture) + " mm"),
+                new XAttribute("color", line == null ? "#000000" : line.Color));
+
+            var element = new XElement(Hh + "borderFill",
+                new XAttribute("id", Number(id)),
+                new XAttribute("threeD", "0"),
+                new XAttribute("shadow", "0"),
+                new XAttribute("centerLine", "NONE"),
+                new XAttribute("breakCellSeparateLine", "0"),
+                new XElement(Hh + "slash", new XAttribute("type", "NONE"), new XAttribute("Crooked", "0"), new XAttribute("isCounter", "0")),
+                new XElement(Hh + "backSlash", new XAttribute("type", "NONE"), new XAttribute("Crooked", "0"), new XAttribute("isCounter", "0")),
+                Side("leftBorder", lines[1]),
+                Side("rightBorder", lines[3]),
+                Side("topBorder", lines[0]),
+                Side("bottomBorder", lines[2]),
+                new XElement(Hh + "diagonal", new XAttribute("type", "SOLID"), new XAttribute("width", "0.1 mm"), new XAttribute("color", "#000000")));
+            if (fill != null)
+            {
+                element.Add(new XElement(Hc + "fillBrush",
+                    new XElement(Hc + "winBrush", new XAttribute("faceColor", "#" + fill), new XAttribute("hatchColor", "#999999"), new XAttribute("alpha", "0"))));
+            }
+
+            return element;
+        }
 
         public XElement Header()
         {
@@ -20,11 +50,13 @@ namespace DocuHelper.Importers.Hwp
                 fontfaces.Add(face);
             }
 
-            var borders = new XElement(Hh + "borderFills", new XAttribute("itemCnt", Number(2 + _fills.Count)),
+            var borders = new XElement(Hh + "borderFills", new XAttribute("itemCnt", Number(2 + _fills.Count + _pageBorderSpecs.Count)),
                 BorderFill(PlainBorder, false, null),
                 BorderFill(CellBorder, true, null));
             foreach (var pair in _fills.OrderBy(p => p.Value))
                 borders.Add(BorderFill(pair.Value, true, pair.Key));
+            foreach (var spec in _pageBorderSpecs)
+                borders.Add(PageBorderFill(spec.Id, spec.Lines, spec.Fill));
 
             var chars = new XElement(Hh + "charProperties", new XAttribute("itemCnt", Number(_chars.Count)));
             foreach (var pair in _chars.OrderBy(p => p.Value))

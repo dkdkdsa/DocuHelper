@@ -45,6 +45,7 @@ namespace DocuHelper.Importers.Hwp
             var label = Label(paragraph, out var listIndent);
             var para = ParaId(ParaKeyOf(paragraph, listIndent));
             var pageBreak = WordStyles.IsOn(_styles.ParagraphValue<PageBreakBefore>(paragraph));
+            var columnBreak = false;
             var runs = new List<XElement>();
             if (label != null)
             {
@@ -57,7 +58,7 @@ namespace DocuHelper.Importers.Hwp
                 if (!Owns(paragraph, run))
                     continue;
 
-                var content = RunContent(run, ref pageBreak, runs.Count == 0);
+                var content = RunContent(run, ref pageBreak, ref columnBreak, runs.Count == 0);
                 if (content.Count == 0)
                     continue;
 
@@ -69,13 +70,13 @@ namespace DocuHelper.Importers.Hwp
             if (runs.Count == 0)
                 runs.Add(TextRun(CharId(CharKeyOf(null, paragraph)), string.Empty));
 
-            return Paragraph(para, 0, pageBreak, runs);
+            return Paragraph(para, 0, pageBreak, runs, columnBreak);
         }
 
         private static bool Owns(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, Run run) =>
             ReferenceEquals(run.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Paragraph>().FirstOrDefault(), paragraph);
 
-        private static List<object> RunContent(Run run, ref bool pageBreak, bool atStart)
+        private static List<object> RunContent(Run run, ref bool pageBreak, ref bool columnBreak, bool atStart)
         {
             var content = new List<object>();
             var text = new StringBuilder();
@@ -98,6 +99,16 @@ namespace DocuHelper.Importers.Hwp
                     case TabChar:
                         Flush();
                         content.Add(new XElement(Hp + "tab", new XAttribute("width", "4000"), new XAttribute("leader", "NONE"), new XAttribute("type", "LEFT")));
+                        break;
+                    case Break column when column.Type?.Value == BreakValues.Column:
+                        if (atStart && content.Count == 0 && text.Length == 0)
+                            columnBreak = true;
+                        else
+                        {
+                            Flush();
+                            content.Add(new XElement(Hp + "lineBreak"));
+                        }
+
                         break;
                     case Break line when line.Type?.Value == BreakValues.Page:
                         if (atStart && content.Count == 0 && text.Length == 0)
@@ -143,12 +154,12 @@ namespace DocuHelper.Importers.Hwp
             return builder.ToString();
         }
 
-        private static XElement Paragraph(int para, int style, bool pageBreak, IEnumerable<XElement> runs) => new(Hp + "p",
+        private static XElement Paragraph(int para, int style, bool pageBreak, IEnumerable<XElement> runs, bool columnBreak = false) => new(Hp + "p",
             new XAttribute("id", "0"),
             new XAttribute("paraPrIDRef", Number(para)),
             new XAttribute("styleIDRef", Number(style)),
             new XAttribute("pageBreak", pageBreak ? "1" : "0"),
-            new XAttribute("columnBreak", "0"),
+            new XAttribute("columnBreak", columnBreak ? "1" : "0"),
             new XAttribute("merged", "0"),
             runs);
 

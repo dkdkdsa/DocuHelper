@@ -41,7 +41,10 @@ namespace DocuHelper.Importers.Hwp
             }
 
             if (first)
+            {
                 _document.Page = Page(properties);
+                ApplyColumnsAndBorders(section, properties, _document.Page);
+            }
 
             _pageBreak = !first;
             _deleting = 0;
@@ -49,6 +52,33 @@ namespace DocuHelper.Importers.Hwp
                 ReadParagraph(paragraph, _document.Blocks);
 
             _pageBreak = false;
+        }
+
+        private void ApplyColumnsAndBorders(XElement section, XElement properties, HwpPage page)
+        {
+            var columns = section.Descendants().FirstOrDefault(e => e.Name.LocalName == "colPr");
+            page.Columns = Math.Max(1, HwpxXml.Int(columns, "colCount", 1));
+            page.ColumnGap = HwpxXml.Int(columns, "sameGap", 0);
+            var border = properties?.Elements().FirstOrDefault(e => e.Name.LocalName == "pageBorderFill" && HwpxXml.Attribute(e, "type") == "BOTH");
+            var fill = _header.BorderFill(HwpxXml.Int(border, "borderFillIDRef", -1));
+            if (fill == null)
+                return;
+
+            page.BackColor = fill.FaceColor;
+            var offset = border.Elements().FirstOrDefault(e => e.Name.LocalName == "offset");
+            var lines = new HwpPageBorder
+            {
+                Top = fill.Top,
+                Left = fill.Left,
+                Bottom = fill.Bottom,
+                Right = fill.Right,
+                FromPaper = HwpxXml.Attribute(border, "textBorder") != "CONTENT",
+                OffsetTop = HwpxXml.Int(offset, "top", 1417),
+                OffsetLeft = HwpxXml.Int(offset, "left", 1417),
+                OffsetBottom = HwpxXml.Int(offset, "bottom", 1417),
+                OffsetRight = HwpxXml.Int(offset, "right", 1417),
+            };
+            page.PageBorder = lines.HasLines ? lines : null;
         }
 
         private static HwpPage Page(XElement properties)
@@ -96,6 +126,7 @@ namespace DocuHelper.Importers.Hwp
                 SpaceAfter = shape.SpaceAfter,
                 LineSpacing = shape.LineSpacing,
                 PageBreakBefore = _pageBreak || shape.PageBreakBefore || HwpxXml.Flag(element, "pageBreak"),
+                ColumnBreakBefore = HwpxXml.Flag(element, "columnBreak"),
                 Label = _numbering.Next(shape, _outline),
             };
             _pageBreak = false;
