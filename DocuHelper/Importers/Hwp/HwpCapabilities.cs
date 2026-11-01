@@ -43,7 +43,7 @@ namespace DocuHelper.Importers.Hwp
 
             HwpFeature.Hyperlinks => true,
             HwpFeature.Bookmarks => true,
-            HwpFeature.ClickHere => false,
+            HwpFeature.ClickHere => true,
 
             HwpFeature.NamedStyles => true,
 

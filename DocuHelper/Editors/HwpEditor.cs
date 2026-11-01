@@ -13,6 +13,7 @@ namespace DocuHelper.Editors
         {
             Hancom = hancom;
             AddTool(new SetPageControlTool());
+            AddTool(new EditFormFieldTool());
         }
 
         public IHancomOffice Hancom { get; }

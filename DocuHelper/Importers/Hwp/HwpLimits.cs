@@ -10,7 +10,6 @@ namespace DocuHelper.Importers.Hwp
         private const string SkippedReason = "화면에 안 보이고, 저장하면 빠져요.";
         private const string FeatureReason = "이 앱이 아직 저장하지 못해서, 파일에 있으면 저장할 때 빠져요.";
         private const string TocReason = "차례와 그림 차례는 아직 이 앱에서 만들 수 없어요.";
-        private const string ClickHereReason = "누름틀은 아직 이 앱에서 새로 넣을 수 없어요. 파일에 있는 누름틀은 저장돼요.";
         private const string PromptTail = " in a 한글 file are not shown to you and are not kept when it is saved, so don't promise to change them; the user can fix those in 한글 with [한글에서 열기].";
 
         public static IReadOnlyList<HwpLimit> For(HwpDocu docu)
@@ -21,7 +20,6 @@ namespace DocuHelper.Importers.Hwp
                 var reason = feature switch
                 {
                     HwpFeature.StaticToc => TocReason,
-                    HwpFeature.ClickHere => ClickHereReason,
                     _ => FeatureReason,
                 };
                 limits.Add(new HwpLimit(HwpLimitKind.Feature, HwpFeatureNames.Korean(feature), reason, HwpFeatureNames.English(feature)));

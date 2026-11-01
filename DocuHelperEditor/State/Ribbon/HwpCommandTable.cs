@@ -445,8 +445,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "누름틀",
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_form_field",
-                Args = """{"action":"insert","at":"{caret}","name":"{name}","hint":"{hint}","memo":"{memo}"}""",
-                Reason = "누름틀은 아직 한글 파일에 저장되지 않아요. 한글에서 넣어 주세요.",
+                Args = """{"action":"insert","at":"{caret}","name":"{name}","hint":"{hint}"}""",
                 Gates = new[] { "ClickHere" },
                 Dialog = new WordDialogSpec("누름틀 넣기", new[]
                 {

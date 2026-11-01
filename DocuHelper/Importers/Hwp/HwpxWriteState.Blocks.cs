@@ -50,13 +50,22 @@ namespace DocuHelper.Importers.Hwp
             runs.AddRange(ParagraphControls(paragraph));
             var fields = ScanFields(paragraph);
             var scope = new HwpxFieldScope();
-            foreach (var element in paragraph.Descendants().Where(e => e is Run || e is BookmarkStart).ToList())
+            foreach (var element in paragraph.Descendants().Where(e => e is Run || e is BookmarkStart || e is SdtRun).ToList())
             {
                 if (element is BookmarkStart bookmark)
                 {
                     if (Owns(paragraph, bookmark) && bookmark.Name?.Value is string name && !name.StartsWith("_", System.StringComparison.Ordinal))
                         runs.Add(BookmarkRun(name));
 
+                    continue;
+                }
+
+                if (element is SdtRun field)
+                {
+                    if (field.Descendants<Run>().Any() || !Owns(paragraph, field))
+                        continue;
+
+                    MoveScope(scope, runs, null, field);
                     continue;
                 }
 
