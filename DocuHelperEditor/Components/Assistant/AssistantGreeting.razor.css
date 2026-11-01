@@ -84,3 +84,16 @@
     border-radius: var(--radius-sm);
     color: var(--ink);
 }
+
+.examples.blank {
+    align-items: flex-start;
+}
+
+.example.plain.chip {
+    display: inline-flex;
+    min-height: 44px;
+    padding: 6px 14px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-pill);
+    background: var(--paper);
+}
