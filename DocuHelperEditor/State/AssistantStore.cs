@@ -284,7 +284,7 @@ namespace DocuHelperEditor.State
             if (running != null)
                 _entries.Remove(running);
 
-            _entries.Add(new ChatEntry { Kind = ChatEntryKind.Assistant, Text = "멈췄어요. 이번 부탁으로 바뀐 건 없어요." });
+            _entries.Add(new ChatEntry { Kind = ChatEntryKind.Assistant, Text = StoppedText() });
 
             foreach (var file in _workspace.Files.Where(f => f.Activity != FileActivity.Idle))
                 file.Activity = FileActivity.Idle;

@@ -131,7 +131,7 @@
 
     private bool IsWorking => Assistant.Status == AssistantStatus.Working;
 
-    private bool AllCopied => Result.Groups.Count > 0 && Result.Groups.All(g => Workspace.Files.FirstOrDefault(f => f.Id == g.FileId || f.Name == g.FileName)?.IsCopied == true);
+    private bool AllCopied => Result.Groups.Count > 0 && Result.Groups.All(g => (Workspace.Files.FirstOrDefault(f => f.Id == g.FileId) ?? Workspace.Files.FirstOrDefault(f => f.Name == g.FileName))?.IsCopied == true);
 
     private IEnumerable<string> ChangeIds => Result.Groups.SelectMany(g => g.Changes).Select(c => c.Id).Where(id => id != null);
 

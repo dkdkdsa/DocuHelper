@@ -26,6 +26,7 @@ namespace DocuHelper
         private readonly List<WorkspaceEdit> _redo = new();
         private readonly Dictionary<Docu, DocuState> _assistantBaselines = new();
         private readonly List<string> _notes = new();
+        private AgentToolbox _runToolbox;
 
         public event Action DocusChanged;
 
@@ -42,6 +43,8 @@ namespace DocuHelper
         public Agent Agent { get; set; }
 
         public bool IsAgentRunning { get; private set; }
+
+        public bool IsRunTouchingFiles => _runToolbox?.Before.Count > 0;
 
         public bool CanUndo => _undo.Count > 0 && !IsAgentRunning;
 
@@ -329,25 +332,42 @@ namespace DocuHelper
             var toolbox = new AgentToolbox(this, request, notes);
             ClearRunHandEdits();
             IsAgentRunning = true;
+            _runToolbox = toolbox;
             try
             {
                 var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
-                CommitRun(toolbox);
-                CommitRunHandEdits();
+                lock (_notes)
+                {
+                    CommitRun(toolbox);
+                    CommitRunHandEdits();
+                    IsAgentRunning = false;
+                }
+
                 return result;
             }
             catch
             {
                 var agentDocus = toolbox.Before.Keys.ToList();
+                var attempted = agentDocus.Where(d => _docus.Contains(d) && toolbox.Before[d] != null).ToDictionary(d => d, d => toolbox.Before[d]);
+                var partial = attempted.Keys.ToDictionary(d => d, d => d.Capture());
                 toolbox.Rollback();
-                ResolveFailedRunHandEdits(agentDocus);
-                _notes.InsertRange(0, notes);
+                lock (_notes)
+                {
+                    ResolveFailedRunHandEdits(agentDocus);
+                    KeepFailedRunForRedo(attempted, partial);
+                    IsAgentRunning = false;
+                }
+
+                lock (_notes)
+                    _notes.InsertRange(0, notes);
+
                 throw;
             }
             finally
             {
                 toolbox.Release();
                 IsAgentRunning = false;
+                _runToolbox = null;
                 foreach (var (docu, author) in authors)
                     docu.AssistantRevisionAuthor = author;
             }
@@ -508,9 +528,12 @@ namespace DocuHelper
 
         private IReadOnlyList<string> TakeNotes()
         {
-            var notes = _notes.ToList();
-            _notes.Clear();
-            return notes;
+            lock (_notes)
+            {
+                var notes = _notes.ToList();
+                _notes.Clear();
+                return notes;
+            }
         }
 
         private void CommitRun(AgentToolbox toolbox)
