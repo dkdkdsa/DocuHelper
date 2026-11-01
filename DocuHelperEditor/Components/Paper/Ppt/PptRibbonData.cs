@@ -169,6 +169,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             FileItem("ppt.file.pdf", "PDF로 저장"),
             FileItem("ppt.file.print", "인쇄", "Ctrl+P"),
             FileItem("ppt.file.printHandout", "유인물 인쇄"),
+            FileItem("ppt.file.info", "문서 정보"),
             FileItem("ppt.file.openOriginal", "PowerPoint에서 열기", separated: true),
         };
     }

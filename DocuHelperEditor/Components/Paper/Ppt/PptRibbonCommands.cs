@@ -235,6 +235,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             AddRedo(RedoId);
             AddSave("ppt.file.save");
             AddSaveCopy("ppt.file.saveAs");
+            RegisterFile();
             foreach (var id in s_print)
                 AddDisabled(id, PrintReason);
 
