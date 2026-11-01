@@ -55,6 +55,7 @@ namespace DocuHelperEditor.State
             _workspace.OpenFolder(folderPath);
             FolderPath = _workspace.FolderPath;
             FolderName = Path.GetFileName(FolderPath);
+            RestoreFolderPanel();
             FolderOpened?.Invoke();
 
             var failed = new List<string>();

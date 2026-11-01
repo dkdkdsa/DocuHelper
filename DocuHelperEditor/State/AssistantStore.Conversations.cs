@@ -105,6 +105,7 @@ namespace DocuHelperEditor.State
 
         private void OnFolderOpened()
         {
+            RestorePanelCollapsed();
             if (!IsRunning)
                 NewConversation();
         }

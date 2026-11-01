@@ -1,4 +1,6 @@
-﻿namespace DocuHelperEditor.State
+﻿using DocuHelperEditor.Services;
+
+namespace DocuHelperEditor.State
 {
     public partial class WorkspaceStore
     {
@@ -8,6 +10,7 @@
         {
             _folderToggleFocusPending = true;
             ToggleFolder();
+            PanelRepository.SaveFolder(FolderPath, IsFolderCollapsed);
         }
 
         public bool TakeFolderToggleFocus()
@@ -16,5 +19,7 @@
             _folderToggleFocusPending = false;
             return pending;
         }
+
+        private void RestoreFolderPanel() => IsFolderCollapsed = PanelRepository.Load(FolderPath).FolderCollapsed;
     }
 }
