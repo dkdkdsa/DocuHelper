@@ -18,19 +18,23 @@
             <span class="row-title">새 버전</span>
             <span class="row-note">@NoteText</span>
         </div>
-        <div class="row-body stack start" aria-live="polite">
+        <div class="row-body stack start">
             @switch (Updates.Phase)
             {
                 case UpdatePhase.Checking:
-                    <p class="status"><span class="spinner" aria-hidden="true"></span>새 버전이 있는지 보는 중이에요</p>
+                    <p class="status" role="status"><span class="spinner" aria-hidden="true"></span>새 버전이 있는지 보는 중이에요</p>
                     break;
 
                 case UpdatePhase.Available:
                     <div class="card">
+                        @if (Updates.DownloadFailed)
+                        {
+                            <p class="status" role="status">내려받지 못했어요. 다시 해 볼까요?</p>
+                        }
                         <h3>@(Updates.Notice.Version) 버전이 나왔어요</h3>
                         <p class="meta">@(Megabytes(Updates.Notice.SizeBytes)) MB, @(Updates.Notice.EstimatedMinutes)분쯤 걸려요.</p>
                         <div class="actions">
-                            <ActionButton Kind="ButtonKind.Primary" id="settings-update-get" OnClick="Get">내려받기</ActionButton>
+                            <ActionButton Kind="ButtonKind.Primary" id="settings-update-get" OnClick="Get">@(Updates.DownloadFailed ? "다시 받기" : "내려받기")</ActionButton>
                         </div>
                     </div>
                     break;
@@ -39,7 +43,7 @@
                     <div class="card">
                         <p class="status" id="settings-update-bar-label">내려받는 중이에요</p>
                         <ProgressBar Value="Updates.Percent" LabelId="settings-update-bar-label" />
-                        <p class="meta">@(Updates.Percent)%, @(Megabytes(Updates.Notice.SizeBytes)) MB 중 @(Megabytes(Updates.DownloadedBytes)) MB</p>
+                        <p class="meta" role="status">@(Updates.Percent)%, @(Megabytes(Updates.Notice.SizeBytes)) MB 중 @(Megabytes(Updates.DownloadedBytes)) MB</p>
                         <div class="actions">
                             <ActionButton Kind="ButtonKind.Secondary" OnClick="Cancel">그만 받기</ActionButton>
                         </div>
@@ -86,7 +90,7 @@
                         <p class="status"><Icon Name="check" Size="18" Stroke="2.4" /> 최신 버전이에요</p>
                     }
                     <div class="actions">
-                        <ActionButton Kind="ButtonKind.Secondary" id="settings-update-check" Disabled="CheckDisabled" OnClick="Check">지금 확인</ActionButton>
+                        <ActionButton Kind="ButtonKind.Secondary" id="settings-update-check" Disabled="!Updates.IsInstalled" aria-disabled="@(CheckBusy ? "true" : "false")" OnClick="Check">지금 확인</ActionButton>
                     </div>
                     break;
             }
@@ -95,7 +99,7 @@
 
     <div class="row center">
         <div class="row-head">
-            <label for="settings-update-check-switch" class="row-title">켜면 새 버전 확인하기</label>
+            <label for="settings-update-check-switch" class="row-title">새 버전 확인하기</label>
             <span id="settings-update-check-d" class="row-note">인터넷이 안 되면 조용히 넘어가요.</span>
         </div>
         <div class="row-body switch-row">
@@ -130,7 +134,7 @@
 
     private string CurrentText => Updates.IsInstalled ? $"문서 도우미 {Updates.CurrentVersion}" : "개발용";
 
-    private bool CheckDisabled => !Updates.IsInstalled || Updates.Phase == UpdatePhase.Checking;
+    private bool CheckBusy => Updates.Phase == UpdatePhase.Checking;
 
     private string NoteText => Updates.Phase is UpdatePhase.Available or UpdatePhase.Downloading or UpdatePhase.Ready or UpdatePhase.OnClose or UpdatePhase.Restarting
         ? "받는 동안 하던 일을 멈추지 않아요."
@@ -154,7 +158,13 @@
 
     private void SetAuto(string value) => Settings.SetUpdateAuto(value == "auto");
 
-    private void Check() => _ = Updates.CheckNowAsync();
+    private void Check()
+    {
+        if (CheckBusy)
+            return;
+
+        _ = Updates.CheckNowAsync();
+    }
 
     private void Get() => _ = Updates.DownloadAsync();
 
