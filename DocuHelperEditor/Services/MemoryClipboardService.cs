@@ -1,11 +1,29 @@
+#if DEBUG
 using System;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace DocuHelperEditor.Services
 {
     public sealed class MemoryClipboardService : IClipboardService
     {
-        private ClipboardContent _content = new();
+        private ClipboardContent _content = Seed();
+
+        private static ClipboardContent Seed()
+        {
+            var path = System.Environment.GetEnvironmentVariable("DOCUHELPER_CLIPBOARD_SEED");
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return new ClipboardContent();
+
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            var root = document.RootElement;
+            return new ClipboardContent
+            {
+                Text = root.TryGetProperty("text", out var text) ? text.GetString() : null,
+                Html = root.TryGetProperty("html", out var html) ? html.GetString() : null,
+            };
+        }
 
         public event Action Changed;
 
@@ -43,3 +61,4 @@ namespace DocuHelperEditor.Services
         public Task SetImageAsync(byte[] image) => WriteAsync(new ClipboardContent { Image = image });
     }
 }
+#endif

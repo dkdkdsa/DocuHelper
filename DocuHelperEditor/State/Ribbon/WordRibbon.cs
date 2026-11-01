@@ -151,6 +151,41 @@ namespace DocuHelperEditor.State.Ribbon
                     S("word.view.zoom.pagewidth", "페이지 너비", "pwidth"))),
         };
 
+        public static RibbonTab TableTab { get; } = Tab("table", "표 디자인",
+            Grid("행·열",
+                I("word.table.rows.above", "위에 행 삽입", "table"),
+                I("word.table.rows.below", "아래에 행 삽입", "table"),
+                I("word.table.rows.delete", "행 삭제", "table"),
+                I("word.table.cols.left", "왼쪽에 열 삽입", "table"),
+                I("word.table.cols.right", "오른쪽에 열 삽입", "table"),
+                I("word.table.cols.delete", "열 삭제", "table")),
+            Grid("병합",
+                I("word.table.merge", "칸 합치기", "table"),
+                I("word.table.split", "칸 나누기", "table")),
+            Grid("너비",
+                I("word.table.size.equalcols", "열 너비 같게", "table"),
+                I("word.table.size.equalrows", "행 높이 같게", "table"),
+                I("word.table.size.autofit", "내용에 맞춤", "table")),
+            Grid("스타일",
+                L("word.table.style.preset", "표 스타일", "table", dd: true),
+                I("word.table.style.header", "머리글 행", "table", toggle: true),
+                I("word.table.style.banded", "줄 무늬", "table", toggle: true)),
+            Grid("테두리·바탕",
+                L("word.table.style.borders", "테두리", "table", dd: true),
+                L("word.table.style.shading", "바탕색", "fcolor", dd: true)),
+            Grid("칸",
+                I("word.table.cell.bold", "굵게", "bold", toggle: true),
+                I("word.table.align.left", "왼쪽 맞춤", null),
+                I("word.table.align.center", "가운데 맞춤", null),
+                I("word.table.align.right", "오른쪽 맞춤", null),
+                I("word.table.valign.top", "위 맞춤", null),
+                I("word.table.valign.center", "가운데 세로 맞춤", null),
+                I("word.table.valign.bottom", "아래 맞춤", null)),
+            Grid("표",
+                I("word.table.delete", "표 지우기", "table")));
+
+        public static IReadOnlyList<RibbonTab> WithTable { get; } = new List<RibbonTab>(Tabs) { TableTab };
+
         public static IReadOnlyList<RibbonFileItem> FileItems { get; } = new[]
         {
             FileItem("word.file.save", "저장", "Ctrl+S"),

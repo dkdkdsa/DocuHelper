@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -21,6 +21,12 @@ namespace DocuHelperEditor.State
 
             try
             {
+                if (selection.Kind == WordSelectionKind.Cells)
+                {
+                    await js.InvokeVoidAsync("docuHelperWordSelection.restoreCell", selection.Cells.TableId, selection.Cells.Row1, selection.Cells.Column1);
+                    return;
+                }
+
                 await js.InvokeVoidAsync("docuHelperWordSelection.restore",
                     selection.Ranges.Select(r => new { id = r.BlockId, start = r.Start, end = r.End }).ToArray(),
                     selection.Caret == null ? null : new { id = selection.Caret.BlockId, offset = selection.Caret.Offset });
@@ -73,6 +79,16 @@ namespace DocuHelperEditor.State
             var caret = root.TryGetProperty("caret", out var position) && position.ValueKind == JsonValueKind.Object
                 ? new WordCaret(position.GetProperty("id").GetString(), position.GetProperty("offset").GetInt32())
                 : null;
+            if (kind == "cells" && root.TryGetProperty("cells", out var cells) && cells.ValueKind == JsonValueKind.Object)
+            {
+                return new WordSelection(new WordCellRange(
+                    cells.GetProperty("table").GetString(),
+                    cells.GetProperty("row1").GetInt32(),
+                    cells.GetProperty("column1").GetInt32(),
+                    cells.GetProperty("row2").GetInt32(),
+                    cells.GetProperty("column2").GetInt32()));
+            }
+
             return kind switch
             {
                 "text" when ranges.Count > 0 => new WordSelection(WordSelectionKind.Text, caret, ranges),

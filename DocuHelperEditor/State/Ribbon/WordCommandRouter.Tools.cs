@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -107,6 +107,12 @@ namespace DocuHelperEditor.State.Ribbon
             if (IsLegacy(spec))
                 return LegacyEdits(spec);
 
+            if ((spec.Tool == "edit_table" || spec.Id == "word.table.cell.bold") && Model?.Selection?.Cells == null)
+            {
+                Notify("표 칸을 먼저 눌러 골라 주세요.");
+                return null;
+            }
+
             var run = _run ?? new Run(spec, arg, EntryOf(spec, arg));
             var template = TemplateOf(run);
             var node = WordArgs.Resolve(template, (string name, out JsonNode value) => Lookup(run, name, out value), null);
@@ -177,6 +183,36 @@ namespace DocuHelperEditor.State.Ribbon
             return names;
         }
 
+        private JsonObject RangeJson(bool onlySelected)
+        {
+            var cells = Model?.Selection?.Cells;
+            if (cells != null)
+                return new JsonObject { ["row1"] = cells.Row1, ["column1"] = cells.Column1, ["row2"] = cells.Row2, ["column2"] = cells.Column2 };
+
+            if (onlySelected || Block?.IsTable != true || Block.Table == null)
+                return null;
+
+            var rows = Block.Table.Rows.Count;
+            var columns = Block.Table.Rows.Count == 0 ? 1 : Block.Table.Rows.Max(r => r.Count);
+            return new JsonObject { ["row1"] = 1, ["column1"] = 1, ["row2"] = Math.Max(1, rows), ["column2"] = Math.Max(1, columns) };
+        }
+
+        private JsonArray CellTargetsJson()
+        {
+            var cells = Model?.Selection?.Cells;
+            if (cells == null)
+                return null;
+
+            var targets = new JsonArray();
+            for (var row = cells.Row1; row <= cells.Row2 && targets.Count < 200; row++)
+            {
+                for (var column = cells.Column1; column <= cells.Column2 && targets.Count < 200; column++)
+                    targets.Add(new JsonObject { ["id"] = cells.TableId, ["row"] = row, ["column"] = column });
+            }
+
+            return targets;
+        }
+
         private bool Lookup(Run run, string name, out JsonNode value)
         {
             value = null;
@@ -214,7 +250,43 @@ namespace DocuHelperEditor.State.Ribbon
                     value = JsonValue.Create((block.Text ?? string.Empty).Length);
                     return true;
                 case "table":
+                    if (Model?.Selection?.Cells is { } cellTable)
+                    {
+                        value = JsonValue.Create(cellTable.TableId);
+                        return true;
+                    }
+
                     value = block?.IsTable == true ? JsonValue.Create(block.Id) : null;
+                    return value != null;
+                case "row":
+                case "column":
+                    if (Model?.Selection?.Cells is not { } cell)
+                        return false;
+
+                    value = JsonValue.Create(name == "row" ? cell.Row1 : cell.Column1);
+                    return true;
+                case "range":
+                case "range or whole table":
+                    value = RangeJson(name == "range");
+                    return value != null;
+                case "selected rows":
+                    if (Model?.Selection?.Cells is not { } rows)
+                        return false;
+
+                    value = JsonValue.Create(rows.Row2 - rows.Row1 + 1);
+                    return true;
+                case "selected columns":
+                    if (Model?.Selection?.Cells is not { } columns)
+                        return false;
+
+                    value = JsonValue.Create(columns.Column2 - columns.Column1 + 1);
+                    return true;
+                case "rows":
+                case "columns":
+                    value = JsonValue.Create(2);
+                    return true;
+                case "cell targets":
+                    value = CellTargetsJson();
                     return value != null;
                 case "toggle":
                     value = JsonValue.Create(!IsPressed(run.Spec));
@@ -225,6 +297,12 @@ namespace DocuHelperEditor.State.Ribbon
                 case "value":
                     return ValueOf(run, out value);
                 case "color":
+                    if (run.Fields != null && run.Fields.TryGetValue("color", out var chosen) && chosen is JsonValue chosenValue && chosenValue.TryGetValue<string>(out var hex) && hex.Length > 0)
+                    {
+                        value = JsonValue.Create("#" + hex.TrimStart('#').ToUpperInvariant());
+                        return true;
+                    }
+
                     return ColorOfArg(run, out value);
                 case "file":
                     value = run.Picked == null ? null : JsonValue.Create(run.Picked);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -20,10 +20,16 @@ namespace DocuHelperEditor.State
 
         private static readonly HashSet<string> s_breaks = new(StringComparer.OrdinalIgnoreCase) { "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "br" };
 
+        public const int MaxHtmlLength = 2_000_000;
+
+        public const int MaxParagraphs = 200;
+
+        public const int MaxCharacters = 100_000;
+
         public static IReadOnlyList<WordClipParagraph> Parse(string html)
         {
             var paragraphs = new List<WordClipParagraph>();
-            if (string.IsNullOrWhiteSpace(html))
+            if (string.IsNullOrWhiteSpace(html) || html.Length > MaxHtmlLength)
                 return paragraphs;
 
             var source = s_hidden.Replace(s_comment.Replace(html, string.Empty), string.Empty);
@@ -80,7 +86,9 @@ namespace DocuHelperEditor.State
             if (runs.Count > 0)
                 paragraphs.Add(new WordClipParagraph(runs.ToList()));
 
-            return paragraphs.Where(p => p.Runs.Any(r => r.Text.Length > 0)).ToList();
+            var result = paragraphs.Where(p => p.Runs.Any(r => r.Text.Length > 0)).ToList();
+            var characters = result.Sum(p => p.Text.Length);
+            return result.Count > MaxParagraphs || characters > MaxCharacters ? new List<WordClipParagraph>() : result;
         }
 
         private static WordCharLook ApplyStyle(WordCharLook look, string attributes)
@@ -133,23 +141,33 @@ namespace DocuHelperEditor.State
         private static string ColorOf(string value)
         {
             var text = value.Trim();
-            if (text.StartsWith('#') && text.Length == 7)
+            if (text.Length == 7 && text[0] == '#' && text.Skip(1).All(Uri.IsHexDigit))
                 return text.Substring(1).ToUpperInvariant();
 
-            var rgb = Regex.Match(text, @"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)");
+            var rgb = Regex.Match(text, @"^rgb\(\s*(\d{1,12})\s*,\s*(\d{1,12})\s*,\s*(\d{1,12})\s*\)$");
             if (!rgb.Success)
                 return null;
 
-            return string.Concat(Enumerable.Range(1, 3).Select(i => int.Parse(rgb.Groups[i].Value, CultureInfo.InvariantCulture).ToString("X2", CultureInfo.InvariantCulture)));
+            var channels = new int[3];
+            for (var i = 0; i < 3; i++)
+            {
+                if (!long.TryParse(rgb.Groups[i + 1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var channel))
+                    return null;
+
+                channels[i] = (int)Math.Clamp(channel, 0, 255);
+            }
+
+            return string.Concat(channels.Select(c => c.ToString("X2", CultureInfo.InvariantCulture)));
         }
 
         private static double? SizeOf(string value)
         {
-            var match = Regex.Match(value.Trim(), @"^([\d.]+)\s*(pt|px)?$");
+            var match = Regex.Match(value.Trim(), @"^(\d{1,4}(?:\.\d{1,2})?)\s*(pt|px)?$");
             if (!match.Success || !double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
                 return null;
 
-            return match.Groups[2].Value == "px" ? Math.Round(number * 0.75, 1) : number;
+            var points = match.Groups[2].Value == "px" ? Math.Round(number * 0.75, 1) : number;
+            return points >= 1 && points <= 400 ? points : null;
         }
     }
 }

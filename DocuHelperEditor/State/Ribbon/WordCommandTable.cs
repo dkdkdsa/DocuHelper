@@ -1998,6 +1998,17 @@ namespace DocuHelperEditor.State.Ribbon
                 Array.Empty<WordMenuSpec>(),
                 null),
             new WordCommandSpec(
+                "word.table.cell.bold",
+                "칸 글자 굵게",
+                RibbonCommandClass.Tool,
+                null,
+                "format_text",
+                """{"targets":"{cell targets}","bold":true}""",
+                null,
+                null,
+                Array.Empty<WordMenuSpec>(),
+                null),
+            new WordCommandSpec(
                 "word.table.rows.above",
                 "위에 행 삽입",
                 RibbonCommandClass.Tool,

@@ -19,12 +19,28 @@
         return { id: block.dataset.block, offset: offsetIn(block, sel.focusNode, sel.focusOffset) };
     }
 
+    function cellOf(node) {
+        var element = node && node.nodeType === 1 ? node : node && node.parentElement;
+        return element ? element.closest('td[data-table], th[data-table]') : null;
+    }
+
+    function cellsOf(sel, root) {
+        var anchor = cellOf(sel.anchorNode);
+        var focus = cellOf(sel.focusNode);
+        if (!anchor || !focus || !root.contains(focus) || anchor.dataset.table !== focus.dataset.table) return null;
+        var r1 = Number(anchor.dataset.row), c1 = Number(anchor.dataset.column);
+        var r2 = Number(focus.dataset.row), c2 = Number(focus.dataset.column);
+        return { table: focus.dataset.table, row1: Math.min(r1, r2), column1: Math.min(c1, c2), row2: Math.max(r1, r2), column2: Math.max(c1, c2) };
+    }
+
     function read(root) {
         var sel = document.getSelection();
         var none = { kind: 'none', caret: null, ranges: [] };
         if (!sel || sel.rangeCount === 0) return none;
         var range = sel.getRangeAt(0);
         if (!root.contains(range.commonAncestorContainer)) return range.collapsed ? none : null;
+        var cells = cellsOf(sel, root);
+        if (cells) return { kind: 'cells', caret: null, cells: cells, ranges: [] };
         var caret = caretOf(sel, root);
         if (range.collapsed) {
             return caret ? { kind: 'caret', caret: caret, ranges: [] } : null;
@@ -67,6 +83,19 @@
         var range = document.createRange();
         range.setStart(start.node, start.offset);
         range.setEnd(end.node, end.offset);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    function restoreCell(table, row, column) {
+        var selection = document.getSelection();
+        if (!selection) return;
+        var selector = '[data-table="' + table + '"][data-row="' + row + '"][data-column="' + column + '"]';
+        var cell = document.querySelector('td' + selector + ', th' + selector);
+        if (!cell) return;
+        var range = document.createRange();
+        range.selectNodeContents(cell);
+        range.collapse(false);
         selection.removeAllRanges();
         selection.addRange(range);
     }
@@ -125,6 +154,9 @@
         detach: detach,
         restore: function (ranges, caret) {
             setTimeout(function () { restore(ranges || [], caret || null); }, 60);
+        },
+        restoreCell: function (table, row, column) {
+            setTimeout(function () { restoreCell(table, row, column); }, 60);
         },
     };
 })();

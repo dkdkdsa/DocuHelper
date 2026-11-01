@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -19,6 +19,12 @@ namespace DocuHelperEditor.State
         public const string EmptyClipboardReason = "클립보드에 붙여넣을 내용이 없어요.";
 
         public const string PainterSourceReason = "서식을 가져올 글자를 먼저 골라 주세요.";
+
+        public const string TooLargeReason = "붙여넣을 글이 너무 많아요. 한 번에 200문단, 10만 글자까지 붙여넣을 수 있어요.";
+
+        public const string BrokenPictureReason = "클립보드의 그림을 읽지 못했어요. 다른 그림으로 다시 복사해 보세요.";
+
+        private const int MaxPictureBytes = 6 * 1024 * 1024;
 
         private const ClipboardKinds PasteKinds = ClipboardKinds.Text | ClipboardKinds.Html | ClipboardKinds.Image;
 
@@ -57,10 +63,16 @@ namespace DocuHelperEditor.State
         {
             if (item != null && !HasText(selection))
             {
+                if (item.Kind != "picture")
+                {
+                    notify("이 개체는 복사할 수 없어요. 그림만 복사할 수 있어요.");
+                    return false;
+                }
+
                 var bytes = PictureBytes(item);
                 if (bytes == null)
                 {
-                    notify("이 개체는 복사할 수 없어요. 그림만 복사할 수 있어요.");
+                    notify(BrokenPictureReason);
                     return false;
                 }
 
@@ -118,6 +130,12 @@ namespace DocuHelperEditor.State
             var deletes = selection.Kind == WordSelectionKind.Text ? DeleteOps(model, selection) : new JsonArray();
             if (string.IsNullOrEmpty(content.Text) && string.IsNullOrEmpty(content.Html) && content.HasImage)
             {
+                if (content.Image.Length > MaxPictureBytes)
+                {
+                    notify("그림이 너무 커서 붙여넣을 수 없어요. 6MB보다 작은 그림을 써 주세요.");
+                    return Array.Empty<EditCommand>();
+                }
+
                 var commands = new List<EditCommand>();
                 if (deletes.Count > 0)
                     commands.Add(EditCommand.Create("edit_text", new { ops = deletes }));
@@ -133,13 +151,20 @@ namespace DocuHelperEditor.State
                 return commands;
             }
 
+            var paragraphs = ParagraphsOf(content, mode);
+            if (paragraphs.Count > WordHtmlPaste.MaxParagraphs || paragraphs.Sum(p => p.Text.Length) > WordHtmlPaste.MaxCharacters)
+            {
+                notify(TooLargeReason);
+                return Array.Empty<EditCommand>();
+            }
+
             var offset = selection.Kind == WordSelectionKind.Text ? selection.Ranges[0].Start : selection.Caret.Offset;
             deletes.Add(new JsonObject
             {
                 ["op"] = JsonValue.Create("paste"),
                 ["id"] = JsonValue.Create(block.Id),
                 ["offset"] = JsonValue.Create(offset),
-                ["paragraphs"] = ParagraphsJson(ParagraphsOf(content, mode), mode),
+                ["paragraphs"] = ParagraphsJson(paragraphs, mode),
             });
             return new[] { EditCommand.Create("edit_text", new { ops = deletes }) };
         }
@@ -221,7 +246,11 @@ namespace DocuHelperEditor.State
                     return parsed;
             }
 
-            return (content.Text ?? string.Empty).Replace("\r\n", "\n").Split('\n')
+            var text = content.Text ?? string.Empty;
+            if (text.Length > WordHtmlPaste.MaxCharacters)
+                return new List<WordClipParagraph> { new(new[] { new WordClipRun(text, WordCharLook.Plain) }) };
+
+            return text.Replace("\r\n", "\n").Split('\n')
                 .Select(line => new WordClipParagraph(new[] { new WordClipRun(line, WordCharLook.Plain) }))
                 .ToList();
         }
@@ -241,7 +270,12 @@ namespace DocuHelperEditor.State
                     if (mode == "keep_source" && !WordClip.IsPlain(run.Look))
                     {
                         foreach (var pair in WordFormatPainter.FormatOf(run.Look))
-                            json[pair.Key] = pair.Value?.DeepClone();
+                        {
+                            if (pair.Value is JsonValue value && (value.TryGetValue<bool>(out var flag) ? !flag : value.TryGetValue<string>(out var text) && text is "none" or "auto"))
+                                continue;
+
+                            json[pair.Key] = pair.Value.DeepClone();
+                        }
                     }
 
                     runs.Add(json);
@@ -261,7 +295,14 @@ namespace DocuHelperEditor.State
             if (item.Kind != "picture" || url == null || url.IndexOf(Marker, StringComparison.Ordinal) < 0)
                 return null;
 
-            return Convert.FromBase64String(url.Substring(url.IndexOf(Marker, StringComparison.Ordinal) + Marker.Length));
+            try
+            {
+                return Convert.FromBase64String(url.Substring(url.IndexOf(Marker, StringComparison.Ordinal) + Marker.Length));
+            }
+            catch (FormatException)
+            {
+                return null;
+            }
         }
     }
 }

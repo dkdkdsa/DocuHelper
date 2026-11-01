@@ -540,7 +540,7 @@
                             if (table.IsCovered(0, column))
                                 continue;
 
-                            <th scope="col" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, 0, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
+                            <th scope="col" data-table="@block.Id" data-row="1" data-column="@(column + 1)" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, 0, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
                         }
                     </tr>
                 </thead>
@@ -555,7 +555,7 @@
                             if (table.IsCovered(row, column))
                                 continue;
 
-                            <td rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, row, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
+                            <td data-table="@block.Id" data-row="@(row + 1)" data-column="@(column + 1)" rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, row, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
                         }
                     </tr>
                 }
@@ -571,7 +571,7 @@
                             if (table.IsCovered(footer, column))
                                 continue;
 
-                            <td colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, footer, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
+                            <td data-table="@block.Id" data-row="@(footer + 1)" data-column="@(column + 1)" colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, footer, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
                         }
                     </tr>
                 </tfoot>
