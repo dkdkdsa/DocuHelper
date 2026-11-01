@@ -368,6 +368,7 @@ body.docu-printing .docu-print-keep {
     display: block !important;
     position: static !important;
     overflow: visible !important;
+    border: 0 !important;
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
