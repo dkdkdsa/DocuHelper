@@ -64,6 +64,12 @@ namespace DocuHelperEditor
             else
 #endif
             builder.Services.AddSingleton<IClipboardService, WindowsClipboardService>();
+#if DEBUG
+            if (System.Environment.GetEnvironmentVariable("DOCUHELPER_SPEECH") is "fake" or "none")
+                builder.Services.AddSingleton<ISpeechService, FakeSpeechService>();
+            else
+#endif
+            builder.Services.AddSingleton<ISpeechService, WindowsSpeechService>();
             builder.Services.AddSingleton<IPrintService, WindowsPrintService>();
             builder.Services.AddSingleton<IUpdateService, VelopackUpdateService>();
             builder.Services.AddSingleton<ISecretStore, DpapiSecretStore>();

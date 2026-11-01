@@ -132,21 +132,65 @@ namespace DocuHelperEditor.State.Ribbon
                     if (part.RootElement == null)
                         continue;
 
-                    foreach (var text in part.RootElement.Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>())
-                    {
-                        var replaced = text.Text;
-                        foreach (var pair in values)
-                            replaced = replaced.Replace("«" + pair.Key + "»", pair.Value, StringComparison.Ordinal);
-
-                        if (replaced != text.Text)
-                            text.Text = replaced;
-                    }
+                    foreach (var paragraph in part.RootElement.Descendants<Paragraph>().ToList())
+                        ReplaceFields(paragraph, values);
                 }
 
                 document.Save();
             }
 
             return stream.ToArray();
+        }
+
+        private static void ReplaceFields(Paragraph paragraph, IReadOnlyDictionary<string, string> values)
+        {
+            var texts = paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>().ToList();
+            var searchFrom = 0;
+            while (true)
+            {
+                var joined = string.Concat(texts.Select(t => t.Text ?? string.Empty));
+                var field = FirstField(joined, values, searchFrom);
+                if (field == null)
+                    return;
+
+                ReplaceRange(texts, field.Value.Start, field.Value.Start + field.Value.Length, field.Value.Value);
+                searchFrom = field.Value.Start + field.Value.Value.Length;
+            }
+        }
+
+        private static (int Start, int Length, string Value)? FirstField(string text, IReadOnlyDictionary<string, string> values, int from)
+        {
+            (int Start, int Length, string Value)? first = null;
+            foreach (var pair in values)
+            {
+                var token = "«" + pair.Key + "»";
+                var index = text.IndexOf(token, from, StringComparison.Ordinal);
+                if (index >= 0 && (first == null || index < first.Value.Start))
+                    first = (index, token.Length, pair.Value);
+            }
+
+            return first;
+        }
+
+        private static void ReplaceRange(IReadOnlyList<DocumentFormat.OpenXml.Wordprocessing.Text> texts, int start, int end, string value)
+        {
+            var position = 0;
+            var placed = false;
+            foreach (var text in texts)
+            {
+                var content = text.Text ?? string.Empty;
+                var from = position;
+                var to = position + content.Length;
+                position = to;
+                if (to <= start || from >= end)
+                    continue;
+
+                var head = content.Substring(0, Math.Max(start, from) - from);
+                var tail = content.Substring(Math.Min(end, to) - from);
+                text.Text = head + (placed ? string.Empty : value) + tail;
+                text.Space = DocumentFormat.OpenXml.SpaceProcessingModeValues.Preserve;
+                placed = true;
+            }
         }
     }
 }
