@@ -62,7 +62,13 @@ namespace DocuHelperEditor.Services
 
         public void ApplyOnExit() => AppLog.Write("가짜 업데이트: 앱을 닫을 때 적용");
 
-        public void Restart() => AppLog.Write("가짜 업데이트: 다시 시작");
+        public void Restart()
+        {
+            if (_scenario == "restartfail")
+                throw new InvalidOperationException("가짜 다시 시작 실패");
+
+            AppLog.Write("가짜 업데이트: 다시 시작");
+        }
 
         private static UpdateNotice Notice(bool downloaded) => new()
         {
