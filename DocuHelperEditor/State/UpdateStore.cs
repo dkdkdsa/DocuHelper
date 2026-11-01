@@ -252,6 +252,27 @@ namespace DocuHelperEditor.State
             });
         }
 
+        public void ShowSample(UpdatePhase phase, int percent = 0)
+        {
+            _download = null;
+            CheckFailed = false;
+            DownloadFailed = false;
+            _applyOnExit = phase == UpdatePhase.OnClose;
+            Notice = phase is UpdatePhase.Available or UpdatePhase.Downloading or UpdatePhase.Ready or UpdatePhase.OnClose
+                ? SampleNotice(phase is UpdatePhase.Ready or UpdatePhase.OnClose)
+                : null;
+            Percent = Math.Clamp(percent, 0, 100);
+            SetPhase(phase);
+        }
+
+        private static UpdateNotice SampleNotice(bool downloaded) => new()
+        {
+            Version = "9.9.9",
+            SizeBytes = 19293798,
+            Notes = new[] { "바뀐 점을 더 잘 보여 줘요.", "열려 있던 파일을 다시 열어 줘요.", "오류를 조금 더 잘 잡아요." },
+            Downloaded = downloaded,
+        };
+
         private void SetPhase(UpdatePhase phase)
         {
             Phase = phase;
