@@ -10,7 +10,7 @@
     <div class="ppt" @ref="_root">
         <PptRibbon @ref="_ribbonHost" File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" OnSlideAction="SlideAction" />
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" Sorter="Sorter" OnToggleSorter="ToggleSorter" OnSelect="SelectSlide" OnSlideAction="SlideAction" />
             <div class="stage">
                 @if (Sorter)
                 {
@@ -22,7 +22,7 @@
                 }
                 else if (Show)
                 {
-                    <SlideShowOverlay Slides="_model.Slides" AspectRatio="_model.AspectRatio" StartIndex="_model.ActiveIndex" Reading="@(_ribbon.View == "read")" OnExit="ExitShow" />
+                    <SlideShowOverlay Slides="ShowSlides()" AspectRatio="_model.AspectRatio" StartIndex="ShowStart()" Reading="@(_ribbon.View == "read")" OnExit="ExitShow" />
                 }
                 else
                 {
@@ -85,10 +85,23 @@
 
     private bool Show => _ribbon.View is "show" or "read";
 
+    private List<SlideModel> ShowSlides() => _model.Slides.Where(slide => !slide.IsHidden).ToList();
+
+    private int ShowStart()
+    {
+        if (_ribbon.ShowFrom == "1")
+            return 0;
+
+        var index = ShowSlides().IndexOf(_model.ActiveSlide);
+        return index < 0 ? 0 : index;
+    }
+
     private void ExitShow(int index)
     {
         _ribbon.View = "normal";
-        SelectSlide(index);
+        var visible = ShowSlides();
+        var target = index >= 0 && index < visible.Count ? _model.Slides.IndexOf(visible[index]) : -1;
+        SelectSlide(target < 0 ? _model.ActiveIndex : target);
     }
 
     private void ToggleSorter() => SetSorter(!Sorter);
@@ -97,6 +110,7 @@
     private readonly PptDialogPresenter _presenter = new();
     private int _notesHeight = 92;
     private bool _previewing;
+    private System.Threading.CancellationTokenSource _previewCts;
     private const int TransitionPreviewMs = 900;
 
     private WorkspaceFile _file;
@@ -173,6 +187,7 @@
 
     protected override void OnDispose()
     {
+        _previewCts?.Cancel();
         _ = _wheel?.Detach();
         CommitDraft();
     }
@@ -510,11 +525,14 @@
 
     private void Redraw()
     {
-        if (!_previewing && string.Equals(_ribbon.Preview, "transition", StringComparison.Ordinal))
+        if (string.Equals(_ribbon.Preview, "transition", StringComparison.Ordinal))
         {
             _ribbon.Preview = null;
-            _previewing = true;
-            _ = EndPreviewAsync();
+            if (!_previewing)
+            {
+                _previewing = true;
+                _ = EndPreviewAsync();
+            }
         }
 
         StateHasChanged();
@@ -522,7 +540,19 @@
 
     private async Task EndPreviewAsync()
     {
-        await Task.Delay(TransitionPreviewMs);
+        var cts = _previewCts = new System.Threading.CancellationTokenSource();
+        try
+        {
+            await Task.Delay(TransitionPreviewMs, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cts.IsCancellationRequested)
+            return;
+
         await InvokeAsync(() =>
         {
             _previewing = false;

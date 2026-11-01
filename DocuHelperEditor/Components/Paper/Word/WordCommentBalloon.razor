@@ -39,7 +39,7 @@
     [Parameter]
     public WordRibbonState Ribbon { get; set; }
 
-    private string Initials => string.IsNullOrWhiteSpace(Comment.Initials) ? (Comment.Author ?? "?").Substring(0, 1) : Comment.Initials;
+    private string Initials => string.IsNullOrWhiteSpace(Comment.Initials) ? (string.IsNullOrWhiteSpace(Comment.Author) ? "?" : Comment.Author.Substring(0, 1)) : Comment.Initials;
 
     private string DateText => Comment.Date?.ToLocalTime().ToString("yyyy. M. d. HH:mm") ?? string.Empty;
 

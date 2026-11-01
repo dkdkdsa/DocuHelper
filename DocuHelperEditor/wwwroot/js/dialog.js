@@ -47,7 +47,11 @@ window.docuHelperDialog = (function () {
         },
         open: function (dialog, returnSelector) {
             if (!dialog) return;
-            returnFocus = (returnSelector && document.querySelector(returnSelector)) || resolveFocus();
+            if (active) {
+                active.removeEventListener('keydown', trap);
+            } else {
+                returnFocus = (returnSelector && document.querySelector(returnSelector)) || resolveFocus();
+            }
             active = dialog;
             dialog.addEventListener('keydown', trap);
             var first = dialog.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])') || dialog.querySelector('button:not([disabled])') || dialog;

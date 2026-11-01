@@ -1677,7 +1677,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("확대/축소", new[] { new WordDialogField("zoom", "배율", "choice", "\"100\"", new string[] { "200", "150", "120", "100", "90", "80", "70", "60", "50" }, new string[] { "200%", "150%", "120%", "100%", "90%", "80%", "70%", "60%", "50%" }), new WordDialogField("custom", "직접 입력(50~200)", "number", "100", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new WordDialogSpec("확대/축소", new[] { new WordDialogField("zoom", "배율", "choice", "\"100\"", new string[] { "200", "150", "120", "100", "90", "80", "70", "60", "50" }, new string[] { "200%", "150%", "120%", "100%", "90%", "80%", "70%", "60%", "50%" }), new WordDialogField("custom", "직접 입력(50~200)", "number", "", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.view.zoom.100",
                 "100%",

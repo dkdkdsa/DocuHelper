@@ -12,6 +12,7 @@ namespace DocuHelperEditor.State.Papers
 
         private readonly Dictionary<string, string> _uris = new(StringComparer.Ordinal);
         private readonly Queue<string> _order = new();
+        private readonly HashSet<string> _failed = new(StringComparer.Ordinal);
         private readonly object _gate = new();
         private long _totalChars;
 
@@ -21,11 +22,21 @@ namespace DocuHelperEditor.State.Papers
             {
                 if (_uris.TryGetValue(key, out var cached))
                     return cached;
+
+                if (_failed.Contains(key))
+                    return null;
             }
 
             var uri = Encode(read);
             if (uri == null)
+            {
+                lock (_gate)
+                {
+                    _failed.Add(key);
+                }
+
                 return null;
+            }
 
             lock (_gate)
             {

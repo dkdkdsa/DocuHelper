@@ -316,13 +316,20 @@ namespace DocuHelperEditor.State.Ribbon
             if (trimmed.Length == 0)
                 return null;
 
-            if (trimmed.Length <= 6 && trimmed.All(Uri.IsHexDigit))
-            {
-                var code = Convert.ToInt32(trimmed, 16);
-                return code > 0 && code < 0x110000 && (code < 0xD800 || code > 0xDFFF) ? char.ConvertFromUtf32(code) : null;
-            }
+            if (trimmed.Length == 1 || (trimmed.Length == 2 && char.IsSurrogatePair(trimmed, 0)))
+                return trimmed;
 
-            return trimmed.Length == 1 || (trimmed.Length == 2 && char.IsSurrogatePair(trimmed, 0)) ? trimmed : null;
+            var prefixed = trimmed.StartsWith("U+", StringComparison.OrdinalIgnoreCase);
+            var hex = prefixed ? trimmed.Substring(2) : trimmed;
+            if (hex.Length == 0 || hex.Length > 6 || (!prefixed && hex.Length < 4) || !hex.All(Uri.IsHexDigit))
+                return null;
+
+            var code = Convert.ToInt32(hex, 16);
+            if (code < 0x20 || code >= 0x110000 || (code >= 0xD800 && code <= 0xDFFF))
+                return null;
+
+            var symbol = char.ConvertFromUtf32(code);
+            return char.IsControl(symbol, 0) ? null : symbol;
         }
     }
 }

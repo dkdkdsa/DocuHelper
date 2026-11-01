@@ -15,7 +15,10 @@ namespace DocuHelperEditor.WinUI
         {
             Directory.CreateDirectory(s_folder);
             var data = ProtectedData.Protect(Encoding.UTF8.GetBytes(secret ?? string.Empty), s_entropy, DataProtectionScope.CurrentUser);
-            File.WriteAllBytes(PathFor(name), data);
+            var path = PathFor(name);
+            var temp = path + ".tmp";
+            File.WriteAllBytes(temp, data);
+            File.Move(temp, path, true);
         }
 
         public string Load(string name)
@@ -28,7 +31,7 @@ namespace DocuHelperEditor.WinUI
             {
                 return Encoding.UTF8.GetString(ProtectedData.Unprotect(File.ReadAllBytes(path), s_entropy, DataProtectionScope.CurrentUser));
             }
-            catch (CryptographicException e)
+            catch (Exception e) when (e is CryptographicException || e is IOException || e is UnauthorizedAccessException)
             {
                 AppLog.Write("Could not read the saved key", e);
                 return null;

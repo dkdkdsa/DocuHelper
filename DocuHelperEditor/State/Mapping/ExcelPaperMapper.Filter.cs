@@ -42,13 +42,12 @@ namespace DocuHelperEditor.State.Mapping
 
             var area = region.Value;
             var filter = new SheetFilter { Range = area };
-            var criteria = new List<(int Index, FilterColumn Column)>();
             foreach (var column in columns)
             {
                 var index = area.Left + (int)(column.ColumnId?.Value ?? 0);
                 var active = HasCriteria(column);
                 var values = column.GetFirstChild<Filters>();
-                var evaluable = active && values != null && !column.Elements<CustomFilters>().Any() && !column.Elements<Top10>().Any() && !column.Elements<DynamicFilter>().Any();
+                var evaluable = active && values != null && !column.Elements<CustomFilters>().Any() && !column.Elements<Top10>().Any() && !column.Elements<DynamicFilter>().Any() && !values.Elements<DateGroupItem>().Any();
                 filter.Columns.Add(new SheetFilterColumn
                 {
                     Index = index,
@@ -58,20 +57,13 @@ namespace DocuHelperEditor.State.Mapping
                     IncludeBlank = values?.Blank?.Value == true,
                     Evaluable = evaluable,
                 });
-                if (evaluable)
-                    criteria.Add((index, column));
             }
 
             for (var row = area.Top + 1; row <= area.Bottom; row++)
             {
                 filter.TotalCount++;
-                if (criteria.All(item => Passes(context, row, item.Index, item.Column)))
-                {
+                if (!context.View.IsRowHidden(row))
                     filter.MatchCount++;
-                    continue;
-                }
-
-                context.View.Rows.Ensure(row).FilteredOut = true;
             }
 
             context.View.Filter = filter;
@@ -82,15 +74,5 @@ namespace DocuHelperEditor.State.Mapping
             || column.Elements<CustomFilters>().Any()
             || column.Elements<Top10>().Any()
             || column.Elements<DynamicFilter>().Any();
-
-        private static bool Passes(ExcelFeatureContext context, int row, int index, FilterColumn column)
-        {
-            var values = column.GetFirstChild<Filters>();
-            var text = context.Cell(row, index)?.Text;
-            if (string.IsNullOrEmpty(text))
-                return values.Blank?.Value == true;
-
-            return values.Elements<Filter>().Any(item => item.Val?.Value == text);
-        }
     }
 }

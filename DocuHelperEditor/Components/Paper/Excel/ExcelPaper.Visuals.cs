@@ -75,6 +75,9 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (visual?.Strike == true)
                 parts.Add("text-decoration: line-through");
 
+            if (visual?.HideValue == true)
+                parts.Add("color: transparent");
+
             if (visual?.HasIcon == true)
                 parts.Add("padding-left: 20px");
 
@@ -107,8 +110,11 @@ namespace DocuHelperEditor.Components.Paper.Excel
                 switch (SheetLinkPolicy.Check(link.Url, out var target))
                 {
                     case SheetLinkCheck.Open:
-                        var host = new Uri(target).Host;
-                        var shown = string.IsNullOrEmpty(host) ? target : host;
+                        var uri = new Uri(target);
+                        var shown = string.IsNullOrEmpty(uri.Host) ? target : uri.Host;
+                        if (uri.IdnHost != uri.Host)
+                            shown += " (" + uri.IdnHost + ")";
+
                         _confirm = new Confirm("이 주소를 열까요? 연결 대상: " + shown, "열기", () => Shells.FirstOrDefault()?.OpenFile(target));
                         break;
                     case SheetLinkCheck.TooLong:
@@ -128,11 +134,20 @@ namespace DocuHelperEditor.Components.Paper.Excel
             return true;
         }
 
+        private static string SheetNameOf(string text)
+        {
+            var name = text.Trim();
+            if (name.Length >= 2 && name[0] == '\'' && name[^1] == '\'')
+                return name.Substring(1, name.Length - 2).Replace("''", "'");
+
+            return name;
+        }
+
         private void NavigateTo(string location)
         {
             var text = location ?? string.Empty;
             var bang = text.LastIndexOf('!');
-            var sheetName = bang < 0 ? CurrentSheet.Name : text.Substring(0, bang).Trim('\'');
+            var sheetName = bang < 0 ? CurrentSheet.Name : SheetNameOf(text.Substring(0, bang));
             var cellRef = (bang < 0 ? text : text.Substring(bang + 1)).Split(':')[0].Replace("$", string.Empty);
             var index = Model.Sheets.FindIndex(sheet => sheet.Name == sheetName);
             if (index < 0)

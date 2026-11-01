@@ -31,8 +31,6 @@
     [Parameter]
     public EventCallback<SheetMenuRequest> OnMenu { get; set; }
 
-    private SheetTable Table => Context.Sheet?.FindTable(Context.RowIndex, Context.ColumnIndex);
-
     private SheetValidation Validation => Context.Sheet?.FindValidation(Context.RowIndex, Context.ColumnIndex);
 
     private string Bar

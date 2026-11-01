@@ -8,7 +8,7 @@ using DocuHelperEditor.State.Ribbon;
 
 namespace DocuHelperEditor.State.Ribbon.Excel
 {
-    public sealed record ExcelDialogContext(string Sheet, string Range, string Cell, string Note, string CellText);
+    public sealed record ExcelDialogContext(string Sheet, string Range, string Cell, string Note, string CellText, bool CellIsNumber = false);
 
     public sealed record ExcelNamedDialog(
         string Tool,
@@ -49,18 +49,23 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             "인쇄 제목",
             new[]
             {
-                WordNamedDialogs.Text("rows", "모든 페이지에 반복할 행 (예: 1:1)", string.Empty),
-                WordNamedDialogs.Text("columns", "모든 페이지에 반복할 열 (예: A:A)", string.Empty),
+                WordNamedDialogs.Text("rows", "모든 페이지에 반복할 행 (예: 1:1, 지우려면 none)", string.Empty),
+                WordNamedDialogs.Text("columns", "모든 페이지에 반복할 열 (예: A:A, 지우려면 none)", string.Empty),
             },
             null,
-            (values, context) => new JsonObject
+            (values, context) =>
             {
-                ["sheet"] = context.Sheet,
-                ["print_titles"] = new JsonObject
+                var titles = new JsonObject();
+                AddText(titles, "rows", WordNamedDialogs.Text(values, "rows"));
+                AddText(titles, "columns", WordNamedDialogs.Text(values, "columns"));
+                var args = new JsonObject
                 {
-                    ["rows"] = Or(WordNamedDialogs.Text(values, "rows"), "none"),
-                    ["columns"] = Or(WordNamedDialogs.Text(values, "columns"), "none"),
-                },
+                    ["sheet"] = context.Sheet,
+                };
+                if (titles.Count > 0)
+                    args["print_titles"] = titles;
+
+                return args;
             });
 
         private static ExcelNamedDialog Margins() => new(
@@ -74,26 +79,32 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Number("right", "오른쪽 (cm)", "1.8"),
                 WordNamedDialogs.Number("header", "머리글 (cm)", "0.8"),
                 WordNamedDialogs.Number("footer", "바닥글 (cm)", "0.8"),
-                WordNamedDialogs.Choice("orientation", "방향", "portrait", new[] { "portrait", "landscape" }, new[] { "세로", "가로" }),
                 WordNamedDialogs.Flag("center_horizontally", "가로 가운데 맞춤", "false"),
                 WordNamedDialogs.Flag("center_vertically", "세로 가운데 맞춤", "false"),
             },
             values => MarginError(values),
-            (values, context) => new JsonObject
+            (values, context) =>
             {
-                ["sheet"] = context.Sheet,
-                ["margins_cm"] = new JsonObject
+                var args = new JsonObject
                 {
-                    ["top"] = WordNamedDialogs.Num(values, "top"),
-                    ["bottom"] = WordNamedDialogs.Num(values, "bottom"),
-                    ["left"] = WordNamedDialogs.Num(values, "left"),
-                    ["right"] = WordNamedDialogs.Num(values, "right"),
-                    ["header"] = WordNamedDialogs.Num(values, "header"),
-                    ["footer"] = WordNamedDialogs.Num(values, "footer"),
-                },
-                ["orientation"] = WordNamedDialogs.Text(values, "orientation"),
-                ["center_horizontally"] = WordNamedDialogs.Flag(values, "center_horizontally"),
-                ["center_vertically"] = WordNamedDialogs.Flag(values, "center_vertically"),
+                    ["sheet"] = context.Sheet,
+                    ["margins_cm"] = new JsonObject
+                    {
+                        ["top"] = WordNamedDialogs.Num(values, "top"),
+                        ["bottom"] = WordNamedDialogs.Num(values, "bottom"),
+                        ["left"] = WordNamedDialogs.Num(values, "left"),
+                        ["right"] = WordNamedDialogs.Num(values, "right"),
+                        ["header"] = WordNamedDialogs.Num(values, "header"),
+                        ["footer"] = WordNamedDialogs.Num(values, "footer"),
+                    },
+                };
+                if (WordNamedDialogs.Flag(values, "center_horizontally"))
+                    args["center_horizontally"] = true;
+
+                if (WordNamedDialogs.Flag(values, "center_vertically"))
+                    args["center_vertically"] = true;
+
+                return args;
             });
 
         private static string MarginError(IReadOnlyDictionary<string, JsonNode> values)
@@ -120,10 +131,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Text("group_by", "그룹 기준 열 (예: A)", string.Empty),
                 WordNamedDialogs.Text("columns", "계산할 열 (쉼표로 나눠 입력, 예: C,D)", string.Empty),
                 WordNamedDialogs.Choice("function", "계산 방식", "sum", new[] { "sum", "count", "average", "max", "min", "product", "count_numbers" }, new[] { "합계", "개수", "평균", "최대", "최소", "곱", "숫자 개수" }),
-                WordNamedDialogs.Flag("replace", "기존 부분합 바꾸기", "true"),
-                WordNamedDialogs.Flag("summary_below", "요약을 데이터 아래에 표시", "true"),
-                WordNamedDialogs.Flag("grand_total", "총합계 추가", "false"),
-                WordNamedDialogs.Flag("page_break", "그룹마다 페이지 나누기", "false"),
+                WordNamedDialogs.Flag("has_header", "첫 줄은 머리글", "true"),
             },
             values => ExcelDialogInput.Range(WordNamedDialogs.Text(values, "range"), "범위")
                 ?? Required(values, "group_by", "그룹 기준 열")
@@ -136,10 +144,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 ["columns"] = Strings(Items(WordNamedDialogs.Text(values, "columns"))),
                 ["function"] = WordNamedDialogs.Text(values, "function"),
                 ["action"] = "add",
-                ["replace"] = WordNamedDialogs.Flag(values, "replace"),
-                ["summary_below"] = WordNamedDialogs.Flag(values, "summary_below"),
-                ["grand_total"] = WordNamedDialogs.Flag(values, "grand_total"),
-                ["page_break"] = WordNamedDialogs.Flag(values, "page_break"),
+                ["has_header"] = WordNamedDialogs.Flag(values, "has_header"),
             });
 
         private static ExcelNamedDialog TextToColumns(ExcelDialogContext context) => new(
@@ -155,24 +160,18 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Text("other", "그 밖의 구분 기호", string.Empty),
                 WordNamedDialogs.Flag("consecutive", "연속된 구분 기호를 하나로 보기", "false"),
                 WordNamedDialogs.Text("destination", "결과 시작 칸 (비우면 범위 오른쪽)", string.Empty),
-                WordNamedDialogs.Flag("overwrite", "데이터가 있는 칸 덮어쓰기", "false"),
             },
             values => ExcelDialogInput.Range(WordNamedDialogs.Text(values, "range"), "범위")
-                ?? (ActiveDelimiters(values).Count > 0 ? null : "구분 기호를 하나 이상 골라 주세요."),
+                ?? (ActiveDelimiters(values).Count == 1 ? null : "구분 기호를 하나만 골라 주세요."),
             (values, context) =>
             {
                 var args = new JsonObject
                 {
                     ["sheet"] = context.Sheet,
                     ["range"] = WordNamedDialogs.Text(values, "range"),
-                    ["delimiters"] = Strings(ActiveDelimiters(values)),
-                    ["consecutive"] = WordNamedDialogs.Flag(values, "consecutive"),
-                    ["overwrite"] = WordNamedDialogs.Flag(values, "overwrite"),
+                    ["delimiter"] = DelimiterText(values),
+                    ["consecutive_as_one"] = WordNamedDialogs.Flag(values, "consecutive"),
                 };
-                var other = WordNamedDialogs.Text(values, "other").Trim();
-                if (other.Length > 0)
-                    args["other"] = other;
-
                 var destination = WordNamedDialogs.Text(values, "destination").Trim();
                 if (destination.Length > 0)
                     args["destination"] = destination;
@@ -222,8 +221,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             (values, context) => new JsonObject
             {
                 ["sheet"] = context.Sheet,
-                ["target_cell"] = WordNamedDialogs.Text(values, "target_cell").Trim(),
-                ["target_value"] = WordNamedDialogs.Num(values, "target_value"),
+                ["cell"] = WordNamedDialogs.Text(values, "target_cell").Trim(),
+                ["target"] = WordNamedDialogs.Num(values, "target_value"),
                 ["changing_cell"] = WordNamedDialogs.Text(values, "changing_cell").Trim(),
                 ["tolerance"] = WordNamedDialogs.Num(values, "tolerance"),
             });
@@ -386,7 +385,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             },
             values => context.CellText.StartsWith("=", StringComparison.Ordinal)
                 ? "수식 칸에는 기호를 넣을 수 없어요."
-                : ExcelDialogInput.LooksNumeric(context.CellText)
+                : context.CellIsNumber
                     ? "숫자나 날짜 칸에 기호를 붙이면 글자로 바뀌어요. 글자 칸에서 써 주세요."
                     : SingleSymbol(WordNamedDialogs.Text(values, "symbol")),
             (values, context) => new JsonObject
@@ -431,9 +430,9 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Choice(
                     "number_format",
                     "표시 형식",
-                    "general",
-                    new[] { "general", "number", "currency", "accounting_krw", "short_date", "long_date", "time", "percent", "percent2", "fraction", "scientific", "text" },
-                    new[] { "일반", "숫자", "통화", "회계 (원)", "짧은 날짜", "긴 날짜", "시간", "백분율", "소수점 있는 백분율", "분수", "지수", "텍스트" }),
+                    "keep",
+                    new[] { "keep", "general", "number", "currency", "accounting_krw", "short_date", "long_date", "time", "percent", "percent2", "fraction", "scientific", "text" },
+                    new[] { "바꾸지 않음", "일반", "숫자", "통화", "회계 (원)", "짧은 날짜", "긴 날짜", "시간", "백분율", "소수점 있는 백분율", "분수", "지수", "텍스트" }),
                 WordNamedDialogs.Text("cell_style", "셀 스타일 (선택, 예: 나쁨, 강조색1)", string.Empty),
                 WordNamedDialogs.Choice("lock", "잠금", "keep", new[] { "keep", "locked", "unlocked" }, new[] { "바꾸지 않음", "잠금", "잠금 해제" }),
             },
@@ -444,8 +443,11 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 {
                     ["sheet"] = context.Sheet,
                     ["range"] = WordNamedDialogs.Text(values, "range").Trim(),
-                    ["number_format"] = WordNamedDialogs.Text(values, "number_format"),
                 };
+                var numberFormat = WordNamedDialogs.Text(values, "number_format");
+                if (numberFormat != "keep")
+                    args["number_format"] = numberFormat;
+
                 AddText(args, "cell_style", WordNamedDialogs.Text(values, "cell_style"));
                 var lockMode = WordNamedDialogs.Text(values, "lock");
                 if (lockMode != "keep")
@@ -490,27 +492,39 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             "머리글/바닥글",
             new[]
             {
-                WordNamedDialogs.Text("header_left", "머리글 왼쪽 (쪽 번호는 &P)", string.Empty),
+                WordNamedDialogs.Text("header_left", "머리글 왼쪽 (쪽 번호는 {page})", string.Empty),
                 WordNamedDialogs.Text("header_center", "머리글 가운데", string.Empty),
                 WordNamedDialogs.Text("header_right", "머리글 오른쪽", string.Empty),
                 WordNamedDialogs.Text("footer_left", "바닥글 왼쪽", string.Empty),
-                WordNamedDialogs.Text("footer_center", "바닥글 가운데 (쪽 번호는 &P)", string.Empty),
-                WordNamedDialogs.Text("footer_right", "바닥글 오른쪽 (날짜는 &D)", string.Empty),
+                WordNamedDialogs.Text("footer_center", "바닥글 가운데 (쪽 번호는 {page})", string.Empty),
+                WordNamedDialogs.Text("footer_right", "바닥글 오른쪽 (날짜는 {date})", string.Empty),
             },
             values => HeaderFooterLength(values),
-            (values, context) => new JsonObject
+            (values, context) =>
             {
-                ["sheet"] = context.Sheet,
-                ["header"] = HeaderFooterParts(values, "header"),
-                ["footer"] = HeaderFooterParts(values, "footer"),
+                var args = new JsonObject
+                {
+                    ["sheet"] = context.Sheet,
+                };
+                var header = HeaderFooterParts(values, "header");
+                if (header.Count > 0)
+                    args["header"] = header;
+
+                var footer = HeaderFooterParts(values, "footer");
+                if (footer.Count > 0)
+                    args["footer"] = footer;
+
+                return args;
             });
 
-        private static JsonObject HeaderFooterParts(IReadOnlyDictionary<string, JsonNode> values, string prefix) => new()
+        private static JsonObject HeaderFooterParts(IReadOnlyDictionary<string, JsonNode> values, string prefix)
         {
-            ["left"] = WordNamedDialogs.Text(values, prefix + "_left"),
-            ["center"] = WordNamedDialogs.Text(values, prefix + "_center"),
-            ["right"] = WordNamedDialogs.Text(values, prefix + "_right"),
-        };
+            var parts = new JsonObject();
+            AddText(parts, "left", WordNamedDialogs.Text(values, prefix + "_left"));
+            AddText(parts, "center", WordNamedDialogs.Text(values, prefix + "_center"));
+            AddText(parts, "right", WordNamedDialogs.Text(values, prefix + "_right"));
+            return parts;
+        }
 
         private static string HeaderFooterLength(IReadOnlyDictionary<string, JsonNode> values) =>
             values.Keys.Any(key => WordNamedDialogs.Text(values, key).Length > 255)
@@ -533,6 +547,15 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             return names;
         }
 
+        private static string DelimiterText(IReadOnlyDictionary<string, JsonNode> values) => ActiveDelimiters(values).First() switch
+        {
+            "tab" => "tab",
+            "semicolon" => ";",
+            "comma" => ",",
+            "space" => "space",
+            _ => WordNamedDialogs.Text(values, "other").Trim(),
+        };
+
         private static string Required(IReadOnlyDictionary<string, JsonNode> values, string name, string label) =>
             string.IsNullOrWhiteSpace(WordNamedDialogs.Text(values, name)) ? label + "을 넣어 주세요." : null;
 
@@ -540,6 +563,5 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         private static JsonArray Strings(IEnumerable<string> items) => new(items.Select(item => (JsonNode)JsonValue.Create(item)).ToArray());
 
-        private static string Or(string value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
     }
 }

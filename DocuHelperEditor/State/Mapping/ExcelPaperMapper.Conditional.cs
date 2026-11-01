@@ -8,7 +8,8 @@ namespace DocuHelperEditor.State.Mapping
     {
         static partial void MapConditional(ExcelFeatureContext context)
         {
-            var rows = Math.Min(context.LastRow + 1, ExcelFeatureContext.CellBudget / Math.Max(1, context.ColumnCount));
+            var usedColumns = Math.Max(1, Math.Min(context.ColumnCount, (context.Source.UsedRange?.Right ?? 0) + 1));
+            var rows = Math.Min(context.LastRow + 1, ExcelFeatureContext.CellBudget / usedColumns);
             if (rows <= 0 || context.ColumnCount <= 0)
                 return;
 
@@ -42,6 +43,7 @@ namespace DocuHelperEditor.State.Mapping
             IconSet = visual.HasIcon ? visual.IconSet : null,
             IconIndex = visual.HasIcon ? visual.IconIndex : null,
             IconCount = visual.HasIcon ? visual.IconCount : 0,
+            HideValue = visual.HideValue,
         };
     }
 }

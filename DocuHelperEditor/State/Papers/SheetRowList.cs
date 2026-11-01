@@ -11,9 +11,7 @@ namespace DocuHelperEditor.State.Papers
 
         public int Count { get; private set; }
 
-        private static readonly SheetRow Blank = new();
-
-        public SheetRow this[int index] => index >= 0 && index < Count && _stored.TryGetValue(index, out var row) ? row : Blank;
+        public SheetRow this[int index] => index >= 0 && index < Count && _stored.TryGetValue(index, out var row) ? row : new SheetRow();
 
         public bool TryGet(int index, out SheetRow row) => _stored.TryGetValue(index, out row);
 

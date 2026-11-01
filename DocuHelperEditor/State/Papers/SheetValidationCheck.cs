@@ -9,8 +9,15 @@ namespace DocuHelperEditor.State.Papers
         public static bool Allows(SheetValidation rule, string text, out string message)
         {
             message = null;
-            if (rule == null || string.IsNullOrEmpty(text))
+            if (rule == null || string.IsNullOrEmpty(text) || text.StartsWith("=", StringComparison.Ordinal))
                 return true;
+
+            var typed = rule.Type switch
+            {
+                SheetValidationType.Whole => Number(text, true, out _),
+                SheetValidationType.Decimal => Number(text, false, out _),
+                _ => true,
+            };
 
             var allowed = rule.Type switch
             {
@@ -24,9 +31,15 @@ namespace DocuHelperEditor.State.Papers
             if (allowed)
                 return true;
 
-            message = string.IsNullOrEmpty(rule.ErrorMessage) ? Fallback(rule.Type) : rule.ErrorMessage;
+            message = string.IsNullOrEmpty(rule.ErrorMessage) ? (typed ? RangeFallback(rule.Type) : Fallback(rule.Type)) : rule.ErrorMessage;
             return false;
         }
+
+        private static string RangeFallback(SheetValidationType type) => type switch
+        {
+            SheetValidationType.Whole or SheetValidationType.Decimal => "허용 범위를 벗어났어요.",
+            _ => Fallback(type),
+        };
 
         private static string Fallback(SheetValidationType type) => type switch
         {
@@ -50,17 +63,17 @@ namespace DocuHelperEditor.State.Papers
             if (!TryNumber(rule.Formula1, out var first))
                 return true;
 
-            TryNumber(rule.Formula2, out var second);
+            var hasSecond = TryNumber(rule.Formula2, out var second);
             return rule.Operator switch
             {
-                "notBetween" => value < Math.Min(first, second) || value > Math.Max(first, second),
+                "notBetween" => !hasSecond || value < Math.Min(first, second) || value > Math.Max(first, second),
                 "equal" => value == first,
                 "notEqual" => value != first,
                 "greaterThan" => value > first,
                 "lessThan" => value < first,
                 "greaterThanOrEqual" => value >= first,
                 "lessThanOrEqual" => value <= first,
-                _ => value >= Math.Min(first, second) && value <= Math.Max(first, second),
+                _ => !hasSecond || (value >= Math.Min(first, second) && value <= Math.Max(first, second)),
             };
         }
 

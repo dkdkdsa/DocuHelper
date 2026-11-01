@@ -26,7 +26,15 @@ namespace DocuHelperEditor.Components.Paper
             await Detach();
             _element = element;
             _self = DotNetObjectReference.Create(this);
-            await _js.InvokeVoidAsync("docuHelper.wheelZoom", element, _self);
+            try
+            {
+                await _js.InvokeVoidAsync("docuHelper.wheelZoom", element, _self);
+            }
+            catch (JSException)
+            {
+                _self.Dispose();
+                _self = null;
+            }
         }
 
         [JSInvokable]
@@ -41,7 +49,7 @@ namespace DocuHelperEditor.Components.Paper
             {
                 await _js.InvokeVoidAsync("docuHelper.unwheelZoom", _element);
             }
-            catch (JSDisconnectedException)
+            catch (JSException)
             {
             }
             finally

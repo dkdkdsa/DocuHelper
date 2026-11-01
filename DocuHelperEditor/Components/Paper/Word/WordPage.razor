@@ -632,10 +632,11 @@
 
     private int RevisionTone(WordBlockModel block) => block.ViewSegments.FirstOrDefault(s => s.Kind != null)?.Tone ?? 1;
 
-    private RenderFragment ContentOf(WordBlockModel block) => block.ViewSegments.Count > 0 ? ViewOf(block) : SegmentsOf(block);
+    private RenderFragment ContentOf(WordBlockModel block) => block.ViewSegments.Count > 0 ? ViewOf(block) : SegmentsOf(block, EditableOf(block) == "false");
 
     private RenderFragment ViewOf(WordBlockModel block) => builder =>
     {
+        var caps = EditableOf(block) == "false";
         var sequence = 0;
         foreach (var segment in block.ViewSegments)
         {
@@ -668,7 +669,7 @@
             if (comment)
                 classes.Add("cmt");
 
-            var style = SegmentStyle(look);
+            var style = SegmentStyle(look, caps);
             if (segment.Kind != null && MarkupMode == "all" && ShowInsDel)
                 style += $"; --rev: var(--rev-{segment.Tone})";
 
@@ -883,7 +884,7 @@
         return (prefix, before.Length - suffix, after.Substring(prefix, after.Length - suffix - prefix));
     }
 
-    private static RenderFragment SegmentsOf(WordBlockModel block) => builder =>
+    private static RenderFragment SegmentsOf(WordBlockModel block, bool caps) => builder =>
     {
         if (block.Segments.Count == 0)
         {
@@ -909,7 +910,7 @@
             else
             {
                 builder.AddAttribute(sequence++, "class", look.Link ? "seg lnk" : "seg");
-                builder.AddAttribute(sequence++, "style", SegmentStyle(look));
+                builder.AddAttribute(sequence++, "style", SegmentStyle(look, caps));
                 builder.AddContent(sequence++, segment.Text);
             }
 
@@ -917,7 +918,7 @@
         }
     };
 
-    private static string SegmentStyle(WordCharLook look)
+    private static string SegmentStyle(WordCharLook look, bool caps)
     {
         var css = new List<string>();
         if (look.Bold)
@@ -957,7 +958,7 @@
         if (look.SpacingPt != 0)
             css.Add("letter-spacing: " + Length(look.SpacingPt));
 
-        if (look.Caps)
+        if (look.Caps && caps)
             css.Add("text-transform: uppercase");
 
         if (look.SmallCaps)

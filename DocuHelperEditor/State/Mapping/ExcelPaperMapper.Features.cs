@@ -1,4 +1,6 @@
-﻿using DocuHelper.Tools.Excel;
+﻿using System;
+using DocuHelper.Tools.Excel;
+using DocuHelperEditor.Services;
 using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.State.Mapping
@@ -7,16 +9,28 @@ namespace DocuHelperEditor.State.Mapping
     {
         private static void MapFeatures(ExcelFeatureContext context)
         {
-            MapView(context);
-            MapTables(context);
-            MapConditional(context);
-            MapValidation(context);
-            MapNotes(context);
-            MapFilter(context);
-            MapOutline(context);
-            MapObjects(context);
-            MapPage(context);
-            MapProtection(context);
+            Isolate(() => MapView(context), nameof(MapView));
+            Isolate(() => MapTables(context), nameof(MapTables));
+            Isolate(() => MapConditional(context), nameof(MapConditional));
+            Isolate(() => MapValidation(context), nameof(MapValidation));
+            Isolate(() => MapNotes(context), nameof(MapNotes));
+            Isolate(() => MapFilter(context), nameof(MapFilter));
+            Isolate(() => MapOutline(context), nameof(MapOutline));
+            Isolate(() => MapObjects(context), nameof(MapObjects));
+            Isolate(() => MapPage(context), nameof(MapPage));
+            Isolate(() => MapProtection(context), nameof(MapProtection));
+        }
+
+        private static void Isolate(Action map, string feature)
+        {
+            try
+            {
+                map();
+            }
+            catch (Exception e)
+            {
+                AppLog.Write("Excel 기능 매핑에 실패했어요: " + feature, e);
+            }
         }
 
         static partial void MapWorkbook(ExcelBook book, ExcelPaperModel model);

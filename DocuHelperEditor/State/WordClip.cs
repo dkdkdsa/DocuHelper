@@ -43,8 +43,11 @@ namespace DocuHelperEditor.State
                             continue;
 
                         var style = StyleOf(run.Look);
-                        html.Append(style.Length == 0 ? WebUtility.HtmlEncode(run.Text) : $"<span style=\"{style}\">{WebUtility.HtmlEncode(run.Text)}</span>");
+                        html.Append(style.Length == 0 ? WebUtility.HtmlEncode(run.Text) : $"<span style=\"{WebUtility.HtmlEncode(style)}\">{WebUtility.HtmlEncode(run.Text)}</span>");
                     }
+
+                    if (paragraph.Text.Length == 0)
+                        html.Append("&nbsp;");
 
                     html.Append("</p>");
                 }
@@ -130,8 +133,9 @@ namespace DocuHelperEditor.State
             if (look.SizePt > 0)
                 css.Add("font-size:" + look.SizePt.ToString("0.##", CultureInfo.InvariantCulture) + "pt");
 
-            if (look.Font != null)
-                css.Add("font-family:'" + look.Font.Replace("'", string.Empty) + "'");
+            var font = look.Font == null ? string.Empty : new string(look.Font.Where(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_').ToArray()).Trim();
+            if (font.Length > 0)
+                css.Add("font-family:'" + font + "'");
 
             return string.Join(";", css);
         }

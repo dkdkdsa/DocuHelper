@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DocuHelper.Agents;
 using DocuHelperEditor.Services;
+using DocuHelperEditor.State.Samples;
 
 namespace DocuHelperEditor.State
 {
@@ -31,7 +32,7 @@ namespace DocuHelperEditor.State
 
         public KeyCheckState KeyState => _draftState;
 
-        public bool CanStart => !string.IsNullOrWhiteSpace(_draftKey);
+        public bool CanStart => !string.IsNullOrWhiteSpace(_draftKey) && _draftState != KeyCheckState.Checking;
 
         public bool IsConfigured => HasKey(AgentProvider.Claude) || HasKey(AgentProvider.OpenAi);
 
@@ -81,7 +82,7 @@ namespace DocuHelperEditor.State
 
             var slot = SlotFor(provider.Value);
             slot.Key = key;
-            slot.State = _draftState;
+            slot.State = _draftState == KeyCheckState.Checking ? KeyCheckState.Idle : _draftState;
             slot.CheckedAt = _draftState == KeyCheckState.Ok ? DateTime.Now : null;
             _draftKey = key;
             _loaded = true;
@@ -222,7 +223,8 @@ namespace DocuHelperEditor.State
             slot.IsConfirmingDelete = false;
             try
             {
-                _secrets?.Delete(SecretName(provider));
+                if (SampleScenarios.Current == null)
+                    _secrets?.Delete(SecretName(provider));
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is CryptographicException)
             {
@@ -354,6 +356,9 @@ namespace DocuHelperEditor.State
 
         private bool WriteSecret(AgentProvider provider, string key)
         {
+            if (SampleScenarios.Current != null)
+                return true;
+
             try
             {
                 _secrets?.Save(SecretName(provider), key);
@@ -393,6 +398,6 @@ namespace DocuHelperEditor.State
 
         private string KeyFocusTarget(AgentProvider provider) => provider == AgentProvider.OpenAi
             ? (HasKey(provider) ? "#settings-openai-delete" : "#settings-openai-add")
-            : "#settings-claude-change";
+            : (HasKey(provider) ? "#settings-claude-change" : "#settings-claude-add");
     }
 }

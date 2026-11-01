@@ -35,8 +35,18 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 return;
             }
 
+            var path = await _dialogs.PickSaveFileAsync(Path.GetFileNameWithoutExtension(File.Name) + ".pdf");
+            if (string.IsNullOrEmpty(path))
+                return;
+
             var metrics = ExcelPagePlans.Measure(excel, State.SheetName);
-            var plan = metrics?.Plan;
+            if (metrics == null)
+            {
+                Notify("PDF로 만들 쪽을 계산하지 못했어요.");
+                return;
+            }
+
+            var plan = metrics.Plan;
             if (plan == null || plan.Pages.Count == 0)
             {
                 Notify("PDF로 만들 쪽이 없어요.");
@@ -49,15 +59,11 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 return;
             }
 
-            var path = await _dialogs.PickSaveFileAsync(Path.GetFileNameWithoutExtension(File.Name) + ".pdf");
-            if (string.IsNullOrEmpty(path))
-                return;
-
             var job = new SheetPrintJob(plan.PaperWidthCm / 2.54, plan.PaperHeightCm / 2.54, LayoutJson(metrics), plan.Pages.Count);
-            await _surface.RenderAllRowsAsync(true);
             PrintResult result;
             try
             {
+                await _surface.RenderAllRowsAsync(true);
                 result = await _prints.ExportSheetPdfAsync(path, job);
             }
             finally

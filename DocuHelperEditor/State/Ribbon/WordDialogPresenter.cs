@@ -25,9 +25,21 @@ namespace DocuHelperEditor.State.Ribbon
             if (!WordNamedDialogs.TryGet(commandId, dialogName, out var dialog))
                 return null;
 
-            var values = await OpenAsync(dialog.Title, dialog.Fields, DefaultsOf(dialog.Fields), dialog.Validate);
+            var defaults = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
+            foreach (var pair in DefaultsOf(dialog.Fields))
+                defaults[pair.Key] = pair.Value;
+
+            foreach (var field in dialog.Fields)
+            {
+                if (current?[field.Name] is JsonValue value && !(value.TryGetValue<string>(out var text) && text.Contains('{')))
+                    defaults[field.Name] = value.DeepClone();
+            }
+
+            var values = await OpenAsync(dialog.Title, dialog.Fields, defaults, dialog.Validate);
             return values == null ? null : dialog.Build(values);
         }
+
+        public void Cancel() => _active?.Completion.TrySetResult(null);
 
         public static IReadOnlyDictionary<string, JsonNode> DefaultsOf(IEnumerable<WordDialogField> fields)
         {
@@ -51,7 +63,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private Task<IReadOnlyDictionary<string, JsonNode>> OpenAsync(string title, IReadOnlyList<WordDialogField> fields, IReadOnlyDictionary<string, JsonNode> defaults, Func<IReadOnlyDictionary<string, JsonNode>, string> validate)
         {
-            if (_active != null)
+            if (_active != null || Requested == null)
                 return Task.FromResult<IReadOnlyDictionary<string, JsonNode>>(null);
 
             var request = new WordDialogRequest(title, fields, defaults, validate);

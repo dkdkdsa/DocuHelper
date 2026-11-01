@@ -25,8 +25,8 @@ namespace DocuHelperEditor.State.Ribbon
             {
                 "c" => InvokeAsync("word.home.clipboard.copy", null),
                 "x" => InvokeAsync("word.home.clipboard.cut", null),
-                "v" => PasteAsync("keep_source"),
-                "shift+v" => PasteAsync("text_only"),
+                "v" => InvokeAsync("word.home.clipboard.paste", null),
+                "shift+v" => InvokeAsync("word.home.clipboard.paste", MenuPrefix + "2"),
                 _ => Task.CompletedTask,
             };
         }

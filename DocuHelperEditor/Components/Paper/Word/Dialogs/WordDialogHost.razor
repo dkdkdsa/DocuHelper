@@ -2,6 +2,7 @@
 @using DocuHelper.Docus
 @using DocuHelperEditor.State.Papers
 @using DocuHelperEditor.State.Ribbon
+@implements IDisposable
 
 @if (_request != null)
 {
@@ -32,9 +33,13 @@
     private void Detach()
     {
         if (_presenter != null)
+        {
             _presenter.Requested -= Show;
+            _presenter.Cancel();
+        }
 
         _presenter = null;
+        _request = null;
     }
 
     private void Show(WordDialogRequest request)

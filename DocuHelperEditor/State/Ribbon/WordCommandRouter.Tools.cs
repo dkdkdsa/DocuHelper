@@ -413,6 +413,9 @@ namespace DocuHelperEditor.State.Ribbon
             if (!fields.TryGetValue(name, out var node) || node is not JsonValue value)
                 return fallback;
 
+            if (value.TryGetValue<double>(out var real) && double.IsFinite(real))
+                return (int)Math.Round(real);
+
             if (value.TryGetValue<int>(out var number))
                 return number;
 

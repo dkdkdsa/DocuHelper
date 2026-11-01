@@ -9,6 +9,7 @@ using DocuHelper.Agents;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelperEditor.Services;
+using DocuHelperEditor.State.Samples;
 
 namespace DocuHelperEditor.State
 {
@@ -95,8 +96,8 @@ namespace DocuHelperEditor.State
             if (_loaded)
                 return;
 
-            _loaded = true;
             Reload();
+            _loaded = true;
         }
 
         public void Reload()
@@ -254,6 +255,9 @@ namespace DocuHelperEditor.State
 
         private void WriteSettings()
         {
+            if (SampleScenarios.Current != null)
+                return;
+
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(s_settingsPath));
@@ -274,7 +278,9 @@ namespace DocuHelperEditor.State
                     ClaudeCheckedAt = SlotFor(AgentProvider.Claude).CheckedAt,
                     OpenAiCheckedAt = SlotFor(AgentProvider.OpenAi).CheckedAt,
                 };
-                File.WriteAllText(s_settingsPath, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
+                var temp = s_settingsPath + ".tmp";
+                File.WriteAllText(temp, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
+                File.Move(temp, s_settingsPath, true);
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {

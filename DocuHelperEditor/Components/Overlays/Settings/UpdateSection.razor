@@ -43,7 +43,7 @@
                     <div class="card">
                         <p class="status" id="settings-update-bar-label">내려받는 중이에요</p>
                         <ProgressBar Value="Updates.Percent" LabelId="settings-update-bar-label" />
-                        <p class="meta" role="status">@(Updates.Percent)%, @(Megabytes(Updates.Notice.SizeBytes)) MB 중 @(Megabytes(Updates.DownloadedBytes)) MB</p>
+                        <p class="meta">@(Updates.Percent)%, @(Megabytes(Updates.Notice.SizeBytes)) MB 중 @(Megabytes(Updates.DownloadedBytes)) MB</p>
                         <div class="actions">
                             <ActionButton Kind="ButtonKind.Secondary" OnClick="Cancel">그만 받기</ActionButton>
                         </div>
@@ -155,7 +155,12 @@
 
     private static string Megabytes(long bytes) => (bytes / 1048576.0).ToString("0.0", CultureInfo.InvariantCulture);
 
-    private void SetAuto(string value) => Settings.SetUpdateAuto(value == "auto");
+    private void SetAuto(string value)
+    {
+        Settings.SetUpdateAuto(value == "auto");
+        if (value != "auto")
+            Updates.CancelScheduledOnClose();
+    }
 
     private void Check()
     {

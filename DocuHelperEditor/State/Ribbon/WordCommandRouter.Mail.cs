@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools.Word;
+using DocuHelperEditor.Services;
 using DocuHelperEditor.State.Papers;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -102,8 +103,9 @@ namespace DocuHelperEditor.State.Ribbon
             {
                 recipients = WordMailRecipients.Read(path, sheet);
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                AppLog.Write("Word mail recipients read failed", e);
                 recipients = null;
             }
 
@@ -114,7 +116,8 @@ namespace DocuHelperEditor.State.Ribbon
             }
 
             State.Recipients = recipients;
-            Notify($"받는 사람 {recipients.Rows.Count}명을 불러왔어요. 필드: {string.Join(", ", recipients.Fields)}");
+            var limit = recipients.Rows.Count >= WordMailRecipients.MaxRecipients ? $" 최대 {WordMailRecipients.MaxRecipients}명까지만 불러왔어요." : string.Empty;
+            Notify($"받는 사람 {recipients.Rows.Count}명을 불러왔어요. 필드: {string.Join(", ", recipients.Fields)}.{limit}");
             State.Touch();
             Workspace.Notify();
         }
@@ -154,7 +157,10 @@ namespace DocuHelperEditor.State.Ribbon
                         continue;
 
                     foreach (var paragraph in part.RootElement.Descendants<Paragraph>().ToList())
+                    {
                         ReplaceFields(paragraph, values);
+                        UnlinkMergeFields(paragraph);
+                    }
                 }
 
                 document.Save();
@@ -177,6 +183,50 @@ namespace DocuHelperEditor.State.Ribbon
                 ReplaceRange(texts, field.Value.Start, field.Value.Start + field.Value.Length, field.Value.Value);
                 searchFrom = field.Value.Start + field.Value.Value.Length;
             }
+        }
+
+        private static void UnlinkMergeFields(Paragraph paragraph)
+        {
+            var fields = new Stack<(bool Merge, List<DocumentFormat.OpenXml.Wordprocessing.Run> Runs)>();
+            var unlink = new List<DocumentFormat.OpenXml.Wordprocessing.Run>();
+            foreach (var run in paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Run>().ToList())
+            {
+                var kind = run.GetFirstChild<FieldChar>()?.FieldCharType?.Value;
+                var code = run.GetFirstChild<FieldCode>();
+                if (kind == FieldCharValues.Begin)
+                {
+                    fields.Push((false, new List<DocumentFormat.OpenXml.Wordprocessing.Run> { run }));
+                    continue;
+                }
+
+                if (fields.Count == 0)
+                    continue;
+
+                if (code != null)
+                {
+                    var top = fields.Pop();
+                    top.Runs.Add(run);
+                    fields.Push((top.Merge || (code.Text ?? string.Empty).Trim().StartsWith("MERGEFIELD", StringComparison.OrdinalIgnoreCase), top.Runs));
+                    continue;
+                }
+
+                if (kind == FieldCharValues.Separate)
+                {
+                    fields.Peek().Runs.Add(run);
+                    continue;
+                }
+
+                if (kind == FieldCharValues.End)
+                {
+                    var done = fields.Pop();
+                    done.Runs.Add(run);
+                    if (done.Merge)
+                        unlink.AddRange(done.Runs);
+                }
+            }
+
+            foreach (var run in unlink)
+                run.Remove();
         }
 
         private static (int Start, int Length, string Value)? FirstField(string text, IReadOnlyDictionary<string, string> values, int from)

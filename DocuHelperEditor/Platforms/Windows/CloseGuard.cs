@@ -33,7 +33,13 @@ namespace DocuHelperEditor.WinUI
                     if (workspace.IsAppCloseAllowed)
                         return;
 
-                    if (workspace.IsClosingApp || workspace.TakeForceCloseRequest())
+                    if (workspace.IsClosingApp)
+                    {
+                        args.Cancel = true;
+                        return;
+                    }
+
+                    if (workspace.TakeForceCloseRequest())
                     {
                         assistant.Stop();
                         workspace.AllowAppClose();

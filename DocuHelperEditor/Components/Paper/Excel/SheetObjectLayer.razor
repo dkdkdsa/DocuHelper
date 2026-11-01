@@ -29,7 +29,7 @@
             var current = item;
             var selected = current.Id == SelectedId;
             var one = current.Anchor.FromRow == current.Anchor.ToRow && current.Anchor.FromColumn == current.Anchor.ToColumn && current.Width > 0;
-            <div class="obj @KindClass(current) @(selected ? "sel" : null) @(current.Editable ? null : "locked")" role="button" tabindex="0"
+            <div @key="current.Id" class="obj @KindClass(current) @(selected ? "sel" : null) @(current.Editable ? null : "locked")" role="button" tabindex="0"
                  aria-label="@Label(current)" aria-pressed="@(selected ? "true" : "false")"
                  data-id="@current.Id" data-name="@current.Name" data-kind="@KindName(current)" data-editable="@(current.Editable ? "true" : "false")"
                  data-from-row="@current.Anchor.FromRow" data-from-column="@current.Anchor.FromColumn"
