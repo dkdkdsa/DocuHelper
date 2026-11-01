@@ -60,3 +60,9 @@
     overflow: hidden;
     background: var(--paper);
 }
+
+.empty {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--ink-3);
+}
