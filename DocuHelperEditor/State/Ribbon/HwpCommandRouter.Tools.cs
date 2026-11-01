@@ -162,7 +162,7 @@ namespace DocuHelperEditor.State.Ribbon
                     if (block == null)
                         return false;
 
-                    value = new JsonArray(new JsonObject { ["id"] = block.Id });
+                    value = WordSelectionService.TargetsJson(Model) ?? new JsonArray(new JsonObject { ["id"] = block.Id });
                     return true;
                 case "ids":
                     if (block == null)
@@ -494,11 +494,11 @@ namespace DocuHelperEditor.State.Ribbon
             switch (spec.Id)
             {
                 case "hwp.fmt.bold":
-                    return block?.IsBold == true;
+                    return WordSelectionService.Pressed(Model, File?.Docu).Bold;
                 case "hwp.fmt.italic":
-                    return block?.IsItalic == true;
+                    return WordSelectionService.Pressed(Model, File?.Docu).Italic;
                 case "hwp.fmt.underline":
-                    return block?.IsUnderline == true;
+                    return WordSelectionService.Pressed(Model, File?.Docu).Underline;
                 case "hwp.fmt.alignjustify":
                     return block != null && !block.IsTable && info?.Align == "justify";
                 case "hwp.fmt.alignleft":

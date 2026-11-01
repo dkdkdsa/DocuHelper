@@ -42,6 +42,7 @@ namespace DocuHelperEditor.State.Mapping
                 model.LineHeight = block.LineHeight;
                 model.FontSize = block.FontSize;
                 model.RowHeights = block.RowHeights.ToList();
+                model.Segments = block.IsTable || block.Paragraph == null ? Array.Empty<WordCharSegment>() : SegmentsOf(block);
                 model.IsBold = look.Bold;
                 model.IsItalic = look.Italic;
                 model.IsUnderline = look.Underline;
@@ -54,12 +55,23 @@ namespace DocuHelperEditor.State.Mapping
             MarkBylines(scan, blocks, looks);
 
             var selected = old?.SelectedBlockId;
-            return new WordPaperModel
+            var paper = new WordPaperModel
             {
                 Blocks = blocks,
                 Layout = scan.Layout,
                 SelectedBlockId = selected != null && blocks.Any(b => b.Id == selected) ? selected : null,
             };
+            var selection = old?.Selection ?? WordSelection.None;
+            if (selection.BlockIds.All(id => blocks.Any(b => b.Id == id)))
+                paper.Selection = selection;
+
+            return paper;
+        }
+
+        private static IReadOnlyList<WordCharSegment> SegmentsOf(WordBlock block)
+        {
+            var segments = WordCharFormat.Segments(block.Paragraph);
+            return string.Concat(segments.Select(s => s.Text)) == block.Text ? segments : Array.Empty<WordCharSegment>();
         }
 
         private static Dictionary<string, string> ChangeIds(Docu docu)

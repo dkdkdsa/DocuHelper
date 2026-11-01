@@ -30,6 +30,8 @@ namespace DocuHelperEditor.State.Papers
 
         public WordListKind ListStyle { get; set; }
 
+        public IReadOnlyList<WordCharSegment> Segments { get; set; } = Array.Empty<WordCharSegment>();
+
         public bool IsBold { get; set; }
 
         public bool IsItalic { get; set; }

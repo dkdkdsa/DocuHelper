@@ -15,6 +15,8 @@ namespace DocuHelperEditor.State.Papers
 
         public string SelectedBlockId { get; set; }
 
+        public WordSelection Selection { get; set; } = WordSelection.None;
+
         public WordBlockModel SelectedBlock => FindBlock(SelectedBlockId);
 
         public string SelectionLabel => Describe(SelectedBlock);

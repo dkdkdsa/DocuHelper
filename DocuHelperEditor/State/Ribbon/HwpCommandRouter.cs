@@ -45,6 +45,7 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _files;
+        private readonly IJSRuntime _scriptJs;
         private readonly SettingsStore _settings;
         private Run _run;
         private HashSet<string> _tablesBefore;
@@ -59,6 +60,7 @@ namespace DocuHelperEditor.State.Ribbon
             _clipboard = clipboard;
             _files = files;
             _settings = settings;
+            _scriptJs = js;
             State = state;
 
             foreach (var spec in HwpCommandTable.All)
@@ -130,6 +132,8 @@ namespace DocuHelperEditor.State.Ribbon
             var model = Model;
             if (model == null)
                 return;
+
+            _ = WordSelectionService.RestoreAsync(_scriptJs, model.Selection);
 
             var before = _tablesBefore;
             _tablesBefore = null;

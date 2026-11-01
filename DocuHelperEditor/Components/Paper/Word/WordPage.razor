@@ -1,10 +1,11 @@
 ﻿@using System.Globalization
 @using DocuHelper.Tools.Word
+@using DocuHelperEditor.State
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 
-<div class="canvas" style="@PaperVariables">
+<div class="canvas" style="@PaperVariables" @ref="_canvas">
     @if (Model == null)
     {
         <div class="spread">
@@ -60,6 +61,8 @@
     private const double PxPerPt = 4.0 / 3.0;
 
     private readonly Dictionary<string, ElementReference> _refs = new();
+    private ElementReference _canvas;
+    private DotNetObjectReference<WordPage> _self;
     private readonly Dictionary<string, int> _versions = new();
     private WorkspaceFile _file;
     private string _scrolledChangeId;
@@ -106,6 +109,21 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordSelection.attach", _canvas, _self);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
         var changeId = Workspace.SelectedChangeId;
         var target = Model != null && IsLiveChange(changeId) && Model.HasChange(changeId) ? changeId : null;
         if (target == _scrolledChangeId && Workspace.ChangePickVersion == _scrolledPickVersion)
@@ -126,6 +144,32 @@
         catch (JSDisconnectedException)
         {
         }
+    }
+
+    [JSInvokable]
+    public void Selected(string json)
+    {
+        var model = Model;
+        var selection = WordSelectionService.Parse(json);
+        if (model == null)
+            return;
+
+        model.Selection = selection;
+        var focus = model.FindBlock(selection.FocusBlockId);
+        if (focus == null)
+        {
+            Workspace.Notify();
+            return;
+        }
+
+        model.SelectedBlockId = focus.Id;
+        Workspace.SetSelection(model.Describe(focus));
+    }
+
+    protected override void OnDispose()
+    {
+        _self?.Dispose();
+        _ = JS.InvokeVoidAsync("docuHelperWordSelection.detach", _canvas).AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
     }
 
     private RenderFragment BlockView(WordBlockModel block, int page)
@@ -172,13 +216,13 @@
             @switch (block.Kind)
             {
                 case WordBlockKind.Heading1:
-                    <h1 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></h1>
+                    <h1 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@SegmentsOf(block)</span></h1>
                     break;
                 case WordBlockKind.Heading2:
-                    <h2 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></h2>
+                    <h2 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@SegmentsOf(block)</span></h2>
                     break;
                 case WordBlockKind.Byline:
-                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)">@foreach (var part in block.Parts){<span class="@MarkClass(block)" data-change="@MarkChange(block)">@part</span>}</p>
+                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)">@foreach (var part in block.Parts){<span class="@MarkClass(block)" data-change="@MarkChange(block)">@part</span>}</p>
                     break;
                 case WordBlockKind.Table:
                     if (block.Table != null)
@@ -187,7 +231,7 @@
                     }
                     break;
                 default:
-                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></p>
+                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@SegmentsOf(block)</span></p>
                     break;
             }
             @if (block.Source != null)
@@ -417,11 +461,13 @@
         if (current == null)
             return;
 
+        var before = Shape(current, Normalize(current.Text));
         text = Shape(current, text);
-        if (text == Shape(current, Normalize(current.Text)))
+        if (text == before)
             return;
 
-        Edit(block.Id, block.Id, EditCommand.Create("replace_paragraph", new { id = block.Id, text }));
+        var (start, end, inserted) = Changed(before, text);
+        Edit(block.Id, block.Id, EditCommand.Create("edit_text", new { ops = new[] { new { op = "replace", id = block.Id, start, end, text = inserted } } }));
     }
 
     private async Task SyncCellAsync(WordBlockModel block, int row, int column)
@@ -447,6 +493,55 @@
             Workspace.SetSelection(model.Describe(block));
         else
             Workspace.Notify();
+    }
+
+    private static (int Start, int End, string Text) Changed(string before, string after)
+    {
+        var prefix = 0;
+        while (prefix < before.Length && prefix < after.Length && before[prefix] == after[prefix])
+            prefix++;
+
+        var suffix = 0;
+        while (suffix < before.Length - prefix && suffix < after.Length - prefix && before[before.Length - 1 - suffix] == after[after.Length - 1 - suffix])
+            suffix++;
+
+        return (prefix, before.Length - suffix, after.Substring(prefix, after.Length - suffix - prefix));
+    }
+
+    private static RenderFragment SegmentsOf(WordBlockModel block) => builder =>
+    {
+        if (block.Segments.Count == 0)
+        {
+            builder.AddContent(0, block.Text);
+            return;
+        }
+
+        var sequence = 0;
+        foreach (var segment in block.Segments)
+        {
+            builder.OpenElement(sequence++, "span");
+            builder.AddAttribute(sequence++, "class", SegmentClass(segment));
+            builder.AddContent(sequence++, segment.Text);
+            builder.CloseElement();
+        }
+    };
+
+    private static string SegmentClass(WordCharSegment segment)
+    {
+        var classes = "seg";
+        if (segment.Bold)
+            classes += " b";
+
+        if (segment.Italic)
+            classes += " i";
+
+        if (segment.Underline)
+            classes += " u";
+
+        if (segment.Strike)
+            classes += " s";
+
+        return classes;
     }
 
     private static string Shape(WordBlockModel block, string text) =>

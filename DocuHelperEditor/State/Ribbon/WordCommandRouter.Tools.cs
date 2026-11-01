@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
+using DocuHelper.Tools.Word;
 using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.State.Ribbon
@@ -186,13 +187,13 @@ namespace DocuHelperEditor.State.Ribbon
                     if (block == null)
                         return false;
 
-                    value = new JsonArray(new JsonObject { ["id"] = block.Id });
+                    value = SelectedTargets() ?? new JsonArray(new JsonObject { ["id"] = block.Id });
                     return true;
                 case "targets[0]":
                     if (block == null)
                         return false;
 
-                    value = new JsonObject { ["id"] = block.Id };
+                    value = SelectedTargets()?[0] ?? new JsonObject { ["id"] = block.Id };
                     return true;
                 case "ids":
                     if (block == null)
@@ -508,17 +509,23 @@ namespace DocuHelperEditor.State.Ribbon
 
         private static IReadOnlyList<EditCommand> One(object arguments) => new[] { EditCommand.Create("format_paragraph", arguments) };
 
+        private JsonArray SelectedTargets() => WordSelectionService.TargetsJson(Model);
+
+        private WordCharPressed FormatPressed() => WordSelectionService.Pressed(Model, File?.Docu);
+
         private bool IsPressed(WordCommandSpec spec)
         {
             var block = Block;
             switch (spec.Id)
             {
                 case "word.home.font.bold":
-                    return block?.IsBold == true;
+                    return FormatPressed().Bold;
                 case "word.home.font.italic":
-                    return block?.IsItalic == true;
+                    return FormatPressed().Italic;
                 case "word.home.font.underline":
-                    return block?.IsUnderline == true;
+                    return FormatPressed().Underline;
+                case "word.home.font.strike":
+                    return FormatPressed().Strike;
                 case "word.home.para.bullets":
                     return block?.ListKind == WordListKind.Bullet;
                 case "word.home.para.numbers":

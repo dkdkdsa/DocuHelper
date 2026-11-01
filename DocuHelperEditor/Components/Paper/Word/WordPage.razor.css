@@ -246,3 +246,11 @@ h2.txt {
         display: none;
     }
 }
+
+.seg.s {
+    text-decoration: line-through;
+}
+
+.seg.u.s {
+    text-decoration: underline line-through;
+}

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DocuHelper.Editors;
+using DocuHelper.Tools.Word;
 using DocuHelperEditor.Services;
 using DocuHelperEditor.State.Papers;
 using Microsoft.JSInterop;
@@ -40,6 +41,7 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _files;
+        private readonly IJSRuntime _scriptJs;
         private Run _run;
         private HashSet<string> _tablesBefore;
 
@@ -47,6 +49,7 @@ namespace DocuHelperEditor.State.Ribbon
             : base(workspace, assistant, js)
         {
             _clipboard = clipboard;
+            _scriptJs = js;
             _files = files;
             State = state;
 
@@ -114,6 +117,8 @@ namespace DocuHelperEditor.State.Ribbon
             if (model == null)
                 return;
 
+            RestoreSelection(model.Selection);
+
             var before = _tablesBefore;
             _tablesBefore = null;
             if (before != null)
@@ -135,6 +140,8 @@ namespace DocuHelperEditor.State.Ribbon
         }
 
         private WordPaperModel Model => File?.Paper as WordPaperModel;
+
+        private void RestoreSelection(WordSelection selection) => _ = WordSelectionService.RestoreAsync(_scriptJs, selection);
 
         private WordBlockModel Block => Model?.SelectedBlock;
 
