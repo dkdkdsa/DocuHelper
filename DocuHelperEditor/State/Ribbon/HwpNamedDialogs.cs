@@ -95,8 +95,8 @@ namespace DocuHelperEditor.State.Ribbon
 
         private static WordNamedDialog LineSpacing() => new(
             "줄 간격",
-            new[] { Number("percent", "줄 간격 (50~500 %)", "160") },
-            v => Range(v, "percent", 50, 500, "줄 간격 (%)"),
+            new[] { Number("percent", "줄 간격 (1~500 %)", "160") },
+            v => Range(v, "percent", 1, 500, "줄 간격 (%)"),
             v => new JsonObject
             {
                 ["line_spacing"] = new JsonObject { ["mode"] = "multiple", ["value"] = Num(v, "percent") / 160.0 },

@@ -143,8 +143,8 @@ namespace DocuHelperEditor.State
                         continue;
 
                     last = file;
-                    if (file.Docu is HwpDocu hwp && hwp.Skipped.Count > 0)
-                        notes.Add($"‘{file.Name}’의 {SkippedText(hwp.Skipped)}은 화면에 안 보이고, 저장하면 빠져요. 원래 모습은 [기록]에 남아 있어요.");
+                    if (file.Docu is HwpDocu hwp && HwpLimits.Notice(file.Name, hwp) is string limit)
+                        notes.Add(limit);
 
                     if (file.Docu is HwpDocu signed && signed.IsSigned)
                         notes.Add($"‘{file.Name}’은 서명이 있는 파일이라 저장하면 서명이 풀려요.");
@@ -431,20 +431,6 @@ namespace DocuHelperEditor.State
                 problems.Add($"‘{name}’ 파일을 열지 못했어요. 파일이 망가졌거나 암호가 걸려 있을 수 있어요.");
                 return null;
             }
-        }
-
-        private static string SkippedText(ICollection<HwpSkipped> skipped)
-        {
-            var names = skipped.OrderBy(s => s).Select(s => s switch
-            {
-                HwpSkipped.Picture => "그림",
-                HwpSkipped.Equation => "수식",
-                HwpSkipped.Chart => "차트",
-                HwpSkipped.HeaderFooter => "머리말·꼬리말",
-                _ => "개체",
-            }).Distinct();
-
-            return string.Join(", ", names);
         }
 
         private bool TrySave(WorkspaceFile file)

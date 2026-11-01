@@ -70,7 +70,7 @@ namespace DocuHelper.Importers.Hwp
             var kind = "PERCENT";
             var rule = spacing?.LineRule?.Value;
             if (spacing?.Line != null && (rule == null || rule == LineSpacingRuleValues.Auto))
-                line = Math.Clamp(ParseInt(spacing.Line.Value, 240) * 160 / 240, 50, 500);
+                line = Math.Clamp(ParseInt(spacing.Line.Value, 240) * 160 / 240, 1, 500);
             else if (spacing?.Line != null && rule == LineSpacingRuleValues.Exact)
             {
                 kind = "FIXED";

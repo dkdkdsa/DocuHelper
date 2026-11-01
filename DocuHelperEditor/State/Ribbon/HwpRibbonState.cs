@@ -15,7 +15,7 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly HashSet<string> _features = new HashSet<string>(StringComparer.Ordinal);
         private int _zoom = 100;
 
-        private static readonly string[] s_features = { "outline", "fullscreen", "multi", "ruler", "vruler", "paramarks" };
+        private static readonly string[] s_features = { "outline", "fullscreen", "multi", "ruler", "vruler", "paramarks", "panes" };
 
         public static HwpRibbonState Of(WorkspaceFile file) => file == null ? null : s_states.GetValue(file, _ => Create());
 

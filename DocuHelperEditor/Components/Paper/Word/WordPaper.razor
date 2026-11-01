@@ -18,7 +18,17 @@
         <WordRibbonHost File="File" />
     }
 
-    <WordPage File="File" />
+    @if (File?.Type == DocuType.Hwp)
+    {
+        <div class="stage">
+            <HwpTaskPane File="File" />
+            <WordPage File="File" />
+        </div>
+    }
+    else
+    {
+        <WordPage File="File" />
+    }
     <WordDialogHost File="File" />
     @if (File?.Type == DocuType.Hwp)
     {

@@ -44,6 +44,14 @@ namespace DocuHelper.Importers.Hwp
             return $"‘{fileName}’의 {HwpParticle.Topic(string.Join(Separator, names))} 저장하면 빠져요. 원래 모습은 [기록]에 남아 있어요.";
         }
 
+        public static string SettingsNote()
+        {
+            var names = HwpCapabilities.Missing.Select(HwpFeatureNames.Korean).ToList();
+            return names.Count == 0
+                ? "지금 이 앱이 다루는 내용은 모두 저장돼요."
+                : $"아직 이 앱이 저장하지 못하는 것은 {string.Join(Separator, names)}이에요. 파일에 있으면 저장할 때 빠져요.";
+        }
+
         public static string PromptText()
         {
             var names = HwpFeatureNames.Prompt.Where(f => !HwpCapabilities.Has(f)).Select(HwpFeatureNames.English).ToList();

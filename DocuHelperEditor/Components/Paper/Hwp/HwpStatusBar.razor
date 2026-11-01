@@ -20,17 +20,7 @@
 
     private int Pages => Model?.Pages.Count ?? 1;
 
-    private int Page
-    {
-        get
-        {
-            var page = Model?.FindBlock(Model.SelectedBlockId)?.Page ?? 1;
-            if (Ribbon != null)
-                Ribbon.CurrentPage = page;
-
-            return page;
-        }
-    }
+    private int Page => Ribbon?.CurrentPage ?? 1;
 
     private int Line
     {

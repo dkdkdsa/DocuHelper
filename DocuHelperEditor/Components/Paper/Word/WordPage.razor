@@ -359,6 +359,8 @@
         }
 
         model.SelectedBlockId = focus.Id;
+        if (Hwp != null)
+            Hwp.CurrentPage = focus.Page;
         Workspace.SetSelection(model.Describe(focus));
     }
 

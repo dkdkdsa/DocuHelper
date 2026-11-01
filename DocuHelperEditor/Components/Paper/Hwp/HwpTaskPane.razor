@@ -1,0 +1,143 @@
+@using DocuHelper.Docus
+@using DocuHelper.Importers.Hwp
+@using DocuHelperEditor.Components.Ui
+@using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.State.Ribbon
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@if (File != null && Ribbon != null && Ribbon.NavOpen && Model != null)
+{
+    <aside class="task" aria-label="@Title">
+        <div class="head">
+            <h2>@Title</h2>
+            <IconButton Icon="x" IconSize="18" Label="작업 창 닫기" Title="작업 창 닫기" OnClick="CloseAsync" />
+        </div>
+        @if (Outline)
+        {
+            <ul class="outline">
+                @foreach (var item in Headings)
+                {
+                    <li style="@IndentOf(item.Level)">
+                        <button type="button" class="link" aria-label="@($"{item.Text}, {Model.FindBlock(item.BlockId)?.Page}쪽으로 이동")" @onclick="() => GoToBlockAsync(item.BlockId)">@item.Text</button>
+                    </li>
+                }
+            </ul>
+            @if (Headings.Count == 0)
+            {
+                <p class="empty">제목 스타일이 있는 문단이 없어요. 제목 1, 제목 2를 쓰면 여기에 나와요.</p>
+            }
+        }
+        else
+        {
+            <ol class="thumbs">
+                @foreach (var page in Model.Pages)
+                {
+                    var number = page;
+                    var current = number == Ribbon.CurrentPage;
+                    <li>
+                        <button type="button" class="thumb @(current ? "on" : null)" aria-current="@(current ? "page" : "false")" aria-label="@($"{number}쪽으로 이동")" @onclick="() => GoToPageAsync(number)">
+                            <span class="mini" style="aspect-ratio: @Ratio;">
+                                @foreach (var width in LinesOf(number))
+                                {
+                                    <span class="ln" style="width: @(width)%"></span>
+                                }
+                            </span>
+                            <span class="no">@(number)쪽</span>
+                        </button>
+                    </li>
+                }
+            </ol>
+        }
+    </aside>
+}
+
+@code {
+    private WordPaperModel _paper;
+    private IReadOnlyList<HwpOutlineItem> _headings = Array.Empty<HwpOutlineItem>();
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private HwpRibbonState Ribbon => HwpRibbonState.Of(File);
+
+    private WordPaperModel Model => File?.Paper as WordPaperModel;
+
+    private bool Outline => Ribbon?.NavPane == "outline";
+
+    private string Title => Outline ? "개요 보기" : "쪽 모양 보기";
+
+    private IReadOnlyList<HwpOutlineItem> Headings
+    {
+        get
+        {
+            if (!ReferenceEquals(_paper, File?.Paper))
+            {
+                _paper = File?.Paper as WordPaperModel;
+                _headings = File?.Docu is WordDocu word ? HwpOutline.Detect(word) : Array.Empty<HwpOutlineItem>();
+            }
+
+            return _headings;
+        }
+    }
+
+    private string Ratio => Model?.Layout == null ? "1 / 1.4142" : $"{Model.Layout.Width} / {Model.Layout.Height}";
+
+    private static string IndentOf(int level) => $"padding-left: {Math.Max(0, level - 1) * 14}px";
+
+    private IEnumerable<int> LinesOf(int page)
+    {
+        var lines = 0;
+        foreach (var block in Model.BlocksOnPage(page))
+        {
+            if (lines++ >= MaxLines)
+                break;
+
+            var length = block.IsTable ? 60 : (block.PlainText ?? string.Empty).Length;
+            yield return length == 0 ? MinWidth : Math.Clamp(length * 2, MinWidth, 100);
+        }
+    }
+
+    private const int MaxLines = 40;
+    private const int MinWidth = 18;
+
+    private async Task GoToPageAsync(int page)
+    {
+        Ribbon.CurrentPage = page;
+        Ribbon.Touch();
+        await ScrollAsync($"article[aria-label=\"{page}쪽\"]");
+    }
+
+    private async Task GoToBlockAsync(string blockId)
+    {
+        var block = Model.FindBlock(blockId);
+        if (block == null)
+            return;
+
+        Ribbon.CurrentPage = block.Page;
+        Ribbon.Touch();
+        await ScrollAsync($"[data-block=\"{blockId}\"]");
+    }
+
+    private Task CloseAsync()
+    {
+        Ribbon.NavOpen = false;
+        Ribbon.Touch();
+        Workspace.Notify();
+        return Task.CompletedTask;
+    }
+
+    private async Task ScrollAsync(string selector)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.scrollIntoView", selector);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}

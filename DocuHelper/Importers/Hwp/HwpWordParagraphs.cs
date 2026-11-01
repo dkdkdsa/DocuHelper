@@ -71,7 +71,7 @@ namespace DocuHelper.Importers.Hwp
 
             if (source.LineSpacing > 0 && source.LineSpacingKind == "PERCENT")
             {
-                spacing.Line = Number(Math.Clamp(source.LineSpacing * 240 / 160, 120, 1440));
+                spacing.Line = Number((int)Math.Clamp(Math.Round(source.LineSpacing * 240.0 / 160.0, MidpointRounding.AwayFromZero), 2, 1440));
                 spacing.LineRule = LineSpacingRuleValues.Auto;
             }
             else if (source.LineSpacing > 0)
