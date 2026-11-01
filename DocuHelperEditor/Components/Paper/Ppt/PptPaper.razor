@@ -18,10 +18,6 @@
                 else
                 {
                     <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
-                    @if (_ribbon.NotesOpen)
-                    {
-                        <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
-                    }
                     @if (slide != null && slide.Animations.Count > 0)
                     {
                         <details class="pane">
@@ -39,6 +35,10 @@
                 }
             </div>
         </div>
+        @if (!_sorter && _ribbon.NotesOpen)
+        {
+            <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+        }
         <ChangeNavigator File="File" />
     </div>
 }
@@ -46,6 +46,7 @@
 @code {
     private readonly PptRibbonState _ribbon = new();
     private bool _sorter;
+    private int _notesHeight = 92;
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -180,7 +181,7 @@
         if (_model.SelectedBox != null)
             return $"{number}번 슬라이드 글상자";
 
-        return _notesFocused && _ribbon.NotesOpen ? $"{number}번 슬라이드 발표 메모" : $"{number}번 슬라이드";
+        return _notesFocused && _ribbon.NotesOpen ? $"{number}번 슬라이드 노트" : $"{number}번 슬라이드";
     }
 
     private void Report()
@@ -195,6 +196,8 @@
             Workspace.Notify();
         }
     }
+
+    private void SetNotesHeight(int height) => _notesHeight = Math.Clamp(height, SpeakerNotes.MinHeight, SpeakerNotes.MaxHeight);
 
     private void ToggleSorter()
     {

@@ -353,3 +353,43 @@ window.docuHelperPptCanvas = (function () {
         }
     };
 })();
+
+window.docuHelperPptGrip = (function () {
+    var grips = new Map();
+    var MIN = 48;
+    var MAX = 600;
+
+    return {
+        register: function (grip, reference) {
+            if (grip) grips.set(grip, reference);
+        },
+        unregister: function (grip) {
+            grips.delete(grip);
+        },
+        start: function (grip, clientY, startHeight) {
+            var reference = grips.get(grip);
+            var notes = grip ? grip.closest('.notes') : null;
+            if (!reference || !notes) return;
+
+            var host = notes.parentElement;
+            var max = Math.min(MAX, Math.max(MIN, host.clientHeight * 0.4));
+            var height = startHeight;
+
+            function move(e) {
+                height = Math.round(Math.min(max, Math.max(MIN, startHeight - (e.clientY - clientY))));
+                notes.style.height = height + 'px';
+            }
+
+            function up() {
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', up);
+                window.removeEventListener('pointercancel', up);
+                reference.invokeMethodAsync('Resized', height).catch(function () { });
+            }
+
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', up);
+            window.addEventListener('pointercancel', up);
+        }
+    };
+})();
