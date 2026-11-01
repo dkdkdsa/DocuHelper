@@ -505,7 +505,9 @@ namespace DocuHelperEditor.State.Mapping
             box.Strike = run?.Strike ?? false;
             box.Bullet = paragraph?.Bullet?.Kind switch { "char" => "bullet", "number" => "number", _ => "none" };
             box.Color = HexOf(run?.Color);
-            box.FontFamily = FontOf(run?.FontLatin);
+            box.FontFamily = PptText.HasHangul(run?.Text ?? string.Empty)
+                ? FontOf(run?.FontEa) ?? FontOf(run?.FontLatin)
+                : FontOf(run?.FontLatin) ?? FontOf(run?.FontEa);
             box.Align = paragraph?.Align == "ctr" ? SlideTextAlign.Center : SlideTextAlign.Left;
             box.VerticalAlign = VerticalOf(text.Anchor);
             box.InsetLeft = Pct(text.InsetL, widthEmu);

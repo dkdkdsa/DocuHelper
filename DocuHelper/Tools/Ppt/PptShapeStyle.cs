@@ -210,7 +210,7 @@ namespace DocuHelper.Tools.Ppt
 
         private static bool IsOn(BooleanValue value) => value != null && value.HasValue && value.Value;
 
-        private IEnumerable<A.TextParagraphPropertiesType> Levels(int level)
+        public IEnumerable<A.TextParagraphPropertiesType> Levels(int level)
         {
             var name = "lvl" + (Math.Clamp(level, 0, 8) + 1).ToString(CultureInfo.InvariantCulture) + "pPr";
             foreach (var container in ListStyles)

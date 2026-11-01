@@ -107,7 +107,7 @@ namespace DocuHelper.Tools.Ppt
             result.Line = Line(shape.ShapeProperties, context.Theme, context.ColorMap);
             ApplyStyle(result, shape, context.Theme, context.ColorMap);
             result.Shadow = Shadow(shape.ShapeProperties, context.Theme, context.ColorMap);
-            result.Text = shape.TextBody == null ? null : TextOf(shape.TextBody, context);
+            result.Text = shape.TextBody == null ? null : TextOf(shape.TextBody, context, context.Styles.For(shape));
             ApplyFontStyle(result, shape.ShapeStyle, context.Theme, context.ColorMap);
             result.AltText = props?.Description?.Value;
             return result;
@@ -475,12 +475,13 @@ namespace DocuHelper.Tools.Ppt
             };
         }
 
-        public static PptSceneText TextOf(OpenXmlElement body, PptSceneContext context)
+        public static PptSceneText TextOf(OpenXmlElement body, PptSceneContext context, PptShapeStyle style = null)
         {
             var props = body.GetFirstChild<A.BodyProperties>();
+            var anchor = props?.Anchor != null && props.Anchor.HasValue ? props.Anchor.InnerText : style?.TextAnchor;
             var text = new PptSceneText
             {
-                Anchor = props?.Anchor?.InnerText switch
+                Anchor = anchor switch
                 {
                     "ctr" => "ctr",
                     "b" => "b",
@@ -490,15 +491,23 @@ namespace DocuHelper.Tools.Ppt
                 Vertical = props?.Vertical?.InnerText,
                 Columns = props?.ColumnCount?.Value ?? 1,
             };
-            if (props?.LeftInset != null) text.InsetL = props.LeftInset.Value;
-            if (props?.TopInset != null) text.InsetT = props.TopInset.Value;
-            if (props?.RightInset != null) text.InsetR = props.RightInset.Value;
-            if (props?.BottomInset != null) text.InsetB = props.BottomInset.Value;
+            text.InsetL = Inset(props?.LeftInset, style, b => b.LeftInset, text.InsetL);
+            text.InsetT = Inset(props?.TopInset, style, b => b.TopInset, text.InsetT);
+            text.InsetR = Inset(props?.RightInset, style, b => b.RightInset, text.InsetR);
+            text.InsetB = Inset(props?.BottomInset, style, b => b.BottomInset, text.InsetB);
             text.Autofit = Autofit(props);
             foreach (var paragraph in body.Elements<A.Paragraph>())
-                text.Paragraphs.Add(ParagraphOf(paragraph, context));
+                text.Paragraphs.Add(ParagraphOf(paragraph, context, style));
 
             return text;
+        }
+
+        private static long Inset(Int32Value own, PptShapeStyle style, Func<A.BodyProperties, Int32Value> pick, long fallback)
+        {
+            if (own != null && own.HasValue)
+                return own.Value;
+
+            return style == null ? fallback : style.Inset(pick, fallback);
         }
 
         private static PptSceneAutofit Autofit(A.BodyProperties props)
@@ -515,40 +524,47 @@ namespace DocuHelper.Tools.Ppt
             return new PptSceneAutofit { Mode = "none" };
         }
 
-        public static PptSceneParagraph ParagraphOf(A.Paragraph paragraph, PptSceneContext context)
+        public static PptSceneParagraph ParagraphOf(A.Paragraph paragraph, PptSceneContext context, PptShapeStyle style = null)
         {
             var properties = paragraph.ParagraphProperties;
+            var level = properties?.Level?.Value ?? 0;
+            T Pick<T>(Func<A.TextParagraphPropertiesType, T> pick)
+                where T : class => style != null ? style.ParagraphValue(paragraph, level, pick) : properties == null ? null : pick(properties);
+
+            var align = Pick(p => p.Alignment);
+            var margin = Pick(p => p.LeftMargin);
+            var indent = Pick(p => p.Indent);
             var result = new PptSceneParagraph
             {
-                Level = properties?.Level?.Value ?? 0,
-                Align = properties?.Alignment?.InnerText switch
+                Level = level,
+                Align = align != null && align.HasValue ? align.InnerText switch
                 {
                     "ctr" => "ctr",
                     "r" => "r",
                     "just" => "just",
                     _ => "l",
-                },
-                MarginLeftEmu = properties?.LeftMargin?.Value ?? 0,
-                IndentEmu = properties?.Indent?.Value ?? 0,
-                Bullet = Bullet(properties, context),
+                } : "l",
+                MarginLeftEmu = margin != null && margin.HasValue ? margin.Value : 0,
+                IndentEmu = indent != null && indent.HasValue ? indent.Value : 0,
+                Bullet = Bullet(properties, context) ?? InheritedBullet(style, level, context),
             };
-            var lineSpacing = properties?.LineSpacing;
-            if (lineSpacing?.SpacingPercent != null)
+            var lineSpacing = Pick(p => p.LineSpacing);
+            if (lineSpacing?.SpacingPercent?.Val != null)
                 result.LineSpacing = new PptSceneSpacing { Kind = "pct", Value = lineSpacing.SpacingPercent.Val.Value / 1000.0 };
-            else if (lineSpacing?.SpacingPoints != null)
+            else if (lineSpacing?.SpacingPoints?.Val != null)
                 result.LineSpacing = new PptSceneSpacing { Kind = "pt", Value = lineSpacing.SpacingPoints.Val.Value / 100.0 };
 
-            result.SpaceBeforePt = properties?.SpaceBefore?.SpacingPoints?.Val?.Value / 100.0 ?? 0;
-            result.SpaceAfterPt = properties?.SpaceAfter?.SpacingPoints?.Val?.Value / 100.0 ?? 0;
+            result.SpaceBeforePt = Pick(p => p.SpaceBefore)?.SpacingPoints?.Val?.Value / 100.0 ?? 0;
+            result.SpaceAfterPt = Pick(p => p.SpaceAfter)?.SpacingPoints?.Val?.Value / 100.0 ?? 0;
             foreach (var element in paragraph.Elements())
             {
                 switch (element)
                 {
                     case A.Run run:
-                        result.Runs.Add(RunOf(run.RunProperties, run.Text?.Text, context, null));
+                        result.Runs.Add(RunOf(run.RunProperties, run.Text?.Text, context, null, style, level));
                         break;
                     case A.Field field:
-                        result.Runs.Add(RunOf(field.RunProperties, field.Text?.Text, context, field.Type?.Value));
+                        result.Runs.Add(RunOf(field.RunProperties, field.Text?.Text, context, field.Type?.Value, style, level));
                         break;
                     case A.Break:
                         result.Runs.Add(new PptSceneRun { IsBreak = true, Text = "\n" });
@@ -559,7 +575,22 @@ namespace DocuHelper.Tools.Ppt
             return result;
         }
 
-        private static PptSceneBullet Bullet(A.ParagraphProperties properties, PptSceneContext context)
+        private static PptSceneBullet InheritedBullet(PptShapeStyle style, int level, PptSceneContext context)
+        {
+            if (style == null)
+                return null;
+
+            foreach (var props in style.Levels(level))
+            {
+                var bullet = Bullet(props, context);
+                if (bullet != null)
+                    return bullet;
+            }
+
+            return null;
+        }
+
+        private static PptSceneBullet Bullet(A.TextParagraphPropertiesType properties, PptSceneContext context)
         {
             if (properties == null)
                 return null;
@@ -576,35 +607,61 @@ namespace DocuHelper.Tools.Ppt
             return null;
         }
 
-        private static string BulletColor(A.ParagraphProperties properties, PptSceneContext context)
+        private static string BulletColor(A.TextParagraphPropertiesType properties, PptSceneContext context)
         {
             var color = properties.GetFirstChild<A.BulletColor>()?.GetFirstChild<OpenXmlElement>();
             return color == null ? null : PptColor.Resolve(color, context.Theme, context.ColorMap, null);
         }
 
-        private static PptSceneRun RunOf(A.RunProperties properties, string text, PptSceneContext context, string fieldType)
+        private static PptSceneRun RunOf(A.RunProperties properties, string text, PptSceneContext context, string fieldType, PptShapeStyle style = null, int level = 0)
         {
             var run = new PptSceneRun { Text = text ?? string.Empty, FieldType = fieldType };
-            if (properties == null)
+            if (properties == null && style == null)
                 return run;
 
-            run.SizePt = properties.FontSize?.Value / 100.0;
-            run.Bold = properties.Bold?.Value == true;
-            run.Italic = properties.Italic?.Value == true;
-            run.Underline = properties.Underline != null && properties.Underline.Value != A.TextUnderlineValues.None;
-            run.Strike = properties.Strike != null && properties.Strike.Value != A.TextStrikeValues.NoStrike;
-            run.Baseline = (properties.Baseline?.Value ?? 0) / 1000.0;
-            run.FontLatin = properties.GetFirstChild<A.LatinFont>()?.Typeface?.Value;
-            run.FontEa = properties.GetFirstChild<A.EastAsianFont>()?.Typeface?.Value;
-            var fill = properties.GetFirstChild<A.SolidFill>()?.GetFirstChild<OpenXmlElement>();
+            T Pick<T>(Func<A.TextCharacterPropertiesType, T> pick)
+                where T : class => style != null ? style.RunValue(properties, level, pick) : properties == null ? null : pick(properties);
+
+            var size = Pick(r => r.FontSize);
+            var bold = Pick(r => r.Bold);
+            var italic = Pick(r => r.Italic);
+            var underline = Pick(r => r.Underline);
+            var strike = Pick(r => r.Strike);
+            var baseline = Pick(r => r.Baseline);
+            run.SizePt = size != null && size.HasValue ? size.Value / 100.0 : null;
+            run.Bold = bold != null && bold.HasValue && bold.Value;
+            run.Italic = italic != null && italic.HasValue && italic.Value;
+            run.Underline = underline != null && underline.HasValue && underline.Value != A.TextUnderlineValues.None;
+            run.Strike = strike != null && strike.HasValue && strike.Value != A.TextStrikeValues.NoStrike;
+            run.Baseline = baseline != null && baseline.HasValue ? baseline.Value / 1000.0 : 0;
+            run.FontLatin = ThemeFont(Pick(r => r.GetFirstChild<A.LatinFont>())?.Typeface?.Value, context.Theme);
+            run.FontEa = ThemeFont(Pick(r => r.GetFirstChild<A.EastAsianFont>())?.Typeface?.Value, context.Theme);
+            var fill = Pick(r => r.GetFirstChild<A.SolidFill>())?.GetFirstChild<OpenXmlElement>();
             run.Color = fill == null ? null : PptColor.Resolve(fill, context.Theme, context.ColorMap, null);
-            var highlight = properties.GetFirstChild<A.Highlight>()?.GetFirstChild<OpenXmlElement>();
+            var highlight = properties?.GetFirstChild<A.Highlight>()?.GetFirstChild<OpenXmlElement>();
             run.Highlight = highlight == null ? null : PptColor.Resolve(highlight, context.Theme, context.ColorMap, null);
-            var link = properties.GetFirstChild<A.HyperlinkOnClick>();
+            var link = properties?.GetFirstChild<A.HyperlinkOnClick>();
             if (link != null)
                 run.Link = PptLinkRelations.Describe(context.Part, link);
 
             return run;
+        }
+
+        private static string ThemeFont(string typeface, PptThemeInfo theme)
+        {
+            if (string.IsNullOrEmpty(typeface) || typeface[0] != '+')
+                return typeface;
+
+            var name = typeface switch
+            {
+                "+mj-lt" => theme?.MajorLatin,
+                "+mn-lt" => theme?.MinorLatin,
+                "+mj-ea" => string.IsNullOrEmpty(theme?.MajorEa) ? theme?.MajorHang : theme.MajorEa,
+                "+mn-ea" => string.IsNullOrEmpty(theme?.MinorEa) ? theme?.MinorHang : theme.MinorEa,
+                _ => null,
+            };
+
+            return string.IsNullOrEmpty(name) ? null : name;
         }
 
         public static PptSceneTable Table(A.Table table, PptSceneContext context)

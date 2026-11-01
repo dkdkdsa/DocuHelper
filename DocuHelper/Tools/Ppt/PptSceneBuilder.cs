@@ -27,6 +27,10 @@ namespace DocuHelper.Tools.Ppt
 
         public uint SlideId { get; }
 
+        public PptSlideStyles Styles => _styles ??= new PptSlideStyles(Part, (Part.OpenXmlPackage as PresentationDocument)?.PresentationPart?.Presentation?.DefaultTextStyle);
+
+        private PptSlideStyles _styles;
+
         public string Anchor(uint shapeId) => PptAnchor.Shape(SlideId, shapeId);
 
         public OpenXmlElement LayoutPlaceholder(string type, uint index)
