@@ -23,11 +23,15 @@ namespace DocuHelper.Agents
         private const int MaxAttachedImages = 90;
         private const string CutOffNotice = "Your reply was cut off. Continue from where you stopped.";
         private const string SkippedNotice = "Skipped: the task was already finished.";
-        private const string InvalidArgumentsNotice = "Error: The arguments were not valid JSON.";
+        private const string InvalidArgumentsNotice = "Error: The arguments were not valid JSON object.";
         private const string ErrorPrefix = "Error: ";
         private const string EmptyResult = "(empty)";
+        private const string MaxTurnsMessage = "일이 너무 길어져서 멈췄어요. 문서가 일부 바뀌었을 수 있어요. 부탁을 조금 나눠서 다시 말해 주세요.";
+        private const string TimeoutMessage = "도우미가 오래 기다려도 답하지 않았어요. 다시 부탁해 주세요.";
+        private const string ConnectionMessage = "인터넷 연결이 잠깐 끊겼어요.";
 
         private static readonly TimeSpan[] s_retryDelays = { TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(8) };
+        private static readonly TimeSpan s_maxRetryAfter = TimeSpan.FromSeconds(20);
 
         private readonly ChatGptClient _client = new();
         private readonly List<JsonNode> _items = new();
@@ -49,15 +53,18 @@ namespace DocuHelper.Agents
 
             var startCount = _items.Count;
             var pending = _pendingResults.ToList();
-
-            _items.AddRange(pending);
-            _items.Add(ChatGptTranslator.UserItem(toolbox.DescribeContext() + "\n\n" + PromptText(request.Prompt, attachments.Count), attachments));
-            _pendingResults.Clear();
-            _attachedBytes += addedBytes;
-            _attachedImages += addedImages;
+            var counted = false;
 
             try
             {
+                var user = ChatGptTranslator.UserItem(toolbox.DescribeContext() + "\n\n" + PromptText(request.Prompt, attachments.Count), attachments);
+                _items.AddRange(pending);
+                _items.Add(user);
+                _pendingResults.Clear();
+                _attachedBytes += addedBytes;
+                _attachedImages += addedImages;
+                counted = true;
+
                 for (var turn = 0; turn < MaxTurns; turn++)
                 {
                     var response = await CreateWithRetryAsync(request, toolbox, host, cancellationToken);
@@ -114,15 +121,21 @@ namespace DocuHelper.Agents
                     _items.AddRange(results);
                 }
 
-                throw new AgentException(AgentFailure.Other, "일이 너무 길어져서 멈췄어요. 부탁을 조금 나눠서 다시 말해 주세요.");
+                throw new AgentException(AgentFailure.Other, MaxTurnsMessage);
             }
             catch
             {
-                _items.RemoveRange(startCount, _items.Count - startCount);
+                if (_items.Count > startCount)
+                    _items.RemoveRange(startCount, _items.Count - startCount);
+
                 _pendingResults.Clear();
                 _pendingResults.AddRange(pending);
-                _attachedBytes -= addedBytes;
-                _attachedImages -= addedImages;
+                if (counted)
+                {
+                    _attachedBytes -= addedBytes;
+                    _attachedImages -= addedImages;
+                }
+
                 throw;
             }
         }
@@ -168,9 +181,13 @@ namespace DocuHelper.Agents
                 if (!reply.IsSuccess)
                     throw ChatGptTranslator.Translate(reply);
             }
+            catch (TaskCanceledException e) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new AgentException(AgentFailure.Connection, TimeoutMessage, e);
+            }
             catch (Exception e) when (!cancellationToken.IsCancellationRequested && IsNetworkError(e))
             {
-                throw new AgentException(AgentFailure.Connection, "인터넷 연결이 잠깐 끊겼어요.", e);
+                throw new AgentException(AgentFailure.Connection, ConnectionMessage, e);
             }
         }
 
@@ -180,6 +197,7 @@ namespace DocuHelper.Agents
             for (var attempt = 1; ; attempt++)
             {
                 AgentException failure;
+                TimeSpan? retryAfter = null;
                 try
                 {
                     var reply = await _client.PostAsync(request.ApiKey, ResponsesPath, body, cancellationToken);
@@ -187,10 +205,15 @@ namespace DocuHelper.Agents
                         return ChatGptTranslator.Parse(reply.Body);
 
                     failure = ChatGptTranslator.Translate(reply);
+                    retryAfter = reply.RetryAfter;
+                }
+                catch (TaskCanceledException e) when (!cancellationToken.IsCancellationRequested)
+                {
+                    throw new AgentException(AgentFailure.Connection, TimeoutMessage, e);
                 }
                 catch (Exception e) when (!cancellationToken.IsCancellationRequested && IsNetworkError(e))
                 {
-                    failure = new AgentException(AgentFailure.Connection, "인터넷 연결이 잠깐 끊겼어요.", e);
+                    failure = new AgentException(AgentFailure.Connection, ConnectionMessage, e);
                 }
 
                 if (!IsTransient(failure.Failure) || attempt > s_retryDelays.Length)
@@ -200,10 +223,21 @@ namespace DocuHelper.Agents
                 {
                     Attempt = attempt,
                     MaxAttempts = s_retryDelays.Length,
-                    Delay = s_retryDelays[attempt - 1],
+                    Delay = DelayFor(attempt, retryAfter),
                     Failure = failure.Failure,
                 }, cancellationToken);
             }
+        }
+
+        private static TimeSpan DelayFor(int attempt, TimeSpan? retryAfter)
+        {
+            if (retryAfter is not TimeSpan wait)
+                return s_retryDelays[attempt - 1];
+
+            if (wait < TimeSpan.Zero)
+                return TimeSpan.Zero;
+
+            return wait > s_maxRetryAfter ? s_maxRetryAfter : wait;
         }
 
         private JsonObject CreateBody(AgentRequest request, AgentToolbox toolbox)
@@ -230,7 +264,7 @@ namespace DocuHelper.Agents
                 throw new AgentException(AgentFailure.Key, "도우미 열쇠가 없어요. 설정에서 열쇠를 넣어 주세요.");
         }
 
-        private static bool IsNetworkError(Exception e) => e is HttpRequestException or TaskCanceledException or IOException;
+        private static bool IsNetworkError(Exception e) => e is HttpRequestException or IOException;
 
         private static bool IsTransient(AgentFailure failure) => failure == AgentFailure.Connection || failure == AgentFailure.Busy;
 
@@ -238,7 +272,12 @@ namespace DocuHelper.Agents
         {
             try
             {
-                return JsonDocument.Parse(string.IsNullOrWhiteSpace(arguments) ? "{}" : arguments);
+                var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(arguments) ? "{}" : arguments);
+                if (document.RootElement.ValueKind == JsonValueKind.Object)
+                    return document;
+
+                document.Dispose();
+                return null;
             }
             catch (JsonException)
             {

@@ -122,6 +122,10 @@ window.docuHelper = (function () {
             var el = document.querySelector(selector);
             if (el) el.focus();
         },
+        scrollToTop: function (selector) {
+            var el = document.querySelector(selector);
+            if (el) el.scrollTop = 0;
+        },
         focusPaperStart: function () {
             var paper = document.querySelector('[data-region="paper"]');
             if (!paper) return;

@@ -49,6 +49,10 @@
                                 <Spinner Size="16" />
                                 <span>연결되는지 확인하고 있어요…</span>
                                 break;
+                            case KeyCheckState.Unverified:
+                                <span class="badge" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
+                                <span>@UnverifiedKeyText</span>
+                                break;
                             case KeyCheckState.Failed:
                                 <span class="badge" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
                                 <span>@(IsUnknownKey ? UnknownKeyText : "연결이 안 됐어요. 열쇠가 맞는지 다시 봐 주세요.")</span>
@@ -141,6 +145,8 @@
 
     [SupplyParameterFromQuery(Name = "bare")]
     public string Bare { get; set; }
+
+    private const string UnverifiedKeyText = "열쇠는 맞는 것 같지만 확인 권한이 없어요. 그대로 저장할까요?";
 
     private const string UnknownKeyText = "Claude(sk-ant-)나 ChatGPT(sk-) 열쇠처럼 보이지 않아요. 다시 봐 주세요.";
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -8,11 +9,16 @@ namespace DocuHelper.Agents
 {
     public static class ChatGptTranslator
     {
+        private const int MaxFileNameLength = 120;
         private const string OtherMessage = "도우미에게 문제가 생겼어요.";
         private const string TooLongMessage = "붙인 파일이나 대화가 너무 길어요. 새 대화를 시작하거나 파일을 나눠서 붙여 주세요.";
         private const string BusyMessage = "요청이 몰려서 잠깐 기다려야 해요.";
         private const string KeyMessage = "도우미 열쇠가 맞지 않아요.";
         private const string QuotaMessage = "쓸 수 있는 양을 다 썼어요.";
+        private const string RegionMessage = "이 지역에서는 도우미를 쓸 수 없어요.";
+        private const string UnverifiedMessage = "열쇠는 맞는 것 같지만 확인 권한이 없어요. 그대로 저장할까요?";
+        private const string UnreadableAttachmentMessage = "붙인 파일을 읽지 못했어요. 다시 붙여 주세요.";
+        private const string IncompleteMessage = "도우미가 답을 끝내지 못했어요. 부탁을 조금 바꿔서 다시 말해 주세요.";
 
         public static JsonObject ToTool(AgentToolDefinition definition) => new()
         {
@@ -97,6 +103,9 @@ namespace DocuHelper.Agents
                 if (response == null || Field(response, "status") == "failed")
                     throw new AgentException(AgentFailure.Other, OtherMessage);
 
+                if (Field(response, "status") == "incomplete" && !IsCutOff(response))
+                    throw new AgentException(AgentFailure.Other, IncompleteMessage);
+
                 return response;
             }
             catch (JsonException e)
@@ -108,10 +117,14 @@ namespace DocuHelper.Agents
         public static AgentException Translate(ChatGptReply reply)
         {
             var status = (int)reply.Status;
-            var code = ErrorCode(reply.Body);
+            var error = ErrorOf(reply.Body);
+            var code = Field(error, "code");
 
-            if (status is 401 or 403)
+            if (status == 401)
                 return new AgentException(AgentFailure.Key, KeyMessage);
+
+            if (status == 403)
+                return Forbidden(error);
 
             if (status == 429 && code == "insufficient_quota")
                 return new AgentException(AgentFailure.Key, QuotaMessage);
@@ -125,18 +138,34 @@ namespace DocuHelper.Agents
             return new AgentException(AgentFailure.Other, OtherMessage);
         }
 
-        private static string ErrorCode(string body)
+        private static AgentException Forbidden(JsonNode error)
+        {
+            var code = Field(error, "code");
+            var message = Field(error, "message");
+            if (Contains(code, "region", "country", "territory") || Contains(message, "region", "country", "territory"))
+                return new AgentException(AgentFailure.Other, RegionMessage);
+
+            if (Contains(code, "permission", "scope") || Contains(message, "permission", "scope", "does not have access"))
+                return new AgentUnverifiedKeyException(UnverifiedMessage);
+
+            return new AgentException(AgentFailure.Key, KeyMessage);
+        }
+
+        private static bool Contains(string text, params string[] needles) =>
+            needles.Any(needle => text.Contains(needle, StringComparison.OrdinalIgnoreCase));
+
+        private static JsonNode ErrorOf(string body)
         {
             if (string.IsNullOrWhiteSpace(body))
-                return string.Empty;
+                return null;
 
             try
             {
-                return Field(JsonNode.Parse(body)?["error"], "code");
+                return JsonNode.Parse(body)?["error"];
             }
             catch (JsonException)
             {
-                return string.Empty;
+                return null;
             }
         }
 
@@ -149,25 +178,38 @@ namespace DocuHelper.Agents
         private static IEnumerable<JsonObject> Parts(JsonObject message) =>
             Objects(message["content"]);
 
-        private static JsonObject ToPart(AgentAttachment attachment) => attachment.Kind switch
+        private static JsonObject ToPart(AgentAttachment attachment)
         {
-            AgentAttachmentKind.Image => new JsonObject
+            var name = FileName(attachment.Name);
+            return attachment.Kind switch
             {
-                ["type"] = "input_image",
-                ["image_url"] = $"data:{ImageMediaType(attachment.MediaType)};base64,{Convert.ToBase64String(attachment.Data)}",
-            },
-            AgentAttachmentKind.Pdf => new JsonObject
-            {
-                ["type"] = "input_file",
-                ["filename"] = attachment.Name,
-                ["file_data"] = $"data:application/pdf;base64,{Convert.ToBase64String(attachment.Data)}",
-            },
-            _ => new JsonObject
-            {
-                ["type"] = "input_text",
-                ["text"] = $"[첨부: {attachment.Name}]\n{attachment.Text ?? string.Empty}",
-            },
-        };
+                AgentAttachmentKind.Image => new JsonObject
+                {
+                    ["type"] = "input_image",
+                    ["image_url"] = $"data:{ImageMediaType(attachment.MediaType)};base64,{Convert.ToBase64String(DataOf(attachment))}",
+                },
+                AgentAttachmentKind.Pdf => new JsonObject
+                {
+                    ["type"] = "input_file",
+                    ["filename"] = name,
+                    ["file_data"] = $"data:application/pdf;base64,{Convert.ToBase64String(DataOf(attachment))}",
+                },
+                _ => new JsonObject
+                {
+                    ["type"] = "input_text",
+                    ["text"] = $"[첨부: {name}]\n{attachment.Text ?? string.Empty}",
+                },
+            };
+        }
+
+        private static byte[] DataOf(AgentAttachment attachment) =>
+            attachment.Data ?? throw new AgentException(AgentFailure.Other, UnreadableAttachmentMessage);
+
+        private static string FileName(string name)
+        {
+            var file = Path.GetFileName(name ?? string.Empty);
+            return file.Length > MaxFileNameLength ? file[..MaxFileNameLength] : file;
+        }
 
         private static string ImageMediaType(string mediaType) => mediaType is "image/jpeg" or "image/gif" or "image/webp"
             ? mediaType

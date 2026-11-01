@@ -30,6 +30,10 @@
                             <span class="check off" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
                             <span>연결이 안 됐어요</span>
                             break;
+                        case KeyCheckState.Unverified:
+                            <span class="check off" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
+                            <span>확인하지 못했어요</span>
+                            break;
                         default:
                             <span>아직 확인 안 했어요</span>
                             break;
@@ -43,7 +47,7 @@
                 <div class="fld">
                     <input id="settings-claude-key" type="password" value="@ClaudeSlot.NewKey" placeholder="sk-ant-로 시작해요" autocomplete="off" spellcheck="false" aria-describedby="settings-claude-msg" @oninput="e => Settings.SetNewKey(AgentProvider.Claude, e.Value?.ToString())" @onkeydown="OnClaudeKeyDownAsync" />
                 </div>
-                <p id="settings-claude-msg" class="key-msg @(ClaudeSlot.NewState == KeyCheckState.Failed ? "warn" : null)" role="status">
+                <p id="settings-claude-msg" class="key-msg @(IsWarning(ClaudeSlot.NewState) ? "warn" : null)" role="status">
                     @if (ClaudeSlot.NewState == KeyCheckState.Checking)
                     {
                         <Spinner Size="14" />
@@ -53,7 +57,17 @@
                     {
                         <span>@ClaudeFailedText</span>
                     }
+                    else if (ClaudeSlot.NewState == KeyCheckState.Unverified)
+                    {
+                        <span>@UnverifiedText</span>
+                    }
                 </p>
+                @if (ClaudeSlot.NewState == KeyCheckState.Unverified)
+                {
+                    <div class="buttons">
+                        <ActionButton Kind="ButtonKind.Secondary" id="settings-claude-save-unverified" OnClick="SaveUnverifiedClaudeAsync">그대로 저장</ActionButton>
+                    </div>
+                }
                 <div class="buttons">
                     <ActionButton Kind="ButtonKind.Primary" id="settings-claude-save" Disabled="@(!CanConfirmClaude(ClaudeSlot))" OnClick="ConfirmClaudeAsync">@(ClaudeSlot.HasKey ? "연결 확인하고 바꾸기" : "연결 확인하고 저장")</ActionButton>
                     <ActionButton Kind="ButtonKind.Ghost" id="settings-claude-cancel" OnClick="CancelClaudeAsync">취소</ActionButton>
@@ -105,6 +119,10 @@
                             <span class="check off" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
                             <span>연결이 안 됐어요</span>
                             break;
+                        case KeyCheckState.Unverified:
+                            <span class="check off" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
+                            <span>확인하지 못했어요</span>
+                            break;
                         default:
                             <span>아직 확인 안 했어요</span>
                             break;
@@ -119,7 +137,7 @@
                     <input id="settings-openai-key" type="password" value="@OpenAiSlot.NewKey" placeholder="sk-proj- 또는 sk-로 시작해요" autocomplete="off" spellcheck="false" aria-describedby="settings-openai-tip" @oninput="e => Settings.SetNewKey(AgentProvider.OpenAi, e.Value?.ToString())" @onkeydown="OnOpenAiKeyDownAsync" />
                 </div>
                 <p id="settings-openai-tip" class="tip @(IsClaudeText(OpenAiSlot.NewKey) ? "warn" : null)">@OpenAiTip</p>
-                <p id="settings-openai-msg" class="key-msg @(OpenAiSlot.NewState == KeyCheckState.Failed ? "warn" : null)" role="status">
+                <p id="settings-openai-msg" class="key-msg @(IsWarning(OpenAiSlot.NewState) ? "warn" : null)" role="status">
                     @if (OpenAiSlot.NewState == KeyCheckState.Checking)
                     {
                         <Spinner Size="14" />
@@ -129,7 +147,17 @@
                     {
                         <span>연결이 안 됐어요. 열쇠가 맞는지 다시 봐 주세요.</span>
                     }
+                    else if (OpenAiSlot.NewState == KeyCheckState.Unverified)
+                    {
+                        <span>@UnverifiedText</span>
+                    }
                 </p>
+                @if (OpenAiSlot.NewState == KeyCheckState.Unverified)
+                {
+                    <div class="buttons">
+                        <ActionButton Kind="ButtonKind.Secondary" id="settings-openai-save-unverified" OnClick="SaveUnverifiedOpenAiAsync">그대로 저장</ActionButton>
+                    </div>
+                }
                 <div class="buttons">
                     <ActionButton Kind="ButtonKind.Primary" id="settings-openai-save" Disabled="@(!CanConfirmOpenAi(OpenAiSlot))" OnClick="ConfirmOpenAiAsync">연결 확인하고 저장</ActionButton>
                     <ActionButton Kind="ButtonKind.Ghost" id="settings-openai-cancel" OnClick="CancelOpenAiAsync">취소</ActionButton>
@@ -263,6 +291,10 @@
         return key.Length > 8 && !IsClaudeText(key) && slot.NewState != KeyCheckState.Checking;
     }
 
+    private const string UnverifiedText = "열쇠는 맞는 것 같지만 확인 권한이 없어요. 그대로 저장할까요?";
+
+    private static bool IsWarning(KeyCheckState state) => state is KeyCheckState.Failed or KeyCheckState.Unverified;
+
     private static bool IsClaudeText(string text) => (text ?? string.Empty).Trim().StartsWith("sk-ant-", StringComparison.Ordinal);
 
     private static string CheckedNote(KeySlot slot) => slot.CheckedAt is DateTime at
@@ -301,6 +333,24 @@
     {
         if (e.Key == "Enter" && !e.IsComposing)
             await ConfirmClaudeAsync();
+    }
+
+    private async Task SaveUnverifiedClaudeAsync()
+    {
+        if (!Settings.SaveUnverifiedKey(AgentProvider.Claude))
+            return;
+
+        _savedNow = AgentProvider.Claude;
+        await OnFocusRequest.InvokeAsync("#settings-claude-change");
+    }
+
+    private async Task SaveUnverifiedOpenAiAsync()
+    {
+        if (!Settings.SaveUnverifiedKey(AgentProvider.OpenAi))
+            return;
+
+        _savedNow = AgentProvider.OpenAi;
+        await OnFocusRequest.InvokeAsync("#settings-openai-delete");
     }
 
     private async Task VerifyClaudeAsync()

@@ -1,27 +1,42 @@
-﻿<section aria-labelledby="settings-ai-h">
+﻿@using DocuHelper.Agents
+<section aria-labelledby="settings-ai-h">
     <h2 id="settings-ai-h">도우미</h2>
     <p class="lead">입력창 아래에서 바꾼 것도 여기에 같이 바뀌어요.</p>
 
     <div class="row">
         <div class="row-head">
             <span class="row-title">기본 모델</span>
-            <span class="row-note">비용은 Sonnet 5.5 기준이에요.</span>
+            <span class="row-note">비용은 Sonnet 5.5 기준이에요. 열쇠가 있는 회사의 모델만 보여요.</span>
         </div>
         <fieldset class="row-body options">
             <legend class="sr-only">기본 모델</legend>
-            @foreach (var model in Settings.AvailableModels)
+            @foreach (var provider in s_groups)
             {
-                <RadioOption @key="model.Id" Group="settings-model" Value="@model.Id" Class="compact" Selected="@(Settings.Model.Id == model.Id)" OnSelect="Settings.SetModel">
-                    <span class="opt-line">
-                        <span class="opt-name">@model.Name</span>
-                        @if (model.IsDefault)
-                        {
-                            <span class="default-tag">기본</span>
-                        }
-                        <span class="opt-cost">@model.Cost</span>
-                    </span>
-                    <span class="opt-note">@model.Description</span>
-                </RadioOption>
+                if (Settings.HasKey(provider))
+                {
+                    <p class="group-label @(provider == AgentProvider.OpenAi ? "gpt" : null)">@GroupName(provider)</p>
+                    @foreach (var model in AssistantModels.For(provider))
+                    {
+                        <RadioOption @key="model.Id" Group="settings-model" Value="@model.Id" Class="compact" Selected="@(Settings.Model.Id == model.Id)" OnSelect="Settings.SetModel">
+                            <span class="opt-line">
+                                <span class="opt-name">@model.Name</span>
+                                @if (model.IsDefault)
+                                {
+                                    <span class="default-tag">기본</span>
+                                }
+                                <span class="opt-cost">@model.Cost</span>
+                            </span>
+                            <span class="opt-note">@model.Description</span>
+                        </RadioOption>
+                    }
+                }
+                else
+                {
+                    <div class="hint">
+                        <span class="hint-text">@HintText(provider)</span>
+                        <ActionButton Kind="ButtonKind.Secondary" OnClick="() => OpenKeysAsync(provider)">열쇠 넣으러 가기</ActionButton>
+                    </div>
+                }
             }
         </fieldset>
     </div>
@@ -29,7 +44,7 @@
     <div class="row">
         <div class="row-head">
             <span class="row-title">기본 노력</span>
-            <span class="row-note">도우미가 얼마나 깊이 생각할지예요.</span>
+            <span class="row-note">도우미가 얼마나 깊이 생각할지예요. Claude와 ChatGPT 모두 같은 네 단계로 보내요.</span>
         </div>
         <fieldset class="row-body options">
             <legend class="sr-only">기본 노력</legend>
@@ -75,6 +90,24 @@
 @code {
     [Parameter]
     public SettingsStore Settings { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnFocusRequest { get; set; }
+
+    private static readonly AgentProvider[] s_groups = { AgentProvider.Claude, AgentProvider.OpenAi };
+
+    private static string GroupName(AgentProvider provider) => provider == AgentProvider.OpenAi ? "ChatGPT" : "Claude";
+
+    private static string HintText(AgentProvider provider) => provider == AgentProvider.OpenAi
+        ? "ChatGPT 열쇠를 넣으면 ChatGPT 모델도 여기에 나와요."
+        : "Claude 열쇠를 넣으면 Claude 모델도 여기에 나와요.";
+
+    private async Task OpenKeysAsync(AgentProvider provider)
+    {
+        Settings.ShowSection("key");
+        Settings.BeginKeyEdit(provider);
+        await OnFocusRequest.InvokeAsync(provider == AgentProvider.OpenAi ? "#settings-openai-key" : "#settings-claude-key");
+    }
 
     private static bool IsOn(ChangeEventArgs e) => e.Value is bool on ? on : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
 

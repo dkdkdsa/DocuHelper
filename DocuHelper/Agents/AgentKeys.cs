@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace DocuHelper.Agents
 {
@@ -9,10 +10,14 @@ namespace DocuHelper.Agents
         private const string OpenAiPrefix = "sk-";
         private const string Hidden = "••••••••";
         private const int VisibleTail = 4;
+        private const int MaxLength = 256;
 
         public static AgentProvider? Detect(string apiKey)
         {
             var key = apiKey?.Trim() ?? string.Empty;
+            if (!IsWellFormed(key))
+                return null;
+
             if (key.StartsWith(ClaudePrefix, StringComparison.Ordinal))
                 return AgentProvider.Claude;
 
@@ -34,6 +39,10 @@ namespace DocuHelper.Agents
 
             return prefix + Hidden + key[^VisibleTail..];
         }
+
+        private static bool IsWellFormed(string key) => key.Length > 0
+            && key.Length <= MaxLength
+            && key.All(c => !char.IsWhiteSpace(c) && !char.IsControl(c));
 
         private static string PrefixOf(string key)
         {

@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 
 namespace DocuHelper.Agents
 {
@@ -7,6 +8,8 @@ namespace DocuHelper.Agents
         public HttpStatusCode Status { get; set; }
 
         public string Body { get; set; }
+
+        public TimeSpan? RetryAfter { get; set; }
 
         public bool IsSuccess => (int)Status is >= 200 and < 300;
     }

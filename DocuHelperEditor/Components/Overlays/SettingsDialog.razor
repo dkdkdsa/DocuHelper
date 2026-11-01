@@ -9,10 +9,10 @@
         <span class="sr-only" tabindex="0" @onfocus="FocusLastAsync"></span>
         <div id="settings-dialog" class="dialog" role="dialog" aria-modal="true" aria-labelledby="settings-h" tabindex="-1" data-chrome @onkeydown="OnKeyDownAsync">
             <div class="head">
-                <span class="badge" aria-hidden="true"><Icon Name="settings" Size="18" /></span>
+                <span class="badge" aria-hidden="true"><Icon Name="settings" Size="18" Stroke="2.1" /></span>
                 <h1 id="settings-h">설정</h1>
                 <span class="autosave">바꾸면 바로 저장돼요</span>
-                <IconButton Icon="x" IconSize="20" Label="설정 닫기" Title="닫기 (Esc)" id="settings-close" OnClick="CloseAsync" />
+                <IconButton Icon="x" IconSize="20" Stroke="2.2" Label="설정 닫기" Title="닫기 (Esc)" id="settings-close" OnClick="CloseAsync" />
             </div>
 
             <div class="body">
@@ -42,7 +42,7 @@
                     @switch (Settings.DialogSection)
                     {
                         case "ai":
-                            <AssistantSection Settings="Settings" />
+                            <AssistantSection Settings="Settings" OnFocusRequest="FocusAsync" />
                             break;
 
                         case "folder":
@@ -85,9 +85,22 @@
 
     private bool _shown;
     private bool _recentsCleared;
+    private string _scrolledSection;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (Settings.IsDialogOpen && Settings.DialogSection != _scrolledSection)
+        {
+            _scrolledSection = Settings.DialogSection;
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelper.scrollToTop", "#settings-dialog .content");
+            }
+            catch (JSException)
+            {
+            }
+        }
+
         if (Settings.IsDialogOpen == _shown)
             return;
 
