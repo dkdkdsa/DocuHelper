@@ -17,7 +17,7 @@
                 <button type="button" id="@ThumbId(index)" class="th @(active ? "on" : null)" aria-label="@ThumbLabel(index, changed)" aria-pressed="@(active ? "true" : "false")" tabindex="@(active ? 0 : -1)" @onclick="() => SelectSlide(index)" @onkeydown="e => HandleKey(e, index)">
                     <span class="num" aria-hidden="true">@(index + 1)</span>
                     <span class="mini" aria-hidden="true">
-                        <SlideCanvas Slide="slide" AspectRatio="AspectRatio" Locked="true" ShowFit="false" />
+                        <SlideCanvas Slide="slide" AspectRatio="AspectRatio" Locked="true" ShowFit="false" HighlightId="@HighlightId" LiveChanges="LiveChanges" />
                     </span>
                 </button>
             </li>
@@ -38,6 +38,9 @@
 
     [Parameter]
     public double AspectRatio { get; set; } = 16.0 / 9.0;
+
+    [Parameter]
+    public string HighlightId { get; set; }
 
     [Parameter]
     public HashSet<string> LiveChanges { get; set; }
