@@ -35,6 +35,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.Symbol] = context => Symbol(context),
             [ExcelDialogIds.ProtectBook] = context => ProtectBook(context),
             [ExcelDialogIds.FormatCells] = context => FormatCells(context),
+            [ExcelDialogIds.HeaderFooter] = context => HeaderFooter(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -481,6 +482,38 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                     return "웹 주소 형식을 확인해 주세요.";
             }
         }
+
+        private static ExcelNamedDialog HeaderFooter(ExcelDialogContext context) => new(
+            "set_print_setup",
+            "머리글/바닥글",
+            new[]
+            {
+                WordNamedDialogs.Text("header_left", "머리글 왼쪽 (쪽 번호는 &P)", string.Empty),
+                WordNamedDialogs.Text("header_center", "머리글 가운데", string.Empty),
+                WordNamedDialogs.Text("header_right", "머리글 오른쪽", string.Empty),
+                WordNamedDialogs.Text("footer_left", "바닥글 왼쪽", string.Empty),
+                WordNamedDialogs.Text("footer_center", "바닥글 가운데 (쪽 번호는 &P)", string.Empty),
+                WordNamedDialogs.Text("footer_right", "바닥글 오른쪽 (날짜는 &D)", string.Empty),
+            },
+            values => HeaderFooterLength(values),
+            (values, context) => new JsonObject
+            {
+                ["sheet"] = context.Sheet,
+                ["header"] = HeaderFooterParts(values, "header"),
+                ["footer"] = HeaderFooterParts(values, "footer"),
+            });
+
+        private static JsonObject HeaderFooterParts(IReadOnlyDictionary<string, JsonNode> values, string prefix) => new()
+        {
+            ["left"] = WordNamedDialogs.Text(values, prefix + "_left"),
+            ["center"] = WordNamedDialogs.Text(values, prefix + "_center"),
+            ["right"] = WordNamedDialogs.Text(values, prefix + "_right"),
+        };
+
+        private static string HeaderFooterLength(IReadOnlyDictionary<string, JsonNode> values) =>
+            values.Keys.Any(key => WordNamedDialogs.Text(values, key).Length > 255)
+                ? "머리글과 바닥글의 각 칸은 255자 이하로 써 주세요."
+                : null;
 
         private static void AddText(JsonObject args, string key, string value)
         {
