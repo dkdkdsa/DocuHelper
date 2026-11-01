@@ -61,6 +61,83 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
+        private void FixDialogArgs(HwpCommandSpec spec, Run run, JsonObject args)
+        {
+            if (run.Fields == null)
+                return;
+
+            switch (spec.Id)
+            {
+                case "hwp.edit.format.para":
+                    if (args["line_spacing"] is JsonObject spacing && spacing["value"] == null)
+                        args.Remove("line_spacing");
+
+                    args.Remove("page_break_before");
+
+                    switch (FieldText(run, "first_mode"))
+                    {
+                        case "indent":
+                            args.Remove("hanging_cm");
+                            break;
+                        case "outdent":
+                            args.Remove("first_line_cm");
+                            break;
+                        default:
+                            args.Remove("first_line_cm");
+                            args.Remove("hanging_cm");
+                            break;
+                    }
+
+                    break;
+                case "hwp.page.setup.paper":
+                    if (FieldText(run, "size") == "custom")
+                    {
+                        args["size"] = "custom";
+                    }
+                    else
+                    {
+                        args.Remove("width_cm");
+                        args.Remove("height_cm");
+                    }
+
+                    break;
+                case "hwp.page.look.pagenumber":
+                    var position = FieldText(run, "position") ?? string.Empty;
+                    var align = PageNumberAlign(position);
+                    args["page_number"] = new JsonObject
+                    {
+                        ["position"] = position.StartsWith("없음", StringComparison.Ordinal) ? "none" : position.EndsWith("위", StringComparison.Ordinal) ? "top" : "bottom",
+                        ["align"] = align,
+                        ["style"] = FieldBool(run, "dash") ? "dash" : "plain",
+                        ["format"] = PageNumberFormat(FieldText(run, "format")),
+                        ["start_at"] = args["page_number"]?["start_at"]?.DeepClone() ?? JsonValue.Create(1),
+                    };
+                    break;
+            }
+        }
+
+        private string FieldText(Run run, string name) =>
+            run.Fields.TryGetValue(name, out var node) && node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+
+        private bool FieldBool(Run run, string name) =>
+            run.Fields.TryGetValue(name, out var node) && node is JsonValue value && value.TryGetValue<bool>(out var flag) && flag;
+
+        private static string PageNumberAlign(string position) =>
+            position.StartsWith("왼쪽", StringComparison.Ordinal) ? "left"
+            : position.StartsWith("오른쪽", StringComparison.Ordinal) ? "right"
+            : position.StartsWith("바깥쪽", StringComparison.Ordinal) ? "outside"
+            : position.StartsWith("안쪽", StringComparison.Ordinal) ? "inside"
+            : "center";
+
+        private static string PageNumberFormat(string label) => label switch
+        {
+            "I, II, III" => "upper_roman",
+            "i, ii, iii" => "lower_roman",
+            "A, B, C" => "upper_alpha",
+            "a, b, c" => "lower_alpha",
+            _ => "decimal",
+        };
+
         private IReadOnlyList<EditCommand> BuildEdits(HwpCommandSpec spec, string arg)
         {
             if (s_levelSteps.TryGetValue(spec.Id, out var step) && Block != null && Block.ListKind != WordListKind.None && HasTool("set_list"))
@@ -84,6 +161,8 @@ namespace DocuHelperEditor.State.Ribbon
 
                     break;
             }
+
+            FixDialogArgs(spec, run, args);
 
             if (s_colorOwners.Contains(spec.Id))
                 RememberColor(spec.Id, arg);
@@ -417,7 +496,7 @@ namespace DocuHelperEditor.State.Ribbon
         {
             var spec = run.Spec;
             var entry = run.Entry;
-            if (entry?.Picker == "image")
+            if (entry?.Picker == "image" || entry?.Dialog == "pickPicture")
             {
                 if (_files == null)
                     return false;

@@ -15,7 +15,7 @@ namespace DocuHelperEditor.State.Ribbon
 
     public static class WordNamedDialogs
     {
-        private static readonly string[] s_none = Array.Empty<string>();
+        internal static readonly string[] s_none = Array.Empty<string>();
 
         private static readonly Dictionary<string, WordNamedDialog> s_dialogs = new(StringComparer.Ordinal)
         {
@@ -35,10 +35,13 @@ namespace DocuHelperEditor.State.Ribbon
         public static bool TryGet(string commandId, string dialogName, out WordNamedDialog dialog)
         {
             dialog = null;
-            return commandId != null && dialogName != null && s_dialogs.TryGetValue(Key(commandId, dialogName), out dialog);
+            if (commandId == null || dialogName == null)
+                return false;
+
+            return s_dialogs.TryGetValue(Key(commandId, dialogName), out dialog) || HwpNamedDialogs.TryGet(commandId, dialogName, out dialog);
         }
 
-        private static string Key(string commandId, string dialogName) => commandId + "|" + dialogName;
+        internal static string Key(string commandId, string dialogName) => commandId + "|" + dialogName;
 
         private static WordNamedDialog InsertTable() => new(
             "표 삽입",
@@ -253,33 +256,33 @@ namespace DocuHelperEditor.State.Ribbon
                 },
             });
 
-        private static WordDialogField Text(string name, string label, string value) =>
+        internal static WordDialogField Text(string name, string label, string value) =>
             new(name, label, "text", JsonSerializer.Serialize(value), s_none, s_none);
 
-        private static WordDialogField Number(string name, string label, string value) =>
+        internal static WordDialogField Number(string name, string label, string value) =>
             new(name, label, "number", value, s_none, s_none);
 
-        private static WordDialogField Flag(string name, string label, string value) =>
+        internal static WordDialogField Flag(string name, string label, string value) =>
             new(name, label, "bool", value, s_none, s_none);
 
-        private static WordDialogField Color(string name, string label, string value) =>
+        internal static WordDialogField Color(string name, string label, string value) =>
             new(name, label, "color", JsonSerializer.Serialize(value), s_none, s_none);
 
-        private static WordDialogField Choice(string name, string label, string value, IReadOnlyList<string> options, IReadOnlyList<string> labels) =>
+        internal static WordDialogField Choice(string name, string label, string value, IReadOnlyList<string> options, IReadOnlyList<string> labels) =>
             new(name, label, "choice", JsonSerializer.Serialize(value), options, labels);
 
-        private static string Text(IReadOnlyDictionary<string, JsonNode> values, string name) =>
+        internal static string Text(IReadOnlyDictionary<string, JsonNode> values, string name) =>
             values.TryGetValue(name, out var node) && node is JsonValue value && value.TryGetValue<string>(out var text) ? text : string.Empty;
 
-        private static double Num(IReadOnlyDictionary<string, JsonNode> values, string name) =>
+        internal static double Num(IReadOnlyDictionary<string, JsonNode> values, string name) =>
             values.TryGetValue(name, out var node) && node is JsonValue value && value.TryGetValue<double>(out var number) ? number : 0;
 
-        private static int Count(IReadOnlyDictionary<string, JsonNode> values, string name) => (int)Num(values, name);
+        internal static int Count(IReadOnlyDictionary<string, JsonNode> values, string name) => (int)Num(values, name);
 
-        private static bool Flag(IReadOnlyDictionary<string, JsonNode> values, string name) =>
+        internal static bool Flag(IReadOnlyDictionary<string, JsonNode> values, string name) =>
             values.TryGetValue(name, out var node) && node is JsonValue value && value.TryGetValue<bool>(out var flag) && flag;
 
-        private static string Range(IReadOnlyDictionary<string, JsonNode> values, string name, double min, double max, string label)
+        internal static string Range(IReadOnlyDictionary<string, JsonNode> values, string name, double min, double max, string label)
         {
             var number = Num(values, name);
             return number < min || number > max
@@ -287,7 +290,7 @@ namespace DocuHelperEditor.State.Ribbon
                 : null;
         }
 
-        private static string Length(string text, int min, int max) =>
+        internal static string Length(string text, int min, int max) =>
             text.Length < min || text.Length > max ? $"글은 {min}~{max}자로 써 주세요." : null;
 
         private static bool Link(string url) =>
@@ -295,12 +298,12 @@ namespace DocuHelperEditor.State.Ribbon
             || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             || url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase);
 
-        private static string Tokens(string text) =>
+        internal static string Tokens(string text) =>
             text.Replace("{쪽}", "{page}", StringComparison.Ordinal)
                 .Replace("{전체쪽}", "{pages}", StringComparison.Ordinal)
                 .Replace("{날짜}", "{date}", StringComparison.Ordinal);
 
-        private static string SymbolOf(string text)
+        internal static string SymbolOf(string text)
         {
             var trimmed = text.Trim();
             if (trimmed.Length == 0)

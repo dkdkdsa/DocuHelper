@@ -95,7 +95,6 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordDialogField("space_before_pt", "문단 위 (pt)", "number", "\"{cur.spaceBeforePt}\"", Array.Empty<string>(), Array.Empty<string>()),
                     new WordDialogField("space_after_pt", "문단 아래 (pt)", "number", "\"{cur.spaceAfterPt}\"", Array.Empty<string>(), Array.Empty<string>()),
                     new WordDialogField("keep_with_next", "다음 문단과 함께", "bool", "\"{cur.keepWithNext}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("page_break_before", "문단 앞에서 쪽 나눔", "bool", "\"{cur.pageBreakBefore}\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -1009,7 +1008,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Dialog = new WordDialogSpec("쪽 번호 매기기", new[]
                 {
                     new WordDialogField("position", "번호 위치", "choice", "\"가운데 아래\"", new string[] { "없음", "왼쪽 위", "가운데 위", "오른쪽 위", "왼쪽 아래", "가운데 아래", "오른쪽 아래", "바깥쪽 위", "바깥쪽 아래", "안쪽 위", "안쪽 아래" }, Array.Empty<string>()),
-                    new WordDialogField("format", "번호 모양", "choice", "\"1, 2, 3\"", new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c", "가, 나, 다" }, Array.Empty<string>()),
+                    new WordDialogField("format", "번호 모양", "choice", "\"1, 2, 3\"", new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c" }, new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c" }),
                     new WordDialogField("dash", "줄표 넣기 (- 1 -)", "bool", "true", Array.Empty<string>(), Array.Empty<string>()),
                     new WordDialogField("start_at", "시작 번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
                 }),

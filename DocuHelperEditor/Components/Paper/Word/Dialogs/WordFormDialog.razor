@@ -144,7 +144,7 @@
         if (Request.Defaults.TryGetValue(field.Name, out var node) && Text(node) is string given)
             return given;
 
-        if (!string.IsNullOrEmpty(field.Default) && Text(JsonNode.Parse(field.Default)) is string parsed)
+        if (!string.IsNullOrEmpty(field.Default) && !field.Default.Contains('{') && Text(JsonNode.Parse(field.Default)) is string parsed)
             return parsed;
 
         if (field.Type == "bool")
@@ -202,6 +202,9 @@
         foreach (var field in Request.Fields)
         {
             var raw = Value(field);
+            if (field.Type == "number" && raw.Length == 0)
+                continue;
+
             if (field.Type == "number" && !double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
             {
                 _error = $"“{field.Label}”에는 숫자를 넣어 주세요.";
@@ -225,6 +228,9 @@
         foreach (var field in Request.Fields)
         {
             var raw = Value(field);
+            if (field.Type == "number" && raw.Length == 0)
+                continue;
+
             values[field.Name] = field.Type switch
             {
                 "number" => JsonValue.Create(double.Parse(raw, NumberStyles.Float, CultureInfo.InvariantCulture)),
