@@ -129,6 +129,7 @@
     private const double DefaultViewHeight = 900;
     private const int Overscan = 20;
     private const int MaxMergeRows = 500;
+    private const double MaxGridHeightPx = 32000000;
 
     private ElementReference _grid;
     private IJSObjectReference _module;
@@ -257,7 +258,7 @@
 
     protected override void OnParametersSet()
     {
-        _rowCount = Sheet?.DisplayRowCount ?? 0;
+        _rowCount = Math.Min(Sheet?.DisplayRowCount ?? 0, MaxRowsForZoom());
         _growPending = false;
         if (!SheetRef.TryParse(SelectedRef, out _selectedColumn, out _selectedRow))
         {
@@ -359,7 +360,7 @@
             StateHasChanged();
         }
 
-        if (!_growPending && _rowCount > 0 && _rowCount < ExcelViewState.MaxRows && OnNeedRows.HasDelegate && _tops[_rowCount] - (_viewTop + _viewHeight) < _viewHeight * 2)
+        if (!_growPending && _rowCount > 0 && _rowCount == Sheet.DisplayRowCount && _rowCount < ExcelViewState.MaxRows && OnNeedRows.HasDelegate && _tops[_rowCount] - (_viewTop + _viewHeight) < _viewHeight * 2)
         {
             _growPending = true;
             await OnNeedRows.InvokeAsync();
@@ -611,6 +612,8 @@
 
         return low;
     }
+
+    private int MaxRowsForZoom() => (int)(MaxGridHeightPx / (DefaultRowPx * Zoom / 100.0));
 
     private static string Px(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 
