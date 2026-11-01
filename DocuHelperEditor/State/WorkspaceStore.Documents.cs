@@ -174,6 +174,12 @@ namespace DocuHelperEditor.State
             if (file == null || !file.IsDirty)
                 return Task.CompletedTask;
 
+            if (_workspace.IsAgentRunning)
+            {
+                RaiseNotice("도우미가 일하는 중에는 저장할 수 없어요.");
+                return Task.CompletedTask;
+            }
+
             if (file.Docu == null)
             {
                 _savedChangeIds.UnionWith(file.Changes.Select(c => c.Id));
@@ -194,6 +200,12 @@ namespace DocuHelperEditor.State
 
         public Task SaveAllAsync()
         {
+            if (_workspace.IsAgentRunning && UnsavedCount > 0)
+            {
+                RaiseNotice("도우미가 일하는 중에는 저장할 수 없어요.");
+                return Task.CompletedTask;
+            }
+
             if (!CanSaveAll)
                 return Task.CompletedTask;
 
