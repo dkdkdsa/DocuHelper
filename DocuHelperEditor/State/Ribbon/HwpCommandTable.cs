@@ -243,7 +243,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_object",
                 Args = """{"action":"insert","kind":"picture","at":"{caret}","picture":{"path":"{file}","alt":"{alt}"}}""",
-                Reason = "그림은 아직 한글 파일에 저장되지 않아요. 한글에서 넣어 주세요.",
+                Reason = "그림을 넣을 문단을 골라 주세요.",
                 Gates = new[] { "Pictures" },
                 Menu = new[]
                 {

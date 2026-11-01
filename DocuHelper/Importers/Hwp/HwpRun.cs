@@ -33,5 +33,7 @@
         public string Font { get; set; }
 
         public string Field { get; set; }
+
+        public HwpPicture Picture { get; set; }
     }
 }

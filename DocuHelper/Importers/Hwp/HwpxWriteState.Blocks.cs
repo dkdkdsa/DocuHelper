@@ -69,6 +69,13 @@ namespace DocuHelper.Importers.Hwp
                 if (fields.Skip.Contains(run))
                     continue;
 
+                foreach (var drawing in run.Descendants<Drawing>())
+                {
+                    var picture = PictureOf(drawing);
+                    if (picture != null)
+                        runs.Add(new XElement(Hp + "run", new XAttribute("charPrIDRef", Number(CharId(CharKeyOf(run, paragraph)))), picture));
+                }
+
                 var content = RunContent(run, ref pageBreak, ref columnBreak, runs.Count == 0);
                 if (content.Count == 0)
                     continue;

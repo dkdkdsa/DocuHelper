@@ -51,6 +51,12 @@ namespace DocuHelper.Importers.Hwp
 
             foreach (var run in source.Runs)
             {
+                if (run.Picture != null)
+                {
+                    paragraph.AppendChild(new Run(HwpWordPictures.PictureDrawing(run.Picture)));
+                    continue;
+                }
+
                 if (run.Field == "PAGE")
                     HwpWordRuns.AppendField(paragraph, run);
                 else

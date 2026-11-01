@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.IO.Compression;
 using System.Text;
 using System.Xml;
@@ -18,7 +20,7 @@ namespace DocuHelper.Importers.Hwp
         OmitXmlDeclaration = false,
     };
 
-        internal static byte[] Pack(XElement header, XElement section)
+        internal static byte[] Pack(XElement header, XElement section, IReadOnlyList<HwpxBinary> binaries)
         {
             using var output = new MemoryStream();
             using (var zip = new ZipArchive(output, ZipArchiveMode.Create, true))
@@ -34,9 +36,16 @@ namespace DocuHelper.Importers.Hwp
                 Add(zip, "Contents/header.xml", header);
                 Add(zip, "Contents/section0.xml", section);
                 Add(zip, "settings.xml", Settings());
+                foreach (var binary in binaries)
+                {
+                    var entry = zip.CreateEntry(binary.Path, CompressionLevel.Optimal);
+                    using var stream = entry.Open();
+                    stream.Write(binary.Bytes, 0, binary.Bytes.Length);
+                }
+
                 Add(zip, "META-INF/container.xml", Container());
                 Add(zip, "META-INF/manifest.xml", new XElement(Odf + "manifest", new XAttribute(XNamespace.Xmlns + "odf", Odf)));
-                Add(zip, "Contents/content.hpf", Package());
+                Add(zip, "Contents/content.hpf", Package(binaries));
             }
 
             return output.ToArray();
@@ -73,7 +82,7 @@ namespace DocuHelper.Importers.Hwp
         new XElement(Ocf + "rootfiles",
             new XElement(Ocf + "rootfile", new XAttribute("full-path", "Contents/content.hpf"), new XAttribute("media-type", "application/hwpml-package+xml"))));
 
-    private static XElement Package() => new(Opf + "package",
+    private static XElement Package(IReadOnlyList<HwpxBinary> binaries) => new(Opf + "package",
         Namespaces(),
         new XAttribute("version", ""),
         new XAttribute("unique-identifier", ""),
@@ -84,7 +93,8 @@ namespace DocuHelper.Importers.Hwp
         new XElement(Opf + "manifest",
             Item("header", "Contents/header.xml"),
             Item("section0", "Contents/section0.xml"),
-            Item("settings", "settings.xml")),
+            Item("settings", "settings.xml"),
+            binaries.Select(b => new XElement(Opf + "item", new XAttribute("id", b.Id), new XAttribute("href", b.Path), new XAttribute("media-type", b.MediaType), new XAttribute("isEmbeded", "1")))),
         new XElement(Opf + "spine",
             new XElement(Opf + "itemref", new XAttribute("idref", "header"), new XAttribute("linear", "yes")),
             new XElement(Opf + "itemref", new XAttribute("idref", "section0"), new XAttribute("linear", "yes"))));

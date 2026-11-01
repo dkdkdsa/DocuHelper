@@ -49,6 +49,7 @@ namespace DocuHelper.Importers.Hwp
                     body.AppendChild(element);
 
                 body.AppendChild(section);
+                HwpWordPictures.Embed(word, document.Pictures);
 
                 word.MainDocumentPart.Document.Save();
             }

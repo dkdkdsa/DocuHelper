@@ -37,7 +37,7 @@ namespace DocuHelper.Importers.Hwp
 
             HwpFeature.Sections => false,
 
-            HwpFeature.Pictures => false,
+            HwpFeature.Pictures => true,
 
             HwpFeature.Notes => false,
 

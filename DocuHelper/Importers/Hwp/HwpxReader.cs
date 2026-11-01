@@ -18,7 +18,7 @@ namespace DocuHelper.Importers.Hwp
                     throw new HwpException(Locked);
 
                 var document = new HwpDocument { Signed = package.IsSigned() };
-                var body = new HwpxBody(new HwpxHeader(package.Header()), document);
+                var body = new HwpxBody(new HwpxHeader(package.Header()), document) { Binaries = package.Binary };
                 var first = true;
                 foreach (var section in package.Sections())
                 {

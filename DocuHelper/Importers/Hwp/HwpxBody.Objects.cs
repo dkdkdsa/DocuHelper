@@ -72,6 +72,41 @@ namespace DocuHelper.Importers.Hwp
             }
         }
 
+        private void ReadPicture(XElement element, HwpxRunBuilder runs)
+        {
+            var id = HwpxXml.Attribute(HwpxXml.Child(element, "img"), "binaryItemIDRef");
+            var binary = Binaries?.Invoke(id);
+            var contentType = binary == null ? null : ContentTypeOf(binary.Value.Extension);
+            if (contentType == null)
+            {
+                _document.Skipped.Add(HwpSkipped.Picture);
+                return;
+            }
+
+            var size = HwpxXml.Child(element, "sz") ?? HwpxXml.Child(element, "curSz");
+            var picture = new HwpPicture
+            {
+                Index = _document.Pictures.Count,
+                Bytes = binary.Value.Bytes,
+                Extension = binary.Value.Extension,
+                ContentType = contentType,
+                Width = Math.Max(0, HwpxXml.Int(size, "width", 0)),
+                Height = Math.Max(0, HwpxXml.Int(size, "height", 0)),
+                AltText = HwpxXml.Child(element, "shapeComment")?.Value,
+            };
+            _document.Pictures.Add(picture);
+            runs.AppendPicture(picture);
+        }
+
+        private static string ContentTypeOf(string extension) => extension switch
+        {
+            "png" => "image/png",
+            "jpg" or "jpeg" => "image/jpeg",
+            "gif" => "image/gif",
+            "bmp" => "image/bmp",
+            _ => null,
+        };
+
         private void Skip(HwpSkipped kind, XElement element, List<HwpBlock> anchored)
         {
             _document.Skipped.Add(kind);

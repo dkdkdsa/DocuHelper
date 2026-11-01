@@ -77,8 +77,11 @@ namespace DocuHelper.Tools.Word
 
             var document = docu.Document;
             var scan = WordScan.Read(document);
-            if (docu is HwpDocu)
+            if (docu is HwpDocu && kind != "picture")
                 return InsertInHwp(docu, scan, input, kind);
+
+            if (docu is HwpDocu)
+                HwpGuard.Require(docu, HwpFeature.Pictures, "그림");
 
             var at = input.Has("at") ? input.Get("at") : default;
             if (at.ValueKind == JsonValueKind.Undefined || at.ValueKind == JsonValueKind.Null)

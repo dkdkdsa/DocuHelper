@@ -95,6 +95,18 @@ namespace DocuHelper.Importers.Hwp
             return _items.TryGetValue(id, out var href) ? Load(Resolve(href)) : null;
         }
 
+        public (byte[] Bytes, string Extension)? Binary(string id)
+        {
+            Index();
+            if (id == null || !_items.TryGetValue(id, out var href) || !_entries.TryGetValue(Normalize(Resolve(href)), out var entry))
+                return null;
+
+            using var stream = entry.Open();
+            using var memory = new MemoryStream();
+            stream.CopyTo(memory);
+            return (memory.ToArray(), Path.GetExtension(href).TrimStart('.').ToLowerInvariant());
+        }
+
         public void Dispose() => _archive.Dispose();
 
         private string HeaderPath()

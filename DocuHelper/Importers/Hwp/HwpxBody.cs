@@ -117,6 +117,8 @@ namespace DocuHelper.Importers.Hwp
             _deleting = deleting;
         }
 
+        internal Func<string, (byte[] Bytes, string Extension)?> Binaries { get; set; }
+
         private HwpxBorderFill BorderOf(int id)
         {
             var fill = _header.BorderFill(id);
@@ -180,6 +182,9 @@ namespace DocuHelper.Importers.Hwp
                 case "ctrl":
                     foreach (var control in HwpxXml.Children(element))
                         ReadControl(control, shape, runs);
+                    break;
+                case "pic":
+                    ReadPicture(element, runs);
                     break;
                 case "compose":
                     Emit(HwpxXml.Attribute(element, "composeText"), shape, runs);
