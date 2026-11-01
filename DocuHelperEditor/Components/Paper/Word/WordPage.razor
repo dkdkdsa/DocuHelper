@@ -1,6 +1,7 @@
 ﻿@using System.Globalization
 @using DocuHelper.Tools.Word
 @using DocuHelperEditor.State
+@using DocuHelperEditor.State.Ribbon
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
@@ -22,27 +23,16 @@
                 <article class="@PageClass" aria-label="@($"{page}쪽")"><div class="sheet">
                     @foreach (var run in Runs(blocks))
                     {
-                        if (run.Kind == WordListKind.Number)
+                        if (run.Kind == WordListKind.None)
                         {
-                            <ol class="list" @key="run.Key">
-                                @foreach (var block in run.Blocks)
-                                {
-                                    <li @key="block.Id">@(BlockView(block, page))</li>
-                                }
-                            </ol>
-                        }
-                        else if (run.Kind == WordListKind.Bullet)
-                        {
-                            <ul class="list" @key="run.Key">
-                                @foreach (var block in run.Blocks)
-                                {
-                                    <li @key="block.Id">@(BlockView(block, page))</li>
-                                }
-                            </ul>
+                            @(BlockView(run.Blocks[0], page))
                         }
                         else
                         {
-                            @(BlockView(run.Blocks[0], page))
+                            foreach (var block in run.Blocks)
+                            {
+                                <div @key="block.Id">@(BlockView(block, page))</div>
+                            }
                         }
                     }
                 </div></article>
@@ -147,6 +137,24 @@
     }
 
     [JSInvokable]
+    public Task Shortcut(string key)
+    {
+        var hwp = File?.Type == DocuType.Hwp;
+        var command = (hwp, key) switch
+        {
+            (true, "b") => "hwp.fmt.bold",
+            (true, "i") => "hwp.fmt.italic",
+            (true, "u") => "hwp.fmt.underline",
+            (false, "b") => "word.home.font.bold",
+            (false, "i") => "word.home.font.italic",
+            (false, "u") => "word.home.font.underline",
+            _ => null,
+        };
+        RibbonRouter router = hwp ? HwpRibbonState.Of(File)?.Router : WordRibbonState.Of(File)?.Router;
+        return command == null || router == null ? Task.CompletedTask : router.InvokeAsync(command, null);
+    }
+
+    [JSInvokable]
     public void Selected(string json)
     {
         var model = Model;
@@ -213,6 +221,10 @@
             {
                 <span class="bar" aria-hidden="true"></span>
             }
+            @if (block.ListLabel != null)
+            {
+                <span class="lbl" contenteditable="false" aria-hidden="true">@block.ListLabel</span>
+            }
             @switch (block.Kind)
             {
                 case WordBlockKind.Heading1:
@@ -267,7 +279,7 @@
                             if (table.IsCovered(0, column))
                                 continue;
 
-                            <th scope="col" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
+                            <th scope="col" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, 0, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
                         }
                     </tr>
                 </thead>
@@ -282,7 +294,7 @@
                             if (table.IsCovered(row, column))
                                 continue;
 
-                            <td rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
+                            <td rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, row, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
                         }
                     </tr>
                 }
@@ -298,7 +310,7 @@
                             if (table.IsCovered(footer, column))
                                 continue;
 
-                            <td colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
+                            <td colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, footer, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
                         }
                     </tr>
                 </tfoot>
@@ -337,6 +349,9 @@
             _ => "blk k-body",
         };
 
+        if (block.ListLabel != null)
+            classes += " list";
+
         return block.Source == null ? classes : classes + " has-note";
     }
 
@@ -370,6 +385,10 @@
     private static string BlockStyle(WordBlockModel block, WordFragment? fragment)
     {
         var style = new List<string> { "margin: 0" };
+        var paragraph = ParagraphStyle(block);
+        if (paragraph != null)
+            style.Add(paragraph);
+
         if (block.FontSize > 0)
             style.Add("font-size: " + Length(block.FontSize));
 
@@ -519,30 +538,162 @@
         var sequence = 0;
         foreach (var segment in block.Segments)
         {
+            var look = segment.Look;
             builder.OpenElement(sequence++, "span");
-            builder.AddAttribute(sequence++, "class", SegmentClass(segment));
-            builder.AddContent(sequence++, segment.Text);
+            if (look.Mark == "bm")
+            {
+                builder.AddAttribute(sequence++, "class", "mk-bm");
+                builder.AddAttribute(sequence++, "data-bookmark", look.MarkText);
+            }
+            else if (look.Mark != null)
+            {
+                builder.AddAttribute(sequence++, "class", "mk-fn");
+                builder.AddAttribute(sequence++, "data-note", look.MarkText);
+            }
+            else
+            {
+                builder.AddAttribute(sequence++, "class", look.Link ? "seg lnk" : "seg");
+                builder.AddAttribute(sequence++, "style", SegmentStyle(look));
+                builder.AddContent(sequence++, segment.Text);
+            }
+
             builder.CloseElement();
         }
     };
 
-    private static string SegmentClass(WordCharSegment segment)
+    private static string SegmentStyle(WordCharLook look)
     {
-        var classes = "seg";
-        if (segment.Bold)
-            classes += " b";
+        var css = new List<string>();
+        if (look.Bold)
+            css.Add("font-weight: 700");
 
-        if (segment.Italic)
-            classes += " i";
+        if (look.Italic)
+            css.Add("font-style: italic");
 
-        if (segment.Underline)
-            classes += " u";
+        var lines = new List<string>();
+        if (look.Underline != null)
+            lines.Add("underline");
 
-        if (segment.Strike)
-            classes += " s";
+        if (look.Strike)
+            lines.Add("line-through");
 
-        return classes;
+        if (lines.Count > 0)
+            css.Add("text-decoration-line: " + string.Join(" ", lines));
+
+        if (look.Underline != null && look.Underline != "single")
+            css.Add("text-decoration-style: " + UnderlineStyle(look.Underline));
+
+        if (look.Underline == "thick")
+            css.Add("text-decoration-thickness: 3px");
+
+        if (look.Color != null)
+            css.Add("color: #" + look.Color);
+
+        if (look.Highlight != null)
+            css.Add("background-color: #" + look.Highlight);
+
+        if (IsFontName(look.Font))
+            css.Add("font-family: '" + look.Font + "', var(--font-body)");
+
+        if (look.SizePt > 0)
+            css.Add("font-size: " + Length(look.SizePt));
+
+        if (look.SpacingPt != 0)
+            css.Add("letter-spacing: " + Length(look.SpacingPt));
+
+        if (look.Caps)
+            css.Add("text-transform: uppercase");
+
+        if (look.SmallCaps)
+            css.Add("font-variant: small-caps");
+
+        if (look.Vertical == "super")
+            css.Add("vertical-align: super; font-size: 0.75em");
+
+        if (look.Vertical == "sub")
+            css.Add("vertical-align: sub; font-size: 0.75em");
+
+        return string.Join("; ", css);
     }
+
+    private static string UnderlineStyle(string kind) => kind switch
+    {
+        "double" => "double",
+        "dotted" => "dotted",
+        "dash" => "dashed",
+        "wave" => "wavy",
+        _ => "solid",
+    };
+
+    private static bool IsFontName(string name) =>
+        !string.IsNullOrEmpty(name) && name.All(c => char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '.');
+
+    private static string CellStyleOf(WordTableModel table, int row, int column)
+    {
+        if (!table.CellLooks.TryGetValue((row, column), out var look))
+            return null;
+
+        var css = new List<string>();
+        if (look.Shade != null)
+            css.Add("background-color: #" + look.Shade);
+
+        if (look.Vertical != "top")
+            css.Add("vertical-align: " + look.Vertical);
+
+        return css.Count == 0 ? null : string.Join("; ", css);
+    }
+
+    private static string ParagraphStyle(WordBlockModel block)
+    {
+        var look = block.Look;
+        if (look == null || block.IsTable)
+            return null;
+
+        var css = new List<string>();
+        var align = look.Align switch
+        {
+            "center" => "center",
+            "right" => "right",
+            "justify" => "justify",
+            "distribute" => "justify",
+            _ => null,
+        };
+        if (align != null)
+            css.Add("text-align: " + align);
+
+        if (look.Align == "distribute")
+            css.Add("text-align-last: justify");
+
+        if (block.ListLabel == null)
+        {
+            if (look.LeftPt > 0)
+                css.Add("padding-left: " + Length(look.LeftPt));
+
+            if (look.RightPt > 0)
+                css.Add("padding-right: " + Length(look.RightPt));
+
+            if (look.FirstPt != 0)
+                css.Add("text-indent: " + Length(look.FirstPt));
+        }
+
+        if (look.Shade != null)
+            css.Add("background-color: #" + look.Shade);
+
+        if (look.TopBorder)
+            css.Add("border-top: calc(1 * var(--u)) solid var(--ink)");
+
+        if (look.BottomBorder)
+            css.Add("border-bottom: calc(1 * var(--u)) solid var(--ink)");
+
+        if (look.LeftBorder)
+            css.Add("border-left: calc(1 * var(--u)) solid var(--ink)");
+
+        if (look.RightBorder)
+            css.Add("border-right: calc(1 * var(--u)) solid var(--ink)");
+
+        return css.Count == 0 ? null : string.Join("; ", css);
+    }
+
 
     private static string Shape(WordBlockModel block, string text) =>
         block.Kind == WordBlockKind.Byline ? string.Join("\n", text.Split('\n', StringSplitOptions.RemoveEmptyEntries)) : text;

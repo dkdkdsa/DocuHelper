@@ -27,6 +27,8 @@ namespace DocuHelperEditor.State.Mapping
                 return old ?? new WordPaperModel();
 
             var scan = WordScan.Read(word.Document);
+            var labels = WordNumberingLabels.Compute(scan);
+            var notes = NoteNumbers(scan);
             var changes = ChangeIds(docu);
             var earlier = old?.Blocks.Where(b => b?.Id != null).GroupBy(b => b.Id).ToDictionary(g => g.Key, g => g.First()) ?? new Dictionary<string, WordBlockModel>();
             var blocks = new List<WordBlockModel>(scan.Blocks.Count);
@@ -42,7 +44,9 @@ namespace DocuHelperEditor.State.Mapping
                 model.LineHeight = block.LineHeight;
                 model.FontSize = block.FontSize;
                 model.RowHeights = block.RowHeights.ToList();
-                model.Segments = block.IsTable || block.Paragraph == null ? Array.Empty<WordCharSegment>() : SegmentsOf(block);
+                model.Segments = block.IsTable || block.Paragraph == null ? Array.Empty<WordCharSegment>() : SegmentsOf(block, notes);
+                model.Look = block.IsTable || block.Paragraph == null ? null : WordLooks.ParagraphOf(scan.Styles, block.Paragraph);
+                model.ListLabel = !block.IsTable && block.Paragraph != null && model.ListKind != WordListKind.None ? labels.LabelOf(block.Paragraph) : null;
                 model.IsBold = look.Bold;
                 model.IsItalic = look.Italic;
                 model.IsUnderline = look.Underline;
@@ -68,10 +72,32 @@ namespace DocuHelperEditor.State.Mapping
             return paper;
         }
 
-        private static IReadOnlyList<WordCharSegment> SegmentsOf(WordBlock block)
+        private static IReadOnlyList<WordCharSegment> SegmentsOf(WordBlock block, IReadOnlyDictionary<string, string> notes)
         {
-            var segments = WordCharFormat.Segments(block.Paragraph);
+            var segments = WordCharFormat.Segments(block.Paragraph)
+                .Select(s => s.Look.IsMark ? s with { Look = s.Look with { MarkText = NoteText(s.Look, notes) } } : s)
+                .ToList();
             return string.Concat(segments.Select(s => s.Text)) == block.Text ? segments : Array.Empty<WordCharSegment>();
+        }
+
+        private static string NoteText(WordCharLook look, IReadOnlyDictionary<string, string> notes) =>
+            look.Mark == "bm" ? look.MarkText : notes.TryGetValue(look.Mark + ":" + look.MarkText, out var number) ? number : string.Empty;
+
+        private static IReadOnlyDictionary<string, string> NoteNumbers(WordScan scan)
+        {
+            var numbers = new Dictionary<string, string>(StringComparer.Ordinal);
+            var footnotes = 0;
+            var endnotes = 0;
+            foreach (var element in scan.Body.Descendants())
+            {
+                if (element is DocumentFormat.OpenXml.Wordprocessing.FootnoteReference note)
+                    numbers["fn:" + note.Id?.Value.ToString(CultureInfo.InvariantCulture)] = (++footnotes).ToString(CultureInfo.InvariantCulture);
+
+                if (element is DocumentFormat.OpenXml.Wordprocessing.EndnoteReference endnote)
+                    numbers["en:" + endnote.Id?.Value.ToString(CultureInfo.InvariantCulture)] = (++endnotes).ToString(CultureInfo.InvariantCulture);
+            }
+
+            return numbers;
         }
 
         private static Dictionary<string, string> ChangeIds(Docu docu)
@@ -113,6 +139,7 @@ namespace DocuHelperEditor.State.Mapping
             var rows = WordTables.Texts(grid);
             var spans = new Dictionary<(int Row, int Column), (int Rows, int Columns)>();
             var covered = new HashSet<(int Row, int Column)>();
+            var looks = new Dictionary<(int Row, int Column), WordCellLook>();
             for (var r = 0; r < grid.Count; r++)
             {
                 for (var c = 0; c < grid[r].Count; c++)
@@ -121,6 +148,7 @@ namespace DocuHelperEditor.State.Mapping
                     if (!cell.IsOrigin || cell.Owner == null)
                         continue;
 
+                    looks[(r, c)] = WordLooks.CellOf(cell.Owner);
                     var columns = 1;
                     while (c + columns < grid[r].Count && !grid[r][c + columns].IsOrigin && grid[r][c + columns].Owner == cell.Owner)
                         columns++;
@@ -160,6 +188,7 @@ namespace DocuHelperEditor.State.Mapping
                     Spans = spans,
                     Covered = covered,
                     ColumnWidths = ColumnWidths(block.Table),
+                    CellLooks = looks,
                 },
             };
         }

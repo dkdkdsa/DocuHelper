@@ -135,6 +135,41 @@ namespace DocuHelperEditor.State
             return new[] { new WordCharRange(block.Id, start, end) };
         }
 
+        public static string FontNameOf(WordPaperModel model, WordSelection selection)
+        {
+            var names = LooksOf(model, selection).Select(l => l.Font).Distinct().ToList();
+            return names.Count == 1 && names[0] != null ? names[0] : string.Empty;
+        }
+
+        public static string FontSizeOf(WordPaperModel model, WordSelection selection)
+        {
+            var sizes = LooksOf(model, selection).Select(l => l.SizePt).Distinct().ToList();
+            return sizes.Count == 1 && sizes[0] > 0 ? sizes[0].ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
+        }
+
+        private static List<WordCharLook> LooksOf(WordPaperModel model, WordSelection selection)
+        {
+            var looks = new List<WordCharLook>();
+            foreach (var range in FormatRanges(model, selection))
+            {
+                var block = model.FindBlock(range.Id);
+                if (block == null)
+                    continue;
+
+                var position = 0;
+                foreach (var segment in block.Segments)
+                {
+                    var end = position + segment.Text.Length;
+                    if (segment.Text.Length > 0 && end > range.Start && position < range.End)
+                        looks.Add(segment.Look);
+
+                    position = end;
+                }
+            }
+
+            return looks;
+        }
+
         private static bool IsSpace(char c) => c == ' ' || c == '\n' || c == '\t';
 
         private sealed record PressedEntry(WordSelection Selection, WordCharPressed Pressed);

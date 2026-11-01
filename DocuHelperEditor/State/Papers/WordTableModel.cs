@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DocuHelper.Tools.Word;
 
 namespace DocuHelperEditor.State.Papers
 {
@@ -21,6 +22,8 @@ namespace DocuHelperEditor.State.Papers
         public HashSet<(int Row, int Column)> Covered { get; set; } = new();
 
         public List<double> ColumnWidths { get; set; } = new();
+
+        public Dictionary<(int Row, int Column), WordCellLook> CellLooks { get; set; } = new();
 
         public bool HasColumnWidths => ColumnWidths.Count > 0 && ColumnWidths.Count == ColumnCount;
 

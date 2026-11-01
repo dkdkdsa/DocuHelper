@@ -32,6 +32,10 @@ namespace DocuHelperEditor.State.Papers
 
         public IReadOnlyList<WordCharSegment> Segments { get; set; } = Array.Empty<WordCharSegment>();
 
+        public WordParagraphLook Look { get; set; }
+
+        public string ListLabel { get; set; }
+
         public bool IsBold { get; set; }
 
         public bool IsItalic { get; set; }

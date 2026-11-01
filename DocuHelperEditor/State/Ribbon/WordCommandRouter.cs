@@ -197,6 +197,12 @@ namespace DocuHelperEditor.State.Ribbon
 
             if (spec.Id == "word.review.track.display")
                 command.ValueFrom(() => MarkupLabel(State.MarkupMode));
+
+            if (spec.Id == "word.home.font.name")
+                command.ValueFrom(() => WordSelectionService.FontNameOf(Model, Model?.Selection));
+
+            if (spec.Id == "word.home.font.size")
+                command.ValueFrom(() => WordSelectionService.FontSizeOf(Model, Model?.Selection));
         }
 
         private RibbonCommand RegisterFile(WordCommandSpec spec)

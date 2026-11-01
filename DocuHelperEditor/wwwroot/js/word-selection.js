@@ -86,6 +86,17 @@ window.docuHelperWordSelection = (function () {
                 reference.invokeMethodAsync('Selected', json).catch(function () { });
             });
         };
+        state.shortcut = function (e) {
+            if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+            var key = (e.key || '').toLowerCase();
+            if (key !== 'b' && key !== 'i' && key !== 'u') return;
+            if (e.target && e.target.closest && e.target.closest('input, textarea, select')) return;
+            var sel = document.getSelection();
+            if (!sel || sel.rangeCount === 0 || !root.contains(sel.getRangeAt(0).commonAncestorContainer)) return;
+            e.preventDefault();
+            reference.invokeMethodAsync('Shortcut', key).catch(function () { });
+        };
+        document.addEventListener('keydown', state.shortcut);
         document.addEventListener('selectionchange', state.handler);
         papers.set(root, state);
     }
@@ -94,6 +105,7 @@ window.docuHelperWordSelection = (function () {
         var state = papers.get(root);
         if (!state) return;
         document.removeEventListener('selectionchange', state.handler);
+        document.removeEventListener('keydown', state.shortcut);
         papers.delete(root);
     }
 

@@ -148,3 +148,23 @@ html[data-text-size="xl"] [data-chrome] {
 html[data-text-size] [data-chrome] [data-chrome] {
     zoom: 1;
 }
+
+.lnk {
+    color: var(--docx, #2F5FA8);
+    text-decoration: underline;
+}
+
+.mk-fn::after {
+    content: attr(data-note);
+    font-size: 0.72em;
+    vertical-align: super;
+    color: var(--ink-3);
+}
+
+.mk-bm {
+    display: inline-block;
+    width: 0;
+    height: 1em;
+    vertical-align: text-bottom;
+    border-left: 1px dotted var(--ink-3);
+}

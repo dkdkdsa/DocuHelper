@@ -254,3 +254,21 @@ h2.txt {
 .seg.u.s {
     text-decoration: underline line-through;
 }
+
+.blk.list {
+    display: flex;
+    align-items: baseline;
+}
+
+.blk.list > .txt {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.lbl {
+    flex: 0 0 auto;
+    min-width: 2.4em;
+    padding-right: 0.4em;
+    text-align: right;
+    user-select: none;
+}
