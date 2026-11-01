@@ -24,23 +24,23 @@
     </div>
     <div class="field">
         <label class="field-label" for="nm-name">이름</label>
-        <input id="nm-name" class="field-input" type="text" autocomplete="off" @bind="_name" />
+        <input id="nm-name" class="field-input" type="text" autocomplete="off" @bind="_name" @bind:event="oninput" />
     </div>
     @if (_action == "set")
     {
         <div class="field">
             <label class="field-label" for="nm-refers">참조 대상</label>
-            <input id="nm-refers" class="field-input" type="text" autocomplete="off" @bind="_refersTo" />
+            <input id="nm-refers" class="field-input" type="text" autocomplete="off" @bind="_refersTo" @bind:event="oninput" />
         </div>
         <p class="hint">예: '@SheetName'!$A$1:$C$10 또는 =상수값</p>
         <div class="field">
             <label class="field-label" for="nm-comment">메모 (선택)</label>
-            <input id="nm-comment" class="field-input" type="text" autocomplete="off" @bind="_comment" />
+            <input id="nm-comment" class="field-input" type="text" autocomplete="off" @bind="_comment" @bind:event="oninput" />
         </div>
     }
     <div class="field">
         <label class="field-label" for="nm-scope">적용 범위 (비우면 통합 문서)</label>
-        <input id="nm-scope" class="field-input" type="text" autocomplete="off" placeholder="@SheetName" @bind="_scope" />
+        <input id="nm-scope" class="field-input" type="text" autocomplete="off" placeholder="@SheetName" @bind="_scope" @bind:event="oninput" />
     </div>
 </ExcelDialogFrame>
 

@@ -3,7 +3,7 @@
 <ExcelDialogFrame Title="차트 삽입" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
     <div class="field">
         <label class="field-label" for="ch-range">데이터 범위 (첫 줄은 항목 이름, 첫 열은 가로축)</label>
-        <input id="ch-range" class="field-input" type="text" autocomplete="off" @bind="_range" />
+        <input id="ch-range" class="field-input" type="text" autocomplete="off" @bind="_range" @bind:event="oninput" />
     </div>
     <fieldset class="group">
         <legend>차트 종류</legend>
@@ -19,7 +19,7 @@
     </fieldset>
     <div class="field">
         <label class="field-label" for="ch-title">제목 (선택)</label>
-        <input id="ch-title" class="field-input" type="text" maxlength="100" autocomplete="off" @bind="_title" />
+        <input id="ch-title" class="field-input" type="text" maxlength="100" autocomplete="off" @bind="_title" @bind:event="oninput" />
     </div>
     <div class="pair">
         <div class="field">

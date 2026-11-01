@@ -5,11 +5,11 @@
     <div class="pair">
         <div class="field">
             <label class="field-label" for="ps-password">암호 (선택)</label>
-            <input id="ps-password" class="field-input" type="password" autocomplete="new-password" @bind="_password" />
+            <input id="ps-password" class="field-input" type="password" autocomplete="new-password" @bind="_password" @bind:event="oninput" />
         </div>
         <div class="field">
             <label class="field-label" for="ps-confirm">암호 확인</label>
-            <input id="ps-confirm" class="field-input" type="password" autocomplete="new-password" @bind="_confirm" />
+            <input id="ps-confirm" class="field-input" type="password" autocomplete="new-password" @bind="_confirm" @bind:event="oninput" />
         </div>
     </div>
     <p class="hint">암호를 잊으면 이 앱으로는 풀 수 없어요. 비워 두면 암호 없이 보호해요.</p>

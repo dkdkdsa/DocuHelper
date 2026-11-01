@@ -4,7 +4,7 @@
 <ExcelDialogFrame Title="조건부 서식 규칙" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
     <div class="field">
         <label class="field-label" for="cf-range">적용할 범위</label>
-        <input id="cf-range" class="field-input" type="text" autocomplete="off" @bind="_range" />
+        <input id="cf-range" class="field-input" type="text" autocomplete="off" @bind="_range" @bind:event="oninput" />
     </div>
     <div class="field">
         <label class="field-label" for="cf-rule">규칙 종류</label>
@@ -29,13 +29,13 @@
         <div class="pair">
             <div class="field">
                 <label class="field-label" for="cf-value">@(IsBetween ? "최소값" : "값")</label>
-                <input id="cf-value" class="field-input" type="text" autocomplete="off" @bind="_value" />
+                <input id="cf-value" class="field-input" type="text" autocomplete="off" @bind="_value" @bind:event="oninput" />
             </div>
             @if (IsBetween)
             {
                 <div class="field">
                     <label class="field-label" for="cf-value2">최대값</label>
-                    <input id="cf-value2" class="field-input" type="text" autocomplete="off" @bind="_value2" />
+                    <input id="cf-value2" class="field-input" type="text" autocomplete="off" @bind="_value2" @bind:event="oninput" />
                 </div>
             }
         </div>
@@ -45,7 +45,7 @@
     {
         <div class="field">
             <label class="field-label" for="cf-text">포함할 텍스트</label>
-            <input id="cf-text" class="field-input" type="text" autocomplete="off" @bind="_text" />
+            <input id="cf-text" class="field-input" type="text" autocomplete="off" @bind="_text" @bind:event="oninput" />
         </div>
     }
     @if (_rule is "top" or "bottom")
@@ -53,7 +53,7 @@
         <div class="pair">
             <div class="field">
                 <label class="field-label" for="cf-count">개수</label>
-                <input id="cf-count" class="field-input" type="number" min="1" max="1000" inputmode="numeric" @bind="_count" />
+                <input id="cf-count" class="field-input" type="number" min="1" max="1000" inputmode="numeric" @bind="_count" @bind:event="oninput" />
             </div>
             <label class="check">
                 <input type="checkbox" @bind="_percent" />
@@ -65,7 +65,7 @@
     {
         <div class="field">
             <label class="field-label" for="cf-formula">수식</label>
-            <input id="cf-formula" class="field-input" type="text" autocomplete="off" @bind="_formula" />
+            <input id="cf-formula" class="field-input" type="text" autocomplete="off" @bind="_formula" @bind:event="oninput" />
         </div>
         <p class="hint">=로 시작하고, 범위의 왼쪽 위 칸을 기준으로 써요. 예: =$C2>1000000</p>
     }
