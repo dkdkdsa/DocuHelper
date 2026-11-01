@@ -116,5 +116,5 @@
 }
 
 .tool.danger {
-    color: #A3311E;
+    color: var(--danger);
 }
