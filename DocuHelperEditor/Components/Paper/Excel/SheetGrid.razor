@@ -261,7 +261,7 @@
 
     protected override void OnParametersSet()
     {
-        _rowCount = Math.Min(Sheet?.DisplayRowCount ?? 0, MaxRowsForZoom());
+        _rowCount = Math.Min(Sheet?.DisplayRowCount ?? 0, RenderAllRows ? ExcelViewState.MaxRows : MaxRowsForZoom());
         _growPending = false;
         if (!SheetRef.TryParse(SelectedRef, out _selectedColumn, out _selectedRow))
         {
