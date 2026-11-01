@@ -40,6 +40,12 @@ namespace DocuHelper.Importers.Legacy.Doc
             _run = null;
             _runChp = null;
             _link = null;
+            if (_hidden > 0)
+            {
+                _fields.Clear();
+                _hidden = 0;
+            }
+
             for (var cp = start; cp < end; cp++)
                 cp += Append(cp, end, style);
 

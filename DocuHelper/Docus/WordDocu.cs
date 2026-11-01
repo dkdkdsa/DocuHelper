@@ -18,7 +18,7 @@ namespace DocuHelper.Docus
         public string AssistantRevisionAuthor { get; set; }
 
         public override void Load(byte[] content) =>
-            base.Load(HwpCompoundFile.IsCompoundFile(content) ? DocReader.ToDocx(content) : content);
+            base.Load(HwpCompoundFile.IsCompoundFile(content) ? DocBinaryReader.ToDocx(content) : content);
 
         public override byte[] ToBytes() => WordDocumentProperties.WithCoreProperties(base.ToBytes(), Document);
 

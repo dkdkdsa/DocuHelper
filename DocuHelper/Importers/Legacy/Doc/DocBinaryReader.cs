@@ -3,7 +3,7 @@ using System.IO;
 
 namespace DocuHelper.Importers.Legacy.Doc
 {
-    public static class DocReader
+    public static class DocBinaryReader
     {
         public static byte[] ToDocx(byte[] content)
         {

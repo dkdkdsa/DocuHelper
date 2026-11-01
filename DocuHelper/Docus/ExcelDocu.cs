@@ -15,7 +15,7 @@ namespace DocuHelper.Docus
         public override DocuType Type => DocuType.Excel;
 
         public override void Load(byte[] content) =>
-            base.Load(HwpCompoundFile.IsCompoundFile(content) ? XlsReader.ToXlsx(content) : content);
+            base.Load(HwpCompoundFile.IsCompoundFile(content) ? XlsBinaryReader.ToXlsx(content) : content);
 
         protected override SpreadsheetDocument Open(Stream stream) => SpreadsheetDocument.Open(stream, true);
     }

@@ -15,7 +15,7 @@ namespace DocuHelper.Docus
         public override DocuType Type => DocuType.Ppt;
 
         public override void Load(byte[] content) =>
-            base.Load(HwpCompoundFile.IsCompoundFile(content) ? PptReader.ToPptx(content) : content);
+            base.Load(HwpCompoundFile.IsCompoundFile(content) ? PptBinaryReader.ToPptx(content) : content);
 
         protected override PresentationDocument Open(Stream stream) => PresentationDocument.Open(stream, true);
     }

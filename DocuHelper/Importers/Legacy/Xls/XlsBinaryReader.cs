@@ -3,7 +3,7 @@ using DocuHelper.Importers.Hwp;
 
 namespace DocuHelper.Importers.Legacy.Xls
 {
-    public static class XlsReader
+    public static class XlsBinaryReader
     {
         public static byte[] ToXlsx(byte[] content)
         {

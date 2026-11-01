@@ -3,7 +3,7 @@ using DocuHelper.Importers.Hwp;
 
 namespace DocuHelper.Importers.Legacy.Ppt
 {
-    public static class PptReader
+    public static class PptBinaryReader
     {
         public static byte[] ToPptx(byte[] content)
         {
