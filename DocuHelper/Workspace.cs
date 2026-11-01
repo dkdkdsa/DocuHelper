@@ -26,6 +26,7 @@ namespace DocuHelper
         private readonly List<WorkspaceEdit> _redo = new();
         private readonly Dictionary<Docu, DocuState> _assistantBaselines = new();
         private readonly List<string> _notes = new();
+        private readonly HashSet<DocuType> _conversationTypes = new();
         private AgentToolbox _runToolbox;
 
         public event Action DocusChanged;
@@ -62,10 +63,22 @@ namespace DocuHelper
             _redo.Clear();
             _assistantBaselines.Clear();
             _notes.Clear();
-            Agent?.ResetConversation();
+            ResetConversation();
             FolderPath = Path.GetFullPath(folderPath);
             History = new DocuHistory(Path.Combine(FolderPath, ".문서도우미", "기록"));
             DocusChanged?.Invoke();
+        }
+
+        public void ResetConversation()
+        {
+            _conversationTypes.Clear();
+            Agent?.ResetConversation();
+        }
+
+        public void RestoreConversation(IReadOnlyList<AgentTurn> turns)
+        {
+            _conversationTypes.Clear();
+            Agent?.RestoreConversation(turns);
         }
 
         public IReadOnlyList<string> ListFolderFiles()
@@ -340,13 +353,14 @@ namespace DocuHelper
                 if (request.TrackChanges)
                     MarkAssistantEdits(authors);
 
-                var toolbox = new AgentToolbox(this, request, notes);
+                var toolbox = new AgentToolbox(this, request, notes, _conversationTypes);
                 ClearRunHandEdits();
                 IsAgentRunning = true;
                 _runToolbox = toolbox;
                 try
                 {
                     var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
+                    _conversationTypes.UnionWith(toolbox.Types);
                     lock (_notes)
                     {
                         CommitRunHandEdits(true);

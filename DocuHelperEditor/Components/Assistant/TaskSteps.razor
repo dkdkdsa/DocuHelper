@@ -72,9 +72,13 @@
 
     private string ChevronClass => Progress.IsExpanded ? "chevron up" : "chevron";
 
-    private string FinishedSummary => string.IsNullOrEmpty(Progress.Elapsed)
+    private string FinishedSummary => (string.IsNullOrEmpty(Progress.Elapsed)
         ? $"{Progress.TotalCount}단계"
-        : $"{Progress.TotalCount}단계, {Progress.Elapsed}";
+        : $"{Progress.TotalCount}단계, {Progress.Elapsed}") + CostText;
+
+    private string CostText => Settings.UsageShowCost && Progress.Usd is double usd
+        ? $" · 약 {Usage.FormatWon(usd)}"
+        : string.Empty;
 
     private string RunningSummary
     {

@@ -70,6 +70,7 @@ namespace DocuHelper.Agents
                 {
                     var response = await CreateWithRetryAsync(request, toolbox, host, cancellationToken);
                     var output = ChatGptTranslator.Output(response);
+                    host.OnUsage(ChatGptTranslator.Usage(response, output, request.Model ?? DefaultModel));
                     if (ChatGptTranslator.IsRefusal(output))
                         throw new AgentException(AgentFailure.Refused, "이 부탁은 도와드리기 어려워요. 다르게 말해 주시면 다시 해 볼게요.");
 

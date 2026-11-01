@@ -1,0 +1,106 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@if (IsVisible)
+{
+    <div class="usage-wrap" @onkeydown="OnKeyDownAsync">
+        <button type="button" id="usage-pill" class="usage-pill @(Usage.IsOverCap ? "lim" : null)" aria-expanded="@(_open ? "true" : "false")" aria-controls="usage-pop" @onclick="Toggle">
+            @if (Usage.IsOverCap)
+            {
+                <Icon Name="pause-circle" Size="16" Stroke="2.4" />
+            }
+            else
+            {
+                <span class="mini" aria-hidden="true"><span style="width: @(Filled)%"></span></span>
+            }
+            @PillText
+        </button>
+        @if (_open)
+        {
+            <section id="usage-pop" class="usage-pop" aria-labelledby="usage-pop-h">
+                <div class="head">
+                    <div class="titles">
+                        <h2 id="usage-pop-h">@Title</h2>
+                        <p class="sub">@(Usage.NextResetText)에 다시 채워져요</p>
+                    </div>
+                    <IconButton Icon="x" Label="알림 닫기" Title="닫기 (Esc)" IconSize="18" Class="close" OnClick="CloseAsync" />
+                </div>
+                <div>
+                    <progress class="sr-only" value="@Filled" max="100">한도의 @(Filled)%를 썼어요</progress>
+                    <div class="gauge" aria-hidden="true">
+                        <span class="fill" style="width: @(Filled)%"></span>
+                        <span class="mark" style="left: @(Usage.AlertPercent)%"></span>
+                    </div>
+                    <div class="numbers">
+                        <b>@UsageStore.FormatNumber(Usage.ThisMonthWon)원 썼어요</b>
+                        <span>한도 @UsageStore.FormatNumber(Usage.Cap)원</span>
+                    </div>
+                </div>
+                <p class="text">@Body</p>
+                <div class="actions">
+                    <ActionButton Kind="ButtonKind.Primary" OnClick="CloseAsync">알겠어요</ActionButton>
+                    <ActionButton Kind="ButtonKind.Secondary" OnClick="OpenDetails">사용량 자세히</ActionButton>
+                </div>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private bool _open;
+
+    private bool IsVisible => Usage.IsAlerting || Usage.IsOverCap;
+
+    private int Filled => (int)Math.Clamp(Math.Floor(Usage.Percent), 0, 100);
+
+    private string PillText => Usage.IsOverCap
+        ? Usage.StopsAtCap ? "이번 달 다 썼어요" : $"이번 달 {Math.Floor(Usage.Percent)}%"
+        : $"이번 달 {Filled}%";
+
+    private string Title => Usage.IsOverCap
+        ? Usage.StopsAtCap ? "이번 달 쓸 수 있는 양을 다 썼어요" : $"이번 달 한도를 넘었어요 ({Math.Floor(Usage.Percent)}%)"
+        : $"이번 달 쓸 수 있는 양의 {Filled}%를 썼어요";
+
+    private string Body
+    {
+        get
+        {
+            if (Usage.IsOverCap && Usage.StopsAtCap)
+                return $"{Usage.NextResetText}에 다시 부탁할 수 있어요. 그동안에도 파일 열기, 직접 고치기, 저장은 그대로 돼요. 급하면 앱을 깔아 준 분께 한도를 올려 달라고 하세요.";
+
+            if (Usage.IsOverCap)
+                return "알리기만 하고 계속 쓰도록 해 뒀어요. 넘은 금액도 그대로 청구돼요.";
+
+            var after = Usage.StopsAtCap
+                ? $"다 쓰면 {Usage.NextResetText}까지 도우미가 쉬지만, 파일 열기, 직접 고치기, 저장은 그대로 돼요."
+                : "다 써도 알리기만 하고 계속 쓸 수 있어요.";
+            return $"부탁 {Usage.RequestsLeftText()} 더 할 수 있어요. {after}";
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!IsVisible)
+            _open = false;
+    }
+
+    private void Toggle() => _open = !_open;
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (_open && e.Key == "Escape")
+            await CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        _open = false;
+        await JS.InvokeVoidAsync("docuHelper.focus", "#usage-pill");
+    }
+
+    private void OpenDetails()
+    {
+        _open = false;
+        Settings.OpenDialog("#usage-pill", "usage");
+    }
+}

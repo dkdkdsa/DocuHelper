@@ -9,7 +9,7 @@ namespace DocuHelperEditor.Services
 
         Task<string> PickFolderAsync();
 
-        Task<string> PickSaveFileAsync(string suggestedName);
+        Task<string> PickSaveFileAsync(string suggestedName, bool asCopy = true);
 
         Task<string> PickImageAsync();
 

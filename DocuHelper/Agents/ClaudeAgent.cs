@@ -58,6 +58,7 @@ namespace DocuHelper.Agents
                 for (var turn = 0; turn < MaxTurns; turn++)
                 {
                     var response = await CreateWithRetryAsync(client, CreateParams(request, toolbox), host, cancellationToken);
+                    host.OnUsage(UsageOf(response));
                     if (response.StopReason == "refusal")
                         throw new AgentException(AgentFailure.Refused, "이 부탁은 도와드리기 어려워요. 다르게 말해 주시면 다시 해 볼게요.");
 
@@ -325,6 +326,26 @@ namespace DocuHelper.Agents
             AnthropicBadRequestException when e.Message.Contains("image", StringComparison.OrdinalIgnoreCase) => new AgentException(AgentFailure.Other, "붙인 그림을 읽지 못했어요. 다른 형식으로 저장해서 다시 붙여 주세요.", e),
             _ => new AgentException(AgentFailure.Other, "도우미에게 문제가 생겼어요.", e),
         };
+
+        private static AgentUsage UsageOf(BetaMessage response)
+        {
+            var usage = new AgentUsage { Model = response.Model.Raw() };
+            if (response.Usage is { } counts)
+            {
+                usage.InputTokens = counts.InputTokens;
+                usage.CacheWriteTokens = counts.CacheCreationInputTokens ?? 0;
+                usage.CacheReadTokens = counts.CacheReadInputTokens ?? 0;
+                usage.OutputTokens = counts.OutputTokens;
+            }
+
+            foreach (var block in response.Content)
+            {
+                if (block.TryPickToolUse(out var use))
+                    usage.Tools.Add(use.Name);
+            }
+
+            return usage;
+        }
 
         private static BetaToolUnion ToTool(AgentToolDefinition definition)
         {

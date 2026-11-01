@@ -20,7 +20,7 @@ namespace DocuHelperEditor.State
         private const string DefaultSection = "key";
 
         private static readonly string[] s_textSizes = { "m", "l", "xl" };
-        private static readonly string[] s_sections = { "key", "ai", "folder", "hwp", "view", "update", "about" };
+        private static readonly string[] s_sections = { "key", "ai", "usage", "folder", "hwp", "view", "update", "about" };
 
         private static readonly string s_settingsPath = Path.Combine(AppPaths.DataFolder, "settings.json");
 
@@ -115,6 +115,7 @@ namespace DocuHelperEditor.State
             LastRunVersion = data?.LastRunVersion;
             UpdateCheck = data?.UpdateCheck ?? true;
             UpdateAuto = data?.UpdateAuto ?? true;
+            LoadUsage(data);
             ApplyHwp();
             LoadKeys(data);
             IsKeyVisible = false;
@@ -277,6 +278,11 @@ namespace DocuHelperEditor.State
                     UpdateAuto = UpdateAuto,
                     ClaudeCheckedAt = SlotFor(AgentProvider.Claude).CheckedAt,
                     OpenAiCheckedAt = SlotFor(AgentProvider.OpenAi).CheckedAt,
+                    UsageCap = UsageCap,
+                    UsageAlert = UsageAlertPercent,
+                    UsageAtCap = UsageAtCap,
+                    UsageShowCost = UsageShowCost,
+                    UsdRate = UsdRate,
                 };
                 var temp = s_settingsPath + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));

@@ -70,7 +70,7 @@ namespace DocuHelperEditor.Services
 #endif
         }
 
-        public async Task<string> PickSaveFileAsync(string suggestedName)
+        public async Task<string> PickSaveFileAsync(string suggestedName, bool asCopy = true)
         {
 #if DEBUG
             var forced = Environment.GetEnvironmentVariable("DOCUHELPER_SAVE_PATH");
@@ -83,9 +83,9 @@ namespace DocuHelperEditor.Services
                 var extension = Path.GetExtension(suggestedName);
                 var picker = new Windows.Storage.Pickers.FileSavePicker
                 {
-                    SuggestedFileName = Path.GetFileNameWithoutExtension(suggestedName) + " 사본",
+                    SuggestedFileName = Path.GetFileNameWithoutExtension(suggestedName) + (asCopy ? " 사본" : string.Empty),
                 };
-                picker.FileTypeChoices.Add("문서", new List<string> { extension });
+                picker.FileTypeChoices.Add(extension == ".csv" ? "CSV 파일" : "문서", new List<string> { extension });
                 if (!Initialize(picker))
                     return null;
 

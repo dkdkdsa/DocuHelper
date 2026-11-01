@@ -52,6 +52,7 @@ namespace DocuHelperEditor
             builder.Services.AddSingleton<WorkspaceStore>();
             builder.Services.AddSingleton<AssistantStore>();
             builder.Services.AddSingleton<SettingsStore>();
+            builder.Services.AddSingleton<UsageStore>();
             builder.Services.AddSingleton<UpdateStore>();
 
             builder.Services.AddSingleton<IFileDialogService, FileDialogService>();

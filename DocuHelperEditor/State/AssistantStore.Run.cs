@@ -37,7 +37,7 @@ namespace DocuHelperEditor.State
                 return;
             }
 
-            if (IsRunning || Status != AssistantStatus.Error || _lastPrompt == null)
+            if (IsRunning || Status != AssistantStatus.Error || _lastPrompt == null || IsUsageBlocked)
                 return;
 
             var failed = _entries.LastOrDefault();
@@ -79,6 +79,7 @@ namespace DocuHelperEditor.State
             }
 
             _steps[step.Id] = item;
+            NoteUsageStep(step.Label);
             progress.CurrentDetail = step.Label;
             Notify();
         }
@@ -186,6 +187,7 @@ namespace DocuHelperEditor.State
 
             _lastPrompt = prompt;
             _lastAttachments = attachments;
+            BeginUsage(prompt);
             StopRevising();
             _steps.Clear();
             _working = new ChatEntry
@@ -218,6 +220,7 @@ namespace DocuHelperEditor.State
                     Attachments = attachments.Select(ToAgentAttachment).ToList(),
                 };
                 var result = await _workspace.Workspace.AskAsync(request, this, run.Token);
+                NoteUsageFiles(result);
                 Complete(result, watch.Elapsed);
             }
             catch (OperationCanceledException) when (run.IsCancellationRequested)
@@ -244,6 +247,7 @@ namespace DocuHelperEditor.State
                 _workspace.SetAskingFile(null);
                 _workspace.ReportLostHandEdits();
                 _workspace.ReportMergedHandEdits();
+                EndUsage();
                 Notify();
                 await SaveConversationAsync();
             }
@@ -315,6 +319,7 @@ namespace DocuHelperEditor.State
                 progress.IsFinished = true;
                 progress.IsExpanded = false;
                 progress.Elapsed = FormatElapsed(elapsed);
+                progress.Usd = _runUsd;
                 if (progress.Steps.Count == 0)
                     entry.Progress = null;
             }

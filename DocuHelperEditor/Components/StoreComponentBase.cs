@@ -18,6 +18,9 @@ namespace DocuHelperEditor.Components
         [Inject]
         protected SettingsStore Settings { get; set; }
 
+        [Inject]
+        protected UsageStore Usage { get; set; }
+
         public override Task SetParametersAsync(ParameterView parameters)
         {
             if (!_subscribed)
@@ -25,6 +28,7 @@ namespace DocuHelperEditor.Components
                 Workspace.Changed += OnStoreChanged;
                 Assistant.Changed += OnStoreChanged;
                 Settings.Changed += OnStoreChanged;
+                Usage.Changed += OnStoreChanged;
                 _subscribed = true;
             }
 
@@ -38,6 +42,7 @@ namespace DocuHelperEditor.Components
                 Workspace.Changed -= OnStoreChanged;
                 Assistant.Changed -= OnStoreChanged;
                 Settings.Changed -= OnStoreChanged;
+                Usage.Changed -= OnStoreChanged;
                 _subscribed = false;
             }
 

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace DocuHelperEditor.State
 {
@@ -17,6 +17,8 @@ namespace DocuHelperEditor.State
         public List<string> Steps { get; set; } = new();
 
         public string Elapsed { get; set; }
+
+        public double? Usd { get; set; }
 
         public AssistantResult Result { get; set; }
     }

@@ -24,10 +24,6 @@ namespace DocuHelper.Agents
         private const int MaxFollowUps = 3;
         private const int MaxDetailLength = 24;
 
-        private const string StepDescription = "Short Korean progress label the user sees while you work, e.g. \"요약표 만들기\". Give calls that belong to the same step the same text.";
-
-        private const string LabelDescription = "Short Korean sentence for the user's change list, ending in 요, e.g. \"거래처마다 금액 합계를 구해요\". One change item per call.";
-
         private const string ListFilesSchema = """
             {"type":"object","properties":{}}
             """;
@@ -37,8 +33,8 @@ namespace DocuHelper.Agents
               "type": "object",
               "properties": {
                 "name": {"type": "string", "description": "New file name ending in .xlsx, .docx, .hwpx or .pptx, e.g. \"7월 회의 보고서.docx\". Use .hwpx for a Hancom 한글 document."},
-                "label": {"type": "string", "description": "Short Korean sentence for the change list, e.g. \"7월 회의 보고서를 새로 만들어요\"."},
-                "step": {"type": "string", "description": "Short Korean progress label, e.g. \"새 보고서 만들기\"."}
+                "label": {"type": "string"},
+                "step": {"type": "string"}
               },
               "required": ["name"]
             }
@@ -80,7 +76,7 @@ namespace DocuHelper.Agents
                     "required": ["file", "count"]
                   }
                 },
-                "step": {"type": "string", "description": "Short Korean progress label, e.g. \"같은 거래처인지 여쭤보기\"."}
+                "step": {"type": "string"}
               },
               "required": ["question", "kind", "options"]
             }
@@ -112,11 +108,12 @@ namespace DocuHelper.Agents
         private IReadOnlyList<DocuType> _types = Array.Empty<DocuType>();
         private IReadOnlyList<AgentToolDefinition> _definitions;
 
-        public AgentToolbox(Workspace workspace, AgentRequest request, IReadOnlyList<string> notes)
+        public AgentToolbox(Workspace workspace, AgentRequest request, IReadOnlyList<string> notes, IEnumerable<DocuType> keepTypes = null)
         {
             _workspace = workspace;
             _request = request;
             _notes = notes;
+            _types = (keepTypes ?? Enumerable.Empty<DocuType>()).Where(workspace.Editors.ContainsKey).Distinct().OrderBy(type => type).ToList();
             Reveal();
         }
 
@@ -640,10 +637,11 @@ namespace DocuHelper.Agents
                     properties[pair.Key] = pair.Value?.DeepClone();
             }
 
+            // label and step are explained once in ClaudePrompt.WorkRules, not in every tool.
             if (write)
-                properties["label"] = new JsonObject { ["type"] = "string", ["description"] = LabelDescription };
+                properties["label"] = new JsonObject { ["type"] = "string" };
 
-            properties["step"] = new JsonObject { ["type"] = "string", ["description"] = StepDescription };
+            properties["step"] = new JsonObject { ["type"] = "string" };
 
             var required = new JsonArray { "file" };
             if (source["required"] is JsonArray ownRequired)
