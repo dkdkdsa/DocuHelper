@@ -289,7 +289,7 @@ namespace DocuHelper.Agents
         {
             "low" => "low",
             "high" => "high",
-            "max" => "max",
+            "max" => "high",
             _ => DefaultEffort,
         };
 
