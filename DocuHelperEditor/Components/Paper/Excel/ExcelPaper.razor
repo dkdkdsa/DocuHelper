@@ -68,6 +68,9 @@
                ShowFillHandle="@(!IsLocked && !IsEditing)"
                Locked="@IsLocked"
                Zoom="@ZoomValue"
+               CellDecorations="@CellDecorations"
+               CellClassHook="@CellClassHook"
+               CellStyleHook="@CellStyleHook"
                EditingInCell="@_editInCell"
                EditingInBar="@_editInBar"
                Draft="@_draft"
@@ -102,6 +105,7 @@
                     Range="@SelectionText"
                     ViewMode="@ViewModeValue"
                     PageModesReady="@PageModesReady"
+                    Protected="@CurrentSheet.IsProtected"
                     Zoom="@ZoomValue"
                     OnCommand="RunStatusCommandAsync"
                     OnZoom="SetZoomAsync" />

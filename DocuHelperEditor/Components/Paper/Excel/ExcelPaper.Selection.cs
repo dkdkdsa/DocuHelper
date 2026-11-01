@@ -152,6 +152,9 @@ namespace DocuHelperEditor.Components.Paper.Excel
                     if (cellRef == null)
                         return;
 
+                    if (pointer.Ctrl && TryFollowLink(pointer.Row, pointer.Column))
+                        return;
+
                     if (IsEditing && CanPoint())
                     {
                         StartPoint(pointer.Row, pointer.Column);

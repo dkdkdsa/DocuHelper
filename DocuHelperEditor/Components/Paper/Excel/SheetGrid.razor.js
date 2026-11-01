@@ -11,8 +11,8 @@ function cellOf(target) {
     return { row: +tr.dataset.r, column: +td.dataset.c };
 }
 
-function send(state, phase, row, column, shift) {
-    state.dotnet.invokeMethodAsync('Pointer', phase, row, column, !!shift).catch(() => { });
+function send(state, phase, row, column, shift, ctrl) {
+    state.dotnet.invokeMethodAsync('Pointer', phase, row, column, !!shift, !!ctrl).catch(() => { });
 }
 
 function isEditingSink(el) {
@@ -133,7 +133,7 @@ function onDown(state, e) {
     e.preventDefault();
     state.mode = 'select';
     state.last = cell;
-    send(state, 'down', cell.row, cell.column, e.shiftKey);
+    send(state, 'down', cell.row, cell.column, e.shiftKey, e.ctrlKey || e.metaKey);
 }
 
 function onMove(state, e) {

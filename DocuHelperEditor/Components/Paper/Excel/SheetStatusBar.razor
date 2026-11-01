@@ -25,6 +25,9 @@
     public int Zoom { get; set; } = 100;
 
     [Parameter]
+    public bool Protected { get; set; }
+
+    [Parameter]
     public EventCallback<string> OnCommand { get; set; }
 
     [Parameter]
@@ -59,6 +62,10 @@
             <StatusButton Icon="plview" Label="페이지 레이아웃" Tip='@(PageModesReady ? "페이지 레이아웃" : "페이지 레이아웃 보기는 아직 준비 중이에요.")' Pressed='@(ViewMode == SheetViewMode.PageLayout)' disabled='@(!PageModesReady)' OnClick='() => Command("excel.status.view.pagelayout")' />
             <StatusButton Icon="pbview" Label="페이지 나누기 미리 보기" Tip='@(PageModesReady ? "페이지 나누기 미리 보기" : "페이지 나누기 미리 보기는 아직 준비 중이에요.")' Pressed='@(ViewMode == SheetViewMode.PageBreak)' disabled='@(!PageModesReady)' OnClick='() => Command("excel.status.view.pagebreak")' />
         </span>
+        @if (Protected)
+        {
+            <StatusButton Icon="lock" Label="시트 보호됨" Tip="시트가 보호되어 있어요. 잠긴 칸은 고칠 수 없어요." />
+        }
         <RibbonDivider Gap="4" />
         <ZoomControl Value="Zoom" ValueChanged="OnZoom" SliderWidth="84" />
     };

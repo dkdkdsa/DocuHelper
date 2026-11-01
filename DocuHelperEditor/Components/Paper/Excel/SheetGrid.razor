@@ -285,7 +285,7 @@
     }
 
     [JSInvokable]
-    public Task Pointer(string phase, int row, int column, bool shift) => OnPointer.InvokeAsync(new SheetPointer(phase, row, column, shift));
+    public Task Pointer(string phase, int row, int column, bool shift, bool ctrl) => OnPointer.InvokeAsync(new SheetPointer(phase, row, column, shift, ctrl));
 
     [JSInvokable]
     public Task Paste(string text) => OnPaste.InvokeAsync(text);

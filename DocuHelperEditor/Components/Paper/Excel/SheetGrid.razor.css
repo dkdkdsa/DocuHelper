@@ -11,6 +11,12 @@
     opacity: 0.55;
 }
 
+.sheet td.lnk {
+    color: var(--link);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .grid.nogrid .sheet td {
     border-color: transparent;
 }

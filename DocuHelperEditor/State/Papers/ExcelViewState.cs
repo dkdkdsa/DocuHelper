@@ -22,6 +22,12 @@ namespace DocuHelperEditor.State.Papers
 
         public void SetZoom(string sheet, int zoom) => Of(sheet).Zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
 
+        public void Seed(string sheet, string mode, int zoom)
+        {
+            if (!_sheets.ContainsKey(sheet))
+                _sheets[sheet] = new SheetView { Mode = mode, Zoom = Math.Clamp(zoom, MinZoom, MaxZoom) };
+        }
+
         private SheetView Of(string sheet)
         {
             if (!_sheets.TryGetValue(sheet, out var view))

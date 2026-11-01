@@ -322,6 +322,7 @@ namespace DocuHelperEditor.State.Mapping
                 Align = Align(style.Horizontal),
                 NumberFormat = style.IsPercent ? SheetNumberFormat.Percent : style.IsThousands ? SheetNumberFormat.Thousands : SheetNumberFormat.General,
                 ChangeIds = changes.ChangeIds(sheet.Name, entry.Column, entry.Row),
+                Locked = style.Locked,
             };
         }
 
