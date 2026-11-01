@@ -380,41 +380,131 @@ window.docuHelperPptCanvas = (function () {
 })();
 
 window.docuHelperPptGrip = (function () {
-    var grips = new Map();
     var MIN = 48;
     var MAX = 600;
+    var RATIO = 0.4;
+    var STEP = 16;
+    var PAGE = 64;
+    var grips = new Map();
+
+    function limit(host) {
+        return Math.round(Math.min(MAX, Math.max(MIN, host.clientHeight * RATIO)));
+    }
+
+    function clamp(host, height) {
+        return Math.round(Math.min(limit(host), Math.max(MIN, height)));
+    }
+
+    function current(record) {
+        return record.notes.getBoundingClientRect().height;
+    }
+
+    function apply(record, height) {
+        record.notes.style.height = height + 'px';
+        record.grip.setAttribute('aria-valuenow', String(height));
+        record.grip.setAttribute('aria-valuemax', String(limit(record.host)));
+    }
+
+    function commit(record, height) {
+        record.reference.invokeMethodAsync('Resized', height).catch(function () { });
+    }
+
+    function setHeight(record, height) {
+        var next = clamp(record.host, height);
+        apply(record, next);
+        commit(record, next);
+    }
+
+    function onDown(record, e) {
+        if (e.button !== 0) return;
+
+        e.preventDefault();
+        var grip = record.grip;
+        var pointer = e.pointerId;
+        var startY = e.clientY;
+        var start = current(record);
+        var height = start;
+        grip.setPointerCapture(pointer);
+
+        function move(ev) {
+            if (ev.pointerId !== pointer) return;
+            height = clamp(record.host, start - (ev.clientY - startY));
+            apply(record, height);
+        }
+
+        function up(ev) {
+            if (ev.pointerId !== pointer) return;
+            grip.removeEventListener('pointermove', move);
+            grip.removeEventListener('pointerup', up);
+            grip.removeEventListener('pointercancel', up);
+            if (grip.hasPointerCapture(pointer)) grip.releasePointerCapture(pointer);
+            commit(record, height);
+        }
+
+        grip.addEventListener('pointermove', move);
+        grip.addEventListener('pointerup', up);
+        grip.addEventListener('pointercancel', up);
+    }
+
+    function onKey(record, e) {
+        var height = null;
+        if (e.key === 'ArrowUp') height = current(record) + STEP;
+        else if (e.key === 'ArrowDown') height = current(record) - STEP;
+        else if (e.key === 'PageUp') height = current(record) + PAGE;
+        else if (e.key === 'PageDown') height = current(record) - PAGE;
+        else if (e.key === 'Home') height = MIN;
+        else if (e.key === 'End') height = limit(record.host);
+        if (height === null) return;
+
+        e.preventDefault();
+        setHeight(record, height);
+    }
+
+    function dispose(grip) {
+        var record = grips.get(grip);
+        if (!record) return;
+        grip.removeEventListener('pointerdown', record.onDown);
+        grip.removeEventListener('keydown', record.onKey);
+        grips.delete(grip);
+    }
+
+    window.addEventListener('resize', function () {
+        grips.forEach(function (record, grip) {
+            if (!grip.isConnected) {
+                dispose(grip);
+                return;
+            }
+
+            var height = current(record);
+            var next = clamp(record.host, height);
+            apply(record, next);
+            if (next !== Math.round(height)) commit(record, next);
+        });
+    });
 
     return {
         register: function (grip, reference) {
-            if (grip) grips.set(grip, reference);
+            if (!grip) return;
+
+            var record = grips.get(grip);
+            if (record) {
+                record.reference = reference;
+                return;
+            }
+
+            var notes = grip.closest('.notes');
+            if (!notes || !notes.parentElement) return;
+
+            record = { grip: grip, notes: notes, host: notes.parentElement, reference: reference };
+            record.onDown = function (e) { onDown(record, e); };
+            record.onKey = function (e) { onKey(record, e); };
+            grips.set(grip, record);
+            grip.addEventListener('pointerdown', record.onDown);
+            grip.addEventListener('keydown', record.onKey);
+            apply(record, clamp(record.host, current(record)));
         },
         unregister: function (grip) {
-            grips.delete(grip);
-        },
-        start: function (grip, clientY, startHeight) {
-            var reference = grips.get(grip);
-            var notes = grip ? grip.closest('.notes') : null;
-            if (!reference || !notes) return;
-
-            var host = notes.parentElement;
-            var max = Math.min(MAX, Math.max(MIN, host.clientHeight * 0.4));
-            var height = startHeight;
-
-            function move(e) {
-                height = Math.round(Math.min(max, Math.max(MIN, startHeight - (e.clientY - clientY))));
-                notes.style.height = height + 'px';
-            }
-
-            function up() {
-                window.removeEventListener('pointermove', move);
-                window.removeEventListener('pointerup', up);
-                window.removeEventListener('pointercancel', up);
-                reference.invokeMethodAsync('Resized', height).catch(function () { });
-            }
-
-            window.addEventListener('pointermove', move);
-            window.addEventListener('pointerup', up);
-            window.addEventListener('pointercancel', up);
+            dispose(grip);
         }
     };
 })();
