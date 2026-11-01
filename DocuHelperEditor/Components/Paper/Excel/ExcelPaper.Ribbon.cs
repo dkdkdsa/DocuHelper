@@ -17,6 +17,9 @@ namespace DocuHelperEditor.Components.Paper.Excel
         [Inject]
         private IFileDialogService FileDialogs { get; set; }
 
+        [Inject]
+        private IPrintService Prints { get; set; }
+
         ExcelPaperModel IExcelSurface.Model => Model;
 
         Sheet IExcelSurface.Sheet => CurrentSheet;
@@ -57,7 +60,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         protected override void OnInitialized()
         {
-            _router = new ExcelCommandRouter(Workspace, Assistant, JS, Clipboards, FileDialogs, this);
+            _router = new ExcelCommandRouter(Workspace, Assistant, JS, Clipboards, FileDialogs, Prints, this);
             _router.File = File;
             _router.Changed += OnRouterChanged;
             Clipboards.Changed += OnRouterChanged;
