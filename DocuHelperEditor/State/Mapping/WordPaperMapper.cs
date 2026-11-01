@@ -41,6 +41,7 @@ namespace DocuHelperEditor.State.Mapping
                 var look = WordLook.Of(scan, block);
                 var model = block.IsTable ? MapTable(scan, block) : MapParagraph(block, look);
                 model.Id = block.Id == null ? $"b:{block.Index}" : block.Anchor;
+                model.ParagraphIds = block.IsTable ? block.Table.Descendants<Paragraph>().Select(WordIds.Of).Where(id => id != null).ToList() : Array.Empty<string>();
                 model.Page = block.Page;
                 model.Fragments = block.Fragments.ToList();
                 model.SpaceBefore = block.SpaceBefore;

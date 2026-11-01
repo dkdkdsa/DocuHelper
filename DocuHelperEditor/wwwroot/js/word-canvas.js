@@ -60,7 +60,7 @@
             });
         },
         scrollToBlock: function (canvas, id) {
-            var target = canvas && canvas.querySelector('[data-block="' + id + '"]');
+            var target = canvas && (canvas.querySelector('[data-block="' + id + '"]') || canvas.querySelector('[data-table="' + id + '"]'));
             if (target) target.scrollIntoView({ block: 'start' });
         },
         scrollToPage: function (canvas, page) {

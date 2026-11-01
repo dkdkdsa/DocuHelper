@@ -4,6 +4,7 @@
 @using DocuHelper.Tools.Excel
 @using DocuHelperEditor.State.Papers
 @inject IJSRuntime JS
+@implements IAsyncDisposable
 @if (ViewMode == SheetViewMode.PageLayout)
 {
     <div class="pf pf-layout" data-view="pageLayout" @ref="_host">
@@ -60,6 +61,9 @@ else
     public PagePlan Plan { get; set; }
 
     [Parameter]
+    public Sheet Sheet { get; set; }
+
+    [Parameter]
     public int Zoom { get; set; } = 100;
 
     [Parameter]
@@ -111,12 +115,41 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (ViewMode == SheetViewMode.Normal || Plan == null)
+        {
+            await ClearAsync();
             return;
+        }
 
         try
         {
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
             await _module.InvokeVoidAsync("draw", _host, Overlay());
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module == null)
+            return;
+
+        await ClearAsync();
+        await _module.DisposeAsync();
+    }
+
+    private async Task ClearAsync()
+    {
+        if (_module == null)
+            return;
+
+        try
+        {
+            await _module.InvokeVoidAsync("clear", _host);
+        }
+        catch (JSException)
+        {
         }
         catch (JSDisconnectedException)
         {
@@ -139,7 +172,20 @@ else
         var notice = Plan.Pages.Count > MaxDrawnPages
             ? $"쪽이 {Plan.Pages.Count.ToString("N0", CultureInfo.InvariantCulture)}개라 앞의 {MaxDrawnPages}쪽만 그려요."
             : null;
-        return new OverlayModel(ViewMode, Zoom / 100.0, ColumnFallbackPixels, RowFallbackPixels, pages, notice);
+        var rows = pages.Count == 0 ? 0 : pages.Max(page => page.Bottom) + 2;
+        return new OverlayModel(ViewMode, Zoom / 100.0, ColumnFallbackPixels, RowHeights(rows), pages, notice);
+    }
+
+    private double[] RowHeights(int count)
+    {
+        var heights = new double[count];
+        for (var r = 0; r < count; r++)
+        {
+            var row = Sheet?.FindRow(r);
+            heights[r] = row?.Hidden == true ? 0 : row?.Height ?? RowFallbackPixels;
+        }
+
+        return heights;
     }
 
     private string PageText(string left, string center, string right, string placeholder)
@@ -163,5 +209,5 @@ else
 
     private sealed record PageBox(int Left, int Top, int Right, int Bottom, int Number, bool ManualTop, bool ManualLeft);
 
-    private sealed record OverlayModel(string Mode, double Zoom, double ColumnFallback, double RowFallback, IReadOnlyList<PageBox> Pages, string Notice);
+    private sealed record OverlayModel(string Mode, double Zoom, double ColumnFallback, IReadOnlyList<double> RowHeights, IReadOnlyList<PageBox> Pages, string Notice);
 }

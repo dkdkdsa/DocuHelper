@@ -72,6 +72,15 @@ namespace DocuHelperEditor.State.Papers
 
         public WordBlockModel FindBlock(string blockId) => string.IsNullOrEmpty(blockId) ? null : Blocks.FirstOrDefault(b => b.Id == blockId);
 
+        public WordBlockModel FindBlockOfParagraph(string paragraphId)
+        {
+            if (string.IsNullOrEmpty(paragraphId))
+                return null;
+
+            var anchor = WordIds.ParagraphAnchor(paragraphId);
+            return Blocks.FirstOrDefault(b => b.Id == anchor) ?? Blocks.FirstOrDefault(b => b.ParagraphIds.Contains(paragraphId));
+        }
+
         public bool HasChange(string changeId) => !string.IsNullOrEmpty(changeId) && Blocks.Any(b => b.ChangeId == changeId);
 
         public string Describe(WordBlockModel block)

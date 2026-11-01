@@ -47,8 +47,11 @@
             <button type="button" class="tool" @onclick="AltAsync" @onclick:stopPropagation="true">대체 텍스트</button>
             <button type="button" class="tool" @onclick="WrapAsync" @onclick:stopPropagation="true">배치</button>
             <button type="button" class="tool" @onclick="RotateAsync" @onclick:stopPropagation="true">회전</button>
-            <button type="button" class="tool" @onclick="FrontAsync" @onclick:stopPropagation="true">앞으로</button>
-            <button type="button" class="tool" @onclick="BackAsync" @onclick:stopPropagation="true">뒤로</button>
+            @if (!Item.Inline)
+            {
+                <button type="button" class="tool" @onclick="FrontAsync" @onclick:stopPropagation="true">앞으로</button>
+                <button type="button" class="tool" @onclick="BackAsync" @onclick:stopPropagation="true">뒤로</button>
+            }
             <button type="button" class="tool danger" @onclick="DeleteAsync" @onclick:stopPropagation="true">삭제</button>
         </div>
     }
@@ -58,6 +61,12 @@
     private static readonly string[] s_wraps = { "inline", "square", "tight", "through", "top_bottom", "behind", "in_front" };
 
     private static readonly string[] s_wrapLabels = { "글자처럼", "주변 글 따라", "촘촘히 감싸기", "글 관통", "위아래", "글 뒤로", "글 앞으로" };
+
+    private const double MinCm = 0.1;
+
+    private const double MaxCm = 100;
+
+    private const double CmStep = 0.01;
 
     [Parameter]
     public WordObjectModel Item { get; set; }
@@ -101,7 +110,6 @@
         switch (e.Key)
         {
             case "Delete":
-            case "Backspace":
                 return DeleteAsync();
             case "Escape":
                 return OnSelect.InvokeAsync(null);
@@ -120,21 +128,41 @@
             new WordDialogField("width", "가로 (cm)", "number", Json(Cm(Item.WidthPt)), Array.Empty<string>(), Array.Empty<string>()),
             new WordDialogField("height", "세로 (cm)", "number", Json(Cm(Item.HeightPt)), Array.Empty<string>(), Array.Empty<string>()),
         };
-        var values = await Dialogs.AskFieldsAsync("word.object.size", new WordDialogSpec("크기", fields), null);
+        var values = await Dialogs.AskFieldsAsync("word.object.size", new WordDialogSpec("크기", fields, ValidateSize), null);
         if (values == null)
             return;
 
-        var changes = new JsonObject { ["lock_aspect"] = JsonValue.Create(false) };
-        var width = values["width"]?.GetValue<double>();
-        var height = values["height"]?.GetValue<double>();
-        if (width.HasValue)
+        var width = NumberOf(values, "width");
+        var height = NumberOf(values, "height");
+        var changes = new JsonObject();
+        if (Changed(width, Item.WidthPt))
             changes["width_cm"] = JsonValue.Create(width.Value);
 
-        if (height.HasValue)
+        if (Changed(height, Item.HeightPt))
             changes["height_cm"] = JsonValue.Create(height.Value);
+
+        if (changes.Count == 0)
+            return;
 
         Format(changes);
     }
+
+    private static string ValidateSize(IReadOnlyDictionary<string, JsonNode> values)
+    {
+        foreach (var (name, label) in new[] { ("width", "가로"), ("height", "세로") })
+        {
+            var value = NumberOf(values, name);
+            if (value is double number && (number < MinCm || number > MaxCm))
+                return $"{label}은 {MinCm}~{MaxCm}cm 사이로 넣어 주세요.";
+        }
+
+        return null;
+    }
+
+    private static double? NumberOf(IReadOnlyDictionary<string, JsonNode> values, string name) =>
+        values.TryGetValue(name, out var node) && node != null ? node.GetValue<double>() : null;
+
+    private static bool Changed(double? value, double points) => value is double number && Math.Abs(number - points / 28.3465) >= CmStep / 2;
 
     private async Task AltAsync()
     {

@@ -149,6 +149,13 @@
 
     document.addEventListener('mousedown', keepSelection, true);
 
+    function guardObjectKey(e) {
+        var target = e.target;
+        if (target && target.classList && target.classList.contains('obj') && (e.key === ' ' || e.key === 'Delete' || e.key === 'Backspace')) e.preventDefault();
+    }
+
+    document.addEventListener('keydown', guardObjectKey, true);
+
     return {
         attach: attach,
         detach: detach,

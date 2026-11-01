@@ -81,7 +81,7 @@ namespace DocuHelperEditor.State
 
             var slot = SlotFor(provider.Value);
             slot.Key = key;
-            slot.State = _draftState;
+            slot.State = _draftState == KeyCheckState.Checking ? KeyCheckState.Idle : _draftState;
             slot.CheckedAt = _draftState == KeyCheckState.Ok ? DateTime.Now : null;
             _draftKey = key;
             _loaded = true;

@@ -273,27 +273,42 @@ function report(state) {
         if (!table) return;
         const zoom = parseFloat(table.style.zoom) || 1;
         const head = table.tHead ? table.tHead.getBoundingClientRect().height / zoom : 0;
+        const top = state.grid.scrollTop / zoom - head;
+        const height = state.grid.clientHeight / zoom;
         const rows = [];
         const heights = [];
         for (const tr of table.tBodies[0].rows) {
             if (tr.dataset.r === undefined) continue;
-            rows.push(+tr.dataset.r);
-            heights.push(tr.getBoundingClientRect().height / zoom);
+            const row = +tr.dataset.r;
+            const measured = tr.getBoundingClientRect().height / zoom;
+            const known = state.sent.get(row);
+            if (known !== undefined && Math.abs(known - measured) <= 0.5) continue;
+            state.sent.set(row, measured);
+            rows.push(row);
+            heights.push(measured);
         }
-        const top = state.grid.scrollTop / zoom - head;
-        const height = state.grid.clientHeight / zoom;
+
+        if (rows.length === 0 && top === state.top && height === state.height) return;
+        state.top = top;
+        state.height = height;
         state.dotnet.invokeMethodAsync('Viewport', top, height, rows, heights).catch(() => { });
     });
 }
 
-export function refresh(grid) {
+export function refresh(grid, version) {
     const state = grid ? grid.__sheet : null;
-    if (state) report(state);
+    if (!state) return;
+    if (state.version !== version) {
+        state.version = version;
+        state.sent.clear();
+    }
+
+    report(state);
 }
 
 export function attach(grid, dotnet) {
     if (!grid || grid.__sheet) return;
-    const state = { grid, dotnet, mode: null, last: null, resize: null, frame: 0, scroll: null, resizer: null };
+    const state = { grid, dotnet, mode: null, last: null, resize: null, frame: 0, scroll: null, resizer: null, sent: new Map(), version: null, top: null, height: null };
     state.down = e => onDown(state, e);
     state.move = e => onMove(state, e);
     state.up = e => onUp(state, e);

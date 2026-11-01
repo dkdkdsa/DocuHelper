@@ -96,37 +96,41 @@
             return marks;
         }
 
-        var max = chart.Series.SelectMany(s => s.Values).Where(v => v.HasValue).Select(v => v.Value).DefaultIfEmpty(0).Max();
-        if (max <= 0)
+        var values = chart.Series.SelectMany(s => s.Values).Where(v => v.HasValue).Select(v => v.Value).ToList();
+        var min = Math.Min(0, values.DefaultIfEmpty(0).Min());
+        var max = Math.Max(0, values.DefaultIfEmpty(0).Max());
+        if (max - min <= 0)
             max = 1;
 
-        return chart.Type == "bar" ? Horizontal(chart, marks, count, max) : Vertical(chart, marks, count, max);
+        return chart.Type == "bar" ? Horizontal(chart, marks, count, min, max) : Vertical(chart, marks, count, min, max);
     }
 
-    private static List<Mark> Vertical(PptChartInfo chart, List<Mark> marks, int count, double max)
+    private static List<Mark> Vertical(PptChartInfo chart, List<Mark> marks, int count, double min, double max)
     {
         var group = (X1 - X0) / count;
         var series = chart.Series.Count;
         var bar = group * 0.7 / series;
         var line = chart.Type == "line";
-        marks.Add(new Mark("axis", 0, 0, 0, 0, null, null, null, $"M{Num(X0)} {Num(Y1)}H{Num(X1)}"));
+        var span = max - min;
+        var zero = Y1 - (0 - min) / span * (Y1 - Y0);
+        marks.Add(new Mark("axis", 0, 0, 0, 0, null, null, null, $"M{Num(X0)} {Num(zero)}H{Num(X1)}"));
         for (var s = 0; s < series; s++)
         {
             var color = ColorOf(chart.Series[s], s);
             var path = new StringBuilder();
             for (var i = 0; i < count; i++)
             {
-                var height = Value(chart.Series[s], i) / max * (Y1 - Y0);
+                var value = Value(chart.Series[s], i);
+                var y = Y1 - (value - min) / span * (Y1 - Y0);
                 if (line)
                 {
                     var x = X0 + (i + 0.5) * group;
-                    var y = Y1 - height;
                     path.Append(path.Length == 0 ? "M" : "L").Append(Num(x)).Append(' ').Append(Num(y)).Append(' ');
                     marks.Add(new Mark("dot", x, y, 0, 0, color, null, null, null));
                 }
-                else if (height > 0)
+                else if (value != 0)
                 {
-                    marks.Add(new Mark("rect", X0 + i * group + group * 0.15 + s * bar, Y1 - height, bar, height, color, null, null, null));
+                    marks.Add(new Mark("rect", X0 + i * group + group * 0.15 + s * bar, Math.Min(y, zero), bar, Math.Abs(zero - y), color, null, null, null));
                 }
             }
 
@@ -143,20 +147,25 @@
         return Legend(chart, marks, 258);
     }
 
-    private static List<Mark> Horizontal(PptChartInfo chart, List<Mark> marks, int count, double max)
+    private static List<Mark> Horizontal(PptChartInfo chart, List<Mark> marks, int count, double min, double max)
     {
         var row = (Y1 - Y0) / count;
         var series = chart.Series.Count;
         var bar = row * 0.7 / series;
-        marks.Add(new Mark("axis", 0, 0, 0, 0, null, null, null, $"M{Num(X0)} {Num(Y0)}V{Num(Y1)}"));
+        var span = max - min;
+        var zero = X0 + (0 - min) / span * (X1 - X0);
+        marks.Add(new Mark("axis", 0, 0, 0, 0, null, null, null, $"M{Num(zero)} {Num(Y0)}V{Num(Y1)}"));
         for (var s = 0; s < series; s++)
         {
             var color = ColorOf(chart.Series[s], s);
             for (var i = 0; i < count; i++)
             {
-                var width = Value(chart.Series[s], i) / max * (X1 - X0);
-                if (width > 0)
-                    marks.Add(new Mark("rect", X0, Y0 + i * row + row * 0.15 + s * bar, width, bar, color, null, null, null));
+                var value = Value(chart.Series[s], i);
+                if (value == 0)
+                    continue;
+
+                var end = X0 + (value - min) / span * (X1 - X0);
+                marks.Add(new Mark("rect", Math.Min(end, zero), Y0 + i * row + row * 0.15 + s * bar, Math.Abs(end - zero), bar, color, null, null, null));
             }
         }
 

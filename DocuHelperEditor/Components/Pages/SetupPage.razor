@@ -80,7 +80,7 @@
                 }
 
                 <div class="foot">
-                    <ActionButton Kind="ButtonKind.Primary" Class="start" Disabled="@(!Settings.CanStart || _starting)" OnClick="Start">저장하고 계속하기</ActionButton>
+                    <ActionButton Kind="ButtonKind.Primary" Class="start" Disabled="@StartDisabled" OnClick="Start">저장하고 계속하기</ActionButton>
                 </div>
             </div>
 
@@ -161,6 +161,8 @@
 
     private bool VerifyDisabled => string.IsNullOrWhiteSpace(Settings.ApiKey) || Settings.KeyState == KeyCheckState.Checking;
 
+    private bool StartDisabled => !Settings.CanStart || _starting || Settings.KeyState == KeyCheckState.Checking;
+
     private string KeyStateClass => Settings.KeyState switch
     {
         KeyCheckState.Ok => "ok",
@@ -192,7 +194,7 @@
 
     private void Start()
     {
-        if (_starting || !Settings.CanStart)
+        if (StartDisabled)
             return;
 
         _starting = true;

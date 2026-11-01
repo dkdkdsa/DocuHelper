@@ -45,8 +45,9 @@
             {
                 <label class="field-label" for="settings-claude-key">@ClaudeLabel</label>
                 <div class="fld">
-                    <input id="settings-claude-key" type="password" value="@ClaudeSlot.NewKey" placeholder="sk-ant-로 시작해요" autocomplete="off" spellcheck="false" aria-describedby="settings-claude-msg" @oninput="e => Settings.SetNewKey(AgentProvider.Claude, e.Value?.ToString())" @onkeydown="OnClaudeKeyDownAsync" />
+                    <input id="settings-claude-key" type="password" value="@ClaudeSlot.NewKey" placeholder="sk-ant-로 시작해요" autocomplete="off" spellcheck="false" aria-describedby="settings-claude-tip settings-claude-msg" @oninput="e => Settings.SetNewKey(AgentProvider.Claude, e.Value?.ToString())" @onkeydown="OnClaudeKeyDownAsync" />
                 </div>
+                <p id="settings-claude-tip" class="tip @(IsOpenAiText(ClaudeSlot.NewKey) ? "warn" : null)">@ClaudeTip</p>
                 <p id="settings-claude-msg" class="key-msg @(IsWarning(ClaudeSlot.NewState) ? "warn" : null)" role="status">
                     @if (ClaudeSlot.NewState == KeyCheckState.Checking)
                     {
@@ -145,7 +146,7 @@
                     }
                     else if (OpenAiSlot.NewState == KeyCheckState.Failed)
                     {
-                        <span>연결이 안 됐어요. 열쇠가 맞는지 다시 봐 주세요.</span>
+                        <span>@OpenAiFailedText</span>
                     }
                     else if (OpenAiSlot.NewState == KeyCheckState.Unverified)
                     {
@@ -182,6 +183,11 @@
                             <button type="button" id="settings-openai-delete-confirm" class="danger" @onclick="DeleteOpenAiAsync">지우기</button>
                         </div>
                     </div>
+                }
+
+                @if (_openAiDeleteFailed)
+                {
+                    <p class="key-msg warn" role="alert">@DeleteFailedText</p>
                 }
             }
             else
@@ -227,6 +233,10 @@
                 {
                     <button type="button" id="settings-claude-delete" class="danger" @onclick="AskDeleteClaudeAsync">Claude 열쇠 지우기</button>
                 }
+                @if (_claudeDeleteFailed)
+                {
+                    <p class="key-msg warn" role="alert">@DeleteFailedText</p>
+                }
             </div>
         </div>
     }
@@ -236,6 +246,10 @@
     private static readonly CultureInfo s_korean = CultureInfo.GetCultureInfo("ko-KR");
 
     private AgentProvider? _savedNow;
+
+    private bool _claudeDeleteFailed;
+
+    private bool _openAiDeleteFailed;
 
     [Parameter]
     public SettingsStore Settings { get; set; }
@@ -279,6 +293,14 @@
         ? "이건 Claude 열쇠예요. 위 Claude 칸에 넣어 주세요."
         : "OpenAI에서 받은 열쇠예요. 연결이 확인되면 저장돼요.";
 
+    private string ClaudeTip => IsOpenAiText(ClaudeSlot.NewKey)
+        ? "이건 ChatGPT 열쇠예요. 아래 ChatGPT 칸에 넣어 주세요."
+        : "Anthropic에서 받은 열쇠예요. 연결이 확인되면 저장돼요.";
+
+    private string OpenAiFailedText => AgentKeys.Detect(OpenAiSlot.NewKey) == null
+        ? OpenAiUnknownText
+        : "연결이 안 됐어요. 열쇠가 맞는지 다시 봐 주세요.";
+
     private static bool CanConfirmClaude(KeySlot slot)
     {
         var key = slot.NewKey.Trim();
@@ -293,9 +315,15 @@
 
     private const string UnverifiedText = "열쇠는 맞는 것 같지만 확인 권한이 없어요. 그대로 저장할까요?";
 
+    private const string OpenAiUnknownText = "ChatGPT(sk-)로 시작하는 열쇠처럼 보이지 않아요. 다시 봐 주세요.";
+
+    private const string DeleteFailedText = "열쇠를 지우지 못했어요. 문서 도우미 설정 폴더에 쓸 수 있는지 봐 주세요.";
+
     private static bool IsWarning(KeyCheckState state) => state is KeyCheckState.Failed or KeyCheckState.Unverified;
 
     private static bool IsClaudeText(string text) => (text ?? string.Empty).Trim().StartsWith("sk-ant-", StringComparison.Ordinal);
+
+    private static bool IsOpenAiText(string text) => AgentKeys.Detect(text) == AgentProvider.OpenAi;
 
     private static string CheckedNote(KeySlot slot) => slot.CheckedAt is DateTime at
         ? $"{FormatWhen(at)}에 확인했어요"
@@ -362,6 +390,7 @@
     private async Task AskDeleteClaudeAsync()
     {
         _savedNow = null;
+        _claudeDeleteFailed = false;
         Settings.AskDeleteKey(AgentProvider.Claude);
         await OnFocusRequest.InvokeAsync("#settings-claude-delete-cancel");
     }
@@ -375,6 +404,7 @@
     private async Task DeleteClaudeAsync()
     {
         var deleted = Settings.DeleteKey(AgentProvider.Claude);
+        _claudeDeleteFailed = !deleted;
         await OnFocusRequest.InvokeAsync(deleted ? "#settings-claude-add" : "#settings-claude-change");
     }
 
@@ -415,6 +445,7 @@
     private async Task AskDeleteOpenAiAsync()
     {
         _savedNow = null;
+        _openAiDeleteFailed = false;
         Settings.AskDeleteKey(AgentProvider.OpenAi);
         await OnFocusRequest.InvokeAsync("#settings-openai-delete-cancel");
     }
@@ -428,6 +459,7 @@
     private async Task DeleteOpenAiAsync()
     {
         var deleted = Settings.DeleteKey(AgentProvider.OpenAi);
+        _openAiDeleteFailed = !deleted;
         await OnFocusRequest.InvokeAsync(deleted ? "#settings-openai-add" : "#settings-openai-delete");
     }
 }

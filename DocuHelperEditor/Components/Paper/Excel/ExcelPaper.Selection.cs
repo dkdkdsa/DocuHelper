@@ -30,7 +30,11 @@ namespace DocuHelperEditor.Components.Paper.Excel
                 sheet = CurrentSheet;
                 sheet.ExtentRef = cellRef == SelectedRef ? null : cellRef;
                 if (sheet.ExtentRef != null)
+                {
                     _scrollTarget = "#" + _uid + " [data-x]";
+                    if (SheetRef.TryParse(cellRef, out _, out var extentRow))
+                        GrowRowsTo(extentRow);
+                }
 
                 SyncLabel();
                 return;
@@ -53,12 +57,13 @@ namespace DocuHelperEditor.Components.Paper.Excel
             SyncLabel();
         }
 
-        private void SelectRegion(SheetRegion region, bool focus = true)
+        private void SelectRegion(SheetRegion region, bool focus = true, bool grow = true)
         {
             if (IsEditing && !CommitEdit())
                 return;
 
-            GrowRowsTo(region.Bottom);
+            if (grow)
+                GrowRowsTo(region.Bottom);
             var sheet = CurrentSheet;
             sheet.SelectedRef = SheetRef.Make(region.Left, region.Top);
             sheet.ExtentRef = region.IsSingle ? null : SheetRef.Make(region.Right, region.Bottom);
@@ -144,7 +149,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
             SheetRef.TryParse(SelectedRef, out var column, out var row);
             var all = new SheetRegion(0, 0, MaxRow, MaxColumn);
             var region = SheetRegion.Around(sheet, column, row);
-            SelectRegion(region.HasValue && region.Value != Selection ? region.Value : all);
+            SelectRegion(region.HasValue && region.Value != Selection ? region.Value : all, true, false);
         }
 
         private void HandlePointer(SheetPointer pointer)
@@ -204,7 +209,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
                     SelectHeader(SheetRegion.Span(pointer.Row, 0, pointer.Row, MaxColumn), pointer.Shift);
                     break;
                 case "all":
-                    SelectRegion(new SheetRegion(0, 0, MaxRow, MaxColumn));
+                    SelectRegion(new SheetRegion(0, 0, MaxRow, MaxColumn), true, false);
                     break;
             }
         }
@@ -221,7 +226,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
                     Math.Max(region.Right, current.Right));
             }
 
-            SelectRegion(region);
+            SelectRegion(region, true, false);
         }
 
         private bool CanPoint()

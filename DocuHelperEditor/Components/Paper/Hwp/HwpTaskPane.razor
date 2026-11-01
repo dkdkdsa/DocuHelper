@@ -108,13 +108,13 @@
     private async Task GoToHitAsync(WordNavHit hit)
     {
         Model.SelectedBlockId = hit.BlockId;
-        Model.Selection = new WordSelection(WordSelectionKind.Text, null, new[] { new WordSelectionRange(hit.BlockId, hit.Start, hit.End) });
+        Model.Selection = WordNavResults.SelectionOf(hit);
         Ribbon.CurrentPage = hit.Page;
         Ribbon.Touch();
         Workspace.SetSelection(Model.Describe(Model.FindBlock(hit.BlockId)));
         Workspace.Notify();
         await WordSelectionService.RestoreAsync(JS, Model.Selection);
-        await ScrollAsync($"[data-block=\"{hit.BlockId}\"]");
+        await ScrollAsync($"[data-block=\"{hit.BlockId}\"], [data-table=\"{hit.BlockId}\"]");
     }
 
     private Task CloseAsync()

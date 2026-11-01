@@ -16,6 +16,8 @@ namespace DocuHelperEditor.State.Papers
 
         public WordTableModel Table { get; set; }
 
+        public IReadOnlyList<string> ParagraphIds { get; set; } = Array.Empty<string>();
+
         public int Page { get; set; } = 1;
 
         public IReadOnlyList<WordFragment> Fragments { get; set; } = Array.Empty<WordFragment>();

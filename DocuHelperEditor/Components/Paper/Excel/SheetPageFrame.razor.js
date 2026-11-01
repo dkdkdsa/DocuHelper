@@ -1,38 +1,38 @@
+const layers = new WeakMap();
+
 export function draw(host, model) {
+    clear(host);
     if (!host || !model || model.pages.length === 0)
         return;
 
     const table = host.querySelector('table.sheet');
-    const first = table && table.querySelector('tbody tr[data-r="0"] td[data-c="0"]');
-    if (!first)
+    if (!table || !table.tHead || table.tHead.rows.length === 0)
         return;
 
     const scroller = scrollerOf(table);
     if (getComputedStyle(scroller).position === 'static')
         scroller.style.position = 'relative';
 
-    scroller.querySelectorAll(':scope > .pf-overlay').forEach(node => node.remove());
-
     const widths = new Map();
     table.querySelectorAll('thead th[data-c]').forEach(th => widths.set(Number(th.dataset.c), th.getBoundingClientRect().width));
 
-    const heights = new Map();
-    table.querySelectorAll('tbody tr[data-r]').forEach(tr => heights.set(Number(tr.dataset.r), tr.getBoundingClientRect().height));
-
     const frame = scroller.getBoundingClientRect();
-    const origin = first.getBoundingClientRect();
-    const originX = origin.left - frame.left - scroller.clientLeft + scroller.scrollLeft;
-    const originY = origin.top - frame.top - scroller.clientTop + scroller.scrollTop;
+    const headRow = table.tHead.rows[0];
+    const headBox = headRow.getBoundingClientRect();
+    const corner = headRow.cells[0].getBoundingClientRect();
+    const originX = headBox.left + corner.width - frame.left - scroller.clientLeft + scroller.scrollLeft;
+    const originY = headBox.bottom - frame.top - scroller.clientTop + scroller.scrollTop;
 
     const lastColumn = Math.max(...model.pages.map(page => page.right + 1));
     const lastRow = Math.max(...model.pages.map(page => page.bottom + 1));
     const columnOffsets = offsets(lastColumn + 1, column => widths.has(column) ? widths.get(column) : model.columnFallback * model.zoom);
-    const rowOffsets = offsets(lastRow + 1, row => heights.has(row) ? heights.get(row) : model.rowFallback * model.zoom);
+    const rowOffsets = offsets(lastRow + 1, row => model.rowHeights[row] * model.zoom);
 
     const layer = document.createElement('div');
     layer.className = 'pf-overlay';
     layer.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;z-index:3;';
     scroller.appendChild(layer);
+    layers.set(host, layer);
 
     for (const page of model.pages) {
         const left = originX + columnOffsets[page.left];
@@ -60,6 +60,13 @@ export function draw(host, model) {
         notice.textContent = model.notice;
         layer.appendChild(notice);
     }
+}
+
+export function clear(host) {
+    const layer = host ? layers.get(host) : null;
+    if (!layer) return;
+    layer.remove();
+    layers.delete(host);
 }
 
 function scrollerOf(node) {

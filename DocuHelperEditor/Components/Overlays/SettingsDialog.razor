@@ -104,6 +104,12 @@
         _ => null,
     };
 
+    protected override void OnInitialized() => Updates.Changed += OnUpdatesChanged;
+
+    protected override void OnDispose() => Updates.Changed -= OnUpdatesChanged;
+
+    private void OnUpdatesChanged() => _ = InvokeAsync(StateHasChanged);
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (Settings.IsDialogOpen && Settings.DialogSection != _scrolledSection)

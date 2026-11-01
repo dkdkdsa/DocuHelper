@@ -145,6 +145,11 @@
     private readonly Dictionary<int, double> _measured = new();
     private int _measuredVersion = -1;
     private bool _growPending;
+    private bool _topsValid;
+    private Sheet _topsSheet;
+    private int _topsVersion;
+    private int _topsRows = -1;
+    private int _topsLayout;
     private double _viewTop;
     private double _viewHeight = DefaultViewHeight;
 
@@ -305,7 +310,7 @@
         {
             try
             {
-                await _module.InvokeVoidAsync("refresh", _grid);
+                await _module.InvokeVoidAsync("refresh", _grid, Version);
             }
             catch (JSException)
             {
@@ -352,7 +357,7 @@
 
         if (remeasured)
         {
-            RebuildTops();
+            RebuildTops(true);
         }
 
         _viewTop = top;
@@ -467,13 +472,36 @@
         BuildOrder();
     }
 
-    private void RebuildTops()
+    private void RebuildTops(bool force = false)
     {
+        var layout = LayoutHash();
+        if (!force && _topsValid && ReferenceEquals(_topsSheet, Sheet) && _topsVersion == Version && _topsRows == _rowCount && _topsLayout == layout)
+            return;
+
+        _topsValid = true;
+        _topsSheet = Sheet;
+        _topsVersion = Version;
+        _topsRows = _rowCount;
+        _topsLayout = layout;
         _tops = new double[_rowCount + 1];
         for (var r = 0; r < _rowCount; r++)
         {
             _tops[r + 1] = _tops[r] + RowHeight(r);
         }
+    }
+
+    private int LayoutHash()
+    {
+        var hash = new HashCode();
+        var count = Math.Min(_rowCount, Sheet?.Rows.Count ?? 0);
+        for (var r = 0; r < count; r++)
+        {
+            var row = Sheet.FindRow(r);
+            hash.Add(row?.Height);
+            hash.Add(row?.Hidden);
+        }
+
+        return hash.ToHashCode();
     }
 
     private double RowHeight(int rowIndex)

@@ -98,7 +98,13 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Slide == null || Locked || _stage.Context == null)
+        if (Slide == null)
+        {
+            _attached = false;
+            return;
+        }
+
+        if (_attached || Locked || _stage.Context == null)
             return;
 
         try

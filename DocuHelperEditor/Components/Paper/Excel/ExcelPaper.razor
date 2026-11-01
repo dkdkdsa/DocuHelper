@@ -62,7 +62,7 @@
             <button type="button" class="confirm-no" @onclick="DismissConfirm">취소</button>
         </div>
     }
-    <SheetPageFrame ViewMode="@ViewModeValue" Setup="@CurrentSheet.Page" Plan="@CurrentPagePlan" Zoom="@ZoomValue" SheetName="@CurrentSheet.Name" FileName="@File?.Name">
+    <SheetPageFrame ViewMode="@ViewModeValue" Setup="@CurrentSheet.Page" Plan="@CurrentPagePlan" Sheet="@CurrentSheet" Zoom="@ZoomValue" SheetName="@CurrentSheet.Name" FileName="@File?.Name">
         <SheetGrid @key="CurrentSheet.Name"
                    Sheet="@CurrentSheet"
                    RenderAllRows="@_renderAllRows"

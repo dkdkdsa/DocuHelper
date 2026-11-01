@@ -18,7 +18,7 @@ namespace DocuHelperEditor.State.Ribbon
             dialogName == null || WordNamedDialogs.TryGet(commandId, dialogName, out _);
 
         public Task<IReadOnlyDictionary<string, JsonNode>> AskFieldsAsync(string commandId, WordDialogSpec spec, IReadOnlyDictionary<string, JsonNode> defaults) =>
-            OpenAsync(spec.Title, spec.Fields, defaults ?? s_none, null);
+            OpenAsync(spec.Title, spec.Fields, defaults ?? s_none, spec.Validate);
 
         public async Task<JsonObject> AskArgsAsync(string commandId, string dialogName, JsonObject current)
         {

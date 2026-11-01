@@ -304,7 +304,7 @@
         var hit = hits[index];
         Ribbon.SearchIndex = index;
         Model.SelectedBlockId = hit.BlockId;
-        Model.Selection = new WordSelection(WordSelectionKind.Text, null, new[] { new WordSelectionRange(hit.BlockId, hit.Start, hit.End) });
+        Model.Selection = WordNavResults.SelectionOf(hit);
         Ribbon.CurrentPage = hit.Page;
         Ribbon.BlockTarget = hit.BlockId;
         Ribbon.Touch();
@@ -313,7 +313,17 @@
         await WordSelectionService.RestoreAsync(JS, Model.Selection);
     }
 
-    private Task GoToReviewAsync(string paragraphId) => GoToHeadingAsync(WordIds.ParagraphAnchor(paragraphId));
+    private Task GoToReviewAsync(string paragraphId)
+    {
+        var block = Model.FindBlockOfParagraph(paragraphId);
+        if (block == null)
+        {
+            Assistant.ShowNotice("이 메모나 변경 위치를 문서에서 찾지 못했어요. 문서가 바뀌었을 수 있어요.");
+            return Task.CompletedTask;
+        }
+
+        return GoToHeadingAsync(block.Id);
+    }
 
     private Task CloseAsync()
     {

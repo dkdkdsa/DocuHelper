@@ -8,6 +8,11 @@
     box-shadow: var(--shadow-slide);
 }
 
+.slide:not([data-locked="true"]) {
+    overflow: clip;
+    overflow-clip-margin: 36px;
+}
+
 .bg {
     position: absolute;
     inset: 0;

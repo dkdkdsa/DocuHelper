@@ -23,7 +23,7 @@
 }
 
 .stage-show ::deep .slide {
-    width: min(100%, calc((100vh - 140px) * 16 / 9));
+    width: min(100%, calc((100vh - 140px) * var(--slide-ratio, 1.7778)));
     max-width: none;
     box-shadow: none;
 }

@@ -240,26 +240,6 @@
     position: relative;
 }
 
-.k-h1 {
-    margin: 0 0 calc(var(--pitch, 24.2) * 1 * var(--u));
-}
-
-.k-byline {
-    margin: 0 0 calc(var(--pitch, 24.2) * 0.35 * var(--u));
-}
-
-.k-h2 {
-    margin: 0 0 calc(var(--pitch, 24.2) * 0.8 * var(--u));
-}
-
-.k-body {
-    margin: 0 0 calc(var(--pitch, 24.2) * 0.35 * var(--u));
-}
-
-.k-table {
-    margin: 0 0 calc(var(--pitch, 24.2) * 0.6 * var(--u));
-}
-
 .bar {
     position: absolute;
     left: calc(-30 * var(--u));
