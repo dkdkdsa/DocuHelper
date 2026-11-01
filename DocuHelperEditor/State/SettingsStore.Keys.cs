@@ -303,18 +303,19 @@ namespace DocuHelperEditor.State
 
             var provider = AgentKeys.Detect(legacy) ?? AgentProvider.Claude;
             var slot = SlotFor(provider);
-            if (slot.HasKey)
-                return;
+            if (!slot.HasKey)
+            {
+                if (!WriteSecret(provider, legacy))
+                    return;
 
-            if (!WriteSecret(provider, legacy))
-                return;
+                slot.Key = legacy;
+            }
 
-            slot.Key = legacy;
             try
             {
                 _secrets.Delete(LegacyKeyName);
             }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is CryptographicException)
             {
                 AppLog.Write("Could not remove the old key", e);
             }
