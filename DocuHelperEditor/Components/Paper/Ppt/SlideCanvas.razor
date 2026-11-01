@@ -1,71 +1,40 @@
 ﻿@using System.Globalization
 @using DocuHelperEditor.State.Papers
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 @if (Slide != null)
 {
-    <div class="slide @LayoutClass" @onclick="OnClearSelection">
-        @if (TitleBox != null)
+    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" tabindex="-1" data-slide="@Slide.Id" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount" aria-label="@SlideLabel">
+        @if (Slide.Background.Kind == "picture" && Slide.Background.ImageSrc != null)
         {
-            @Frame(TitleBox)
+            <img class="bg" src="@Slide.Background.ImageSrc" alt="" />
         }
-        @if (Slide.Layout == SlideLayout.Content)
+        @foreach (var shape in Slide.Shapes)
         {
-            <span class="rule" aria-hidden="true"></span>
-            <div class="row">
-                @foreach (var body in Slide.BoxesOf(SlideBoxKind.Body))
-                {
-                    @Frame(body)
-                }
-                @if (Chart != null && Chart.Kind == SlideChartKind.Column)
-                {
-                    <figure class="chart cols" aria-label="@Chart.Label">
-                        @foreach (var bar in Chart.Bars)
-                        {
-                            <span class="col">
-                                <span class="col-track" aria-hidden="true"><span class="col-bar @TopClass(bar)" style="@ColumnStyle(bar)"></span></span>
-                                <span class="col-label">@bar.Label</span>
-                            </span>
-                        }
-                    </figure>
-                }
-                else if (Chart != null)
-                {
-                    <figure class="chart bars" aria-label="@Chart.Label">
-                        @foreach (var bar in Chart.Bars)
-                        {
-                            <span class="bar-row"><span class="bar-label">@bar.Label</span><span class="bar @TopClass(bar)" style="@BarStyle(bar)" aria-hidden="true"></span></span>
-                        }
-                    </figure>
-                }
-            </div>
-            <div class="foot"><span>@Footer</span><span>@Number</span></div>
-        }
-        @if (Slide.Layout == SlideLayout.Cover)
-        {
-            foreach (var subtitle in Slide.BoxesOf(SlideBoxKind.Subtitle))
-            {
-                @Frame(subtitle)
-            }
+            @Shape(shape)
         }
     </div>
-    if (Slide.FitChecked)
+    @if (ShowFit && Slide.FitChecked)
     {
         <p class="fit"><Icon Name="check" Size="14" Stroke="2.6" />글이 상자 안에 다 들어가요. 글자 크기는 그대로예요.</p>
     }
 }
 
 @code {
+    private ElementReference _stage;
+    private DotNetObjectReference<SlideCanvas> _reference;
+    private bool _attached;
+
     [Parameter]
     public SlideModel Slide { get; set; }
 
     [Parameter]
-    public int Number { get; set; }
+    public double AspectRatio { get; set; } = 16.0 / 9.0;
 
     [Parameter]
-    public string Footer { get; set; }
-
-    [Parameter]
-    public string SelectedBoxId { get; set; }
+    public List<string> SelectedShapeIds { get; set; }
 
     [Parameter]
     public string HighlightId { get; set; }
@@ -77,10 +46,10 @@
     public bool Locked { get; set; }
 
     [Parameter]
-    public EventCallback<SlideBoxModel> OnSelectBox { get; set; }
+    public bool ShowFit { get; set; } = true;
 
     [Parameter]
-    public EventCallback OnClearSelection { get; set; }
+    public EventCallback<SlideGesture> OnGesture { get; set; }
 
     [Parameter]
     public EventCallback<SlideBoxModel> OnBoxEdited { get; set; }
@@ -88,9 +57,7 @@
     [Parameter]
     public EventCallback<SlideBoxModel> OnBoxCommitted { get; set; }
 
-    private SlideBoxModel TitleBox => Slide?.FindBox(SlideBoxKind.Title);
-
-    private SlideChartModel Chart => Slide?.Chart != null && Slide.Chart.HasBars ? Slide.Chart : null;
+    private static readonly string[] s_handles = { "nw", "n", "ne", "e", "se", "s", "sw", "w" };
 
     private string LayoutClass => Slide?.Layout switch
     {
@@ -99,53 +66,211 @@
         _ => null,
     };
 
-    private RenderFragment Frame(SlideBoxModel box) => @<div @key="box.Id" class="@FrameClass(box)" data-change="@LiveChangeOf(box)" @onclick="() => SelectBox(box)" @onclick:stopPropagation="true">
-        @if (box.Id == SelectedBoxId)
+    private int SelectedCount => SelectedShapeIds?.Count ?? 0;
+
+    private string SlideStyle
+    {
+        get
         {
-            <span class="handle tl" aria-hidden="true"></span>
-            <span class="handle tr" aria-hidden="true"></span>
-            <span class="handle bl" aria-hidden="true"></span>
-            <span class="handle br" aria-hidden="true"></span>
+            var ratio = AspectRatio > 0 ? AspectRatio : 16.0 / 9.0;
+            var background = Slide.Background;
+            var fill = background.Kind switch
+            {
+                "solid" when background.Color != null => background.Color,
+                "gradient" when background.Color != null => string.Format(CultureInfo.InvariantCulture, "linear-gradient({0:0.##}deg, {1}, {2})", 90 + background.AngleDeg, background.Color, background.Color2 ?? background.Color),
+                _ => "var(--paper)",
+            };
+
+            return string.Format(CultureInfo.InvariantCulture, "aspect-ratio: {0:0.####} / 1; background: {1}", ratio, fill);
         }
-        <SlideTextBox Tag="@TagOf(box)" Class="@TextClass(box)" Style="@TextStyle(box)" Lines="box.Lines" Highlighted="IsLit(box)" ChangeId="@ShownChangeOf(box)" Framed="true" Editable="!Locked" data-placeholder="@PlaceholderOf(box)" OnFocus="() => SelectBox(box)" OnEdit="lines => EditBox(box, lines)" OnCommit="lines => CommitBox(box, lines)" />
+    }
+
+    protected override void OnInitialized() => _reference = DotNetObjectReference.Create(this);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Slide == null || _stage.Context == null)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelperPptCanvas.attach", _stage, _reference);
+            _attached = true;
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_attached)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperPptCanvas.detach", _stage);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        _reference?.Dispose();
+    }
+
+    [JSInvokable]
+    public Task Receive(SlideGesture gesture) => OnGesture.InvokeAsync(gesture);
+
+    private RenderFragment Shape(SlideShapeModel shape) => @<div @key="shape.Id" class="@ShapeClass(shape)" role="button" tabindex="@(shape.Id == TabStopId ? "0" : "-1")" aria-pressed="@(IsSelected(shape) ? "true" : "false")" data-shape="@shape.Id" data-movable="@(shape.Movable && !Locked ? "true" : null)" data-x="@Num(shape.Left)" data-y="@Num(shape.Top)" data-w="@Num(shape.Width)" data-h="@Num(shape.Height)" data-rot="@Num(shape.Rotation)" data-change="@LiveChangeOf(shape)" aria-label="@ShapeLabel(shape)" style="@ShapeStyle(shape)">
+        @if (shape.Kind == SlideShapeKind.Picture && shape.ImageSrc != null)
+        {
+            <img class="pic flip" src="@shape.ImageSrc" alt="@shape.AltText" style="@CropStyle(shape)" />
+        }
+        else if (shape.HasGeometry && shape.Kind != SlideShapeKind.Table && shape.Kind != SlideShapeKind.Chart)
+        {
+            @if (shape.FillKind == "picture" && shape.ImageSrc != null)
+            {
+                <img class="pic flip" src="@shape.ImageSrc" alt="" />
+            }
+            <svg class="geo flip" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" fill="@FillOf(shape)" stroke="@StrokeOf(shape)" stroke-width="@StrokeWidth(shape)" stroke-dasharray="@Dash(shape)" stroke-opacity="@LineOpacity(shape)" fill-opacity="@FillOpacity(shape)">
+                @if (shape.FillKind == "gradient")
+                {
+                    <defs>
+                        <linearGradient id="@GradientId(shape)" gradientTransform="rotate(@Num(shape.FillAngle))">
+                            <stop offset="0" stop-color="@shape.FillColor" />
+                            <stop offset="1" stop-color="@shape.FillColor2" />
+                        </linearGradient>
+                    </defs>
+                }
+                @((MarkupString)GeometryOf(shape))
+            </svg>
+        }
+        @if (shape.Table != null)
+        {
+            <SlideTableView Table="shape.Table" />
+        }
+        @if (shape.Chart != null)
+        {
+            <SlideChartView Chart="shape.Chart" />
+        }
+        @if (shape.Text != null)
+        {
+            <div class="tbox v-@shape.Text.VerticalAlign" style="@InsetStyle(shape.Text)">
+                <SlideTextBox Tag="@TagOf(shape.Text)" Class="@TextClass(shape.Text)" Style="@TextStyle(shape.Text)" Lines="shape.Text.Lines" Highlighted="IsLit(shape.Text)" ChangeId="@ShownChangeOf(shape.Text)" Framed="true" Editable="shape.TextEditable && !Locked" data-placeholder="@PlaceholderOf(shape.Text)" OnFocus="() => Select(shape.Id)" OnEdit="lines => EditBox(shape.Text, lines)" OnCommit="lines => CommitBox(shape.Text, lines)" />
+            </div>
+        }
+        @if (IsSelected(shape) && shape.Movable && !Locked)
+        {
+            @foreach (var handle in s_handles)
+            {
+                <span class="handle @handle" data-handle="@handle" role="presentation"></span>
+            }
+            <span class="handle rot" data-handle="rot" role="presentation"></span>
+        }
     </div>;
 
-    private static string PlaceholderOf(SlideBoxModel box) => box.Kind switch
-    {
-        SlideBoxKind.Title => "제목을 입력하세요",
-        SlideBoxKind.Subtitle => "부제목을 입력하세요",
-        _ => "내용을 입력하세요",
-    };
+    private bool IsSelected(SlideShapeModel shape) => SelectedShapeIds != null && SelectedShapeIds.Contains(shape.Id);
 
-    private string FrameClass(SlideBoxModel box)
+    private string ShapeClass(SlideShapeModel shape)
     {
-        var css = "box";
-        if (box.Kind == SlideBoxKind.Body && Chart != null)
-            css += " beside";
-
-        if (box.Id == SelectedBoxId)
+        var css = "shape";
+        if (IsSelected(shape))
             css += " on";
 
-        if (box.IsEmpty)
+        if (shape.IsInherited)
+            css += " inherited";
+
+        if (shape.IsGrouped)
+            css += " grouped";
+
+        if (shape.Kind == SlideShapeKind.Text && shape.Text != null && shape.Text.IsEmpty)
             css += " empty";
 
         return css;
     }
 
-    private string LiveChangeOf(SlideBoxModel box)
+    private string TabStopId => SelectedShapeIds != null && SelectedShapeIds.Count > 0
+        ? SelectedShapeIds[0]
+        : Slide.Shapes.FirstOrDefault(s => s.Movable)?.Id ?? Slide.Shapes.FirstOrDefault()?.Id;
+
+    private string SlideLabel => "슬라이드 " + (Slide.Id ?? string.Empty);
+
+    private static string ShapeLabel(SlideShapeModel shape) => shape.Kind switch
     {
-        if (LiveChanges == null)
-            return null;
+        SlideShapeKind.Picture => string.IsNullOrWhiteSpace(shape.AltText) ? "그림" : shape.AltText,
+        SlideShapeKind.Table => "표 " + (shape.Table?.Rows.Count ?? 0).ToString(CultureInfo.InvariantCulture) + "행 " + (shape.Table?.Columns.Count ?? 0).ToString(CultureInfo.InvariantCulture) + "열",
+        SlideShapeKind.Chart => "차트 " + (shape.Chart?.Label ?? string.Empty),
+        SlideShapeKind.Line => "선",
+        SlideShapeKind.Shape => string.IsNullOrWhiteSpace(shape.Name) ? "도형" : shape.Name,
+        SlideShapeKind.Text => shape.Text?.Lines.FirstOrDefault(l => !string.IsNullOrWhiteSpace(l)) ?? "글상자",
+        _ => "도형",
+    };
 
-        if (box.HasChange(HighlightId) && LiveChanges.Contains(HighlightId))
-            return HighlightId;
+    private static double MinLine(SlideShapeModel shape) => shape.Kind == SlideShapeKind.Line ? 1.5 : 0;
 
-        return box.AllChangeIds().LastOrDefault(LiveChanges.Contains);
+    private static string GeometryOf(SlideShapeModel shape) => shape.Preset == "line"
+        ? SlideGeometry.LineMarkup(shape.Width, shape.Height)
+        : SlideGeometry.Markup(shape.Preset);
+
+    private string ShapeStyle(SlideShapeModel shape)
+    {
+        var width = Math.Max(shape.Width, MinLine(shape));
+        var height = Math.Max(shape.Height, MinLine(shape));
+        var left = shape.Left - (width - shape.Width) / 2;
+        var top = shape.Top - (height - shape.Height) / 2;
+        return Css(
+            $"left: {Num(left)}%",
+            $"top: {Num(top)}%",
+            $"width: {Num(width)}%",
+            $"height: {Num(height)}%",
+            $"--rot: {Num(shape.Rotation)}deg",
+            $"--fx: {(shape.FlipH ? -1 : 1)}",
+            $"--fy: {(shape.FlipV ? -1 : 1)}");
     }
 
-    private bool IsLit(SlideBoxModel box) => box.HasChange(HighlightId) && !box.MarkCleared;
+    private static string InsetStyle(SlideBoxModel box) => Css(
+        $"padding: {Num(box.InsetTop)}cqw {Num(box.InsetRight)}cqw {Num(box.InsetBottom)}cqw {Num(box.InsetLeft)}cqw");
 
-    private string ShownChangeOf(SlideBoxModel box) => IsLit(box) ? HighlightId : box.ChangeId;
+    private static string CropStyle(SlideShapeModel shape)
+    {
+        if (shape.CropLeft <= 0 && shape.CropTop <= 0 && shape.CropRight <= 0 && shape.CropBottom <= 0)
+            return null;
+
+        return $"clip-path: inset({Num(shape.CropTop)}% {Num(shape.CropRight)}% {Num(shape.CropBottom)}% {Num(shape.CropLeft)}%)";
+    }
+
+    private static string FillOf(SlideShapeModel shape) => shape.FillKind switch
+    {
+        "solid" => shape.FillColor,
+        "gradient" => "url(#" + GradientId(shape) + ")",
+        _ => "none",
+    };
+
+    private static string FillOpacity(SlideShapeModel shape) => shape.FillKind is "solid" or "gradient" ? Num(shape.FillAlpha / 100.0) : null;
+
+    private static string StrokeOf(SlideShapeModel shape) => shape.LineColor ?? "none";
+
+    private static string StrokeWidth(SlideShapeModel shape) => shape.LineColor == null ? null : $"{Num(shape.LineWidthPt)}px";
+
+    private static string LineOpacity(SlideShapeModel shape) => shape.LineColor == null ? null : Num(shape.LineAlpha / 100.0);
+
+    private static string Dash(SlideShapeModel shape) => shape.LineDash switch
+    {
+        "dash" or "lgDash" => "6 4",
+        "sysDash" => "4 2",
+        "dot" or "sysDot" => "1.5 2",
+        "dashDot" or "sysDashDot" or "lgDashDot" => "6 3 1.5 3",
+        _ => null,
+    };
+
+    private static string GradientId(SlideShapeModel shape) =>
+        "g" + new string((shape.Id ?? string.Empty).Where(char.IsLetterOrDigit).ToArray());
 
     private static string TagOf(SlideBoxModel box) => box.Kind switch
     {
@@ -160,7 +285,8 @@
         {
             SlideBoxKind.Title => "title",
             SlideBoxKind.Body => "body",
-            _ => "subtitle",
+            SlideBoxKind.Subtitle => "subtitle",
+            _ => "plain",
         };
 
         return box.Underline ? css + " u" : css;
@@ -168,9 +294,19 @@
 
     private static string TextStyle(SlideBoxModel box)
     {
-        var style = $"font-size: {box.FontSize}px; font-weight: {(box.Bold ? 700 : 400)}";
+        var size = box.FontCqw > 0
+            ? $"font-size: {Num(box.FontCqw)}cqw"
+            : $"font-size: {box.FontSize}px";
+
+        var style = $"{size}; font-weight: {(box.Bold ? 700 : 400)}";
         if (box.Italic)
             style += "; font-style: italic";
+
+        if (box.Color != null)
+            style += $"; color: {box.Color}";
+
+        if (box.FontFamily != null)
+            style += $"; font-family: \"{box.FontFamily}\"";
 
         if (box.Align == SlideTextAlign.Center)
         {
@@ -182,21 +318,30 @@
         return style;
     }
 
-    private string TopClass(SlideChartBar bar) => Chart != null && Chart.IsTop(bar) ? "top" : null;
-
-    private string BarStyle(SlideChartBar bar)
+    private static string PlaceholderOf(SlideBoxModel box) => box.Kind switch
     {
-        var ratio = Chart?.RatioOf(bar) ?? 0;
-        return string.Format(CultureInfo.InvariantCulture, "width: {0:0.#}%; max-width: {1:0}px", ratio * 100, Math.Round(ratio * 120));
+        SlideBoxKind.Title => "제목을 입력하세요",
+        SlideBoxKind.Subtitle => "부제목을 입력하세요",
+        SlideBoxKind.Text => "글을 입력하세요",
+        _ => "내용을 입력하세요",
+    };
+
+    private string LiveChangeOf(SlideShapeModel shape)
+    {
+        if (LiveChanges == null || shape.Text == null)
+            return null;
+
+        if (shape.Text.HasChange(HighlightId) && LiveChanges.Contains(HighlightId))
+            return HighlightId;
+
+        return shape.Text.AllChangeIds().LastOrDefault(LiveChanges.Contains);
     }
 
-    private string ColumnStyle(SlideChartBar bar)
-    {
-        var ratio = Chart?.RatioOf(bar) ?? 0;
-        return string.Format(CultureInfo.InvariantCulture, "height: {0:0.#}%", ratio * 100);
-    }
+    private bool IsLit(SlideBoxModel box) => box.HasChange(HighlightId) && !box.MarkCleared;
 
-    private Task SelectBox(SlideBoxModel box) => OnSelectBox.InvokeAsync(box);
+    private string ShownChangeOf(SlideBoxModel box) => IsLit(box) ? HighlightId : box.ChangeId;
+
+    private Task Select(string shapeId) => OnGesture.InvokeAsync(new SlideGesture { Kind = "select", Id = shapeId });
 
     private Task EditBox(SlideBoxModel box, List<string> lines)
     {
@@ -211,4 +356,8 @@
 
         return OnBoxCommitted.InvokeAsync(box);
     }
+
+    private static string Num(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static string Css(params string[] declarations) => string.Join("; ", declarations);
 }

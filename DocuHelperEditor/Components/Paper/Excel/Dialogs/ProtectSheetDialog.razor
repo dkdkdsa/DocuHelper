@@ -1,0 +1,109 @@
+@using DocuHelper.Editors
+
+<ExcelDialogFrame Title="시트 보호" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
+    <p class="hint">@SheetName 시트의 잠긴 칸은 고칠 수 없어요.</p>
+    <div class="pair">
+        <div class="field">
+            <label class="field-label" for="ps-password">암호 (선택)</label>
+            <input id="ps-password" class="field-input" type="password" autocomplete="new-password" @bind="_password" />
+        </div>
+        <div class="field">
+            <label class="field-label" for="ps-confirm">암호 확인</label>
+            <input id="ps-confirm" class="field-input" type="password" autocomplete="new-password" @bind="_confirm" />
+        </div>
+    </div>
+    <p class="hint">암호를 잊으면 이 앱으로는 풀 수 없어요. 비워 두면 암호 없이 보호해요.</p>
+    <fieldset class="group">
+        <legend>보호된 시트에서도 허용할 작업</legend>
+        <div class="checks">
+            @foreach (var (value, label) in Allowed)
+            {
+                <label class="check">
+                    <input type="checkbox" checked="@_allowed.Contains(value)" @onchange="e => Toggle(value, e.Value is true)" />
+                    <span>@label</span>
+                </label>
+            }
+        </div>
+    </fieldset>
+</ExcelDialogFrame>
+
+@code {
+    private static readonly (string Value, string Label)[] Allowed =
+    {
+        ("select_locked", "잠긴 셀 선택"),
+        ("select_unlocked", "잠기지 않은 셀 선택"),
+        ("format_cells", "셀 서식 지정"),
+        ("format_columns", "열 서식 지정"),
+        ("format_rows", "행 서식 지정"),
+        ("insert_columns", "열 삽입"),
+        ("insert_rows", "행 삽입"),
+        ("insert_hyperlinks", "하이퍼링크 삽입"),
+        ("delete_columns", "열 삭제"),
+        ("delete_rows", "행 삭제"),
+        ("sort", "정렬"),
+        ("autofilter", "자동 필터 사용"),
+        ("pivot", "피벗 테이블 사용"),
+        ("objects", "개체 편집"),
+        ("scenarios", "시나리오 편집"),
+    };
+
+    [Parameter]
+    public string SheetName { get; set; }
+
+    [Parameter]
+    public string Error { get; set; }
+
+    [Parameter]
+    public EventCallback<EditCommand> OnApply { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private readonly HashSet<string> _allowed = new(StringComparer.Ordinal) { "select_locked", "select_unlocked" };
+    private string _password = string.Empty;
+    private string _confirm = string.Empty;
+    private string _error;
+
+    private string ErrorText => _error ?? Error;
+
+    private void Toggle(string value, bool on)
+    {
+        if (on)
+            _allowed.Add(value);
+        else
+            _allowed.Remove(value);
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error = null;
+        var command = Build();
+        if (command != null)
+            await OnApply.InvokeAsync(command);
+    }
+
+    private EditCommand Build()
+    {
+        if (_password != _confirm)
+            return Fail("암호가 서로 달라요. 다시 입력해 주세요.");
+
+        var args = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["scope"] = "sheet",
+            ["sheet"] = SheetName,
+            ["action"] = "protect",
+            ["allow"] = Allowed.Select(option => option.Value).Where(_allowed.Contains).ToArray(),
+        };
+
+        if (_password.Length > 0)
+            args["password"] = _password;
+
+        return EditCommand.Create("protect", args);
+    }
+
+    private EditCommand Fail(string message)
+    {
+        _error = message;
+        return null;
+    }
+}

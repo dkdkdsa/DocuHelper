@@ -48,6 +48,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             RegisterData();
             RegisterReview();
             RegisterView();
+            RegisterDialogs();
             RegisterFile();
         }
 

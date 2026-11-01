@@ -1,0 +1,268 @@
+@using System.Globalization
+@using DocuHelper.Editors
+
+<ExcelDialogFrame Title="데이터 유효성 검사" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
+    <div class="field">
+        <label class="field-label" for="dv-range">적용할 범위</label>
+        <input id="dv-range" class="field-input" type="text" autocomplete="off" @bind="_range" />
+    </div>
+    <div class="field">
+        <label class="field-label" for="dv-kind">허용</label>
+        <select id="dv-kind" class="field-input" @bind="_kind">
+            @foreach (var (value, label) in Kinds)
+            {
+                <option value="@value">@label</option>
+            }
+        </select>
+    </div>
+    @if (_kind == "list")
+    {
+        <div class="field">
+            <label class="field-label" for="dv-source">목록 원본</label>
+            <input id="dv-source" class="field-input" type="text" autocomplete="off" @bind="_source" />
+        </div>
+        <p class="hint">쉼표로 나눠 항목을 직접 넣거나, =$A$2:$A$9처럼 범위를 넣어요.</p>
+        <label class="check">
+            <input type="checkbox" @bind="_dropdown" />
+            <span>셀 안에 드롭다운 표시</span>
+        </label>
+    }
+    @if (_kind == "custom")
+    {
+        <div class="field">
+            <label class="field-label" for="dv-formula">수식</label>
+            <input id="dv-formula" class="field-input" type="text" autocomplete="off" @bind="_formula" />
+        </div>
+        <p class="hint">=로 시작하고, 범위의 왼쪽 위 칸을 기준으로 써요. 예: =LEN(A2)&lt;=10</p>
+    }
+    @if (IsNumeric)
+    {
+        <div class="field">
+            <label class="field-label" for="dv-op">조건</label>
+            <select id="dv-op" class="field-input" @bind="_operator">
+                @foreach (var (value, label) in Operators)
+                {
+                    <option value="@value">@label</option>
+                }
+            </select>
+        </div>
+        <div class="pair">
+            <div class="field">
+                <label class="field-label" for="dv-value1">@(IsBetween ? "최소값" : "값")</label>
+                <input id="dv-value1" class="field-input" type="text" autocomplete="off" @bind="_value1" />
+            </div>
+            @if (IsBetween)
+            {
+                <div class="field">
+                    <label class="field-label" for="dv-value2">최대값</label>
+                    <input id="dv-value2" class="field-input" type="text" autocomplete="off" @bind="_value2" />
+                </div>
+            }
+        </div>
+    }
+    <label class="check">
+        <input type="checkbox" @bind="_allowBlank" />
+        <span>빈 칸 허용</span>
+    </label>
+    <div class="field">
+        <label class="field-label" for="dv-input-title">입력 메시지 제목 (선택)</label>
+        <input id="dv-input-title" class="field-input" type="text" maxlength="32" autocomplete="off" @bind="_inputTitle" />
+    </div>
+    <div class="field">
+        <label class="field-label" for="dv-input-message">입력 메시지 (선택)</label>
+        <input id="dv-input-message" class="field-input" type="text" maxlength="255" autocomplete="off" @bind="_inputMessage" />
+    </div>
+    <div class="field">
+        <label class="field-label" for="dv-style">잘못된 값을 넣었을 때</label>
+        <select id="dv-style" class="field-input" @bind="_errorStyle">
+            @foreach (var (value, label) in Styles)
+            {
+                <option value="@value">@label</option>
+            }
+        </select>
+    </div>
+    <div class="field">
+        <label class="field-label" for="dv-error-title">오류 제목 (선택)</label>
+        <input id="dv-error-title" class="field-input" type="text" maxlength="32" autocomplete="off" @bind="_errorTitle" />
+    </div>
+    <div class="field">
+        <label class="field-label" for="dv-error-message">오류 메시지 (선택)</label>
+        <input id="dv-error-message" class="field-input" type="text" maxlength="255" autocomplete="off" @bind="_errorMessage" />
+    </div>
+</ExcelDialogFrame>
+
+@code {
+    private static readonly (string Value, string Label)[] Kinds =
+    {
+        ("any", "모든 값"),
+        ("whole", "정수"),
+        ("decimal", "소수"),
+        ("list", "목록"),
+        ("date", "날짜"),
+        ("time", "시간"),
+        ("text_length", "텍스트 길이"),
+        ("custom", "사용자 지정"),
+    };
+
+    private static readonly (string Value, string Label)[] Operators =
+    {
+        ("between", "사이"),
+        ("not_between", "사이가 아님"),
+        ("equal", "같음"),
+        ("not_equal", "같지 않음"),
+        ("greater_than", "보다 큼"),
+        ("less_than", "보다 작음"),
+        ("greater_equal", "이상"),
+        ("less_equal", "이하"),
+    };
+
+    private static readonly (string Value, string Label)[] Styles =
+    {
+        ("stop", "중지"),
+        ("warning", "경고"),
+        ("information", "정보"),
+    };
+
+    [Parameter]
+    public string SheetName { get; set; }
+
+    [Parameter]
+    public string Range { get; set; }
+
+    [Parameter]
+    public string Error { get; set; }
+
+    [Parameter]
+    public EventCallback<EditCommand> OnApply { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private string _range = string.Empty;
+    private string _kind = "whole";
+    private string _operator = "between";
+    private string _value1 = string.Empty;
+    private string _value2 = string.Empty;
+    private string _source = string.Empty;
+    private bool _dropdown = true;
+    private string _formula = string.Empty;
+    private bool _allowBlank = true;
+    private string _inputTitle = string.Empty;
+    private string _inputMessage = string.Empty;
+    private string _errorStyle = "stop";
+    private string _errorTitle = string.Empty;
+    private string _errorMessage = string.Empty;
+    private string _error;
+    private bool _ready;
+
+    private bool IsNumeric => _kind is "whole" or "decimal" or "date" or "time" or "text_length";
+
+    private bool IsBetween => _operator is "between" or "not_between";
+
+    private string ErrorText => _error ?? Error;
+
+    protected override void OnParametersSet()
+    {
+        if (_ready)
+            return;
+
+        _ready = true;
+        _range = Range ?? string.Empty;
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error = null;
+        var command = Build();
+        if (command != null)
+            await OnApply.InvokeAsync(command);
+    }
+
+    private EditCommand Build()
+    {
+        var range = _range.Trim();
+        if (range.Length == 0)
+            return Fail("적용할 범위를 넣어 주세요.");
+
+        var args = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["sheet"] = SheetName,
+            ["range"] = range,
+            ["action"] = "set",
+            ["type"] = _kind,
+            ["allow_blank"] = _allowBlank,
+            ["error_style"] = _errorStyle,
+        };
+
+        switch (_kind)
+        {
+            case "list":
+                var source = _source.Trim();
+                if (source.StartsWith("=", StringComparison.Ordinal))
+                {
+                    args["source"] = source;
+                }
+                else
+                {
+                    var items = source.Split(',').Select(item => item.Trim()).Where(item => item.Length > 0).ToArray();
+                    if (items.Length == 0)
+                        return Fail("목록 항목을 넣거나 =$A$2:$A$9처럼 범위를 넣어 주세요.");
+
+                    if (items.Sum(item => item.Length) + items.Length - 1 > 255)
+                        return Fail("목록은 합쳐서 255자 안에 들어와야 해요. 길면 범위로 지정해 주세요.");
+
+                    args["items"] = items;
+                }
+
+                args["in_cell_dropdown"] = _dropdown;
+                break;
+            case "custom":
+                if (!_formula.Trim().StartsWith("=", StringComparison.Ordinal))
+                    return Fail("수식은 =로 시작해야 해요.");
+
+                args["formula"] = _formula.Trim();
+                break;
+            case "any":
+                break;
+            default:
+                if (_value1.Trim().Length == 0)
+                    return Fail("값을 넣어 주세요.");
+
+                if (IsBetween && _value2.Trim().Length == 0)
+                    return Fail("최대값을 넣어 주세요.");
+
+                args["operator"] = _operator;
+                args["value1"] = _value1.Trim();
+                if (IsBetween)
+                    args["value2"] = _value2.Trim();
+                break;
+        }
+
+        var problem = Optional(args, "input_title", _inputTitle, 32, "입력 메시지 제목")
+            ?? Optional(args, "input_message", _inputMessage, 255, "입력 메시지")
+            ?? Optional(args, "error_title", _errorTitle, 32, "오류 제목")
+            ?? Optional(args, "error_message", _errorMessage, 255, "오류 메시지");
+        if (problem != null)
+            return Fail(problem);
+
+        return EditCommand.Create("set_data_validation", args);
+    }
+
+    private static string Optional(IDictionary<string, object> args, string key, string value, int max, string label)
+    {
+        var text = value.Trim();
+        if (text.Length > max)
+            return label + " 길이는 " + max.ToString(CultureInfo.InvariantCulture) + "자 이하여야 해요.";
+
+        if (text.Length > 0)
+            args[key] = text;
+
+        return null;
+    }
+
+    private EditCommand Fail(string message)
+    {
+        _error = message;
+        return null;
+    }
+}

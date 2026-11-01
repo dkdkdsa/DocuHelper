@@ -5,5 +5,6 @@
         Title,
         Subtitle,
         Body,
+        Text,
     }
 }

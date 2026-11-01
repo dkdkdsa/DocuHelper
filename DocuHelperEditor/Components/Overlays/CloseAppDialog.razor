@@ -1,0 +1,174 @@
+﻿@inherits StoreComponentBase
+@inject IJSRuntime JS
+@using DocuHelperEditor.Services
+
+@if (Workspace.IsClosingApp)
+{
+    <div class="overlay">
+        <div class="backdrop" aria-hidden="true" @onmousedown:preventDefault="true"></div>
+        <span class="sr-only" tabindex="0" @onfocus="FocusLastAsync"></span>
+        <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="close-q" aria-describedby="close-d" aria-busy="@BusyText" tabindex="-1" @onkeydown="OnKeyDown">
+            <h2 id="close-q">@Title</h2>
+            <p id="close-d" class="desc">@Description</p>
+            <div class="actions">
+                <ActionButton Kind="ButtonKind.Ghost" Class="cancel" id="close-cancel" OnClick="Cancel">취소</ActionButton>
+                @if (Workspace.UnsavedCount > 0)
+                {
+                    <ActionButton Kind="ButtonKind.Secondary" id="close-without-save" Disabled="_busy" OnClick="CloseWithoutSaveAsync">저장 안 하고 닫기</ActionButton>
+                    <ActionButton Kind="ButtonKind.Primary" Class="save" id="close-save" Disabled="_busy" OnClick="SaveAndCloseAsync">모두 저장하고 닫기</ActionButton>
+                }
+                else
+                {
+                    <ActionButton Kind="ButtonKind.Primary" Class="save" id="close-save" Disabled="_busy" OnClick="StopAndCloseAsync">도우미 멈추고 닫기</ActionButton>
+                }
+            </div>
+        </div>
+        <span class="sr-only" tabindex="0" @onfocus="FocusFirstAsync"></span>
+    </div>
+}
+
+@code {
+    private bool _shown;
+    private bool _busy;
+
+    private string BusyText => _busy ? "true" : "false";
+
+    private string Title => Workspace.UnsavedCount > 0
+        ? $"저장 안 한 파일이 {Workspace.UnsavedCount}개 있어요"
+        : "도우미가 일하는 중이에요";
+
+    private string Description
+    {
+        get
+        {
+            if (_busy)
+                return "저장하는 중이에요. 끝나면 창이 닫혀요.";
+
+            if (Workspace.UnsavedCount == 0)
+                return "지금 닫으면 도우미 작업이 멈춰요.";
+
+            return Assistant.IsRunning
+                ? "저장하지 않고 닫으면 이 변경은 없어져요. 도우미가 일하는 중이라 닫기 전에 멈춰요."
+                : "저장하지 않고 닫으면 이 변경은 없어져요.";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (!Workspace.IsClosingApp)
+            {
+                if (_shown)
+                {
+                    _shown = false;
+                    await JS.InvokeVoidAsync("docuHelper.restoreFocus");
+                }
+
+                return;
+            }
+
+            if (_shown)
+                return;
+
+            _shown = true;
+            Workspace.MarkCloseDialogShown();
+            await JS.InvokeVoidAsync("docuHelper.rememberFocus");
+            await JS.InvokeVoidAsync("docuHelper.focus", Workspace.UnsavedCount > 0 ? "#close-save" : "#close-cancel");
+        }
+        catch (JSException e)
+        {
+            AppLog.Write("Close dialog focus failed", e);
+        }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            Cancel();
+    }
+
+    private void Cancel()
+    {
+        if (_busy)
+            return;
+
+        Workspace.CancelCloseApp();
+    }
+
+    private async Task CloseWithoutSaveAsync()
+    {
+        if (_busy)
+            return;
+
+        _busy = true;
+        StateHasChanged();
+        try
+        {
+            await Assistant.StopAndWaitAsync();
+            Workspace.CloseAppWithoutSave();
+        }
+        catch (Exception e)
+        {
+            AppLog.Write("Could not close without saving", e);
+            Workspace.CancelCloseApp();
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveAndCloseAsync()
+    {
+        if (_busy)
+            return;
+
+        _busy = true;
+        StateHasChanged();
+        try
+        {
+            await Assistant.StopAndWaitAsync();
+            await Workspace.CloseAppWithSaveAsync();
+        }
+        catch (Exception e)
+        {
+            AppLog.Write("Could not save and close", e);
+            Workspace.CancelCloseApp();
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StopAndCloseAsync()
+    {
+        if (_busy)
+            return;
+
+        _busy = true;
+        StateHasChanged();
+        try
+        {
+            await Assistant.StopAndWaitAsync();
+            Workspace.CloseAppWithoutSave();
+        }
+        catch (Exception e)
+        {
+            AppLog.Write("Could not stop and close", e);
+            Workspace.CancelCloseApp();
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task FocusFirstAsync() => await JS.InvokeVoidAsync("docuHelper.focus", "#close-cancel");
+
+    private async Task FocusLastAsync() => await JS.InvokeVoidAsync("docuHelper.focus", "#close-save");
+}

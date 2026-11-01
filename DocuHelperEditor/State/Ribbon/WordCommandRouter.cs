@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -41,16 +41,18 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _files;
+        private readonly ISpeechService _speech;
         private readonly IJSRuntime _scriptJs;
         private Run _run;
         private HashSet<string> _tablesBefore;
 
-        public WordCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService files, WordRibbonState state)
+        public WordCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService files, ISpeechService speech, WordRibbonState state)
             : base(workspace, assistant, js)
         {
             _clipboard = clipboard;
             _scriptJs = js;
             _files = files;
+            _speech = speech;
             State = state;
 
             foreach (var spec in WordCommandTable.All)
@@ -60,6 +62,8 @@ namespace DocuHelperEditor.State.Ribbon
             }
 
             ProvideFileCommands();
+            ProvideMailCommands();
+            ProvideSpeechCommands();
         }
 
         public WordRibbonState State { get; }

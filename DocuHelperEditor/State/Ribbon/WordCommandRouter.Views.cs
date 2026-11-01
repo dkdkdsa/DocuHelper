@@ -57,6 +57,9 @@ namespace DocuHelperEditor.State.Ribbon
 
         private string ViewBlocker(WordCommandSpec spec)
         {
+            if (spec.Id == "word.review.speech.readaloud")
+                return ReadAloudBlocker();
+
             if (IsProvided(spec.Id))
                 return null;
 

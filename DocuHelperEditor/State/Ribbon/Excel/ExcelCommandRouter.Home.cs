@@ -455,7 +455,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         private IReadOnlyList<RibbonMenuItem> ConditionalMenu()
         {
-            var dialog = "excel.home.condformat";
+            var dialog = ExcelDialogIds.ConditionalFormat;
             var items = new List<RibbonMenuItem> { RibbonMenus.Heading("셀 강조 규칙") };
             items.AddRange(s_highlightRules.Select(r => r.Value == "duplicate"
                 ? QuickRuleEntry(r.Value, r.Label)
@@ -478,8 +478,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         private RibbonMenuItem QuickRuleEntry(string value, string label)
         {
-            return State.HasDialog("excel.home.condformat")
-                ? DialogEntry("dialog:" + value, label, "excel.home.condformat", null, "set_conditional_format")
+            return State.HasDialog(ExcelDialogIds.ConditionalFormat)
+                ? DialogEntry("dialog:" + value, label, ExcelDialogIds.ConditionalFormat, null, "set_conditional_format")
                 : Entry("quick:" + value, label, "연한 빨강 채우기와 진한 빨강 글자로 보여 줘요", needs: "set_conditional_format");
         }
 
@@ -506,7 +506,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
             if (arg.StartsWith("dialog:", StringComparison.Ordinal))
             {
-                State.OpenDialog("excel.home.condformat");
+                State.OpenDialog(ExcelDialogIds.ConditionalFormat);
                 return Task.CompletedTask;
             }
 

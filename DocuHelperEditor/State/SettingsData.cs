@@ -22,6 +22,12 @@ namespace DocuHelperEditor.State
 
         public string TextSize { get; set; }
 
+        public string LastRunVersion { get; set; }
+
+        public bool UpdateCheck { get; set; } = true;
+
+        public bool UpdateAuto { get; set; } = true;
+
         public DateTime? ClaudeCheckedAt { get; set; }
 
         public DateTime? OpenAiCheckedAt { get; set; }

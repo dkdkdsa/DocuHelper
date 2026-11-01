@@ -1,0 +1,30 @@
+.levels {
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    gap: 1px;
+}
+
+.lv {
+    width: 14px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    background: var(--paper);
+    color: var(--ink-2);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.lv:hover {
+    background: var(--paper-2);
+}
+
+.lv:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+}

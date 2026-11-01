@@ -22,7 +22,7 @@ namespace DocuHelperEditor.State
             [DocuType.Excel] = new[] { "날짜, 거래처, 품목, 금액 머리줄 넣어 줘", "거래처별 매출 정리표 틀 만들어 줘" },
             [DocuType.Word] = new[] { "7월 회의 보고서 틀 잡아 줘", "제목하고 목차부터 넣어 줘" },
             [DocuType.Ppt] = new[] { "발표 순서를 5장으로 잡아 줘", "표지에 넣을 제목 정해 줘" },
-            [DocuType.Hwp] = new[] { "거래처 안내문 틀 잡아 줘", "수신, 제목, 본문 순서로 공문 틀 만들어 줘" },
+            [DocuType.Hwp] = new[] { "공문 틀로 잡아 줘", "수신, 제목, 본문 순서로 넣어 줘" },
         };
 
         private readonly WorkspaceStore _workspace;
@@ -126,7 +126,7 @@ namespace DocuHelperEditor.State
             Notify();
         }
 
-        public void TogglePanel() => SetPanelCollapsed(!IsPanelCollapsed);
+        public void TogglePanel() => RememberPanelCollapsed(!IsPanelCollapsed);
 
         public void ToggleConversationList()
         {

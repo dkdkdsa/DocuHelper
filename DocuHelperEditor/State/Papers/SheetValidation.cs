@@ -7,6 +7,8 @@ namespace DocuHelperEditor.State.Papers
     {
         public List<SheetRegion> Ranges { get; set; } = new();
 
+        public bool ItemsResolved { get; set; } = true;
+
         public SheetValidationType Type { get; set; }
 
         public string Operator { get; set; }

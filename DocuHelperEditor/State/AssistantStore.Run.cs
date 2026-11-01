@@ -198,6 +198,7 @@ namespace DocuHelperEditor.State
 
             var run = new CancellationTokenSource();
             _run = run;
+            _runEnded = new TaskCompletionSource();
             Notify();
 
             var watch = Stopwatch.StartNew();
@@ -236,6 +237,7 @@ namespace DocuHelperEditor.State
             {
                 run.Dispose();
                 _run = null;
+                _runEnded.TrySetResult();
                 _answer = null;
                 _retryNow = null;
                 _working = null;

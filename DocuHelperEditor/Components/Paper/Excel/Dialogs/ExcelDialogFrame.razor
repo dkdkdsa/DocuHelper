@@ -1,0 +1,71 @@
+@using DocuHelperEditor.Components.Ui
+@using Microsoft.AspNetCore.Components.Web
+@implements IDisposable
+@inject IJSRuntime JS
+
+<div class="overlay">
+    <div class="backdrop" aria-hidden="true"></div>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="xd-title" aria-describedby="xd-error" tabindex="-1" @ref="_dialog" @onkeydown="OnKeyDown">
+        <div class="head">
+            <h2 id="xd-title">@Title</h2>
+            <IconButton Icon="close" IconSize="20" Label="대화상자 닫기" Title="닫기 (Esc)" OnClick="CancelAsync" />
+        </div>
+        <div class="body">
+            @ChildContent
+            <p id="xd-error" class="error" role="alert" hidden="@string.IsNullOrEmpty(Error)">@Error</p>
+        </div>
+        <div class="foot">
+            <ActionButton Kind="ButtonKind.Secondary" OnClick="CancelAsync">취소</ActionButton>
+            <ActionButton Kind="ButtonKind.Primary" OnClick="SubmitAsync">확인</ActionButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ElementReference _dialog;
+    private bool _focusPending = true;
+
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public string Error { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback OnSubmit { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending)
+            return;
+
+        _focusPending = false;
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelperDialog.open", _dialog);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        _ = JS.InvokeVoidAsync("docuHelperDialog.close").AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
+    }
+
+    private Task CancelAsync() => OnCancel.InvokeAsync();
+
+    private Task SubmitAsync() => OnSubmit.InvokeAsync();
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? CancelAsync() : Task.CompletedTask;
+}

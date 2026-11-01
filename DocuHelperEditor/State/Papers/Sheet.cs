@@ -58,6 +58,8 @@ namespace DocuHelperEditor.State.Papers
 
         public List<SheetObject> Objects { get; set; } = new();
 
+        public int UnreadObjects { get; set; }
+
         public SheetPageSetup Page { get; set; } = new();
 
         public SheetProtection Protection { get; set; } = new();

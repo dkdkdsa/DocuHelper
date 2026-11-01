@@ -1,5 +1,7 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
+using DocuHelperEditor.State;
 
 namespace DocuHelperEditor.Services
 {
@@ -7,7 +9,13 @@ namespace DocuHelperEditor.Services
     {
         string CurrentVersion { get; }
 
-        Task<string> PrepareAsync(CancellationToken cancellationToken);
+        bool IsInstalled { get; }
+
+        Task<UpdateNotice> CheckAsync();
+
+        Task DownloadAsync(IProgress<int> progress, CancellationToken cancellationToken);
+
+        void ApplyOnExit();
 
         void Restart();
     }

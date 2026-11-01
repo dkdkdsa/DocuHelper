@@ -58,6 +58,12 @@ namespace DocuHelperEditor.State
 
         public string TextSize { get; private set; } = DefaultTextSize;
 
+        public string LastRunVersion { get; private set; }
+
+        public bool UpdateCheck { get; private set; } = true;
+
+        public bool UpdateAuto { get; private set; } = true;
+
         public bool IsHancomInstalled => HwpEditor?.CanWriteHwp == true;
 
         public bool IsDialogOpen { get; private set; }
@@ -105,6 +111,9 @@ namespace DocuHelperEditor.State
             HwpAlwaysHwpx = data?.HwpAlwaysHwpx ?? false;
             HwpNewAsHwp = data?.HwpNewAsHwp ?? false;
             TextSize = Array.IndexOf(s_textSizes, data?.TextSize) >= 0 ? data.TextSize : DefaultTextSize;
+            LastRunVersion = data?.LastRunVersion;
+            UpdateCheck = data?.UpdateCheck ?? true;
+            UpdateAuto = data?.UpdateAuto ?? true;
             ApplyHwp();
             LoadKeys(data);
             IsKeyVisible = false;
@@ -166,6 +175,12 @@ namespace DocuHelperEditor.State
             ApplyHwp();
             WriteSettings();
             Notify();
+        }
+
+        public void SetLastRunVersion(string version)
+        {
+            LastRunVersion = version;
+            WriteSettings();
         }
 
         public void SetTextSize(string size)
@@ -239,6 +254,9 @@ namespace DocuHelperEditor.State
                     HwpAlwaysHwpx = HwpAlwaysHwpx,
                     HwpNewAsHwp = HwpNewAsHwp,
                     TextSize = TextSize,
+                    LastRunVersion = LastRunVersion,
+                    UpdateCheck = UpdateCheck,
+                    UpdateAuto = UpdateAuto,
                     ClaudeCheckedAt = SlotFor(AgentProvider.Claude).CheckedAt,
                     OpenAiCheckedAt = SlotFor(AgentProvider.OpenAi).CheckedAt,
                 };
