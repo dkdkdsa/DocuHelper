@@ -1,0 +1,40 @@
+.anim-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+}
+
+.anim-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--paper-2);
+}
+
+.order {
+    width: 1.5em;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.target {
+    font-weight: 700;
+}
+
+.effect {
+    color: var(--ink-2);
+}
+
+.meta {
+    width: 100%;
+    padding-left: 1.5em;
+    color: var(--ink-3);
+    font-size: 12px;
+}

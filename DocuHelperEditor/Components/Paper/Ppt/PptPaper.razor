@@ -22,6 +22,20 @@
                     {
                         <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
                     }
+                    @if (slide != null && slide.Animations.Count > 0)
+                    {
+                        <details class="pane">
+                            <summary>애니메이션 @slide.Animations.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)개</summary>
+                            <AnimationPane Items="slide.Animations" />
+                        </details>
+                    }
+                    @if (slide != null && slide.Comments.Count > 0)
+                    {
+                        <details class="pane">
+                            <summary>메모 @slide.Comments.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)개</summary>
+                            <CommentsPane Items="slide.Comments" />
+                        </details>
+                    }
                 }
             </div>
         </div>
