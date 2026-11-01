@@ -396,3 +396,13 @@ body.docu-printing .page.docu-print-last {
     break-after: auto;
     page-break-after: auto;
 }
+
+body.docu-printing .docu-sheet-print > .page {
+    break-after: auto;
+    page-break-after: auto;
+}
+
+body.docu-printing .docu-sheet-print > .page + .page {
+    break-before: page;
+    page-break-before: always;
+}

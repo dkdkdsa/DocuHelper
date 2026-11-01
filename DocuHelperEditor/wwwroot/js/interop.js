@@ -286,7 +286,7 @@ window.docuHelper = (function () {
                 var sheet = document.createElement('div');
                 sheet.className = 'page';
                 sheet.style.setProperty('width', layout.widthCm + 'cm', 'important');
-                sheet.style.setProperty('height', layout.heightCm + 'cm', 'important');
+                sheet.style.setProperty('height', (layout.heightCm - 0.05) + 'cm', 'important');
                 sheet.style.setProperty('box-sizing', 'border-box', 'important');
                 sheet.style.setProperty('padding', layout.margins.top + 'cm ' + layout.margins.right + 'cm 0cm ' + layout.margins.left + 'cm', 'important');
                 container.appendChild(sheet);
@@ -295,7 +295,9 @@ window.docuHelper = (function () {
                 fitPage(sheet, piece, layout.scale, layout.margins.bottom * 37.8);
             });
 
-            markPrintTree(document.body);
+            Array.prototype.forEach.call(document.body.children, function (child) {
+                child.classList.add(child === container ? 'docu-print-keep' : 'docu-print-hide');
+            });
             container.lastElementChild.classList.add('docu-print-last');
             document.body.classList.add('docu-printing');
             return layout.pages.length;
