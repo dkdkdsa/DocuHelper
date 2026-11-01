@@ -22,6 +22,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.PrintTitles] = _ => PrintTitles(),
             [ExcelDialogIds.Margins] = _ => Margins(),
             [ExcelDialogIds.Subtotal] = context => Subtotal(context),
+            [ExcelDialogIds.TextToColumns] = context => TextToColumns(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -122,6 +123,52 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 ["grand_total"] = WordNamedDialogs.Flag(values, "grand_total"),
                 ["page_break"] = WordNamedDialogs.Flag(values, "page_break"),
             });
+
+        private static ExcelNamedDialog TextToColumns(ExcelDialogContext context) => new(
+            "split_text",
+            "텍스트 나누기",
+            new[]
+            {
+                WordNamedDialogs.Text("range", "범위", context.Range),
+                WordNamedDialogs.Flag("tab", "탭", "false"),
+                WordNamedDialogs.Flag("semicolon", "세미콜론", "false"),
+                WordNamedDialogs.Flag("comma", "쉼표", "true"),
+                WordNamedDialogs.Flag("space", "공백", "false"),
+                WordNamedDialogs.Text("other", "그 밖의 구분 기호", string.Empty),
+                WordNamedDialogs.Flag("consecutive", "연속된 구분 기호를 하나로 보기", "false"),
+                WordNamedDialogs.Text("destination", "결과 시작 칸 (비우면 범위 오른쪽)", string.Empty),
+                WordNamedDialogs.Flag("overwrite", "데이터가 있는 칸 덮어쓰기", "false"),
+            },
+            values => ActiveDelimiters(values).Count > 0 ? null : "구분 기호를 하나 이상 골라 주세요.",
+            (values, context) =>
+            {
+                var args = new JsonObject
+                {
+                    ["sheet"] = context.Sheet,
+                    ["range"] = WordNamedDialogs.Text(values, "range"),
+                    ["delimiters"] = Strings(ActiveDelimiters(values)),
+                    ["consecutive"] = WordNamedDialogs.Flag(values, "consecutive"),
+                    ["overwrite"] = WordNamedDialogs.Flag(values, "overwrite"),
+                };
+                var other = WordNamedDialogs.Text(values, "other").Trim();
+                if (other.Length > 0)
+                    args["other"] = other;
+
+                var destination = WordNamedDialogs.Text(values, "destination").Trim();
+                if (destination.Length > 0)
+                    args["destination"] = destination;
+
+                return args;
+            });
+
+        private static List<string> ActiveDelimiters(IReadOnlyDictionary<string, JsonNode> values)
+        {
+            var names = new[] { "tab", "semicolon", "comma", "space" }.Where(name => WordNamedDialogs.Flag(values, name)).ToList();
+            if (WordNamedDialogs.Text(values, "other").Trim().Length > 0)
+                names.Add("other");
+
+            return names;
+        }
 
         private static string Required(IReadOnlyDictionary<string, JsonNode> values, string name, string label) =>
             string.IsNullOrWhiteSpace(WordNamedDialogs.Text(values, name)) ? label + "을 넣어 주세요." : null;

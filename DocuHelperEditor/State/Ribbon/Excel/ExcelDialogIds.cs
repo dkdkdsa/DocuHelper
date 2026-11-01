@@ -8,5 +8,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string PrintTitles = "excel.layout.printtitles";
         public const string Margins = "excel.layout.margins";
         public const string Subtotal = "excel.data.subtotal";
+        public const string TextToColumns = "excel.data.texttocolumns";
     }
 }
