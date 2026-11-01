@@ -27,6 +27,9 @@ namespace DocuHelperEditor.State.Papers
         public IReadOnlyList<WordRevisionInfo> RevisionsOn(string blockId) =>
             Revisions.Where(r => WordIds.ParagraphAnchor(r.ParagraphId) == blockId).ToList();
 
+        public IReadOnlyList<WordObjectModel> PageObjects(int page) =>
+            Blocks.SelectMany(b => b.Objects).Where(o => o.PageLevel && o.Page == page).ToList();
+
         public IReadOnlyList<WordCommentInfo> RepliesOf(string commentId) =>
             Comments.Where(c => c.ParentId == commentId).ToList();
 

@@ -50,6 +50,7 @@ namespace DocuHelperEditor.State.Mapping
                 model.Segments = block.IsTable || block.Paragraph == null ? Array.Empty<WordCharSegment>() : SegmentsOf(block, notes);
                 model.ViewSegments = WordReviewRuns.Of(block, model, comments, author => ToneIn(authors, author));
                 model.HasRevisions = !block.IsTable && WordReviewRuns.HasRevisions(block.Paragraph);
+                model.Objects = WordObjectMapper.Of(block, model.Id, block.Page, word, scan.Layout);
                 model.Look = block.IsTable || block.Paragraph == null ? null : WordLooks.ParagraphOf(scan.Styles, block.Paragraph);
                 model.ListLabel = !block.IsTable && block.Paragraph != null && model.ListKind != WordListKind.None ? labels.LabelOf(block.Paragraph) : null;
                 model.IsBold = look.Bold;

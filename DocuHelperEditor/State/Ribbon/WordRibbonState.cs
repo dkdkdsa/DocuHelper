@@ -57,6 +57,8 @@ namespace DocuHelperEditor.State.Ribbon
 
         public string BlockTarget { get; set; }
 
+        public int? SelectedObjectId { get; set; }
+
         public string MarkupMode { get; set; } = "all";
 
         public bool ShowComments { get; set; } = true;

@@ -36,6 +36,8 @@ namespace DocuHelperEditor.State.Papers
 
         public bool HasRevisions { get; set; }
 
+        public IReadOnlyList<WordObjectModel> Objects { get; set; } = Array.Empty<WordObjectModel>();
+
         public WordParagraphLook Look { get; set; }
 
         public string ListLabel { get; set; }

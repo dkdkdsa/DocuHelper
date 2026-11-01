@@ -55,6 +55,10 @@
                             <div class="sheet" style="@SheetStyle(frame)">
                                 @(RunsOf(blocks, page))
                             </div>
+                            @foreach (var item in Model.PageObjects(page))
+                            {
+                                <WordObjectView Item="item" Selected="SelectedId == item.Id" OnSelect="SelectObject" Router="ObjectRouter" Dialogs="ObjectDialogs" />
+                            }
                             @if (frame != null && frame.Footer.Count > 0)
                             {
                                 <div class="hf" style="bottom: @Length(frame.FooterPt)" aria-hidden="true">
@@ -439,10 +443,14 @@
         </tbody>;
 
     private RenderFragment BlockBody(WordBlockModel block, WordFragment? fragment) =>
-        @<div class="@BlockClass(block)" data-change="@ChangeOf(block)" style="@BlockStyle(block, fragment)" @key="block.Id">
+        @<div class="@BlockClassOf(block)" data-change="@ChangeOf(block)" style="@BlockStyle(block, fragment)" @key="block.Id">
             @if (IsLive(block))
             {
                 <span class="bar" aria-hidden="true"></span>
+            }
+            @foreach (var item in block.Objects.Where(o => o.Inline))
+            {
+                <WordObjectView Item="item" Selected="SelectedId == item.Id" OnSelect="SelectObject" Router="ObjectRouter" Dialogs="ObjectDialogs" />
             }
             @if (block.ListLabel != null)
             {
@@ -486,6 +494,10 @@
                 {
                     <WordRevisionBalloon Revision="revision" Tone="Model.ToneOf(revision.Author)" Ribbon="Ribbon" />
                 }
+            }
+            @foreach (var item in block.Objects.Where(o => !o.Inline && !o.PageLevel))
+            {
+                <WordObjectView Item="item" Selected="SelectedId == item.Id" OnSelect="SelectObject" Router="ObjectRouter" Dialogs="ObjectDialogs" />
             }
             @if (block.Source != null)
             {
@@ -755,8 +767,33 @@
 
     private string KeyOf(string key) => $"{key}#{VersionOf(key)}";
 
+    private int? SelectedId => Ribbon?.SelectedObjectId ?? Hwp?.SelectedObjectId;
+
+    private RibbonRouter ObjectRouter => Ribbon != null ? Ribbon.Router : Hwp?.Router;
+
+    private IWordDialogPresenter ObjectDialogs => Ribbon?.Dialogs ?? Hwp?.Dialogs;
+
+    private string BlockClassOf(WordBlockModel block) => block.Objects.Count > 0 && string.IsNullOrEmpty(block.Text) ? BlockClass(block) + " obj-only" : BlockClass(block);
+
+    private void SelectObject(int? id)
+    {
+        if (Ribbon != null)
+            Ribbon.SelectedObjectId = id;
+
+        if (Hwp != null)
+            Hwp.SelectedObjectId = id;
+
+        Workspace.Notify();
+    }
+
     private void SelectBlock(WordBlockModel block)
     {
+        if (Ribbon != null)
+            Ribbon.SelectedObjectId = null;
+
+        if (Hwp != null)
+            Hwp.SelectedObjectId = null;
+
         var model = Model;
         if (model == null)
             return;

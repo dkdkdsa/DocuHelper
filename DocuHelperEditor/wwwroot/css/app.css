@@ -322,3 +322,17 @@ html[data-text-size] [data-chrome] [data-chrome] {
 .canvas.review .frag {
     overflow: visible !important;
 }
+
+.page {
+    isolation: isolate;
+}
+
+.frag:has(.obj) {
+    overflow: visible !important;
+}
+
+.blk.obj-only > .txt {
+    height: 0;
+    margin: 0;
+    overflow: visible;
+}

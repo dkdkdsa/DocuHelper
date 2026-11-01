@@ -68,6 +68,8 @@ namespace DocuHelperEditor.State.Ribbon
 
         public IWordDialogPresenter Dialogs { get; set; }
 
+        public int? SelectedObjectId { get; set; }
+
         public WordCanvasBox Canvas { get; set; }
 
         public IReadOnlyCollection<string> Features => _features;

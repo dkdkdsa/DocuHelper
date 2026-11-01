@@ -1,0 +1,245 @@
+@using System.Globalization
+@using System.Net
+@using System.Text
+@using DocuHelper.Tools.Ppt
+<svg class="chart" viewBox="0 0 400 270" preserveAspectRatio="xMidYMid meet" role="img" aria-label="@Caption" focusable="false">
+    @foreach (var mark in Marks)
+    {
+        switch (mark.Kind)
+        {
+            case "rect":
+                <rect x="@Num(mark.X)" y="@Num(mark.Y)" width="@Num(mark.W)" height="@Num(mark.H)" fill="@mark.Fill" />
+                break;
+            case "path":
+                <path d="@mark.Path" fill="@mark.Fill" />
+                break;
+            case "line":
+                <path d="@mark.Path" fill="none" stroke="@mark.Fill" stroke-width="2" stroke-linejoin="round" />
+                break;
+            case "dot":
+                <circle cx="@Num(mark.X)" cy="@Num(mark.Y)" r="3.5" fill="@mark.Fill" />
+                break;
+            case "axis":
+                <path d="@mark.Path" fill="none" stroke="#9AA3B5" stroke-width="1" />
+                break;
+            default:
+                @((MarkupString)LabelOf(mark))
+                break;
+        }
+    }
+</svg>
+
+@code {
+    private static readonly string[] s_palette = { "#2F5FA8", "#B8432F", "#0F7B6C", "#8A5F00", "#6B4FBB", "#5B6577" };
+
+    private const double X0 = 48;
+
+    private const double X1 = 388;
+
+    private const double Y0 = 44;
+
+    private const double Y1 = 204;
+
+    private PptChartInfo _source;
+
+    private IReadOnlyList<Mark> _marks = Array.Empty<Mark>();
+
+    [Parameter]
+    public PptChartInfo Chart { get; set; }
+
+    private IReadOnlyList<Mark> Marks
+    {
+        get
+        {
+            if (!ReferenceEquals(_source, Chart))
+            {
+                _source = Chart;
+                _marks = Build(Chart);
+            }
+
+            return _marks;
+        }
+    }
+
+    private string Caption => Chart?.Title ?? "차트";
+
+    private static string LabelOf(Mark mark) =>
+        $"<text x=\"{Num(mark.X)}\" y=\"{Num(mark.Y)}\" text-anchor=\"{mark.Anchor}\" class=\"{(mark.Kind == "title" ? "title" : "label")}\">{WebUtility.HtmlEncode(mark.Text ?? string.Empty)}</text>";
+
+    private static string Num(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static string ColorOf(PptSeriesInfo series, int index) =>
+        series.Color is { Length: 6 } color ? "#" + color : s_palette[index % s_palette.Length];
+
+    private static double Value(PptSeriesInfo series, int index) =>
+        index < series.Values.Count && series.Values[index].HasValue ? series.Values[index].Value : 0;
+
+    private static IReadOnlyList<Mark> Build(PptChartInfo chart)
+    {
+        var marks = new List<Mark>();
+        if (chart == null || chart.Series.Count == 0)
+        {
+            marks.Add(new Mark("label", 200, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
+            return marks;
+        }
+
+        if (chart.HasTitle && chart.Title != null)
+            marks.Add(new Mark("title", 200, 24, 0, 0, null, chart.Title, "middle", null));
+
+        if (chart.Type is "pie" or "doughnut")
+            return Pie(chart, marks);
+
+        var count = Math.Max(chart.Categories.Count, chart.Series.Max(s => s.Values.Count));
+        if (count == 0)
+        {
+            marks.Add(new Mark("label", 200, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
+            return marks;
+        }
+
+        var max = chart.Series.SelectMany(s => s.Values).Where(v => v.HasValue).Select(v => v.Value).DefaultIfEmpty(0).Max();
+        if (max <= 0)
+            max = 1;
+
+        return chart.Type == "bar" ? Horizontal(chart, marks, count, max) : Vertical(chart, marks, count, max);
+    }
+
+    private static List<Mark> Vertical(PptChartInfo chart, List<Mark> marks, int count, double max)
+    {
+        var group = (X1 - X0) / count;
+        var series = chart.Series.Count;
+        var bar = group * 0.7 / series;
+        var line = chart.Type == "line";
+        marks.Add(new Mark("axis", 0, 0, 0, 0, null, null, null, $"M{Num(X0)} {Num(Y1)}H{Num(X1)}"));
+        for (var s = 0; s < series; s++)
+        {
+            var color = ColorOf(chart.Series[s], s);
+            var path = new StringBuilder();
+            for (var i = 0; i < count; i++)
+            {
+                var height = Value(chart.Series[s], i) / max * (Y1 - Y0);
+                if (line)
+                {
+                    var x = X0 + (i + 0.5) * group;
+                    var y = Y1 - height;
+                    path.Append(path.Length == 0 ? "M" : "L").Append(Num(x)).Append(' ').Append(Num(y)).Append(' ');
+                    marks.Add(new Mark("dot", x, y, 0, 0, color, null, null, null));
+                }
+                else if (height > 0)
+                {
+                    marks.Add(new Mark("rect", X0 + i * group + group * 0.15 + s * bar, Y1 - height, bar, height, color, null, null, null));
+                }
+            }
+
+            if (line && path.Length > 0)
+                marks.Add(new Mark("line", 0, 0, 0, 0, color, null, null, path.ToString()));
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            var label = i < chart.Categories.Count ? chart.Categories[i] : string.Empty;
+            marks.Add(new Mark("label", X0 + (i + 0.5) * group, Y1 + 16, 0, 0, null, label, "middle", null));
+        }
+
+        return Legend(chart, marks, 258);
+    }
+
+    private static List<Mark> Horizontal(PptChartInfo chart, List<Mark> marks, int count, double max)
+    {
+        var row = (Y1 - Y0) / count;
+        var series = chart.Series.Count;
+        var bar = row * 0.7 / series;
+        marks.Add(new Mark("axis", 0, 0, 0, 0, null, null, null, $"M{Num(X0)} {Num(Y0)}V{Num(Y1)}"));
+        for (var s = 0; s < series; s++)
+        {
+            var color = ColorOf(chart.Series[s], s);
+            for (var i = 0; i < count; i++)
+            {
+                var width = Value(chart.Series[s], i) / max * (X1 - X0);
+                if (width > 0)
+                    marks.Add(new Mark("rect", X0, Y0 + i * row + row * 0.15 + s * bar, width, bar, color, null, null, null));
+            }
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            var label = i < chart.Categories.Count ? chart.Categories[i] : string.Empty;
+            marks.Add(new Mark("label", X0 - 6, Y0 + (i + 0.5) * row + 4, 0, 0, null, label, "end", null));
+        }
+
+        return Legend(chart, marks, 258);
+    }
+
+    private static List<Mark> Pie(PptChartInfo chart, List<Mark> marks)
+    {
+        var series = chart.Series[0];
+        var values = Enumerable.Range(0, Math.Max(series.Values.Count, chart.Categories.Count)).Select(i => Math.Max(0, Value(series, i))).ToList();
+        var total = values.Sum();
+        if (total <= 0)
+        {
+            marks.Add(new Mark("label", 200, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
+            return marks;
+        }
+
+        const double cx = 150;
+        const double cy = 142;
+        const double radius = 96;
+        var angle = -Math.PI / 2;
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (values[i] <= 0)
+                continue;
+
+            var sweep = values[i] / total * Math.PI * 2;
+            var color = s_palette[i % s_palette.Length];
+            marks.Add(new Mark("path", 0, 0, 0, 0, color, null, null, Slice(cx, cy, radius, angle, sweep)));
+            angle += sweep;
+        }
+
+        if (chart.Type == "doughnut")
+            marks.Add(new Mark("path", 0, 0, 0, 0, "#FFFFFF", null, null, Slice(cx, cy, radius * 0.5, -Math.PI / 2, Math.PI * 2)));
+
+        for (var i = 0; i < values.Count; i++)
+        {
+            var label = i < chart.Categories.Count ? chart.Categories[i] : string.Empty;
+            var y = 84 + i * 20;
+            marks.Add(new Mark("rect", 270, y - 9, 10, 10, s_palette[i % s_palette.Length], null, null, null));
+            marks.Add(new Mark("label", 286, y, 0, 0, null, label, "start", null));
+        }
+
+        return marks;
+    }
+
+    private static string Slice(double cx, double cy, double radius, double start, double sweep)
+    {
+        if (sweep >= Math.PI * 2 - 1e-6)
+        {
+            return $"M{Num(cx)} {Num(cy - radius)}A{Num(radius)} {Num(radius)} 0 1 1 {Num(cx)} {Num(cy + radius)}A{Num(radius)} {Num(radius)} 0 1 1 {Num(cx)} {Num(cy - radius)}Z";
+        }
+
+        var x1 = cx + radius * Math.Cos(start);
+        var y1 = cy + radius * Math.Sin(start);
+        var x2 = cx + radius * Math.Cos(start + sweep);
+        var y2 = cy + radius * Math.Sin(start + sweep);
+        var large = sweep > Math.PI ? 1 : 0;
+        return $"M{Num(cx)} {Num(cy)}L{Num(x1)} {Num(y1)}A{Num(radius)} {Num(radius)} 0 {large} 1 {Num(x2)} {Num(y2)}Z";
+    }
+
+    private static List<Mark> Legend(PptChartInfo chart, List<Mark> marks, double y)
+    {
+        if (chart.Series.Count < 2)
+            return marks;
+
+        var x = X0;
+        for (var s = 0; s < chart.Series.Count; s++)
+        {
+            var name = chart.Series[s].Name ?? $"계열 {s + 1}";
+            marks.Add(new Mark("rect", x, y - 9, 10, 10, ColorOf(chart.Series[s], s), null, null, null));
+            marks.Add(new Mark("label", x + 14, y, 0, 0, null, name, "start", null));
+            x += 14 + name.Length * 9 + 16;
+        }
+
+        return marks;
+    }
+
+    private sealed record Mark(string Kind, double X, double Y, double W, double H, string Fill, string Text, string Anchor, string Path);
+}
