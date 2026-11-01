@@ -17,6 +17,15 @@ namespace DocuHelperEditor.State
             SetAskingFile(fileId);
         }
 
+        public void ReportLostHandEdits()
+        {
+            var lost = _workspace.TakeLostHandEdits();
+            if (lost.Count == 0)
+                return;
+
+            RaiseNotice($"‘{string.Join("’, ‘", lost)}’에서 직접 고친 일부는 다시 넣지 못했어요. 파일을 확인해 주세요.");
+        }
+
         private void ApplyAskingCells(WorkspaceFile file)
         {
             if (file.Paper is not ExcelPaperModel workbook)

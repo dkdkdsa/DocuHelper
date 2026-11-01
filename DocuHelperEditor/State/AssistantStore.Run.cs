@@ -242,6 +242,7 @@ namespace DocuHelperEditor.State
                 _retryNow = null;
                 _working = null;
                 _workspace.SetAskingFile(null);
+                _workspace.ReportLostHandEdits();
                 Notify();
                 await SaveConversationAsync();
             }
