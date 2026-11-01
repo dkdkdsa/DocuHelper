@@ -9,7 +9,17 @@
         <div class="row-head">
             <span class="row-title">버전</span>
         </div>
-        <p class="row-body text num">문서 도우미 @Version</p>
+        <div class="row-body version-body">
+            <span class="text num version-text">문서 도우미 @Version</span>
+            <ActionButton Kind="ButtonKind.Secondary" id="settings-about-update" Disabled="!Updates.IsInstalled" OnClick="OpenUpdate">업데이트 확인</ActionButton>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">도우미 연결</span>
+        </div>
+        <p class="row-body text">Claude는 Anthropic, ChatGPT는 OpenAI 서버로 바로 연결해요. 문서 내용은 도우미에게 부탁할 때만 보내요.</p>
     </div>
 
     <div class="row">
@@ -46,7 +56,16 @@
 </section>
 
 @code {
+    [Parameter]
+    public SettingsStore Settings { get; set; }
+
     private string Version => string.IsNullOrEmpty(Updates.CurrentVersion) ? "개발용" : Updates.CurrentVersion;
+
+    private void OpenUpdate()
+    {
+        Settings.ShowSection("update");
+        _ = Updates.CheckNowAsync();
+    }
 
     private void OpenDataFolder()
     {

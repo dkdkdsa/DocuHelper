@@ -3,6 +3,7 @@ using System.IO;
 using System.Security;
 using System.Text.Json;
 using DocuHelperEditor.State;
+using DocuHelperEditor.State.Samples;
 
 namespace DocuHelperEditor.Services
 {
@@ -38,6 +39,9 @@ namespace DocuHelperEditor.Services
 
         private static void Update(string folderPath, Action<PanelState> change)
         {
+            if (SampleScenarios.Current != null)
+                return;
+
             var path = PathOf(folderPath);
             if (path == null)
                 return;

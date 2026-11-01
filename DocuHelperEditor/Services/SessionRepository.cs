@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using DocuHelperEditor.State;
+using DocuHelperEditor.State.Samples;
 
 namespace DocuHelperEditor.Services
 {
@@ -16,6 +17,9 @@ namespace DocuHelperEditor.Services
 
         public static void Save(string folderPath, SavedSession session)
         {
+            if (SampleScenarios.Current != null)
+                return;
+
             var path = PathOf(folderPath);
             if (path == null)
                 return;

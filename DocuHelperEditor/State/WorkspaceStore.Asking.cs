@@ -7,6 +7,8 @@ namespace DocuHelperEditor.State
     public partial class WorkspaceStore
     {
         private readonly List<string> _askingCells = new();
+        private readonly List<SheetCell> _markedCells = new();
+        private string _markedFileId;
 
         public IReadOnlyList<string> AskingCells => _askingCells;
 
@@ -23,25 +25,33 @@ namespace DocuHelperEditor.State
             if (lost.Count == 0)
                 return;
 
-            RaiseNotice($"‘{string.Join("’, ‘", lost)}’에서 직접 고친 일부는 다시 넣지 못했어요. 파일을 확인해 주세요.");
+            RaiseNotice($"도우미 작업을 되돌렸어요. 기다리는 동안 직접 고친 {lost.Count}곳은 다시 확인해 주세요: {string.Join(", ", lost)}");
         }
 
         private void ApplyAskingCells(WorkspaceFile file)
         {
-            if (file.Paper is not ExcelPaperModel workbook)
-                return;
+            if (_markedFileId == file.Id)
+            {
+                foreach (var cell in _markedCells)
+                    cell.IsAsking = false;
 
-            foreach (var sheet in workbook.Sheets)
-                foreach (var row in sheet.Rows)
-                    foreach (var cell in row.Cells)
-                        cell.IsAsking = false;
+                _markedCells.Clear();
+                _markedFileId = null;
+            }
 
-            if (file.Id != AskingFileId)
+            if (file.Id != AskingFileId || file.Paper is not ExcelPaperModel workbook)
                 return;
 
             foreach (var reference in _askingCells)
+            {
                 foreach (var cell in AskingCellRefs.Find(reference, workbook))
+                {
                     cell.IsAsking = true;
+                    _markedCells.Add(cell);
+                }
+            }
+
+            _markedFileId = file.Id;
         }
     }
 }

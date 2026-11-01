@@ -4,83 +4,126 @@ using System.Linq;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools;
+using DocuHelper.Tools.Word;
 
 namespace DocuHelper
 {
     public partial class Workspace
     {
         private readonly List<HandEdit> _runHandEdits = new();
+        private readonly Dictionary<Docu, DocuState> _runHandEditBefore = new();
         private readonly List<string> _lostHandEdits = new();
 
-        public int RunHandEditCount => _runHandEdits.Count;
+        public int RunHandEditCount
+        {
+            get
+            {
+                lock (_notes)
+                    return _runHandEdits.Count;
+            }
+        }
 
         public IReadOnlyList<string> HandEditsSince(int mark)
         {
-            var edits = _runHandEdits.Skip(mark).ToList();
-            foreach (var edit in edits)
-                _notes.Remove(edit.Note);
+            lock (_notes)
+            {
+                var edits = _runHandEdits.Skip(mark).ToList();
+                foreach (var edit in edits)
+                    _notes.Remove(edit.Note);
 
-            return edits.Select(edit => edit.Note).Distinct().ToList();
+                return edits.Select(edit => edit.Note).Distinct().ToList();
+            }
         }
 
         public IReadOnlyList<string> TakeLostHandEdits()
         {
-            var lost = _lostHandEdits.Distinct().ToList();
-            _lostHandEdits.Clear();
-            return lost;
+            lock (_notes)
+            {
+                var lost = _lostHandEdits.Distinct().ToList();
+                _lostHandEdits.Clear();
+                return lost;
+            }
         }
 
-        private void RecordHandEdit(Docu docu, IReadOnlyList<EditCommand> commands, DocuState before, string note)
+        private void RecordHandEdit(Docu docu, IReadOnlyList<EditCommand> commands, DocuState before, string where, string note)
         {
-            if (IsAgentRunning)
+            lock (_notes)
             {
-                _runHandEdits.Add(new HandEdit(docu, commands.ToList(), before, note));
-            }
-            else
-            {
-                PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [docu] = before }));
+                if (IsAgentRunning)
+                {
+                    _runHandEdits.Add(new HandEdit(docu, where, note));
+                    _runHandEditBefore.TryAdd(docu, before);
+                }
+                else
+                {
+                    PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [docu] = before }));
+                }
             }
 
             AddNote(note);
         }
 
-        private void CommitRunHandEdits(IEnumerable<Docu> agentDocus)
+        private void CommitRunHandEdits()
         {
-            var covered = agentDocus.ToHashSet();
-            var before = new Dictionary<Docu, DocuState>();
-            foreach (var edit in _runHandEdits)
+            lock (_notes)
             {
-                if (!covered.Contains(edit.Docu) && !before.ContainsKey(edit.Docu))
-                    before[edit.Docu] = edit.Before;
+                foreach (var pair in _runHandEditBefore)
+                    PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [pair.Key] = pair.Value }));
+
+                _runHandEdits.Clear();
+                _runHandEditBefore.Clear();
             }
-
-            if (before.Count > 0)
-                PushUndo(new WorkspaceEdit("직접 고침", false, before));
-
-            _runHandEdits.Clear();
         }
 
-        private void ReplayRunHandEdits()
+        private void ResolveFailedRunHandEdits(IEnumerable<Docu> agentDocus)
         {
-            foreach (var edit in _runHandEdits)
+            lock (_notes)
             {
-                if (!_docus.Contains(edit.Docu))
-                    continue;
-
-                var editor = GetEditor(edit.Docu);
-                foreach (var command in edit.Commands)
+                var agent = agentDocus.ToHashSet();
+                foreach (var pair in _runHandEditBefore)
                 {
-                    if (editor.Apply(edit.Docu, command).IsError)
-                    {
-                        _lostHandEdits.Add(edit.Docu.Name);
-                        break;
-                    }
+                    if (_docus.Contains(pair.Key) && !agent.Contains(pair.Key))
+                        PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [pair.Key] = pair.Value }));
                 }
-            }
 
-            _runHandEdits.Clear();
+                foreach (var edit in _runHandEdits)
+                {
+                    if (!_docus.Contains(edit.Docu))
+                        _lostHandEdits.Add($"‘{edit.Docu.Name}’ 새 파일의 직접 고친 내용");
+                    else if (agent.Contains(edit.Docu))
+                        _lostHandEdits.Add(string.IsNullOrEmpty(edit.Where) ? $"‘{edit.Docu.Name}’" : $"‘{edit.Docu.Name}’ {edit.Where}");
+                }
+
+                _runHandEdits.Clear();
+                _runHandEditBefore.Clear();
+            }
         }
 
-        private sealed record HandEdit(Docu Docu, List<EditCommand> Commands, DocuState Before, string Note);
+        private void ClearRunHandEdits()
+        {
+            lock (_notes)
+            {
+                _runHandEdits.Clear();
+                _runHandEditBefore.Clear();
+            }
+        }
+
+        private string BeginUserAuthor(Docu docu)
+        {
+            if (docu is not WordDocu word || !IsAgentRunning)
+                return null;
+
+            var assistant = word.AssistantRevisionAuthor;
+            word.AssistantRevisionAuthor = null;
+            return assistant;
+        }
+
+        private void EndUserAuthor(Docu docu, string assistant)
+        {
+            if (docu is WordDocu word && IsAgentRunning)
+                word.AssistantRevisionAuthor = assistant;
+        }
+
+        private sealed record HandEdit(Docu Docu, string Where, string Note);
     }
 }

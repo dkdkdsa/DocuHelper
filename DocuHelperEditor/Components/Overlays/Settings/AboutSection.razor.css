@@ -74,3 +74,15 @@ h2 {
     font-size: 14px;
     word-break: break-all;
 }
+
+.version-body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.version-text {
+    flex: 1;
+    min-width: 0;
+}

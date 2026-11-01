@@ -395,12 +395,15 @@ namespace DocuHelper.Agents
 
         private async Task<string> AskWhileUnlocked(AgentQuestion question, IAgentHost host, CancellationToken cancellationToken)
         {
-            var unlocked = _locked.Where(d => _workspace.Docus.Contains(d)).ToList();
-            foreach (var docu in unlocked)
-                docu.SetLocked(false);
-
+            var unlocked = new List<Docu>();
             try
             {
+                foreach (var docu in _locked.Where(d => _workspace.Docus.Contains(d)).ToList())
+                {
+                    docu.SetLocked(false);
+                    unlocked.Add(docu);
+                }
+
                 return await host.AskUserAsync(question, cancellationToken);
             }
             finally

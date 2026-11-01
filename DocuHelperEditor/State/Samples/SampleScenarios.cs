@@ -51,7 +51,11 @@ namespace DocuHelperEditor.State.Samples
             "update-onclose",
         };
 
-        public static void Leave() => Current = null;
+        public static void Leave(UpdateStore updates)
+        {
+            Current = null;
+            updates.ShowSample(UpdatePhase.Idle);
+        }
 
         public static void Apply(string name, WorkspaceStore workspace, AssistantStore assistant, SettingsStore settings, UpdateStore updates)
         {
