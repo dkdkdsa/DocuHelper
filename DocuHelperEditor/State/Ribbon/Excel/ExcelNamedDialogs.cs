@@ -30,6 +30,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.Note] = context => Note(context),
             [ExcelDialogIds.NewNote] = context => Note(context),
             [ExcelDialogIds.AllowRanges] = context => AllowRanges(context),
+            [ExcelDialogIds.Symbol] = context => Symbol(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -341,6 +342,22 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                     ["action"] = "allow_range_add",
                     ["allow_ranges"] = new JsonArray(range),
                 };
+            });
+
+        private static ExcelNamedDialog Symbol(ExcelDialogContext context) => new(
+            "write_cells",
+            "기호",
+            new[]
+            {
+                WordNamedDialogs.Text("cell", "기호를 넣을 칸", context.Cell),
+                WordNamedDialogs.Text("symbol", "넣을 기호 또는 글자", string.Empty),
+            },
+            values => Required(values, "symbol", "넣을 기호 또는 글자"),
+            (values, context) => new JsonObject
+            {
+                ["sheet"] = context.Sheet,
+                ["start"] = WordNamedDialogs.Text(values, "cell").Trim(),
+                ["values"] = new JsonArray(new JsonArray(JsonValue.Create(WordNamedDialogs.Text(values, "symbol")))),
             });
 
         private static void AddText(JsonObject args, string key, string value)
