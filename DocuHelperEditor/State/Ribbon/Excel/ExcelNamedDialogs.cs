@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
+using DocuHelperEditor.State.Papers;
 using DocuHelperEditor.State.Ribbon;
 
 namespace DocuHelperEditor.State.Ribbon.Excel
 {
-    public sealed record ExcelDialogContext(string Sheet, string Range, string Cell);
+    public sealed record ExcelDialogContext(string Sheet, string Range, string Cell, string Note, string CellText);
 
     public sealed record ExcelNamedDialog(
         string Tool,
@@ -97,6 +99,9 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         {
             foreach (var (name, label) in new[] { ("top", "위쪽"), ("bottom", "아래쪽"), ("left", "왼쪽"), ("right", "오른쪽"), ("header", "머리글"), ("footer", "바닥글") })
             {
+                if (!values.ContainsKey(name))
+                    return label + " 값이 비어 있어요.";
+
                 var problem = WordNamedDialogs.Range(values, name, 0, 20, label);
                 if (problem != null)
                     return problem;
@@ -210,7 +215,9 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Number("tolerance", "허용 오차", "0.001"),
             },
             values => ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "target_cell"), "수식이 들어 있는 칸")
-                ?? ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "changing_cell"), "값을 바꿀 칸"),
+                ?? ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "changing_cell"), "값을 바꿀 칸")
+                ?? Presence(values, "target_value", "원하는 결과값")
+                ?? Presence(values, "tolerance", "허용 오차"),
             (values, context) => new JsonObject
             {
                 ["sheet"] = context.Sheet,
@@ -236,6 +243,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Flag("column_totals", "열 합계 표시", "true"),
             },
             values =>
+                ExcelDialogInput.Range(WordNamedDialogs.Text(values, "source"), "원본 범위") ??
                 Required(values, "rows", "행으로 쓸 열") ??
                 Required(values, "field", "값으로 계산할 열") ??
                 (WordNamedDialogs.Text(values, "destination") == "current_sheet" ? Required(values, "cell", "시작 칸") : null),
@@ -283,7 +291,10 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 if (url.Length == 0 && location.Length == 0)
                     return "웹 주소나 문서 안의 위치를 넣어 주세요.";
 
-                return url.Length > 0 && location.Length > 0 ? "웹 주소와 문서 안의 위치 중 하나만 넣어 주세요." : null;
+                if (url.Length > 0 && location.Length > 0)
+                    return "웹 주소와 문서 안의 위치 중 하나만 넣어 주세요.";
+
+                return url.Length == 0 ? null : LinkProblem(url);
             },
             (values, context) =>
             {
@@ -305,18 +316,29 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             "메모",
             new[]
             {
-                WordNamedDialogs.Text("cell", "메모를 붙일 칸", context.Cell),
-                WordNamedDialogs.Text("text", "메모 내용", string.Empty),
+                WordNamedDialogs.Text("text", "메모 내용", context.Note ?? string.Empty),
                 WordNamedDialogs.Text("author", "작성자 (선택)", string.Empty),
+                WordNamedDialogs.Flag("delete", "기존 메모 지우기", "false"),
             },
-            values => ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "cell"), "메모를 붙일 칸")
-                ?? Required(values, "text", "메모 내용"),
+            values => WordNamedDialogs.Flag(values, "delete")
+                ? (string.IsNullOrEmpty(context.Note) ? "지울 메모가 없어요." : null)
+                : Required(values, "text", "메모 내용"),
             (values, context) =>
             {
+                if (WordNamedDialogs.Flag(values, "delete"))
+                {
+                    return new JsonObject
+                    {
+                        ["sheet"] = context.Sheet,
+                        ["cell"] = context.Cell,
+                        ["action"] = "delete",
+                    };
+                }
+
                 var args = new JsonObject
                 {
                     ["sheet"] = context.Sheet,
-                    ["cell"] = WordNamedDialogs.Text(values, "cell").Trim(),
+                    ["cell"] = context.Cell,
                     ["action"] = "set",
                     ["text"] = WordNamedDialogs.Text(values, "text").Trim(),
                 };
@@ -331,9 +353,12 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             {
                 WordNamedDialogs.Text("title", "범위 이름", string.Empty),
                 WordNamedDialogs.Text("range", "범위", context.Range),
-                WordNamedDialogs.Text("password", "암호 (선택)", string.Empty),
+                Password("password", "암호 (선택)"),
+                Password("password_confirm", "암호 확인"),
             },
-            values => Required(values, "title", "범위 이름") ?? ExcelDialogInput.Range(WordNamedDialogs.Text(values, "range"), "범위"),
+            values => Required(values, "title", "범위 이름")
+                ?? ExcelDialogInput.Range(WordNamedDialogs.Text(values, "range"), "범위")
+                ?? PasswordMismatch(values),
             (values, context) =>
             {
                 var range = new JsonObject
@@ -356,16 +381,16 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             "기호",
             new[]
             {
-                WordNamedDialogs.Text("cell", "기호를 넣을 칸", context.Cell),
-                WordNamedDialogs.Text("symbol", "넣을 기호 또는 글자", string.Empty),
+                WordNamedDialogs.Text("symbol", "뒤에 붙일 기호 한 글자", string.Empty),
             },
-            values => ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "cell"), "기호를 넣을 칸")
-                ?? Required(values, "symbol", "넣을 기호 또는 글자"),
+            values => context.CellText.StartsWith("=", StringComparison.Ordinal)
+                ? "수식 칸에는 기호를 넣을 수 없어요."
+                : SingleSymbol(WordNamedDialogs.Text(values, "symbol")),
             (values, context) => new JsonObject
             {
                 ["sheet"] = context.Sheet,
-                ["start"] = WordNamedDialogs.Text(values, "cell").Trim(),
-                ["values"] = new JsonArray(new JsonArray(JsonValue.Create(WordNamedDialogs.Text(values, "symbol")))),
+                ["start"] = context.Cell,
+                ["values"] = new JsonArray(new JsonArray(JsonValue.Create(context.CellText + WordNamedDialogs.Text(values, "symbol")))),
             });
 
         private static ExcelNamedDialog ProtectBook(ExcelDialogContext context) => new(
@@ -375,9 +400,12 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             {
                 WordNamedDialogs.Flag("structure", "시트 추가·삭제·이동·이름 바꾸기 막기", "true"),
                 WordNamedDialogs.Flag("windows", "창 크기와 위치 고정", "false"),
-                WordNamedDialogs.Text("password", "암호 (선택)", string.Empty),
+                Password("password", "암호 (선택)"),
+                Password("password_confirm", "암호 확인"),
             },
-            null,
+            values => !WordNamedDialogs.Flag(values, "structure") && !WordNamedDialogs.Flag(values, "windows")
+                ? "구조나 창 중 하나는 보호해야 해요."
+                : PasswordMismatch(values),
             (values, context) =>
             {
                 var args = new JsonObject
@@ -422,6 +450,37 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
                 return args;
             });
+
+        private static WordDialogField Password(string name, string label) =>
+            new(name, label, "password", "\"\"", Array.Empty<string>(), Array.Empty<string>());
+
+        private static string PasswordMismatch(IReadOnlyDictionary<string, JsonNode> values) =>
+            WordNamedDialogs.Text(values, "password") == WordNamedDialogs.Text(values, "password_confirm")
+                ? null
+                : "암호가 서로 달라요. 다시 입력해 주세요.";
+
+        private static string Presence(IReadOnlyDictionary<string, JsonNode> values, string name, string label) =>
+            values.ContainsKey(name) ? null : label + " 값이 비어 있어요.";
+
+        private static string SingleSymbol(string symbol) =>
+            string.IsNullOrEmpty(symbol) || new StringInfo(symbol).LengthInTextElements != 1
+                ? "기호는 한 글자만 넣어 주세요."
+                : null;
+
+        private static string LinkProblem(string url)
+        {
+            switch (SheetLinkPolicy.Check(url, out _))
+            {
+                case SheetLinkCheck.Open:
+                    return null;
+                case SheetLinkCheck.TooLong:
+                    return "웹 주소는 2048자 이하여야 해요.";
+                case SheetLinkCheck.Unsafe:
+                    return "웹 주소는 http, https, mailto만 넣을 수 있어요.";
+                default:
+                    return "웹 주소 형식을 확인해 주세요.";
+            }
+        }
 
         private static void AddText(JsonObject args, string key, string value)
         {
