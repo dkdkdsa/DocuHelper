@@ -72,6 +72,11 @@ namespace DocuHelperEditor.Services
 
         public async Task<string> PickSaveFileAsync(string suggestedName)
         {
+#if DEBUG
+            var forced = Environment.GetEnvironmentVariable("DOCUHELPER_SAVE_PATH");
+            if (!string.IsNullOrWhiteSpace(forced))
+                return forced;
+#endif
 #if WINDOWS
             try
             {

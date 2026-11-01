@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools.Word;
+using DocuHelperEditor.Services;
 
 namespace DocuHelperEditor.State.Ribbon
 {
@@ -25,6 +26,8 @@ namespace DocuHelperEditor.State.Ribbon
         {
             Provide("word.file.info", _ => ShowDocumentInfoAsync());
             Provide("word.review.proofing.wordcount", _ => ShowWordCountAsync());
+            Provide("word.file.pdf", _ => ExportPdfAsync());
+            Provide("word.file.print", _ => PrintAsync());
         }
 
         private Task ShowWordCountAsync()
@@ -38,6 +41,40 @@ namespace DocuHelperEditor.State.Ribbon
             var counts = WordStats.Count(word);
             Notify($"‘{File.Name}’에는 {counts.Words:N0}단어, {counts.Characters:N0}글자가 있어요. {counts.Pages}쪽이에요.");
             return Task.CompletedTask;
+        }
+
+        private async Task ExportPdfAsync()
+        {
+            if (File?.Docu is not WordDocu)
+            {
+                Notify(NoFileReason);
+                return;
+            }
+
+            var path = await _files.PickSaveFileAsync(Path.GetFileNameWithoutExtension(File.Name) + ".pdf");
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            ShowPrintResult(await _prints.ExportPdfAsync(path));
+        }
+
+        private async Task PrintAsync()
+        {
+            if (File?.Docu is not WordDocu)
+            {
+                Notify(NoFileReason);
+                return;
+            }
+
+            ShowPrintResult(await _prints.PrintAsync());
+        }
+
+        private void ShowPrintResult(PrintResult result)
+        {
+            if (result.Status == PrintStatus.Cancelled)
+                return;
+
+            Notify(result.Message ?? (result.IsDone ? "인쇄했어요." : "끝내지 못했어요."));
         }
 
         private async Task ShowDocumentInfoAsync()

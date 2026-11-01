@@ -7,6 +7,23 @@ window.docuHelper = (function () {
         if (e.target && e.target !== document.body) lastFocused = e.target;
     }, true);
 
+    function markPrintTree(root) {
+        Array.prototype.forEach.call(root.children, function (child) {
+            if (child.matches('.page')) {
+                child.classList.add('docu-print-keep', 'docu-print-page');
+                return;
+            }
+
+            if (child.querySelector('.page')) {
+                child.classList.add('docu-print-keep');
+                markPrintTree(child);
+                return;
+            }
+
+            child.classList.add('docu-print-hide');
+        });
+    }
+
     function isEditable(el) {
         if (!el) return false;
         var tag = el.tagName;
@@ -153,6 +170,22 @@ window.docuHelper = (function () {
         },
         prefersReducedMotion: function () {
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        },
+        printEnter: function () {
+            var pages = Array.prototype.slice.call(document.querySelectorAll('.page'));
+            if (pages.length === 0)
+                return 0;
+
+            markPrintTree(document.body);
+            pages[pages.length - 1].classList.add('docu-print-last');
+            document.body.classList.add('docu-printing');
+            return pages.length;
+        },
+        printExit: function () {
+            document.body.classList.remove('docu-printing');
+            document.querySelectorAll('.docu-print-hide, .docu-print-keep, .docu-print-page, .docu-print-last').forEach(function (el) {
+                el.classList.remove('docu-print-hide', 'docu-print-keep', 'docu-print-page', 'docu-print-last');
+            });
         }
     };
 })();
