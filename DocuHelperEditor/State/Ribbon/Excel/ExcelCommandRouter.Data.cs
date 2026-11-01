@@ -92,7 +92,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         {
             return new[]
             {
-                DialogEntry("dialog", "데이터 유효성 검사…", "excel.data.validation", null, "set_data_validation"),
+                DialogEntry("dialog", "데이터 유효성 검사…", ExcelDialogIds.Validation, null, "set_data_validation"),
                 RibbonMenus.Separator(),
                 Entry("circle", "잘못된 데이터 표시", "규칙에 맞지 않는 칸에 빨간 동그라미를 그려요", blocked: PendingReason),
                 Entry("clear_circles", "유효성 표시 지우기", blocked: PendingReason),
@@ -104,7 +104,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         private Task RunValidation(string arg)
         {
             if (arg == "dialog")
-                State.OpenDialog("excel.data.validation");
+                State.OpenDialog(ExcelDialogIds.Validation);
             else if (arg == "clear" && _surface.Prepare())
                 Apply(EditCommand.Create("set_data_validation", Cells(("action", "clear"))));
 

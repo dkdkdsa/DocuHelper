@@ -3,6 +3,8 @@
 @using DocuHelper.Tools.Excel
 @using DocuHelperEditor.State.Papers
 @using DocuHelperEditor.Components.Paper
+@using DocuHelperEditor.Components.Paper.Excel.Dialogs
+@using DocuHelperEditor.State.Ribbon.Excel
 @using Microsoft.Maui.ApplicationModel.DataTransfer
 @inject IJSRuntime JS
 
@@ -128,6 +130,18 @@
                     OnClear="ClearFilterMenu"
                     OnApply="ApplyFilterMenu"
                     OnClose="CloseFilterMenu" />
+    }
+    @switch (_router.State.ActiveDialog)
+    {
+        case ExcelDialogIds.ConditionalFormat:
+            <ConditionalRuleDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
+        case ExcelDialogIds.Validation:
+            <ValidationDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
+        case ExcelDialogIds.ProtectSheet:
+            <ProtectSheetDialog SheetName="@CurrentSheet.Name" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
     }
     @if (_menu != null)
     {
