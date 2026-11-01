@@ -108,6 +108,7 @@ namespace DocuHelper.Tools.Ppt
             ApplyStyle(result, shape, context.Theme);
             result.Shadow = Shadow(shape.ShapeProperties, context.Theme);
             result.Text = shape.TextBody == null ? null : TextOf(shape.TextBody, context);
+            ApplyFontStyle(result, shape.ShapeStyle, context.Theme);
             result.AltText = props?.Description?.Value;
             return result;
         }
@@ -194,6 +195,7 @@ namespace DocuHelper.Tools.Ppt
             ApplyBox(result, box, connection);
             result.Geometry = Geometry(connection.ShapeProperties);
             result.Line = Line(connection.ShapeProperties, context.Theme);
+            ApplyStyle(result, connection.ShapeProperties, connection.ShapeStyle, context.Theme);
             return result;
         }
 
@@ -387,37 +389,58 @@ namespace DocuHelper.Tools.Ppt
             };
         }
 
-        private static void ApplyStyle(PptSceneShape result, P.Shape shape, PptThemeInfo theme)
+        private static void ApplyStyle(PptSceneShape result, P.Shape shape, PptThemeInfo theme) =>
+            ApplyStyle(result, shape.ShapeProperties, shape.ShapeStyle, theme);
+
+        private static void ApplyStyle(PptSceneShape result, OpenXmlElement properties, P.ShapeStyle style, PptThemeInfo theme)
         {
-            var properties = shape.ShapeProperties;
-            var style = shape.ShapeStyle;
             if (properties == null || style == null)
                 return;
 
             var fillElement = StyleColorElement(style.FillReference);
-            if (fillElement != null && !HasExplicitFill(properties))
-            {
-                var color = PptColor.Resolve(fillElement, theme, (OpenXmlElement)null);
-                if (color != null)
-                    result.Fill = new PptSceneFill { Kind = "solid", Color = color, Alpha = PptColor.AlphaOf(fillElement) };
-            }
+            var fillColor = fillElement == null ? null : PptColor.Resolve(fillElement, theme, (OpenXmlElement)null);
+            if (IsHexColor(fillColor) && !HasExplicitFill(properties))
+                result.Fill = new PptSceneFill { Kind = "solid", Color = fillColor, Alpha = PptColor.AlphaOf(fillElement) };
 
             var outline = properties.GetFirstChild<A.Outline>();
-            if (outline?.GetFirstChild<A.NoFill>() != null)
-                return;
-
-            if (outline?.GetFirstChild<A.SolidFill>() != null)
+            if (outline?.GetFirstChild<A.NoFill>() != null || outline?.GetFirstChild<A.SolidFill>() != null)
                 return;
 
             var lineElement = StyleColorElement(style.LineReference);
             var lineColor = lineElement == null ? null : PptColor.Resolve(lineElement, theme, (OpenXmlElement)null);
-            if (lineColor == null)
+            if (!IsHexColor(lineColor))
                 return;
 
             result.Line ??= new PptSceneLine { WidthPt = 0.75 };
             result.Line.Color = lineColor;
             result.Line.Alpha = PptColor.AlphaOf(lineElement);
         }
+
+        private static void ApplyFontStyle(PptSceneShape result, P.ShapeStyle style, PptThemeInfo theme)
+        {
+            if (result.Text == null)
+                return;
+
+            var element = FontColorElement(style.FontReference);
+            var color = element == null ? null : PptColor.Resolve(element, theme, (OpenXmlElement)null);
+            if (!IsHexColor(color))
+                return;
+
+            foreach (var run in result.Text.Paragraphs.SelectMany(p => p.Runs))
+                run.Color ??= color;
+        }
+
+        private static OpenXmlElement FontColorElement(OpenXmlElement reference)
+        {
+            if (reference == null)
+                return null;
+
+            var index = reference.GetAttributes().FirstOrDefault(a => a.LocalName == "idx").Value;
+            return index is null or "none" ? null : reference.GetFirstChild<OpenXmlElement>();
+        }
+
+        private static bool IsHexColor(string color) =>
+            color != null && color.Length == 6 && color.All(Uri.IsHexDigit);
 
         private static bool HasExplicitFill(OpenXmlElement properties) =>
             properties.GetFirstChild<A.NoFill>() != null

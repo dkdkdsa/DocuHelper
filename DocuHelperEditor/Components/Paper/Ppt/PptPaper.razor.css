@@ -30,7 +30,7 @@
 .frame {
     position: relative;
     width: 100%;
-    max-width: 560px;
+    max-width: var(--slide-max, 560px);
 }
 
 .frame.rulers {
@@ -78,6 +78,38 @@
     right: 0;
     top: 50%;
     border-top-width: 1px;
+}
+
+.slide-wrap.play-fade ::deep .slide,
+.slide-wrap.play-reveal ::deep .slide,
+.slide-wrap.play-split ::deep .slide {
+    animation: pv-fade 0.6s ease-out;
+}
+
+.slide-wrap.play-push ::deep .slide {
+    animation: pv-push 0.6s ease-out;
+}
+
+.slide-wrap.play-wipe ::deep .slide {
+    animation: pv-wipe 0.6s ease-out;
+}
+
+@keyframes pv-fade {
+    from { opacity: 0; }
+}
+
+@keyframes pv-push {
+    from { transform: translateX(12%); opacity: 0.4; }
+}
+
+@keyframes pv-wipe {
+    from { clip-path: inset(0 100% 0 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .slide-wrap ::deep .slide {
+        animation: none;
+    }
 }
 
 .pane {

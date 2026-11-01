@@ -18,6 +18,8 @@ namespace DocuHelperEditor.State.Papers
 
         public SlideBackgroundModel Background { get; set; } = new();
 
+        public string Transition { get; set; } = "none";
+
         public List<SlideAnimationModel> Animations { get; set; } = new();
 
         public List<SlideCommentModel> Comments { get; set; } = new();

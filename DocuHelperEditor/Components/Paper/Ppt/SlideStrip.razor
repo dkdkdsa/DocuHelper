@@ -2,7 +2,6 @@
 @inject IJSRuntime JS
 
 <nav class="strip" aria-label="슬라이드">
-    <button type="button" class="sorter-toggle @(Sorter ? "on" : null)" aria-pressed="@(Sorter ? "true" : "false")" @onclick="OnToggleSorter">정렬 보기</button>
     <ol class="list">
         @for (var i = 0; i < Count; i++)
         {
@@ -18,7 +17,7 @@
                 <button type="button" id="@ThumbId(index)" class="th @(active ? "on" : null)" aria-label="@ThumbLabel(index, changed)" aria-pressed="@(active ? "true" : "false")" tabindex="@(active ? 0 : -1)" @onclick="() => SelectSlide(index)" @onkeydown="e => HandleKey(e, index)">
                     <span class="num" aria-hidden="true">@(index + 1)</span>
                     <span class="mini" aria-hidden="true">
-                        <SlideCanvas Slide="slide" AspectRatio="AspectRatio" Locked="true" ShowFit="false" />
+                        <SlideCanvas Slide="slide" AspectRatio="AspectRatio" Locked="true" ShowFit="false" HighlightId="@HighlightId" LiveChanges="LiveChanges" />
                     </span>
                 </button>
             </li>
@@ -41,16 +40,14 @@
     public double AspectRatio { get; set; } = 16.0 / 9.0;
 
     [Parameter]
+    public string HighlightId { get; set; }
+
+    [Parameter]
     public HashSet<string> LiveChanges { get; set; }
 
     [Parameter]
     public EventCallback<int> OnSelect { get; set; }
 
-    [Parameter]
-    public bool Sorter { get; set; }
-
-    [Parameter]
-    public EventCallback OnToggleSorter { get; set; }
 
     private int Count => Slides?.Count ?? 0;
 

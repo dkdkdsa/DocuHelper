@@ -1,6 +1,7 @@
 @using DocuHelperEditor.State.Papers
+@inject IJSRuntime JS
 
-<section class="sorter" aria-label="슬라이드 정렬 보기">
+<section @ref="_section" class="sorter" aria-label="슬라이드 정렬 보기">
     @foreach (var group in Groups())
     {
         <h3 class="sec">@group.Name</h3>
@@ -23,6 +24,14 @@
 </section>
 
 @code {
+    private ElementReference _section;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Slides != null && _section.Context != null)
+            await JS.InvokeVoidAsync("docuHelperPptSorter.bind", _section);
+    }
+
     [Parameter]
     public List<SlideModel> Slides { get; set; }
 

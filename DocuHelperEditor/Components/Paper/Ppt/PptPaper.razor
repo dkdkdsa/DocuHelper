@@ -10,23 +10,31 @@
     <div class="ppt">
         <PptRibbon File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" LiveChanges="_live" OnSelect="SelectSlide" Sorter="_sorter" OnToggleSorter="ToggleSorter" />
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
             <div class="stage">
-                @if (_sorter)
+                @if (Sorter)
                 {
                     <SlideSorter Slides="_model.Slides" Sections="_model.Sections" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" OnPick="PickSlide" />
                 }
+                else if (Outline)
+                {
+                    <SlideOutline Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" OnPick="PickSlide" />
+                }
+                else if (Show)
+                {
+                    <SlideShowOverlay Slides="_model.Slides" AspectRatio="_model.AspectRatio" StartIndex="_model.ActiveIndex" Reading="@(_ribbon.View == "read")" OnExit="ExitShow" />
+                }
                 else
                 {
-                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)">
+                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @((560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture))px">
                         @if (_ribbon.Rulers)
                         {
                             <span class="corner" aria-hidden="true"></span>
                             <RulerBar Horizontal="true" Cm="_model.SlideWidthCm" Marks="SelectedMarks(true)" />
                             <RulerBar Horizontal="false" Cm="_model.SlideHeightCm" Marks="SelectedMarks(false)" />
                         }
-                        <div class="slide-wrap">
-                            <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                        <div class="slide-wrap @(_previewing ? "play-" + (slide?.Transition ?? "none") : null)">
+                            <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" Snap="@SnapMode()" WidthCm="_model.SlideWidthCm" HeightCm="_model.SlideHeightCm" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
                             @if (_ribbon.Gridlines)
                             {
                                 <div class="grid-layer" style="@GridStyle()" aria-hidden="true"></div>
@@ -55,18 +63,33 @@
                 }
             </div>
         </div>
-        @if (!_sorter && _ribbon.NotesOpen)
+        @if (_ribbon.View == "normal" && _ribbon.NotesOpen)
         {
             <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
         }
+        <PptStatusBar Active="_model.ActiveIndex" Count="_model.Slides.Count" NotesOpen="_ribbon.NotesOpen" Sorter="Sorter" Zoom="_ribbon.Zoom" OnToggleNotes="ToggleNotes" OnSetSorter="SetSorter" OnZoom="SetZoom" />
         <ChangeNavigator File="File" />
     </div>
 }
 
 @code {
     private readonly PptRibbonState _ribbon = new();
-    private bool _sorter;
+    private bool Sorter => _ribbon.View == "sorter";
+
+    private bool Outline => _ribbon.View == "outline";
+
+    private string SnapMode() => string.Join(" ", new[] { _ribbon.Gridlines ? "grid" : null, _ribbon.Guides ? "guides" : null }.Where(mode => mode != null));
+
+    private bool Show => _ribbon.View is "show" or "read";
+
+    private void ExitShow(int index)
+    {
+        _ribbon.View = "normal";
+        SelectSlide(index);
+    }
     private int _notesHeight = 92;
+    private bool _previewing;
+    private const int TransitionPreviewMs = 900;
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -239,15 +262,19 @@
 
     private void SetNotesHeight(int height) => _notesHeight = Math.Clamp(height, SpeakerNotes.MinHeight, SpeakerNotes.MaxHeight);
 
-    private void ToggleSorter()
+    private void ToggleNotes() => _ribbon.NotesOpen = !_ribbon.NotesOpen;
+
+    private void SetSorter(bool on)
     {
         CommitDraft();
-        _sorter = !_sorter;
+        _ribbon.View = on ? "sorter" : "normal";
     }
+
+    private void SetZoom(int value) => _ribbon.Zoom = Math.Clamp(value, PptRibbonState.MinZoom, PptRibbonState.MaxZoom);
 
     private void PickSlide(int index)
     {
-        _sorter = false;
+        _ribbon.View = "normal";
         SelectSlide(index);
     }
 
@@ -412,7 +439,27 @@
             Edit(file, "set_slide_text", new { slide = index + 1, shape = box.ShapeKey, lines });
     }
 
-    private void Redraw() => StateHasChanged();
+    private void Redraw()
+    {
+        if (!_previewing && string.Equals(_ribbon.Preview, "transition", StringComparison.Ordinal))
+        {
+            _ribbon.Preview = null;
+            _previewing = true;
+            _ = EndPreviewAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task EndPreviewAsync()
+    {
+        await Task.Delay(TransitionPreviewMs);
+        await InvokeAsync(() =>
+        {
+            _previewing = false;
+            StateHasChanged();
+        });
+    }
 
     private void ActivateSlide(int index)
     {

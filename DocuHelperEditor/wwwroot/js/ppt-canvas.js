@@ -101,6 +101,30 @@ window.docuHelperPptCanvas = (function () {
         slide.focus({ preventScroll: true });
     }
 
+    function whenSelected(shape, limit, callback) {
+        if (shape.classList.contains('on')) {
+            callback();
+            return;
+        }
+
+        var done = false;
+        var timer = null;
+        var observer = new MutationObserver(function () {
+            if (shape.classList.contains('on')) finish();
+        });
+
+        function finish() {
+            if (done) return;
+            done = true;
+            observer.disconnect();
+            clearTimeout(timer);
+            callback();
+        }
+
+        observer.observe(shape, { attributes: true, attributeFilter: ['class'] });
+        timer = setTimeout(finish, limit);
+    }
+
     function startEditing(shape) {
         if (!shape || !shape.classList.contains('on')) return false;
 
@@ -166,6 +190,46 @@ window.docuHelperPptCanvas = (function () {
         startDrag(session, slide, e, 'move', shape, null);
     }
 
+    function bestSnap(candidates, edges, tolerance) {
+        var best = null;
+        candidates.forEach(function (c) {
+            edges.forEach(function (edge) {
+                var d = c - edge;
+                if (Math.abs(d) <= tolerance && (best === null || Math.abs(d) < Math.abs(best))) best = d;
+            });
+        });
+        return best;
+    }
+
+    function snapOffset(slide, item, fx, fy, box) {
+        var mode = slide.dataset.snap || '';
+        if (!mode) return { fx: fx, fy: fy };
+
+        var xs = [];
+        var ys = [];
+        if (mode.indexOf('guides') >= 0) {
+            xs.push(50);
+            ys.push(50);
+        }
+        if (mode.indexOf('grid') >= 0) {
+            var wcm = parseFloat(slide.dataset.wcm) || 33.867;
+            var hcm = parseFloat(slide.dataset.hcm) || 19.05;
+            for (var c = 0; c <= wcm; c += 1) xs.push(c / wcm * 100);
+            for (var r = 0; r <= hcm; r += 1) ys.push(r / hcm * 100);
+        }
+
+        var tolerance = 6 / box.width * 100;
+        var toleranceY = 6 / box.height * 100;
+        var left = item.x + fx;
+        var dx = bestSnap(xs, [left, left + item.w / 2, left + item.w], tolerance);
+        if (dx !== null) fx += dx;
+
+        var top = item.y + fy;
+        var dy = bestSnap(ys, [top, top + item.h / 2, top + item.h], toleranceY);
+        if (dy !== null) fy += dy;
+        return { fx: fx, fy: fy };
+    }
+
     function onMove(session, e) {
         var drag = session.drag;
         if (!drag || e.pointerId !== drag.pointerId) return;
@@ -180,6 +244,9 @@ window.docuHelperPptCanvas = (function () {
         var first = drag.items[0];
 
         if (drag.kind === 'move') {
+            var snapped = snapOffset(session.slide, first, fx, fy, drag.box);
+            fx = snapped.fx;
+            fy = snapped.fy;
             drag.items.forEach(function (item) {
                 item.el.style.left = (item.x + fx) + '%';
                 item.el.style.top = (item.y + fy) + '%';
@@ -329,15 +396,16 @@ window.docuHelperPptCanvas = (function () {
             session.onDblClick = function (e) {
                 var shape = e.target.closest ? e.target.closest('[data-shape]') : null;
                 if (!shape || !slide.contains(shape) || slide.dataset.locked === 'true') return;
+                var text = shape.querySelector('[contenteditable="plaintext-only"]');
+                if (text && document.activeElement === text) return;
+
                 if (shape.classList.contains('on')) {
                     startEditing(shape);
                     return;
                 }
 
                 send(session, { kind: 'select', id: shape.dataset.shape, additive: false });
-                requestAnimationFrame(function () {
-                    requestAnimationFrame(function () { startEditing(shape); });
-                });
+                whenSelected(shape, 500, function () { startEditing(shape); });
             };
 
             sessions.set(slide, session);
@@ -355,41 +423,178 @@ window.docuHelperPptCanvas = (function () {
 })();
 
 window.docuHelperPptGrip = (function () {
-    var grips = new Map();
     var MIN = 48;
     var MAX = 600;
+    var RATIO = 0.4;
+    var STEP = 16;
+    var PAGE = 64;
+    var grips = new Map();
+
+    function limit(host) {
+        return Math.round(Math.min(MAX, Math.max(MIN, host.clientHeight * RATIO)));
+    }
+
+    function clamp(host, height) {
+        return Math.round(Math.min(limit(host), Math.max(MIN, height)));
+    }
+
+    function current(record) {
+        return record.notes.getBoundingClientRect().height;
+    }
+
+    function apply(record, height) {
+        record.notes.style.height = height + 'px';
+        record.grip.setAttribute('aria-valuenow', String(height));
+        record.grip.setAttribute('aria-valuemax', String(limit(record.host)));
+    }
+
+    function commit(record, height) {
+        record.reference.invokeMethodAsync('Resized', height).catch(function () { });
+    }
+
+    function setHeight(record, height) {
+        var next = clamp(record.host, height);
+        apply(record, next);
+        commit(record, next);
+    }
+
+    function onDown(record, e) {
+        if (e.button !== 0) return;
+
+        e.preventDefault();
+        var grip = record.grip;
+        var pointer = e.pointerId;
+        var startY = e.clientY;
+        var start = current(record);
+        var height = start;
+        grip.setPointerCapture(pointer);
+
+        function move(ev) {
+            if (ev.pointerId !== pointer) return;
+            height = clamp(record.host, start - (ev.clientY - startY));
+            apply(record, height);
+        }
+
+        function up(ev) {
+            if (ev.pointerId !== pointer) return;
+            grip.removeEventListener('pointermove', move);
+            grip.removeEventListener('pointerup', up);
+            grip.removeEventListener('pointercancel', up);
+            if (grip.hasPointerCapture(pointer)) grip.releasePointerCapture(pointer);
+            commit(record, height);
+        }
+
+        grip.addEventListener('pointermove', move);
+        grip.addEventListener('pointerup', up);
+        grip.addEventListener('pointercancel', up);
+    }
+
+    function onKey(record, e) {
+        var height = null;
+        if (e.key === 'ArrowUp') height = current(record) + STEP;
+        else if (e.key === 'ArrowDown') height = current(record) - STEP;
+        else if (e.key === 'PageUp') height = current(record) + PAGE;
+        else if (e.key === 'PageDown') height = current(record) - PAGE;
+        else if (e.key === 'Home') height = MIN;
+        else if (e.key === 'End') height = limit(record.host);
+        if (height === null) return;
+
+        e.preventDefault();
+        setHeight(record, height);
+    }
+
+    function dispose(grip) {
+        var record = grips.get(grip);
+        if (!record) return;
+        grip.removeEventListener('pointerdown', record.onDown);
+        grip.removeEventListener('keydown', record.onKey);
+        grips.delete(grip);
+    }
+
+    window.addEventListener('resize', function () {
+        grips.forEach(function (record, grip) {
+            if (!grip.isConnected) {
+                dispose(grip);
+                return;
+            }
+
+            var height = current(record);
+            var next = clamp(record.host, height);
+            apply(record, next);
+            if (next !== Math.round(height)) commit(record, next);
+        });
+    });
 
     return {
         register: function (grip, reference) {
-            if (grip) grips.set(grip, reference);
+            if (!grip) return;
+
+            var record = grips.get(grip);
+            if (record) {
+                record.reference = reference;
+                return;
+            }
+
+            var notes = grip.closest('.notes');
+            if (!notes || !notes.parentElement) return;
+
+            record = { grip: grip, notes: notes, host: notes.parentElement, reference: reference };
+            record.onDown = function (e) { onDown(record, e); };
+            record.onKey = function (e) { onKey(record, e); };
+            grips.set(grip, record);
+            grip.addEventListener('pointerdown', record.onDown);
+            grip.addEventListener('keydown', record.onKey);
+            apply(record, clamp(record.host, current(record)));
         },
         unregister: function (grip) {
-            grips.delete(grip);
-        },
-        start: function (grip, clientY, startHeight) {
-            var reference = grips.get(grip);
-            var notes = grip ? grip.closest('.notes') : null;
-            if (!reference || !notes) return;
+            dispose(grip);
+        }
+    };
+})();
 
-            var host = notes.parentElement;
-            var max = Math.min(MAX, Math.max(MIN, host.clientHeight * 0.4));
-            var height = startHeight;
+window.docuHelperPptSorter = (function () {
+    var bound = new WeakSet();
 
-            function move(e) {
-                height = Math.round(Math.min(max, Math.max(MIN, startHeight - (e.clientY - clientY))));
-                notes.style.height = height + 'px';
-            }
+    function cellsOf(section) {
+        return Array.prototype.slice.call(section.querySelectorAll('.cell'));
+    }
 
-            function up() {
-                window.removeEventListener('pointermove', move);
-                window.removeEventListener('pointerup', up);
-                window.removeEventListener('pointercancel', up);
-                reference.invokeMethodAsync('Resized', height).catch(function () { });
-            }
+    function columnsOf(cells) {
+        if (cells.length === 0) return 1;
+        var top = cells[0].offsetTop;
+        var count = 0;
+        for (var i = 0; i < cells.length && cells[i].offsetTop === top; i++) count++;
+        return Math.max(1, count);
+    }
 
-            window.addEventListener('pointermove', move);
-            window.addEventListener('pointerup', up);
-            window.addEventListener('pointercancel', up);
+    function onKey(section, e) {
+        var cell = e.target && e.target.closest ? e.target.closest('.cell') : null;
+        if (!cell || !section.contains(cell) || e.ctrlKey || e.altKey || e.metaKey) return;
+
+        var cells = cellsOf(section);
+        var index = cells.indexOf(cell);
+        var columns = columnsOf(cells);
+        var target;
+        switch (e.key) {
+            case 'ArrowRight': target = index + 1; break;
+            case 'ArrowLeft': target = index - 1; break;
+            case 'ArrowDown': target = index + columns; break;
+            case 'ArrowUp': target = index - columns; break;
+            case 'Home': target = 0; break;
+            case 'End': target = cells.length - 1; break;
+            default: return;
+        }
+
+        e.preventDefault();
+        target = Math.min(cells.length - 1, Math.max(0, target));
+        if (target !== index) cells[target].focus();
+    }
+
+    return {
+        bind: function (section) {
+            if (!section || bound.has(section)) return;
+            bound.add(section);
+            section.addEventListener('keydown', function (e) { onKey(section, e); });
         }
     };
 })();
