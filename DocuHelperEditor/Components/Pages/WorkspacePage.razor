@@ -78,7 +78,8 @@
             return;
         }
 
-        var restoreAfterUpdate = !Workspace.IsReady && Updates.JustUpdatedTo != null;
+        var justUpdated = Updates.TakeJustUpdated() != null;
+        var restoreAfterUpdate = justUpdated && !Workspace.IsReady;
         if (restoreAfterUpdate)
             Workspace.RequestSessionRestore();
 

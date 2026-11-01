@@ -4,7 +4,7 @@
 
 @if (IsPillVisible)
 {
-    <div class="update-wrap">
+    <div class="update-wrap" @onkeydown="OnKeyDown">
         <button type="button" id="update-pill" class="update-pill" aria-expanded="@ExpandedText" aria-controls="update-pop" @onclick="Toggle">
             <Icon Name="@PillIcon" Size="16" Stroke="2.2" />
             <span>@PillText</span>
@@ -62,12 +62,21 @@
     private void OnChanged()
     {
         var phase = Updates.Phase;
-        if (phase == UpdatePhase.Ready && _lastPhase == UpdatePhase.Downloading)
+        if (phase == UpdatePhase.Downloading && _lastPhase != UpdatePhase.Downloading)
+            _announcement = string.Empty;
+
+        if (_lastPhase == UpdatePhase.Downloading)
         {
-            _announcement = "새 버전을 다 받았어요";
-            if (_open)
-                _focusTarget = Updates.CanRestartNow ? "#update-restart" : "#update-onclose";
+            if (phase == UpdatePhase.Ready)
+                _announcement = "새 버전을 다 받았어요";
+            else if (phase == UpdatePhase.OnClose)
+                _announcement = "새 버전을 다 받았어요. 앱을 닫을 때 바뀌어요";
+            else if (phase == UpdatePhase.Available && Updates.DownloadFailed)
+                _announcement = "새 버전을 내려받지 못했어요";
         }
+
+        if (phase == UpdatePhase.Ready && _lastPhase == UpdatePhase.Downloading && _open)
+            _focusTarget = Updates.CanRestartNow ? "#update-restart" : "#update-onclose";
 
         if (!IsPillVisible)
             _open = false;
@@ -77,6 +86,12 @@
     }
 
     private void Toggle() => _open = !_open;
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (_open && e.Key == "Escape")
+            await Close();
+    }
 
     private async Task Close()
     {

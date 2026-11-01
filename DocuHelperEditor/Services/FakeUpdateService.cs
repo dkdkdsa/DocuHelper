@@ -50,6 +50,9 @@ namespace DocuHelperEditor.Services
         {
             for (var percent = 0; percent <= 100; percent += 5)
             {
+                if (_scenario == "downloadfail" && percent >= 20)
+                    throw new HttpRequestException("가짜 내려받기 실패");
+
                 progress?.Report(percent);
                 await Task.Delay(ChunkDelayMilliseconds, cancellationToken);
             }

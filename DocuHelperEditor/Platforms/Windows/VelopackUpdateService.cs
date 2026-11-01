@@ -91,9 +91,21 @@ namespace DocuHelperEditor.WinUI
                 .Where(line => line.StartsWith("- ", StringComparison.Ordinal))
                 .Select(line => line.Substring(2).Trim())
                 .Where(line => line.Length > 0)
-                .Select(line => line.Length > MaxNoteLength ? line.Substring(0, MaxNoteLength) : line)
+                .Select(TruncateNote)
                 .Take(MaxNotes)
                 .ToList();
+        }
+
+        private static string TruncateNote(string line)
+        {
+            if (line.Length <= MaxNoteLength)
+                return line;
+
+            var length = MaxNoteLength;
+            if (char.IsHighSurrogate(line[length - 1]))
+                length--;
+
+            return line.Substring(0, length);
         }
 
         private static string TestSource()

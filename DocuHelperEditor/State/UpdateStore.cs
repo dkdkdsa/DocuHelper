@@ -14,6 +14,7 @@ namespace DocuHelperEditor.State
         private readonly SettingsStore _settings;
         private bool _started;
         private bool _applyOnExit;
+        private string _justUpdatedTo;
         private CancellationTokenSource _download;
 
         public UpdateStore(IUpdateService service, WorkspaceStore workspace, AssistantStore assistant, SettingsStore settings)
@@ -22,7 +23,7 @@ namespace DocuHelperEditor.State
             _workspace = workspace;
             _assistant = assistant;
             _settings = settings;
-            JustUpdatedTo = DetectUpdate();
+            _justUpdatedTo = DetectUpdate();
         }
 
         public event Action Changed;
@@ -35,13 +36,20 @@ namespace DocuHelperEditor.State
 
         public bool CheckFailed { get; private set; }
 
+        public bool DownloadFailed { get; private set; }
+
         public string CurrentVersion => _service.CurrentVersion;
 
         public bool IsInstalled => _service.IsInstalled;
 
-        public string JustUpdatedTo { get; }
-
         public bool CanRestartNow => _workspace.UnsavedCount == 0 && !_assistant.IsRunning;
+
+        public string TakeJustUpdated()
+        {
+            var version = _justUpdatedTo;
+            _justUpdatedTo = null;
+            return version;
+        }
 
         public long DownloadedBytes => Notice == null ? 0 : Notice.SizeBytes * Percent / 100;
 
@@ -169,6 +177,7 @@ namespace DocuHelperEditor.State
             var source = new CancellationTokenSource();
             _download = source;
             Percent = 0;
+            DownloadFailed = false;
             SetPhase(UpdatePhase.Downloading);
 
             try
@@ -187,8 +196,8 @@ namespace DocuHelperEditor.State
                 AppLog.Write("Update download failed", e);
                 _download = null;
                 Percent = 0;
-                Notice = null;
-                SetPhase(UpdatePhase.Idle);
+                DownloadFailed = true;
+                SetPhase(UpdatePhase.Available);
                 return;
             }
 

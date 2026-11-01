@@ -1,4 +1,4 @@
-﻿name: Release
+name: Release
 
 on:
   push:
@@ -55,20 +55,28 @@ jobs:
 
       - name: Extract release notes
         shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
         run: |
-          $version = "${{ steps.version.outputs.value }}"
+          $version = $env:VERSION.TrimStart('v')
           $notes = @()
+          $found = $false
           if (Test-Path RELEASE_NOTES.md) {
             $inside = $false
             foreach ($line in Get-Content RELEASE_NOTES.md -Encoding utf8) {
               if ($line -match '^## (.+)$') {
-                $inside = $matches[1].Trim() -eq $version
+                $title = $matches[1].Trim().TrimStart('v')
+                $inside = $title -eq $version
+                $found = $found -or $inside
                 continue
               }
               if ($inside) { $notes += $line }
             }
           }
-          $notes -join "`n" | Set-Content -Path "${{ runner.temp }}/release-notes.md" -Encoding utf8
+          if (-not $found) {
+            Write-Warning "RELEASE_NOTES.md에 $version 항목이 없어요. 업데이트 창에 바뀐 점이 나오지 않아요."
+          }
+          $notes -join "`n" | Set-Content -Path "$env:RUNNER_TEMP/release-notes.md" -Encoding utf8
 
       - name: Pack
         run: >
