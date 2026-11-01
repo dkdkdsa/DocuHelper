@@ -59,7 +59,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         public IPptDialogHost Dialogs { get; set; }
 
-        public ISet<string> Rendered { get; } = new HashSet<string>(StringComparer.Ordinal) { "view:normal", "view:sorter", "view:outline", "view:show", "view:read", "preview:transition", "notesOpen", "rulers", "gridlines", "guides" };
+        public ISet<string> Rendered { get; } = new HashSet<string>(StringComparer.Ordinal) { "view:normal", "view:sorter", "view:outline", "view:show", "view:read", "preview:transition", "notesOpen", "rulers", "gridlines", "guides", "zoom" };
 
         public PptRibbonSelection Selection => PptRibbonSelection.From(ModelSource?.Invoke());
 

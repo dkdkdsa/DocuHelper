@@ -10,7 +10,7 @@
     <div class="ppt">
         <PptRibbon @ref="_ribbonHost" File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" OnSlideAction="SlideAction" />
             <div class="stage">
                 @if (Sorter)
                 {
@@ -26,7 +26,7 @@
                 }
                 else
                 {
-                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @((560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture))px">
+                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @SlideMax">
                         @if (_ribbon.Rulers)
                         {
                             <span class="corner" aria-hidden="true"></span>
@@ -67,7 +67,7 @@
         {
             <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
         }
-        <PptStatusBar Model="_model" State="_ribbon" Commands="_ribbonHost?.Commands" SorterOpen="Sorter" OnToggleSorter="ToggleSorter" />
+        <PptStatusBar Model="_model" State="_ribbon" Commands="_ribbonHost?.Commands" SorterOpen="Sorter" OnToggleSorter="ToggleSorter" OnZoom="SetZoom" />
         <PptDialogHost Presenter="_presenter" />
         <ChangeNavigator File="File" />
     </div>
@@ -280,12 +280,51 @@
         _ribbon.View = on ? "sorter" : "normal";
     }
 
-    private void SetZoom(int value) => _ribbon.Zoom = Math.Clamp(value, PptRibbonState.MinZoom, PptRibbonState.MaxZoom);
+    private void SetZoom(int value)
+    {
+        _ribbon.Zoom = Math.Clamp(value, PptRibbonState.MinZoom, PptRibbonState.MaxZoom);
+        _ribbon.FitRequested = false;
+    }
+
+    private string SlideMax => _ribbon.FitRequested ? "100%" : (560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture) + "px";
 
     private void PickSlide(int index)
     {
         _ribbon.View = "normal";
         SelectSlide(index);
+    }
+
+    private void SlideAction((string Action, int Index) request)
+    {
+        CommitDraft();
+        if (File?.Docu == null || _model == null || request.Index < 0 || request.Index >= _model.Slides.Count)
+            return;
+
+        var number = request.Index + 1;
+        var count = _model.Slides.Count;
+        var target = request.Index;
+        var changed = request.Action switch
+        {
+            "new" => Edit(File, "add_slide", new { after = number }),
+            "duplicate" => Edit(File, "arrange_slides", new { action = "duplicate", slides = new[] { number } }),
+            "up" => Edit(File, "arrange_slides", new { action = "move", slides = new[] { number }, to = number - 2 }),
+            "down" => Edit(File, "arrange_slides", new { action = "move", slides = new[] { number }, to = number + 1 }),
+            "delete" => Edit(File, "arrange_slides", new { action = "delete", slides = new[] { number } }),
+            _ => false,
+        };
+        if (!changed)
+            return;
+
+        target = request.Action switch
+        {
+            "new" => request.Index + 1,
+            "duplicate" => request.Index + 1,
+            "up" => request.Index - 1,
+            "down" => request.Index + 1,
+            "delete" => Math.Min(request.Index, count - 2),
+            _ => target,
+        };
+        SelectSlide(Math.Clamp(target, 0, Math.Max(0, _model.Slides.Count - 1)));
     }
 
     private void SelectSlide(int index)

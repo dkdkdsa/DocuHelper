@@ -20,6 +20,10 @@ namespace DocuHelperEditor.State.Papers
 
         public string Transition { get; set; } = "none";
 
+        public bool AdvanceOnClick { get; set; } = true;
+
+        public bool IsHidden { get; set; }
+
         public List<SlideAnimationModel> Animations { get; set; } = new();
 
         public List<SlideCommentModel> Comments { get; set; } = new();

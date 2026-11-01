@@ -46,14 +46,10 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private static readonly HashSet<string> s_knownStates = new(StringComparer.Ordinal)
         {
             "bold", "italic", "underline", "align:left", "align:center", "align:right", "align:justify",
+            "strike", "bullet", "number", "hidden", "useTimings", "mediaControls", "advanceOnClick",
         };
 
         private static readonly string[] s_newSlideIds = { "ppt.home.newSlide", "ppt.insert.newSlide" };
-
-        private static readonly string[] s_pending =
-        {
-            "ppt.insert.symbol",
-        };
 
         private static readonly string[] s_external =
         {
@@ -62,13 +58,14 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         private static readonly string[] s_print =
         {
-            "ppt.file.pdf", "ppt.file.print", "ppt.file.printHandout",
+            "ppt.file.printHandout",
         };
 
         private static readonly Regex s_hex = new("^[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
 
         private readonly PptRibbonState _state;
         private readonly IClipboardService _clipboard;
+        private readonly IPrintService _prints;
         private readonly IFileDialogService _dialogs;
         private readonly Dictionary<string, PptCommandSpec> _specs = new(StringComparer.Ordinal);
         private readonly Dictionary<string, (Tool Instance, PptToolSchema Schema)> _schemas = new(StringComparer.Ordinal);
@@ -76,12 +73,13 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private string _pickedName;
         private int _activate = -1;
 
-        public PptRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IFileDialogService dialogs, PptRibbonState state, IClipboardService clipboard)
+        public PptRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IFileDialogService dialogs, PptRibbonState state, IClipboardService clipboard, IPrintService prints)
             : base(workspace, assistant, js)
         {
             _dialogs = dialogs;
             _state = state;
             _clipboard = clipboard;
+            _prints = prints;
             foreach (var spec in PptCommandData.All)
             {
                 _specs[spec.Id] = spec;
@@ -236,6 +234,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             AddSave("ppt.file.save");
             AddSaveCopy("ppt.file.saveAs");
             RegisterFile();
+            RegisterSymbol();
+            RegisterPrint();
             foreach (var id in s_print)
                 AddDisabled(id, PrintReason);
 
@@ -243,8 +243,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 AddExternal(id);
 
             RegisterClipboard();
-            foreach (var id in s_pending)
-                AddDisabled(id, PendingReason);
         }
 
         private string ToolBlocker(PptCommandSpec spec, PptMenuSpec entry)
@@ -388,6 +386,11 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private EditCommand BuildTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
         {
             _state.CommitDraft?.Invoke();
+            return PlanTool(spec, entry, arg);
+        }
+
+        private EditCommand PlanTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
+        {
             var selection = _state.Selection;
             var off = entry == null && spec.ArgsOff != null && IsOn(spec.Id);
             var plan = PlanOf(spec, entry, off);
@@ -557,7 +560,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 }
                 else
                 {
-                    var values = await _state.Dialogs.ShowAsync(target, dialog);
+                    var values = await _state.Dialogs.ShowAsync(target, dialog, ValidatorOf(spec, entry, arg));
                     if (values == null)
                         return false;
 

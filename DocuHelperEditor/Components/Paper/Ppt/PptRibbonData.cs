@@ -67,7 +67,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                     S("ppt.insert.dateTime", "날짜 및 시간", "calendar")),
                 Grid("기호",
                     S("ppt.insert.equation", "수식", "sigma", dd: true, tip: "수식\n수식 모양 글자로 넣어요"),
-                    S("ppt.insert.symbol", "기호", "omega"))),
+                    S("ppt.insert.symbol", "기호", "omega", dd: true, tip: "기호\n글상자 마지막 줄 끝에 넣어요"))),
             Tab("design", "디자인",
                 Grid("테마",
                     L("ppt.design.theme", "테마", "theme", dd: true, tip: "테마\n색과 글꼴을 바꿔요"),

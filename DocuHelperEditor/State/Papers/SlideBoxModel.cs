@@ -39,6 +39,10 @@ namespace DocuHelperEditor.State.Papers
 
         public bool Underline { get; set; }
 
+        public bool Strike { get; set; }
+
+        public string Bullet { get; set; } = "none";
+
         public SlideTextAlign Align { get; set; }
 
         public string ChangeId { get; set; }
