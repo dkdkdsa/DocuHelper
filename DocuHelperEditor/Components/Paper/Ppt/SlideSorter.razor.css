@@ -1,0 +1,60 @@
+.sorter {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px;
+    background: var(--paper-2);
+}
+
+.sec {
+    margin: 12px 0 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.sec:first-child {
+    margin-top: 0;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.cell {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--paper);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.cell:hover {
+    background: var(--head-hover);
+}
+
+.cell.on {
+    border: 2px solid var(--ink);
+    color: var(--ink);
+}
+
+.num {
+    font-weight: 700;
+}
+
+.mini {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    background: var(--paper);
+}

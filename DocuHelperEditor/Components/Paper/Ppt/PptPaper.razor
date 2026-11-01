@@ -9,12 +9,19 @@
     <div class="ppt">
         <PptRibbon File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" LiveChanges="_live" OnSelect="SelectSlide" />
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" LiveChanges="_live" OnSelect="SelectSlide" Sorter="_sorter" OnToggleSorter="ToggleSorter" />
             <div class="stage">
-                <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
-                @if (_ribbon.NotesOpen)
+                @if (_sorter)
                 {
-                    <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+                    <SlideSorter Slides="_model.Slides" Sections="_model.Sections" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" OnPick="PickSlide" />
+                }
+                else
+                {
+                    <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                    @if (_ribbon.NotesOpen)
+                    {
+                        <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+                    }
                 }
             </div>
         </div>
@@ -24,6 +31,7 @@
 
 @code {
     private readonly PptRibbonState _ribbon = new();
+    private bool _sorter;
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -172,6 +180,18 @@
         {
             Workspace.Notify();
         }
+    }
+
+    private void ToggleSorter()
+    {
+        CommitDraft();
+        _sorter = !_sorter;
+    }
+
+    private void PickSlide(int index)
+    {
+        _sorter = false;
+        SelectSlide(index);
     }
 
     private void SelectSlide(int index)
