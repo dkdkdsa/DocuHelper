@@ -508,3 +508,50 @@ window.docuHelperPptGrip = (function () {
         }
     };
 })();
+
+window.docuHelperPptSorter = (function () {
+    var bound = new WeakSet();
+
+    function cellsOf(section) {
+        return Array.prototype.slice.call(section.querySelectorAll('.cell'));
+    }
+
+    function columnsOf(cells) {
+        if (cells.length === 0) return 1;
+        var top = cells[0].offsetTop;
+        var count = 0;
+        for (var i = 0; i < cells.length && cells[i].offsetTop === top; i++) count++;
+        return Math.max(1, count);
+    }
+
+    function onKey(section, e) {
+        var cell = e.target && e.target.closest ? e.target.closest('.cell') : null;
+        if (!cell || !section.contains(cell) || e.ctrlKey || e.altKey || e.metaKey) return;
+
+        var cells = cellsOf(section);
+        var index = cells.indexOf(cell);
+        var columns = columnsOf(cells);
+        var target;
+        switch (e.key) {
+            case 'ArrowRight': target = index + 1; break;
+            case 'ArrowLeft': target = index - 1; break;
+            case 'ArrowDown': target = index + columns; break;
+            case 'ArrowUp': target = index - columns; break;
+            case 'Home': target = 0; break;
+            case 'End': target = cells.length - 1; break;
+            default: return;
+        }
+
+        e.preventDefault();
+        target = Math.min(cells.length - 1, Math.max(0, target));
+        if (target !== index) cells[target].focus();
+    }
+
+    return {
+        bind: function (section) {
+            if (!section || bound.has(section)) return;
+            bound.add(section);
+            section.addEventListener('keydown', function (e) { onKey(section, e); });
+        }
+    };
+})();

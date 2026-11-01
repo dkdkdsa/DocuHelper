@@ -6,7 +6,7 @@
 
 @if (Slide != null)
 {
-    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" tabindex="-1" data-slide="@Slide.Id" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount" aria-label="@SlideLabel">
+    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" tabindex="@(Locked ? null : "-1")" data-slide="@Slide.Id" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount" aria-label="@SlideLabel">
         @if (Slide.Background.Kind == "picture" && Slide.Background.ImageSrc != null)
         {
             <img class="bg" src="@Slide.Background.ImageSrc" alt="" />
@@ -89,7 +89,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Slide == null || _stage.Context == null)
+        if (Slide == null || Locked || _stage.Context == null)
             return;
 
         try
@@ -127,7 +127,7 @@
     [JSInvokable]
     public Task Receive(SlideGesture gesture) => OnGesture.InvokeAsync(gesture);
 
-    private RenderFragment Shape(SlideShapeModel shape) => @<div @key="shape.Id" class="@ShapeClass(shape)" role="button" tabindex="@(shape.Id == TabStopId ? "0" : "-1")" aria-pressed="@(IsSelected(shape) ? "true" : "false")" data-shape="@shape.Id" data-movable="@(shape.Movable && !Locked ? "true" : null)" data-x="@Num(shape.Left)" data-y="@Num(shape.Top)" data-w="@Num(shape.Width)" data-h="@Num(shape.Height)" data-rot="@Num(shape.Rotation)" data-change="@LiveChangeOf(shape)" aria-label="@ShapeLabel(shape)" style="@ShapeStyle(shape)">
+    private RenderFragment Shape(SlideShapeModel shape) => @<div @key="shape.Id" class="@ShapeClass(shape)" role="@(Locked ? null : "button")" tabindex="@(Locked ? null : (shape.Id == TabStopId ? "0" : "-1"))" aria-pressed="@(Locked ? null : (IsSelected(shape) ? "true" : "false"))" data-shape="@shape.Id" data-movable="@(shape.Movable && !Locked ? "true" : null)" data-x="@Num(shape.Left)" data-y="@Num(shape.Top)" data-w="@Num(shape.Width)" data-h="@Num(shape.Height)" data-rot="@Num(shape.Rotation)" data-change="@LiveChangeOf(shape)" aria-label="@ShapeLabel(shape)" style="@ShapeStyle(shape)">
         @if (shape.Kind == SlideShapeKind.Picture && shape.ImageSrc != null)
         {
             <img class="pic flip" src="@shape.ImageSrc" alt="@shape.AltText" style="@CropStyle(shape)" />
