@@ -1,0 +1,173 @@
+﻿@implements IDisposable
+@using System.Globalization
+@inject UpdateStore Updates
+@inject WorkspaceStore Workspace
+
+@if (Updates.Notice != null)
+{
+<section id="update-pop" class="update-pop @(AlignEnd ? "end" : null)" aria-labelledby="update-pop-h" aria-live="polite" @onkeydown="OnKeyDown">
+    <div class="head">
+        <div class="titles">
+            <h2 id="update-pop-h">@Title</h2>
+            <p class="sub">지금 @Updates.CurrentVersion 버전을 쓰고 있어요</p>
+        </div>
+        <IconButton Icon="x" Label="알림 닫기" Title="닫기 (Esc)" IconSize="18" Class="close" OnClick="Dismiss" />
+    </div>
+
+    @switch (Updates.Phase)
+    {
+        case UpdatePhase.Available:
+            <div class="body">
+                @if (Notes.Count > 0)
+                {
+                    <p class="label">바뀐 점</p>
+                    <ul class="notes">
+                        @foreach (var note in Notes)
+                        {
+                            <li>@note</li>
+                        }
+                    </ul>
+                }
+                <p class="meta">@SizeText, @(Updates.Notice.EstimatedMinutes)분쯤 걸려요. 받는 동안에도 하던 일을 계속하면 돼요.</p>
+                <div class="actions">
+                    <ActionButton Kind="ButtonKind.Primary" id="update-get" OnClick="Get">지금 받기</ActionButton>
+                    <ActionButton Kind="ButtonKind.Secondary" OnClick="Dismiss">나중에</ActionButton>
+                </div>
+            </div>
+            break;
+
+        case UpdatePhase.Downloading:
+            <div class="body">
+                <p class="label" id="update-bar-label">내려받는 중이에요</p>
+                <ProgressBar Value="Updates.Percent" LabelId="update-bar-label" />
+                <p class="meta">@Updates.Percent%, @TotalText 중 @DoneText</p>
+                <div class="actions">
+                    <ActionButton Kind="ButtonKind.Secondary" OnClick="Dismiss">숨기기</ActionButton>
+                    <ActionButton Kind="ButtonKind.Ghost" OnClick="Cancel">그만 받기</ActionButton>
+                </div>
+            </div>
+            break;
+
+        case UpdatePhase.Ready:
+            <div class="body">
+                <p class="ok"><Icon Name="check" Size="18" Stroke="2.4" /> 다 받았어요</p>
+                @if (Updates.CanRestartNow)
+                {
+                    <p class="text">다시 시작하면 @Updates.Notice.Version 버전으로 바뀌어요. 열려 있던 파일과 대화는 그대로 다시 열려요.</p>
+                }
+                else
+                {
+                    <div class="warn" role="note">
+                        @if (Workspace.UnsavedCount > 0)
+                        {
+                            <p class="warn-title">저장 안 한 파일이 @(Workspace.UnsavedCount)개 있어요</p>
+                            <ul class="warn-files">
+                                @foreach (var file in UnsavedFiles.Take(MaxListedFiles))
+                                {
+                                    <li><FileTypeIcon Type="file.Type" Size="20" Variant="tab" /><span>@file.Name, @file.StatusText</span></li>
+                                }
+                            </ul>
+                            @if (Workspace.UnsavedCount > MaxListedFiles)
+                            {
+                                <p class="warn-more">외 @(Workspace.UnsavedCount - MaxListedFiles)개</p>
+                            }
+                        }
+                        else
+                        {
+                            <p class="warn-title">도우미가 일하는 중이에요</p>
+                        }
+                        <p class="warn-text">그래서 지금 다시 시작하지 않고, 앱을 닫을 때 @Updates.Notice.Version 버전으로 바꿀게요.</p>
+                    </div>
+                }
+                <div class="actions">
+                    @if (Updates.CanRestartNow)
+                    {
+                        <ActionButton Kind="ButtonKind.Primary" id="update-restart" OnClick="Restart">지금 다시 시작</ActionButton>
+                        <ActionButton Kind="ButtonKind.Secondary" id="update-onclose" OnClick="ScheduleOnClose">닫을 때 바꾸기</ActionButton>
+                    }
+                    else
+                    {
+                        <ActionButton Kind="ButtonKind.Primary" id="update-onclose" OnClick="ScheduleOnClose">닫을 때 바꾸기</ActionButton>
+                        @if (Workspace.UnsavedCount > 0)
+                        {
+                            <ActionButton Kind="ButtonKind.Secondary" OnClick="OpenFirstUnsaved">파일 보러 가기</ActionButton>
+                        }
+                    }
+                </div>
+            </div>
+            break;
+
+        case UpdatePhase.OnClose:
+            <div class="body">
+                <p class="ok"><Icon Name="check" Size="18" Stroke="2.4" /> 앱을 닫으면 @Updates.Notice.Version 버전으로 바뀌어요</p>
+                <p class="text">다음에 켜면 새 버전이에요. 열려 있던 파일과 대화는 그대로 다시 열려요.</p>
+                <div class="actions">
+                    <ActionButton Kind="ButtonKind.Secondary" OnClick="Dismiss">알겠어요</ActionButton>
+                    @if (Updates.CanRestartNow)
+                    {
+                        <ActionButton Kind="ButtonKind.Ghost" OnClick="Restart">지금 다시 시작</ActionButton>
+                    }
+                </div>
+            </div>
+            break;
+    }
+</section>
+}
+
+@code {
+    private const int MaxListedFiles = 3;
+
+    [Parameter]
+    public bool AlignEnd { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<WorkspaceFile> UnsavedFiles => Workspace.Files.Where(file => file.IsDirty).ToList();
+
+    private IReadOnlyList<string> Notes => Updates.Notice?.Notes ?? Array.Empty<string>();
+
+    private string Title => Updates.Phase == UpdatePhase.Available
+        ? $"{Updates.Notice.Version} 버전이 나왔어요"
+        : $"새 버전 {Updates.Notice.Version}";
+
+    private string SizeText => $"{Megabytes(Updates.Notice.SizeBytes)} MB";
+
+    private string TotalText => $"{Megabytes(Updates.Notice.SizeBytes)} MB";
+
+    private string DoneText => $"{Megabytes(Updates.DownloadedBytes)} MB";
+
+    protected override void OnInitialized() => Updates.Changed += OnChanged;
+
+    public void Dispose() => Updates.Changed -= OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static string Megabytes(long bytes) => (bytes / 1048576.0).ToString("0.0", CultureInfo.InvariantCulture);
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            Dismiss();
+    }
+
+    private void Dismiss() => _ = OnClose.InvokeAsync();
+
+    private void Get() => _ = Updates.DownloadAsync();
+
+    private void Cancel() => Updates.Cancel();
+
+    private void Restart() => Updates.RestartNow();
+
+    private void ScheduleOnClose() => Updates.ScheduleOnClose();
+
+    private void OpenFirstUnsaved()
+    {
+        var file = UnsavedFiles.FirstOrDefault();
+        if (file == null)
+            return;
+
+        Workspace.Open(file.Id);
+        Dismiss();
+    }
+}

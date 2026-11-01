@@ -2,6 +2,7 @@
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject UpdateStore Updates
 
 <div class="workspace">
     <div class="workspace-main" inert="@IsBlocked">
@@ -77,14 +78,25 @@
             return;
         }
 
-        if (!Workspace.IsReady && !(Settings.OpenLastFolder && Workspace.OpenLastFolderOnce()))
+        var restoreAfterUpdate = !Workspace.IsReady && Updates.JustUpdatedTo != null;
+        if (restoreAfterUpdate)
+            Workspace.RequestSessionRestore();
+
+        if (!Workspace.IsReady && !((Settings.OpenLastFolder || restoreAfterUpdate) && Workspace.OpenLastFolderOnce()))
+        {
+            Workspace.CancelSessionRestore();
             Navigation.NavigateTo("home");
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
             return;
+
+        var restoredConversation = Workspace.TakeRestoredConversationId();
+        if (restoredConversation != null)
+            await Assistant.OpenConversationAsync(restoredConversation);
 
         _self = DotNetObjectReference.Create(this);
         await JS.InvokeVoidAsync("docuHelper.registerShortcuts", _self);

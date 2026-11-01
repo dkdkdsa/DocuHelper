@@ -1,4 +1,6 @@
-﻿using Microsoft.Maui;
+﻿using DocuHelperEditor.State;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 
 namespace DocuHelperEditor
@@ -12,7 +14,7 @@ namespace DocuHelperEditor
 
         protected override Window CreateWindow(IActivationState activationState)
         {
-            return new Window(new MainPage())
+            var window = new Window(new MainPage())
             {
                 Title = "문서 도우미",
                 Width = 1440,
@@ -20,6 +22,10 @@ namespace DocuHelperEditor
                 MinimumWidth = 960,
                 MinimumHeight = 640
             };
+
+            var updates = activationState.Context.Services.GetService<UpdateStore>();
+            window.Destroying += (_, _) => updates?.ApplyPendingOnExit();
+            return window;
         }
     }
 }

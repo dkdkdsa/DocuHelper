@@ -1,4 +1,4 @@
-name: Release
+﻿name: Release
 
 on:
   push:
@@ -53,6 +53,23 @@ jobs:
         continue-on-error: true
         run: vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} -o Releases
 
+      - name: Extract release notes
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.value }}"
+          $notes = @()
+          if (Test-Path RELEASE_NOTES.md) {
+            $inside = $false
+            foreach ($line in Get-Content RELEASE_NOTES.md -Encoding utf8) {
+              if ($line -match '^## (.+)$') {
+                $inside = $matches[1].Trim() -eq $version
+                continue
+              }
+              if ($inside) { $notes += $line }
+            }
+          }
+          $notes -join "`n" | Set-Content -Path "${{ runner.temp }}/release-notes.md" -Encoding utf8
+
       - name: Pack
         run: >
           vpk pack
@@ -63,6 +80,7 @@ jobs:
           --packTitle "문서 도우미"
           --icon DocuHelperEditor/Platforms/Windows/appicon.ico
           --framework webview2
+          --releaseNotes ${{ runner.temp }}/release-notes.md
           --delta none
           -o Releases
 

@@ -1,0 +1,30 @@
+﻿.update-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.update-pill {
+    height: var(--hit);
+    padding: 0 14px 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--hl-soft);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.update-pill:hover {
+    filter: brightness(.97);
+}
+
+.update-pill:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}

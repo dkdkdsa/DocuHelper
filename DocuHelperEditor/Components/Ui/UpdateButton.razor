@@ -1,32 +1,86 @@
 ﻿@implements IDisposable
 @inject UpdateStore Updates
-@inject WorkspaceStore Workspace
-@inject AssistantStore Assistant
+@inject IJSRuntime JS
 
-@if (Updates.IsReady)
+@if (IsPillVisible)
 {
-    <ActionButton Kind="ButtonKind.Ghost" Icon="download" title="@Title" OnClick="Restart">새 버전으로 다시 시작</ActionButton>
+    <div class="update-wrap">
+        <button type="button" id="update-pill" class="update-pill" aria-expanded="@ExpandedText" aria-controls="update-pop" @onclick="Toggle">
+            <Icon Name="@PillIcon" Size="16" Stroke="2.2" />
+            <span>@PillText</span>
+        </button>
+        <span class="sr-only" role="status">@_announcement</span>
+        @if (_open)
+        {
+            <UpdatePopover AlignEnd="AlignEnd" OnClose="Close" />
+        }
+    </div>
 }
 
 @code {
-    private string Title => string.IsNullOrEmpty(Updates.CurrentVersion)
-        ? $"새 버전({Updates.NewVersion})을 받아 뒀어요. 그냥 두면 다음에 켤 때 바뀌어요."
-        : $"지금 {Updates.CurrentVersion} → 새 버전 {Updates.NewVersion}. 그냥 두면 다음에 켤 때 바뀌어요.";
+    [Parameter]
+    public bool AlignEnd { get; set; }
 
-    protected override void OnInitialized() => Updates.Changed += OnChanged;
+    private bool _open;
+    private string _announcement = string.Empty;
+    private string _focusTarget;
+    private UpdatePhase _lastPhase;
+
+    private bool IsPillVisible => Updates.Notice != null
+        && Updates.Phase is UpdatePhase.Available or UpdatePhase.Downloading or UpdatePhase.Ready or UpdatePhase.OnClose;
+
+    private string ExpandedText => _open ? "true" : "false";
+
+    private string PillIcon => Updates.Phase is UpdatePhase.Ready or UpdatePhase.OnClose ? "check" : "download";
+
+    private string PillText => Updates.Phase switch
+    {
+        UpdatePhase.Downloading => $"받는 중 {Updates.Percent}%",
+        UpdatePhase.Ready => "새 버전 받음",
+        UpdatePhase.OnClose => $"닫으면 {Updates.Notice.Version} 버전으로 바뀌어요",
+        _ => $"새 버전 {Updates.Notice.Version}",
+    };
+
+    protected override void OnInitialized()
+    {
+        _lastPhase = Updates.Phase;
+        Updates.Changed += OnChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusTarget == null)
+            return;
+
+        var target = _focusTarget;
+        _focusTarget = null;
+        await JS.InvokeVoidAsync("docuHelper.focus", target);
+    }
 
     public void Dispose() => Updates.Changed -= OnChanged;
 
-    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
-
-    private void Restart()
+    private void OnChanged()
     {
-        if (Workspace.UnsavedCount > 0 || Assistant.IsRunning)
+        var phase = Updates.Phase;
+        if (phase == UpdatePhase.Ready && _lastPhase == UpdatePhase.Downloading)
         {
-            Assistant.ShowNotice("저장하지 않은 파일이 있거나 도우미가 일하는 중이라 아직 새 버전으로 바꾸지 않았어요. 저장한 다음 다시 눌러 주세요. 그냥 두면 다음에 켤 때 바뀌어요.");
-            return;
+            _announcement = "새 버전을 다 받았어요";
+            if (_open)
+                _focusTarget = Updates.CanRestartNow ? "#update-restart" : "#update-onclose";
         }
 
-        Updates.Restart();
+        if (!IsPillVisible)
+            _open = false;
+
+        _lastPhase = phase;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void Toggle() => _open = !_open;
+
+    private async Task Close()
+    {
+        _open = false;
+        await JS.InvokeVoidAsync("docuHelper.focus", "#update-pill");
     }
 }

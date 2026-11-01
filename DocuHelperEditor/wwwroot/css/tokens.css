@@ -70,6 +70,7 @@
     --shadow-paper: 0 1px 0 rgba(28, 42, 72, 0.05), 0 14px 30px -18px rgba(28, 42, 72, 0.45);
     --shadow-menu: 0 12px 28px -12px rgba(28, 42, 72, 0.35);
     --shadow-pop: 0 18px 44px -16px rgba(28, 42, 72, 0.45);
+    --shadow-update: 0 18px 44px -16px rgba(28, 42, 72, 0.45);
     --shadow-popup: 0 24px 60px -24px rgba(28, 42, 72, 0.55);
     --shadow-dialog: 0 24px 60px -24px rgba(28, 42, 72, 0.6);
     --shadow-card: 0 1px 0 rgba(28, 42, 72, 0.05), 0 18px 40px -22px rgba(28, 42, 72, 0.5);
