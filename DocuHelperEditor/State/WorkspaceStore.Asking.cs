@@ -7,6 +7,8 @@ namespace DocuHelperEditor.State
     public partial class WorkspaceStore
     {
         private readonly List<string> _askingCells = new();
+        private readonly List<SheetCell> _markedCells = new();
+        private string _markedFileId;
 
         public IReadOnlyList<string> AskingCells => _askingCells;
 
@@ -28,20 +30,28 @@ namespace DocuHelperEditor.State
 
         private void ApplyAskingCells(WorkspaceFile file)
         {
-            if (file.Paper is not ExcelPaperModel workbook)
-                return;
+            if (_markedFileId == file.Id)
+            {
+                foreach (var cell in _markedCells)
+                    cell.IsAsking = false;
 
-            foreach (var sheet in workbook.Sheets)
-                foreach (var row in sheet.Rows)
-                    foreach (var cell in row.Cells)
-                        cell.IsAsking = false;
+                _markedCells.Clear();
+                _markedFileId = null;
+            }
 
-            if (file.Id != AskingFileId)
+            if (file.Id != AskingFileId || file.Paper is not ExcelPaperModel workbook)
                 return;
 
             foreach (var reference in _askingCells)
+            {
                 foreach (var cell in AskingCellRefs.Find(reference, workbook))
+                {
                     cell.IsAsking = true;
+                    _markedCells.Add(cell);
+                }
+            }
+
+            _markedFileId = file.Id;
         }
     }
 }

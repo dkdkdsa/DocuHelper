@@ -14,14 +14,14 @@ namespace DocuHelperEditor.State.Papers
             if (string.IsNullOrEmpty(text))
                 yield break;
 
-            var range = text;
+            var range = text.Replace("$", string.Empty);
             Sheet sheet = workbook.ActiveSheet;
             var bang = text.LastIndexOf('!');
             if (bang >= 0)
             {
                 var sheetName = Unquote(text.Substring(0, bang));
-                range = text.Substring(bang + 1);
-                sheet = workbook.Sheets.FirstOrDefault(s => string.Equals(s.Name, sheetName, StringComparison.Ordinal));
+                range = text.Substring(bang + 1).Replace("$", string.Empty);
+                sheet = workbook.Sheets.FirstOrDefault(s => string.Equals(s.Name, sheetName, StringComparison.OrdinalIgnoreCase));
             }
 
             if (sheet == null)
