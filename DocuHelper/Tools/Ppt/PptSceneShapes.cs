@@ -43,10 +43,12 @@ namespace DocuHelper.Tools.Ppt
             public long Y(long value) => OffsetY + (long)Math.Round((value - ChY) * ScaleY);
         }
 
-        public static List<PptSceneShape> ReadTree(OpenXmlElement tree, PptSceneContext context, Map map)
+        private const int MaxTreeDepth = 20;
+
+        public static List<PptSceneShape> ReadTree(OpenXmlElement tree, PptSceneContext context, Map map, int depth = 0)
         {
             var result = new List<PptSceneShape>();
-            if (tree == null)
+            if (tree == null || depth > MaxTreeDepth)
                 return result;
 
             foreach (var child in tree.ChildElements)
@@ -59,9 +61,9 @@ namespace DocuHelper.Tools.Ppt
                         P.Shape s => ReadShape(s, context, map),
                         P.Picture p => ReadPicture(p, context, map),
                         P.GraphicFrame f => ReadFrame(f, context, map),
-                        P.GroupShape g => ReadGroup(g, context, map),
+                        P.GroupShape g => ReadGroup(g, context, map, depth),
                         P.ConnectionShape c => ReadConnection(c, context, map),
-                        AlternateContent a => AlternateChoice(a, context, map, result),
+                        AlternateContent a => AlternateChoice(a, context, map, result, depth),
                         _ => null,
                     };
                 }
@@ -77,11 +79,11 @@ namespace DocuHelper.Tools.Ppt
             return result;
         }
 
-        private static PptSceneShape AlternateChoice(AlternateContent alternate, PptSceneContext context, Map map, List<PptSceneShape> result)
+        private static PptSceneShape AlternateChoice(AlternateContent alternate, PptSceneContext context, Map map, List<PptSceneShape> result, int depth)
         {
             var choice = alternate.GetFirstChild<AlternateContentChoice>();
             if (choice != null)
-                result.AddRange(ReadTree(choice, context, map));
+                result.AddRange(ReadTree(choice, context, map, depth + 1));
 
             return null;
         }
@@ -159,7 +161,7 @@ namespace DocuHelper.Tools.Ppt
             return other;
         }
 
-        private static PptSceneShape ReadGroup(P.GroupShape group, PptSceneContext context, Map map)
+        private static PptSceneShape ReadGroup(P.GroupShape group, PptSceneContext context, Map map, int depth)
         {
             var props = group.NonVisualGroupShapeProperties?.NonVisualDrawingProperties;
             var result = Base(props, PptShapeKind.Group, context, group);
@@ -169,7 +171,7 @@ namespace DocuHelper.Tools.Ppt
                 var sx = transform.ChildExtents.Cx.Value == 0 ? 1 : (double)transform.Extents.Cx.Value / transform.ChildExtents.Cx.Value;
                 var sy = transform.ChildExtents.Cy.Value == 0 ? 1 : (double)transform.Extents.Cy.Value / transform.ChildExtents.Cy.Value;
                 var inner = new Map(map.X(transform.Offset.X.Value) - 0, map.Y(transform.Offset.Y.Value), sx * map.ScaleX, sy * map.ScaleY, transform.ChildOffset.X.Value, transform.ChildOffset.Y.Value);
-                result.Children = ReadTree(group, context, inner);
+                result.Children = ReadTree(group, context, inner, depth + 1);
                 result.X = map.X(transform.Offset.X.Value);
                 result.Y = map.Y(transform.Offset.Y.Value);
                 result.W = (long)Math.Round(transform.Extents.Cx.Value * map.ScaleX);
@@ -177,7 +179,7 @@ namespace DocuHelper.Tools.Ppt
             }
             else
             {
-                result.Children = ReadTree(group, context, map);
+                result.Children = ReadTree(group, context, map, depth + 1);
             }
 
             return result;
