@@ -36,7 +36,7 @@ namespace DocuHelperEditor.State.Papers
 
         public List<SheetColumn> Columns { get; set; } = new();
 
-        public List<SheetRow> Rows { get; set; } = new();
+        public SheetRowList Rows { get; } = new();
 
         public Dictionary<string, string> ChangeAnchors { get; set; } = new();
 
@@ -78,7 +78,9 @@ namespace DocuHelperEditor.State.Papers
 
         public IEnumerable<SheetCell> NoteCells => Rows.SelectMany(r => r.Cells).Where(c => c?.Note != null);
 
-        public int DisplayRowCount => Math.Max(MinDisplayRows, Rows.Count + ExtraDisplayRows);
+        public int RowLimit { get; set; } = ExcelViewState.DefaultRowLimit;
+
+        public int DisplayRowCount => Math.Min(ExcelViewState.MaxRows, Math.Max(RowLimit, Math.Max(MinDisplayRows, Rows.Count + ExtraDisplayRows)));
 
         public SheetRow FindRow(int row) => row >= 0 && row < Rows.Count ? Rows[row] : null;
 
@@ -145,10 +147,7 @@ namespace DocuHelperEditor.State.Papers
 
         public SheetCell EnsureCell(int row, int column)
         {
-            while (Rows.Count <= row)
-                Rows.Add(new SheetRow());
-
-            var cells = Rows[row].Cells;
+            var cells = Rows.Ensure(row).Cells;
             while (cells.Count <= column)
                 cells.Add(new SheetCell { Ref = SheetRef.Make(cells.Count, row) });
 

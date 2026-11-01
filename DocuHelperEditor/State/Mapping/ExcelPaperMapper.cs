@@ -10,9 +10,9 @@ namespace DocuHelperEditor.State.Mapping
 {
     public partial class ExcelPaperMapper : IPaperMapper
     {
-        private const int MaxRows = 20000;
+        private const int MaxRows = ExcelViewState.MaxRows;
         private const int MaxColumns = 100;
-        private const int MinColumns = 7;
+        private const int MinColumns = 26;
         private const int DefaultWidth = 96;
         private const int MinWidth = 24;
         private const int FitRows = 300;
@@ -139,14 +139,23 @@ namespace DocuHelperEditor.State.Mapping
                 });
             }
 
-            for (var r = 0; r <= lastRow; r++)
+            if (lastRow >= 0)
+                view.Rows.Ensure(lastRow);
+
+            foreach (var element in sheet.Data?.Elements<OpenRow>() ?? Enumerable.Empty<OpenRow>())
             {
-                var height = sheet.RowHeight(r, out var customHeight);
-                view.Rows.Add(new SheetRow
-                {
-                    Hidden = sheet.IsRowHidden(r),
-                    Height = customHeight && height.HasValue ? Math.Max(1, (int)Math.Round(height.Value * PixelsPerPoint)) : null,
-                });
+                var index = (int)(element.RowIndex?.Value ?? 1) - 1;
+                if (index < 0 || index > lastRow)
+                    continue;
+
+                var height = sheet.RowHeight(index, out var customHeight);
+                var hidden = sheet.IsRowHidden(index);
+                if (!hidden && !customHeight)
+                    continue;
+
+                var row = view.Rows.Ensure(index);
+                row.Hidden = hidden;
+                row.Height = customHeight && height.HasValue ? Math.Max(1, (int)Math.Round(height.Value * PixelsPerPoint)) : null;
             }
 
             foreach (var merge in merges)
@@ -163,7 +172,7 @@ namespace DocuHelperEditor.State.Mapping
                 if (entry.Row > lastRow || entry.Column >= columnCount)
                     continue;
 
-                var cells = view.Rows[entry.Row].Cells;
+                var cells = view.Rows.Ensure(entry.Row).Cells;
                 Pad(cells, entry.Column, entry.Row);
                 var cell = MapCell(book, sheet, entry, changes, model, borders);
                 if (cells.Count == entry.Column)
@@ -177,7 +186,7 @@ namespace DocuHelperEditor.State.Mapping
                 if (row > lastRow || column >= columnCount)
                     continue;
 
-                var cells = view.Rows[row].Cells;
+                var cells = view.Rows.Ensure(row).Cells;
                 Pad(cells, column + 1, row);
                 if (cells[column].ChangeIds.Count == 0)
                     cells[column].ChangeIds = changes.ChangeIds(sheet.Name, column, row);
@@ -219,9 +228,8 @@ namespace DocuHelperEditor.State.Mapping
 
         private static void Overflow(Sheet view, double defaultSize)
         {
-            for (var r = 0; r < view.Rows.Count; r++)
+            foreach (var (r, row) in view.Rows.Entries)
             {
-                var row = view.Rows[r];
                 if (row.Hidden)
                     continue;
 
@@ -400,7 +408,7 @@ namespace DocuHelperEditor.State.Mapping
             _ => SheetAlign.Auto,
         };
 
-        private static void InferKinds(List<SheetRow> rows)
+        private static void InferKinds(SheetRowList rows)
         {
             var first = rows.FindIndex(HasContent);
             if (first < 0)
@@ -409,14 +417,13 @@ namespace DocuHelperEditor.State.Mapping
             var heading = rows[first].Cells.Where(IsFilled).ToList();
             if (heading.All(c => !c.IsNumber && c.Formula == null))
             {
-                var next = rows.Skip(first + 1).FirstOrDefault(HasContent);
+                var next = rows.Entries.Where(entry => entry.Index > first).Select(entry => entry.Row).FirstOrDefault(HasContent);
                 if (heading.All(c => c.Bold == true) || (next != null && next.Cells.Any(c => c.IsNumber)))
                     rows[first].Kind = SheetRowKind.Header;
             }
 
-            for (var r = first + 1; r < rows.Count; r++)
+            foreach (var (r, row) in rows.Entries.Where(entry => entry.Index > first))
             {
-                var row = rows[r];
                 var label = row.Cells.FirstOrDefault(c => IsFilled(c) && !c.IsNumber && c.Formula == null)?.Text;
                 if (ExcelTool.IsTotalLabel(label) || row.Cells.Select((c, column) => IsSumAbove(c, column, r)).Any(s => s))
                     row.Kind = SheetRowKind.Total;

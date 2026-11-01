@@ -17,6 +17,7 @@ namespace DocuHelperEditor.State.Mapping
                     : SheetViewMode.Normal;
             var zoom = view?.ZoomScale?.Value ?? 100;
             context.Model.View.Seed(context.View.Name, mode, (int)zoom);
+            context.View.RowLimit = context.Model.View.RowLimitOf(context.View.Name);
         }
     }
 }

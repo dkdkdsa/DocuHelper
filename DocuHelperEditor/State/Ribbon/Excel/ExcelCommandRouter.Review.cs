@@ -59,9 +59,9 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         private Task StepNote(int step)
         {
             var notes = new List<(int Row, int Column)>();
-            for (var r = 0; r < State.Sheet.Rows.Count; r++)
+            foreach (var (r, stored) in State.Sheet.Rows.Entries)
             {
-                var cells = State.Sheet.Rows[r].Cells;
+                var cells = stored.Cells;
                 for (var c = 0; c < cells.Count; c++)
                 {
                     if (cells[c]?.Note != null)

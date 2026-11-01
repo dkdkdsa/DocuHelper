@@ -71,8 +71,7 @@ namespace DocuHelperEditor.State.Mapping
                     continue;
                 }
 
-                if (row < context.View.Rows.Count)
-                    context.View.Rows[row].FilteredOut = true;
+                context.View.Rows.Ensure(row).FilteredOut = true;
             }
 
             context.View.Filter = filter;
