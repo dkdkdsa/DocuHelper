@@ -154,3 +154,32 @@ label.row-title {
     font-size: 14px;
     font-weight: 700;
 }
+
+.group-label {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.group-label.gpt {
+    margin-top: 6px;
+}
+
+.hint {
+    flex: 1 1 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 4px;
+    padding: 10px 12px;
+    border: 1px dashed var(--thumb-line);
+    border-radius: 8px;
+}
+
+.hint-text {
+    flex: 1 1 180px;
+    font-size: 13px;
+    color: var(--ink-2);
+}
