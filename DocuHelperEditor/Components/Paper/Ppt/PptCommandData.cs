@@ -179,7 +179,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_font",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","range":"{range}","color":"{color}"}""",
                 Need = PptNeed.Text,
-                Dialog = """{"title":"글꼴 색","fields":[{"name":"color","label":"색","type":"color","default":"#B5462A","options":["theme palette of the deck (10 columns x 6 brightness rows, from catalogs.colorPalette.theme)","standard colors (catalogs.colorPalette.standard)","자동 (auto)","다른 색 (hex input)"]}],"kind":"popover"}""",
+                Dialog = """{"title":"글꼴 색","fields":[{"name":"color","label":"색","type":"color","default":"#B5462A","options":["theme:테마 색 (10열 × 6행)","standard:표준 색","auto:자동","hex:다른 색 직접 고르기"]}],"kind":"popover"}""",
             },
             new PptCommandSpec
             {
@@ -477,7 +477,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Menu = new[]
                 {
                     new PptMenuSpec { Label = "웹 주소…", Detail = "링크", Args = """{"target":{"type":"url","url":"{url}"}}""", Dialog = """{"title":"웹 주소 연결","fields":[{"name":"url","label":"웹 주소","type":"text","default":"https://","options":[]},{"name":"tooltip","label":"설명 말풍선","type":"text","default":"","options":[]}]}""" },
-                    new PptMenuSpec { Label = "이 문서의 슬라이드…", Detail = "링크", Args = """{"target":{"type":"slide","slide":"{slideNumber}"}}""", Dialog = """{"title":"슬라이드 연결","fields":[{"name":"slideNumber","label":"슬라이드","type":"choice","default":"1","options":["deck slide list: \"1. 제목\", \"2. 제목\" ..."]}]}""" },
+                    new PptMenuSpec { Label = "이 문서의 슬라이드…", Detail = "링크", Args = """{"target":{"type":"slide","slide":"{slideNumber}"}}""", Dialog = """{"title":"슬라이드 연결","fields":[{"name":"slideNumber","label":"슬라이드 번호","type":"number","default":"1","options":[]}]}""" },
                     new PptMenuSpec { Label = "이전 슬라이드", Detail = "링크", Args = """{"target":{"type":"previous_slide"}}""" },
                     new PptMenuSpec { Label = "다음 슬라이드", Detail = "링크", Args = """{"target":{"type":"next_slide"}}""" },
                     new PptMenuSpec { Label = "처음 슬라이드", Detail = "링크", Args = """{"target":{"type":"first_slide"}}""" },
@@ -599,7 +599,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                     new PptMenuSpec { Label = "와이드스크린 (16:9)", Detail = "33.87 x 19.05 cm", Args = """{"preset":"widescreen_16_9"}""" },
                     new PptMenuSpec { Label = "와이드스크린 (16:10)", Detail = "30.48 x 19.05 cm", Args = """{"preset":"widescreen_16_10"}""" },
                     new PptMenuSpec { Label = "A4 용지", Detail = "29.7 x 21 cm", Args = """{"preset":"a4"}""" },
-                    new PptMenuSpec { Label = "Letter 용지", Detail = "27.94 x 21.59 cm", Args = """{"preset":"letter"}""" },
+                    new PptMenuSpec { Label = "레터 용지", Detail = "27.94 x 21.59 cm", Args = """{"preset":"letter"}""" },
                     new PptMenuSpec { Label = "사용자 지정…", Detail = "창", Args = """{"preset":"custom"}""", Dialog = """{"title":"슬라이드 크기","fields":[{"name":"width_cm","label":"너비(cm)","type":"number","default":33.87,"options":[]},{"name":"height_cm","label":"높이(cm)","type":"number","default":19.05,"options":[]},{"name":"scaling","label":"크기가 바뀔 때","type":"choice","default":"ensure_fit","options":["ensure_fit:맞춤 확인(내용이 안 잘려요)","maximize:최대화(내용이 커져요)"]}]}""" },
                 },
             },
@@ -914,7 +914,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Need = PptNeed.Slide,
                 Menu = new[]
                 {
-                    new PptMenuSpec { Label = "사용자 지정 쇼…", Detail = "창", Dialog = """{"title":"사용자 지정 쇼","fields":[{"name":"name","label":"쇼 이름","type":"text","default":"","options":[]},{"name":"pickedSlides","label":"넣을 슬라이드","type":"choice","default":[],"options":["multi-select list of the deck slides with checkboxes: \"1. 제목\" ..."],"multiple":true}],"buttons":["저장","지우기"]}""" },
+                    new PptMenuSpec { Label = "사용자 지정 쇼…", Detail = "창", Dialog = """{"title":"사용자 지정 쇼","fields":[{"name":"name","label":"쇼 이름","type":"text","default":"","options":[]},{"name":"pickedSlides","label":"넣을 슬라이드 번호 (쉼표로 구분, 예: 1,3)","type":"text","default":"","options":[]}],"buttons":["저장","지우기"]}""" },
                 },
             },
             new PptCommandSpec
@@ -1034,7 +1034,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Id = "ppt.review.compare",
                 Kind = PptCommandKind.Assistant,
                 Prompt = "지금 파일과 ‘{file}’을(를) 비교해서 달라진 슬라이드와 달라진 내용을 알려 줘. 내용을 바꾸지는 마.",
-                Dialog = """{"title":"비교","fields":[{"name":"file","label":"비교할 파일","type":"choice","default":"","options":["workspace .pptx files except this one"]}]}""",
+                Dialog = """{"title":"비교","fields":[{"name":"file","label":"비교할 파일","type":"choice","default":"","options":["작업 폴더의 다른 .pptx 파일"]}]}""",
             },
             new PptCommandSpec
             {
