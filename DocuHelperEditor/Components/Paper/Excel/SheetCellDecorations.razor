@@ -1,0 +1,70 @@
+@using System
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Web
+@using DocuHelperEditor.State.Papers
+
+@if (Bar != null)
+{
+    <span class="bar" aria-hidden="true" style="@Bar"></span>
+}
+@if (Icon is { } icon)
+{
+    <span class="ic" aria-hidden="true" style="color: #@icon.Color">@icon.Glyph</span>
+}
+@if (Context.Cell?.Note != null)
+{
+    <NotePopover Note="@Context.Cell.Note" />
+}
+@if (Table is { FilterButtons: true } && Table.IsHeaderCell(Context.RowIndex, Context.ColumnIndex))
+{
+    <span class="flt" aria-hidden="true">▾</span>
+}
+@if (Context.Active && Validation is { HasDropDown: true })
+{
+    <ValidationDropdown OnOpen="OpenList" />
+}
+
+@code {
+    [Parameter]
+    public SheetCellContext Context { get; set; }
+
+    [Parameter]
+    public EventCallback<SheetMenuRequest> OnMenu { get; set; }
+
+    private SheetTable Table => Context.Sheet?.FindTable(Context.RowIndex, Context.ColumnIndex);
+
+    private SheetValidation Validation => Context.Sheet?.FindValidation(Context.RowIndex, Context.ColumnIndex);
+
+    private string Bar
+    {
+        get
+        {
+            var visual = Context.Cell?.Visual;
+            if (visual == null || !visual.HasBar)
+                return null;
+
+            var width = Math.Clamp(visual.BarFraction!.Value, 0, 1) * 100;
+            return "width: " + width.ToString("0.##", CultureInfo.InvariantCulture) + "%; background-color: #" + visual.BarColor;
+        }
+    }
+
+    private (string Glyph, string Color)? Icon
+    {
+        get
+        {
+            var visual = Context.Cell?.Visual;
+            if (visual == null || !visual.HasIcon)
+                return null;
+
+            var count = Math.Max(2, visual.IconCount);
+            var level = (double)visual.IconIndex!.Value / (count - 1);
+            var color = level >= 0.67 ? "1E7145" : level >= 0.34 ? "B7791F" : "C0392B";
+            var glyph = visual.IconSet.Contains("Arrow", StringComparison.Ordinal)
+                ? level >= 0.67 ? "↑" : level >= 0.34 ? "→" : "↓"
+                : "●";
+            return (glyph, color);
+        }
+    }
+
+    private Task OpenList(MouseEventArgs e) => OnMenu.InvokeAsync(new SheetMenuRequest("validation", Context.RowIndex, Context.ColumnIndex, e.ClientX, e.ClientY));
+}

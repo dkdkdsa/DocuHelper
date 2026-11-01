@@ -2,15 +2,15 @@
     flex: none;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 2px;
     min-height: 44px;
-    padding: 0 10px;
+    padding: 0 6px 0 10px;
     border-bottom: 1px solid var(--hair);
 }
 
 .ref {
     flex: none;
-    width: 72px;
+    width: 76px;
     height: 32px;
     padding: 0 8px;
     border: 1px solid var(--line-strong);
@@ -23,19 +23,61 @@
     font-variant-numeric: tabular-nums;
 }
 
+.divider {
+    flex: none;
+    width: 1px;
+    height: 22px;
+    margin: 0 4px 0 8px;
+    background: var(--rule);
+}
+
+.fbtn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--hit);
+    height: var(--hit);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.fbtn:hover:not(:disabled) {
+    background: var(--paper-2);
+}
+
+.fbtn:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+}
+
+.fbtn:disabled {
+    color: var(--ink-disabled);
+    cursor: default;
+}
+
 .fx {
     flex: none;
     font-family: var(--font-display);
-    font-size: 15px;
+    font-size: 16px;
     font-style: italic;
     font-weight: 600;
     color: var(--ink-2);
+}
+
+.fbtn:disabled .fx {
+    color: var(--ink-disabled);
 }
 
 .content {
     flex: 1;
     min-width: 0;
     height: 32px;
+    margin-left: 4px;
     padding: 0 8px;
     border: 1px solid var(--rule);
     border-radius: var(--radius-xs);

@@ -4,10 +4,10 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div class="grid @(Locked ? "locked" : null)" @ref="_grid">
+<div class="grid @(Locked ? "locked" : null) @(Sheet?.ShowGridlines == false ? "nogrid" : null) @(Sheet?.ShowHeadings == false ? "nohead" : null)" @ref="_grid">
     @if (Sheet != null)
     {
-        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" aria-label="@TableLabel">
+        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" style="@ZoomStyle" aria-label="@TableLabel">
             <colgroup>
                 <col class="rh" />
                 @foreach (var column in Sheet.Columns)
@@ -159,6 +159,9 @@
     public bool Locked { get; set; }
 
     [Parameter]
+    public int Zoom { get; set; } = 100;
+
+    [Parameter]
     public bool EditingInCell { get; set; }
 
     [Parameter]
@@ -223,6 +226,8 @@
 
     private string TableLabel => Sheet.Name + " 시트";
 
+    private string ZoomStyle => Zoom == 100 ? null : "zoom: " + (Zoom / 100.0).ToString("0.##", CultureInfo.InvariantCulture);
+
     private bool IsMulti => !Selection.IsSingle;
 
     protected override void OnParametersSet()
@@ -280,7 +285,7 @@
     }
 
     [JSInvokable]
-    public Task Pointer(string phase, int row, int column, bool shift) => OnPointer.InvokeAsync(new SheetPointer(phase, row, column, shift));
+    public Task Pointer(string phase, int row, int column, bool shift, bool ctrl) => OnPointer.InvokeAsync(new SheetPointer(phase, row, column, shift, ctrl));
 
     [JSInvokable]
     public Task Paste(string text) => OnPaste.InvokeAsync(text);

@@ -8,7 +8,7 @@
         <ActionButton Kind="ButtonKind.Ghost" Disabled="@(!HasMatches)" OnClick="OnPrevious">이전</ActionButton>
         <ActionButton Kind="ButtonKind.Ghost" Disabled="@(!HasMatches)" OnClick="OnNext">다음</ActionButton>
         <ActionButton Kind="ButtonKind.Ghost" Class="@(Replace ? "on" : null)" aria-expanded="@(Replace ? "true" : "false")" OnClick="OnToggleReplace">바꾸기</ActionButton>
-        <IconButton Icon="x" IconSize="16" Stroke="2.2" Label="찾기 닫기" OnClick="OnClose" />
+        <IconButton Icon="close" IconSize="16" Stroke="2.2" Label="찾기 닫기" OnClick="OnClose" />
     </div>
     @if (Replace)
     {

@@ -1,0 +1,17 @@
+@using DocuHelperEditor.State.Papers
+
+<span class="note">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="pop" role="tooltip">
+        @if (!string.IsNullOrEmpty(Note.Author))
+        {
+            <strong class="who">@Note.Author</strong>
+        }
+        <span class="text">@Note.Text</span>
+    </span>
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public SheetNote Note { get; set; }
+}

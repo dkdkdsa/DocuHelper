@@ -12,7 +12,6 @@ namespace DocuHelperEditor.Components.Paper.Excel
     public partial class ExcelPaper : IExcelSurface
     {
         private ExcelCommandRouter _router;
-        private bool _showFormulaBar = true;
         private Painter _painter;
 
         [Inject]
@@ -40,8 +39,8 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         bool IExcelSurface.ShowFormulaBar
         {
-            get => _showFormulaBar;
-            set => _showFormulaBar = value;
+            get => Model.View.ShowFormulaBar;
+            set => Model.View.ShowFormulaBar = value;
         }
 
         bool IExcelSurface.HasClip => _clip != null;

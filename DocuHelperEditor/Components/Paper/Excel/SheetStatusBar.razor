@@ -1,0 +1,72 @@
+@using System.Globalization
+@using DocuHelper.Docus
+@using DocuHelperEditor.Components.Ribbon
+@using DocuHelperEditor.State.Papers
+
+<StatusBar Format="DocuType.Excel" Label="상태 표시줄" Left="Left" Right="Right" />
+
+@code {
+    [Parameter]
+    public string StateText { get; set; } = "준비";
+
+    [Parameter]
+    public SheetStatsResult Stats { get; set; }
+
+    [Parameter]
+    public string Range { get; set; }
+
+    [Parameter]
+    public string ViewMode { get; set; } = SheetViewMode.Normal;
+
+    [Parameter]
+    public bool PageModesReady { get; set; }
+
+    [Parameter]
+    public int Zoom { get; set; } = 100;
+
+    [Parameter]
+    public bool Protected { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnCommand { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnZoom { get; set; }
+
+    private Task Command(string id) => OnCommand.InvokeAsync(id);
+
+    private static string Text(decimal value) => value.ToString("#,0.##", CultureInfo.InvariantCulture);
+
+    private RenderFragment Left => __builder =>
+    {
+        <span class="st" aria-live="polite">@StateText</span>
+        @if (Stats != null && Stats.Count > 0)
+        {
+            <RibbonDivider Gap="6" />
+            @if (Stats.Numbers > 0)
+            {
+                <StatusButton Tip='@("고른 칸 " + Range + "의 평균")'>평균: @Text(Stats.Average)</StatusButton>
+            }
+            <StatusButton Tip="고른 칸 중 값이 있는 칸 수">개수: @Stats.Count</StatusButton>
+            @if (Stats.Numbers > 0)
+            {
+                <StatusButton Tip='@("고른 칸 " + Range + "의 합계")'>합계: @Text(Stats.Sum)</StatusButton>
+            }
+        }
+    };
+
+    private RenderFragment Right => __builder =>
+    {
+        <span class="views" role="group" aria-label="보기">
+            <StatusButton Icon="normal" Label="기본" Tip="기본 보기" Pressed='@(ViewMode == SheetViewMode.Normal)' OnClick='() => Command("excel.status.view.normal")' />
+            <StatusButton Icon="plview" Label="페이지 레이아웃" Tip='@(PageModesReady ? "페이지 레이아웃" : "페이지 레이아웃 보기는 아직 준비 중이에요.")' Pressed='@(ViewMode == SheetViewMode.PageLayout)' disabled='@(!PageModesReady)' OnClick='() => Command("excel.status.view.pagelayout")' />
+            <StatusButton Icon="pbview" Label="페이지 나누기 미리 보기" Tip='@(PageModesReady ? "페이지 나누기 미리 보기" : "페이지 나누기 미리 보기는 아직 준비 중이에요.")' Pressed='@(ViewMode == SheetViewMode.PageBreak)' disabled='@(!PageModesReady)' OnClick='() => Command("excel.status.view.pagebreak")' />
+        </span>
+        @if (Protected)
+        {
+            <StatusButton Icon="lock" Label="시트 보호됨" Tip="시트가 보호되어 있어요. 잠긴 칸은 고칠 수 없어요." />
+        }
+        <RibbonDivider Gap="4" />
+        <ZoomControl Value="Zoom" ValueChanged="OnZoom" SliderWidth="84" />
+    };
+}
