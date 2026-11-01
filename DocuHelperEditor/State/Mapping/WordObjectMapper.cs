@@ -199,7 +199,13 @@ namespace DocuHelperEditor.State.Mapping
                 memory.Write(chunk, 0, read);
             }
 
-            var url = "data:" + image.ContentType + ";base64," + Convert.ToBase64String(memory.ToArray());
+            var data = memory.ToArray();
+            var url = Services.MetafileImages.IsMetafile(data)
+                ? Services.MetafileImages.ToPngDataUri(data)
+                : "data:" + image.ContentType + ";base64," + Convert.ToBase64String(data);
+            if (url == null)
+                return null;
+
             s_images.AddOrUpdate(image, url);
             return url;
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DocuHelper.Tools.Ppt;
 
 namespace DocuHelperEditor.State.Papers
 {
@@ -19,6 +20,10 @@ namespace DocuHelperEditor.State.Papers
         public List<SlideChartSeries> Series { get; set; } = new();
 
         public string Legend { get; set; } = "none";
+
+        public PptSceneChart Scene { get; set; }
+
+        public string FontFamily { get; set; }
 
         public bool HasBars => Bars != null && Bars.Count > 0;
 

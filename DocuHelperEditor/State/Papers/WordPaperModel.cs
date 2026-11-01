@@ -13,6 +13,8 @@ namespace DocuHelperEditor.State.Papers
 
         public WordPageLayout Layout { get; set; } = WordPageLayout.Default;
 
+        public string FontFamily { get; set; }
+
         public IReadOnlyList<WordPageFrame> Frames { get; set; } = Array.Empty<WordPageFrame>();
 
         public IReadOnlyList<WordCommentInfo> Comments { get; set; } = Array.Empty<WordCommentInfo>();

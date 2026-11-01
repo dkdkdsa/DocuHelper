@@ -20,6 +20,10 @@ namespace DocuHelper.Tools.Ppt
 
         public double SpaceAfterPt { get; set; }
 
+        public double SpaceBeforePct { get; set; }
+
+        public double SpaceAfterPct { get; set; }
+
         public List<PptSceneRun> Runs { get; set; } = new();
     }
 }

@@ -23,6 +23,14 @@ namespace DocuHelperEditor.State.Papers
 
         public List<double> ColumnWidths { get; set; } = new();
 
+        public Dictionary<(int Row, int Column), string> CellCss { get; set; } = new();
+
+        public string TableCss { get; set; }
+
+        public HashSet<(int Row, int Column)> Locked { get; set; } = new();
+
+        public bool IsLocked(int row, int column) => Locked.Contains((row, column));
+
         public Dictionary<(int Row, int Column), WordCellLook> CellLooks { get; set; } = new();
 
         public bool HasColumnWidths => ColumnWidths.Count > 0 && ColumnWidths.Count == ColumnCount;

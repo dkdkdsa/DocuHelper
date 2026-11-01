@@ -1,8 +1,10 @@
-﻿namespace DocuHelperEditor.State.Papers
+namespace DocuHelperEditor.State.Papers
 {
     public enum SlideTextAlign
     {
         Left,
         Center,
+        Right,
+        Justify,
     }
 }

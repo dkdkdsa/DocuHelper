@@ -8,7 +8,7 @@
 <div class="grid @(Locked ? "locked" : null) @(Sheet?.ShowGridlines == false ? "nogrid" : null) @(Sheet?.ShowHeadings == false ? "nohead" : null)" @ref="_grid">
     @if (Sheet != null)
     {
-        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" style="@ZoomStyle" aria-label="@TableLabel" aria-rowcount="@(_rowCount + 1)">
+        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" style="@TableStyle" aria-label="@TableLabel" aria-rowcount="@(_rowCount + 1)">
             <colgroup>
                 <col class="rh" />
                 @foreach (var column in Sheet.Columns)
@@ -84,17 +84,21 @@
                                 @if (active)
                                 {
                                     var sinkKey = cellRef + "-" + Version;
-                                    <input id="@SinkId" @key="sinkKey" class="sink @(EditingInCell ? "on" : null)" value="@(EditingInCell ? SinkSeed : string.Empty)" readonly="@Locked" autocomplete="off" spellcheck="false" aria-label="@SinkLabel(cellRef, cell)" @oninput="HandleSinkInput" @onkeydown="HandleSinkKeyDown" @onblur="HandleSinkBlur" />
+                                    <input id="@SinkId" @key="sinkKey" class="sink @(EditingInCell ? "on" : null)" style="@SinkStyle(cell, area)" value="@(EditingInCell ? SinkSeed : string.Empty)" readonly="@Locked" autocomplete="off" spellcheck="false" aria-label="@SinkLabel(cellRef, cell)" @oninput="HandleSinkInput" @onkeydown="HandleSinkKeyDown" @onblur="HandleSinkBlur" />
                                 }
                                 @if (active && EditingInBar)
                                 {
                                     @Draft
                                 }
-                                else if (cell != null && !string.IsNullOrEmpty(cell.Text))
+                                else if (cell != null && !string.IsNullOrEmpty(cell.Text) && !(active && EditingInCell))
                                 {
                                     if (cell.OverflowWidth.HasValue)
                                     {
                                         <span class="ov" style="@("width: " + cell.OverflowWidth.Value + "px")">@{ RenderText(__builder, cell, rowIndex); }</span>
+                                    }
+                                    else if (cell.Wrap && row?.Height != null && merge == null)
+                                    {
+                                        <span class="wrc">@{ RenderText(__builder, cell, rowIndex); }</span>
                                     }
                                     else
                                     {
@@ -124,8 +128,6 @@
 
 @code {
     private const string ModulePath = "./Components/Paper/Excel/SheetGrid.razor.js";
-    private const double PixelsPerPoint = 14.0 / 11.0;
-    private const double DefaultRowPx = 30;
     private const double DefaultViewHeight = 900;
     private const int Overscan = 20;
     private const int MaxMergeRows = 500;
@@ -188,6 +190,12 @@
 
     [Parameter]
     public int Zoom { get; set; } = 100;
+
+    [Parameter]
+    public string FontName { get; set; }
+
+    [Parameter]
+    public double FontSize { get; set; } = 11;
 
     [Parameter]
     public bool RenderAllRows { get; set; }
@@ -260,7 +268,16 @@
 
     private string TableLabel => Sheet.Name + " 시트";
 
-    private string ZoomStyle => Zoom == 100 ? null : "zoom: " + (Zoom / 100.0).ToString("0.##", CultureInfo.InvariantCulture);
+    private double DefaultRowPx => Math.Max(8, Sheet?.DefaultRowHeight ?? 22);
+
+    private string TableStyle
+    {
+        get
+        {
+            var style = "font-family: " + SheetFonts.Family(FontName) + "; font-size: " + SheetFonts.Pixels(FontSize) + "; --row: " + Px(DefaultRowPx) + "px; --lh: " + Px(Math.Clamp(DefaultRowPx / (FontSize * SheetFonts.PixelsPerPoint), 1.1, 1.8));
+            return Zoom == 100 ? style : style + "; zoom: " + (Zoom / 100.0).ToString("0.##", CultureInfo.InvariantCulture);
+        }
+    }
 
     private bool IsMulti => !Selection.IsSingle;
 
@@ -697,11 +714,6 @@
     private string RowClass(int rowIndex, SheetRow row)
     {
         var classes = new List<string>();
-        if (row?.Kind == SheetRowKind.Total)
-            classes.Add("tot");
-        else if (Sheet.FindRow(rowIndex + 1)?.Kind == SheetRowKind.Total)
-            classes.Add("pre-tot");
-
         if (row?.Height != null)
             classes.Add("hx");
 
@@ -765,7 +777,9 @@
 
             if (cell.Align == SheetAlign.Center)
                 classes.Add("al-c");
-            else if (cell.Align == SheetAlign.Right || (cell.Align == SheetAlign.Auto && cell.IsNumber))
+            else if (cell.Align == SheetAlign.Right)
+                classes.Add("al-r ar");
+            else if (cell.Align == SheetAlign.Auto && cell.IsNumber)
                 classes.Add("al-r");
 
             if (cell.Wrap)
@@ -840,10 +854,10 @@
                 parts.Add("color: #" + cell.FontColor);
 
             if (cell.FontFamily != null)
-                parts.Add("font-family: '" + cell.FontFamily.Replace("'", string.Empty) + "', var(--font-body)");
+                parts.Add("font-family: " + SheetFonts.Family(cell.FontFamily, FontName));
 
             if (cell.FontSize.HasValue)
-                parts.Add("font-size: " + (cell.FontSize.Value * PixelsPerPoint).ToString("0.#", CultureInfo.InvariantCulture) + "px");
+                parts.Add("font-size: " + SheetFonts.Pixels(cell.FontSize.Value));
         }
 
         var right = merge.HasValue ? Sheet.FindCell(merge.Value.Top, merge.Value.Right) : cell;
@@ -869,6 +883,30 @@
     {
         var step = rowIndex - _firstMarkedRow;
         return step > 0 ? "animation-delay: calc(var(--dur-hl-step) * " + step + ")" : null;
+    }
+
+    private string SinkStyle(SheetCell cell, SheetRegion area)
+    {
+        if (!EditingInCell)
+            return null;
+
+        var parts = new List<string>();
+        var fill = cell?.Visual?.ScaleFill ?? cell?.Visual?.FillColor ?? cell?.FillColor ?? cell?.TableLook?.Fill;
+        if (fill != null)
+            parts.Add("background-color: #" + fill);
+
+        var height = 0.0;
+        for (var r = area.Top; r <= area.Bottom && r < _rowCount; r++)
+            height += RowHeight(r);
+
+        var line = (cell?.FontSize ?? FontSize) * SheetFonts.PixelsPerPoint * 1.25;
+        var spare = Math.Max(0, height - line - 2);
+        if (cell?.VAlign == "top")
+            parts.Add("padding-bottom: " + Px(spare) + "px");
+        else if (cell?.VAlign != "center")
+            parts.Add("padding-top: " + Px(spare) + "px");
+
+        return string.Join("; ", parts);
     }
 
     private string SinkLabel(string cellRef, SheetCell cell)

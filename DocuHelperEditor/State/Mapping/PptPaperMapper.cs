@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -11,7 +11,7 @@ using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.State.Mapping
 {
-    public class PptPaperMapper : IPaperMapper
+    public partial class PptPaperMapper : IPaperMapper
     {
         private const double PixelsPerPoint = 0.6;
         private const int MinPixels = 6;
@@ -28,7 +28,7 @@ namespace DocuHelperEditor.State.Mapping
         private const int MaxRows = 100;
         private const int MaxColumns = 50;
         private const double DefaultPointSize = 18;
-        private const double DefaultCellPointSize = 14;
+        private const double DefaultCellPointSize = 18;
         private const double DefaultLineWidthPt = 0.75;
 
         private static readonly HashSet<string> s_textIcons = new() { "lines", "pencil" };
@@ -209,7 +209,7 @@ namespace DocuHelperEditor.State.Mapping
             };
 
             if (sceneById.TryGetValue(shape.ShapeId, out var sceneShape))
-                ApplyTextStyle(box, sceneShape, context.WidthEmu);
+                ApplyTextStyle(box, sceneShape, context);
 
             if (anchors.TryGetValue(shape.Anchor, out var changes))
             {
@@ -253,7 +253,16 @@ namespace DocuHelperEditor.State.Mapping
                     FlipH = shape.FlipH,
                     FlipV = shape.FlipV,
                     Preset = PresetOf(shape),
+                    Adjust = shape.Geometry?.Adjust?.Take(8).ToList() ?? new List<double>(),
+                    Shadow = ShadowOf(shape.Shadow, context.WidthEmu),
                 };
+
+                if (shape.Table != null)
+                {
+                    var rows = shape.Table.Rows.Take(MaxRows).Sum(r => Math.Max(0L, r.HeightEmu));
+                    if (rows > shape.H)
+                        model.Height = Pct(rows, context.HeightEmu);
+                }
 
                 MapFill(model, shape.Fill, context);
                 MapLine(model, shape.Line);
@@ -284,11 +293,29 @@ namespace DocuHelperEditor.State.Mapping
                     {
                         model.Text = TextOf(shape, context);
                     }
+
+                    if (model.Text != null)
+                        ApplyTextRect(model.Text, shape, context.WidthEmu);
                 }
 
                 target.Add(model);
                 context.Count++;
             }
+        }
+
+        private static string ShadowOf(PptSceneShadow shadow, long widthEmu)
+        {
+            var color = HexOf(shadow?.Color);
+            if (color == null || shadow.Alpha <= 0)
+                return null;
+
+            var angle = shadow.AngleDeg * Math.PI / 180;
+            var dx = Pct(PptUnits.PointsToEmu(shadow.DistPt * Math.Cos(angle)), widthEmu);
+            var dy = Pct(PptUnits.PointsToEmu(shadow.DistPt * Math.Sin(angle)), widthEmu);
+            var blur = Pct(PptUnits.PointsToEmu(shadow.BlurPt / 2), widthEmu);
+            var alpha = Math.Clamp(shadow.Alpha, 0, 100) / 100.0;
+            var rgb = string.Join(", ", new[] { 1, 3, 5 }.Select(i => int.Parse(color.Substring(i, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture)));
+            return string.Format(CultureInfo.InvariantCulture, "drop-shadow({0:0.###}cqw {1:0.###}cqw {2:0.###}cqw rgba({3}, {4:0.###}))", dx, dy, blur, rgb, alpha);
         }
 
         private static void MapFill(SlideShapeModel model, PptSceneFill fill, SlideContext context)
@@ -372,12 +399,25 @@ namespace DocuHelperEditor.State.Mapping
         private static void ApplyTableStyle(SlideTableCellModel cell, PptSceneTable table, int row, int rowCount, int column, int columnCount, SlideContext context)
         {
             if (string.IsNullOrEmpty(table.StyleKey))
+            {
+                cell.TextColor ??= cell.InheritedColor;
                 return;
+            }
 
             var look = PptTableStyles.Resolve(table.StyleKey, context.Theme, row, rowCount, column, columnCount, table.FirstRow, table.BandRow, table.FirstCol, table.LastRow);
             cell.FillColor ??= HexOf(look.Fill);
-            cell.TextColor ??= HexOf(look.TextColor);
+            cell.TextColor ??= HexOf(look.TextColor) ?? cell.InheritedColor;
             cell.Bold |= look.Bold;
+            if (look.Bold && cell.LineStyles != null)
+            {
+                foreach (var style in cell.LineStyles)
+                {
+                    style.Bold = true;
+                    foreach (var item in style.Runs ?? new List<SlideRunStyle>())
+                        item.Bold = true;
+                }
+            }
+
             var border = HexOf(look.BorderColor);
             if (border == null || look.BorderWidth <= 0)
                 return;
@@ -393,14 +433,22 @@ namespace DocuHelperEditor.State.Mapping
         {
             var run = FirstRun(cell.Paragraphs);
             var paragraph = cell.Paragraphs.FirstOrDefault();
+            var size = run?.SizePt ?? DefaultCellPointSize;
+            var lines = SplitLines(cell.Paragraphs.Select(ParagraphText));
             return new SlideTableCellModel
             {
-                Lines = SplitLines(cell.Paragraphs.Select(ParagraphText)),
+                Lines = lines,
+                LineStyles = Fit(ParagraphLines(cell.Paragraphs, size, context.WidthEmu, null, ThemeFonts(context.Theme, false), true), lines.Count),
                 FillColor = cell.Fill?.Kind == "solid" ? HexOf(cell.Fill.Color) : null,
-                TextColor = HexOf(run?.Color),
+                TextColor = run != null && run.ColorExplicit ? HexOf(run.Color) : null,
+                InheritedColor = HexOf(run?.Color),
                 Bold = run?.Bold ?? false,
-                FontCqw = FontCqw(run?.SizePt ?? DefaultCellPointSize, context.WidthEmu),
-                Align = paragraph?.Align == "ctr" ? SlideTextAlign.Center : SlideTextAlign.Left,
+                FontCqw = FontCqw(size, context.WidthEmu),
+                Align = AlignOf(paragraph?.Align),
+                InsetLeft = Pct(cell.InsetL, context.WidthEmu),
+                InsetTop = Pct(cell.InsetT, context.WidthEmu),
+                InsetRight = Pct(cell.InsetR, context.WidthEmu),
+                InsetBottom = Pct(cell.InsetB, context.WidthEmu),
                 VerticalAlign = VerticalOf(cell.Anchor),
                 GridSpan = Math.Clamp(cell.GridSpan, 1, MaxColumns),
                 RowSpan = Math.Clamp(cell.RowSpan, 1, MaxRows),
@@ -433,6 +481,8 @@ namespace DocuHelperEditor.State.Mapping
                 Kind = chart.Horizontal ? SlideChartKind.Bar : SlideChartKind.Column,
                 Type = TypeOf(chart.Type),
                 Legend = LegendOf(chart.Legend),
+                Scene = chart,
+                FontFamily = ThemeFonts(theme, false),
                 Categories = categories,
                 Series = series,
             };
@@ -517,67 +567,48 @@ namespace DocuHelperEditor.State.Mapping
                 Lines = lines,
             };
 
-            ApplyTextStyle(box, shape, context.WidthEmu);
+            ApplyTextStyle(box, shape, context);
             return box;
         }
 
-        private static void ApplyTextStyle(SlideBoxModel box, PptSceneShape shape, long widthEmu)
+        private static void ApplyTextStyle(SlideBoxModel box, PptSceneShape shape, SlideContext context)
         {
             var text = shape.Text;
             if (text == null)
                 return;
 
+            var widthEmu = context.WidthEmu;
+            var fonts = ThemeFonts(context.Theme, box.Kind == SlideBoxKind.Title);
             var paragraph = text.Paragraphs.FirstOrDefault(p => p.Runs.Any(r => !string.IsNullOrEmpty(r.Text))) ?? text.Paragraphs.FirstOrDefault();
             var run = paragraph?.Runs.FirstOrDefault(r => !string.IsNullOrEmpty(r.Text)) ?? paragraph?.Runs.FirstOrDefault();
-            var points = run?.SizePt ?? DefaultPointSize;
+            var points = run?.SizePt ?? (box.PointSize > 0 ? box.PointSize : DefaultPointSize);
+            var scale = text.Autofit?.Mode == "shrink" ? Math.Clamp(text.Autofit.FontScale / 100.0, 0.1, 1) : 1;
             box.PointSize = points;
             box.FontSize = Math.Clamp((int)Math.Round(points * PixelsPerPoint), MinPixels, MaxPixels);
-            box.FontCqw = FontCqw(points, widthEmu);
+            box.FontCqw = FontCqw(points * scale, widthEmu);
             box.Bold = run?.Bold ?? false;
             box.Italic = run?.Italic ?? false;
             box.Underline = run?.Underline ?? false;
             box.Strike = run?.Strike ?? false;
             box.Bullet = paragraph?.Bullet?.Kind switch { "char" => "bullet", "number" => "number", _ => "none" };
             box.Color = HexOf(run?.Color);
-            box.FontFamily = PptText.HasHangul(run?.Text ?? string.Empty)
-                ? FontOf(run?.FontEa) ?? FontOf(run?.FontLatin)
-                : FontOf(run?.FontLatin) ?? FontOf(run?.FontEa);
-            box.Align = paragraph?.Align == "ctr" ? SlideTextAlign.Center : SlideTextAlign.Left;
+            box.FontFamily = FontStack(run?.FontLatin, run?.FontEa, fonts);
+            box.Align = AlignOf(paragraph?.Align);
             box.VerticalAlign = VerticalOf(text.Anchor);
+            box.NoWrap = !text.Wrap;
             box.InsetLeft = Pct(text.InsetL, widthEmu);
             box.InsetTop = Pct(text.InsetT, widthEmu);
             box.InsetRight = Pct(text.InsetR, widthEmu);
             box.InsetBottom = Pct(text.InsetB, widthEmu);
-            box.LineStyles = LineStylesOf(text, box, widthEmu);
+            box.LineStyles = Fit(ParagraphLines(text.Paragraphs, points, widthEmu, text.Autofit, fonts, false), box.Lines.Count);
         }
 
-        private static List<SlideLineStyle> LineStylesOf(PptSceneText text, SlideBoxModel box, long widthEmu)
+        private static List<SlideLineStyle> Fit(List<SlideLineStyle> styles, int count)
         {
-            var result = new List<SlideLineStyle>();
-            var baseMargin = text.Paragraphs.FirstOrDefault()?.MarginLeftEmu ?? 0;
-            foreach (var paragraph in text.Paragraphs)
-            {
-                var run = FirstRun(new[] { paragraph });
-                var style = new SlideLineStyle
-                {
-                    FontCqw = run?.SizePt is double size ? FontCqw(size, widthEmu) : box.FontCqw,
-                    Bold = run?.Bold ?? box.Bold,
-                    Italic = run?.Italic ?? box.Italic,
-                    Color = HexOf(run?.Color) ?? box.Color,
-                    Bullet = paragraph.Bullet?.Kind switch { "char" => "bullet", "number" => "number", _ => "none" },
-                    IndentCqw = Math.Max(0, Pct(paragraph.MarginLeftEmu - baseMargin, widthEmu)),
-                    Align = paragraph.Align == "ctr" ? SlideTextAlign.Center : SlideTextAlign.Left,
-                };
+            while (styles.Count > count)
+                styles.RemoveAt(styles.Count - 1);
 
-                var count = ParagraphText(paragraph).Split((char)10).Length;
-                for (var i = 0; i < count; i++)
-                    result.Add(style);
-            }
-
-            while (result.Count > box.Lines.Count)
-                result.RemoveAt(result.Count - 1);
-
-            return result.Count == box.Lines.Count && result.Count > 0 ? result : null;
+            return styles.Count == count && count > 0 ? styles : null;
         }
 
         private static string LoadImage(SlideContext context, string relationshipId, OpenXmlPart owner)

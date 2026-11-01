@@ -477,7 +477,52 @@ namespace DocuHelper.Tools.Excel
             if (pattern == null || type == null || type == PatternValues.None)
                 return null;
 
-            return _colors.Resolve(pattern.ForegroundColor);
+            var front = _colors.Resolve(pattern.ForegroundColor);
+            if (type == PatternValues.Solid)
+                return front;
+
+            return Blend(front ?? "000000", _colors.Resolve(pattern.BackgroundColor) ?? "FFFFFF", PatternDensity(type.Value));
+        }
+
+        public string ThemeColor(int index) => _colors.ThemeHex(index);
+
+        private static double PatternDensity(PatternValues type)
+        {
+            if (type == PatternValues.Gray0625)
+                return 0.0625;
+
+            if (type == PatternValues.Gray125)
+                return 0.125;
+
+            if (type == PatternValues.LightGray)
+                return 0.25;
+
+            if (type == PatternValues.MediumGray)
+                return 0.5;
+
+            if (type == PatternValues.DarkGray)
+                return 0.75;
+
+            if (type == PatternValues.LightHorizontal || type == PatternValues.LightVertical || type == PatternValues.LightDown || type == PatternValues.LightUp)
+                return 0.25;
+
+            if (type == PatternValues.LightGrid || type == PatternValues.LightTrellis)
+                return 0.375;
+
+            return 0.5;
+        }
+
+        private static string Blend(string front, string back, double amount)
+        {
+            var result = new System.Text.StringBuilder(6);
+            for (var i = 0; i < 6; i += 2)
+            {
+                var f = int.Parse(front.Substring(i, 2), System.Globalization.NumberStyles.HexNumber);
+                var b = int.Parse(back.Substring(i, 2), System.Globalization.NumberStyles.HexNumber);
+                result.Append(((int)Math.Round(b + ((f - b) * amount))).ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            return result.ToString();
         }
 
         private static Fill SolidFill(string hex) => new(

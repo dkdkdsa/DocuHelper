@@ -1,4 +1,4 @@
-@using System
+﻿@using System
 @using System.Globalization
 @using Microsoft.AspNetCore.Components.Web
 @using DocuHelperEditor.State.Papers
@@ -42,7 +42,7 @@
                 return null;
 
             var width = Math.Clamp(visual.BarFraction!.Value, 0, 1) * 100;
-            return "width: " + width.ToString("0.##", CultureInfo.InvariantCulture) + "%; background-color: #" + visual.BarColor;
+            return "width: calc(" + width.ToString("0.##", CultureInfo.InvariantCulture) + "% - 3px); background-image: linear-gradient(90deg, #" + visual.BarColor + ", color-mix(in srgb, #" + visual.BarColor + " 12%, white))";
         }
     }
 

@@ -1,6 +1,12 @@
 @using System.Globalization
 @using DocuHelperEditor.State.Papers
 
+@if (Chart.Scene != null && WidthPt > 0 && HeightPt > 0)
+{
+    <figure class="chart svg" aria-label="@Label">@((MarkupString)Markup)</figure>
+}
+else
+{
 <figure class="chart" aria-label="@Label">
     @if (Chart.Type is "pie" or "doughnut")
     {
@@ -105,12 +111,37 @@
         </ul>
     }
 </figure>
+}
 
 @code {
     private static readonly string[] s_defaults = { "var(--ink)", "var(--line-strong)", "var(--ink-2)", "var(--rule)", "var(--ink-3)", "var(--hair)" };
 
+    private string _markup;
+    private (SlideChartModel Chart, double Width, double Height, string Font) _key;
+
     [Parameter]
     public SlideChartModel Chart { get; set; }
+
+    [Parameter]
+    public double WidthPt { get; set; }
+
+    [Parameter]
+    public double HeightPt { get; set; }
+
+    private string Markup
+    {
+        get
+        {
+            var key = (Chart, Math.Round(WidthPt, 2), Math.Round(HeightPt, 2), Chart.FontFamily);
+            if (_markup == null || key != _key)
+            {
+                _markup = SlideChartSvg.Build(Chart.Scene, WidthPt, HeightPt, Chart.FontFamily);
+                _key = key;
+            }
+
+            return _markup;
+        }
+    }
 
     private List<SlideChartSeries> Series => Chart.Series.Count > 0
         ? Chart.Series

@@ -36,6 +36,10 @@ namespace DocuHelperEditor.State.Papers
 
         public string Preset { get; set; } = "rect";
 
+        public List<double> Adjust { get; set; } = new();
+
+        public string Shadow { get; set; }
+
         public string FillKind { get; set; } = "none";
 
         public string FillColor { get; set; }

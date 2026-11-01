@@ -1,4 +1,4 @@
-﻿@using System.Globalization
+@using System.Globalization
 @using DocuHelperEditor.State.Papers
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
@@ -27,6 +27,7 @@
 }
 
 @code {
+    private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
     private ElementReference _stage;
     private DotNetObjectReference<SlideCanvas> _reference;
     private bool _attached;
@@ -157,11 +158,11 @@
             {
                 <img class="pic flip" src="@shape.ImageSrc" alt="" />
             }
-            <svg class="geo flip" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" fill="@FillOf(shape)" stroke="@StrokeOf(shape)" stroke-width="@StrokeWidth(shape)" stroke-dasharray="@Dash(shape)" stroke-opacity="@LineOpacity(shape)" fill-opacity="@FillOpacity(shape)">
+            <svg class="geo flip" style="@ShadowStyle(shape)" viewBox="@ViewBox(shape)" preserveAspectRatio="none" aria-hidden="true" fill="@FillOf(shape)" stroke="@StrokeOf(shape)" stroke-width="@StrokeWidth(shape)" stroke-dasharray="@Dash(shape)" stroke-opacity="@LineOpacity(shape)" fill-opacity="@FillOpacity(shape)">
                 @if (shape.FillKind == "gradient")
                 {
                     <defs>
-                        <linearGradient id="@GradientId(shape)" gradientTransform="rotate(@Num(shape.FillAngle))">
+                        <linearGradient id="@GradientId(shape)" gradientTransform="rotate(@Num(shape.FillAngle) 0.5 0.5)">
                             <stop offset="0" stop-color="@shape.FillColor" />
                             <stop offset="1" stop-color="@shape.FillColor2" />
                         </linearGradient>
@@ -176,7 +177,7 @@
         }
         @if (shape.Chart != null)
         {
-            <SlideChartView Chart="shape.Chart" />
+            <SlideChartView Chart="shape.Chart" WidthPt="PointsOf(shape.Width, WidthCm)" HeightPt="PointsOf(shape.Height, HeightCm)" />
         }
         @if (shape.Text != null)
         {
@@ -235,9 +236,28 @@
 
     private static double MinLine(SlideShapeModel shape) => shape.Kind == SlideShapeKind.Line ? 1.5 : 0;
 
-    private static string GeometryOf(SlideShapeModel shape) => shape.Preset == "line"
-        ? SlideGeometry.LineMarkup(shape.Width, shape.Height)
-        : SlideGeometry.Markup(shape.Preset);
+    private string GeometryOf(SlideShapeModel shape)
+    {
+        var size = SizeOf(shape);
+        if (shape.Preset == "line")
+        {
+            var flat = SlideGeometry.LineMarkup(shape.Width, shape.Height);
+            return SlideGeometry.Scale(flat, size.Width / 100.0, size.Height / 100.0);
+        }
+
+        return SlideGeometry.Sized(shape.Preset, size.Width, size.Height, shape.Adjust);
+    }
+
+    private static string ShadowStyle(SlideShapeModel shape) => shape.Shadow == null ? null : "filter: " + shape.Shadow;
+
+    private (double Width, double Height) SizeOf(SlideShapeModel shape) =>
+        (PointsOf(Math.Max(shape.Width, MinLine(shape)), WidthCm), PointsOf(Math.Max(shape.Height, MinLine(shape)), HeightCm));
+
+    private string ViewBox(SlideShapeModel shape)
+    {
+        var size = SizeOf(shape);
+        return "0 0 " + Num(Math.Max(size.Width, 0.01)) + " " + Num(Math.Max(size.Height, 0.01));
+    }
 
     private string ShapeStyle(SlideShapeModel shape)
     {
@@ -266,7 +286,7 @@
         return $"clip-path: inset({Num(shape.CropTop)}% {Num(shape.CropRight)}% {Num(shape.CropBottom)}% {Num(shape.CropLeft)}%)";
     }
 
-    private static string FillOf(SlideShapeModel shape) => shape.FillKind switch
+    private string FillOf(SlideShapeModel shape) => shape.FillKind switch
     {
         "solid" => shape.FillColor,
         "gradient" => "url(#" + GradientId(shape) + ")",
@@ -277,21 +297,33 @@
 
     private static string StrokeOf(SlideShapeModel shape) => shape.LineColor ?? "none";
 
-    private static string StrokeWidth(SlideShapeModel shape) => shape.LineColor == null ? null : $"{Num(shape.LineWidthPt)}px";
+    private static string StrokeWidth(SlideShapeModel shape) => shape.LineColor == null ? null : Num(shape.LineWidthPt);
 
     private static string LineOpacity(SlideShapeModel shape) => shape.LineColor == null ? null : Num(shape.LineAlpha / 100.0);
 
-    private static string Dash(SlideShapeModel shape) => shape.LineDash switch
+    private static string Dash(SlideShapeModel shape)
     {
-        "dash" or "lgDash" => "6 4",
-        "sysDash" => "4 2",
-        "dot" or "sysDot" => "1.5 2",
-        "dashDot" or "sysDashDot" or "lgDashDot" => "6 3 1.5 3",
-        _ => null,
-    };
+        var pattern = shape.LineDash switch
+        {
+            "dash" => new[] { 4.0, 3 },
+            "lgDash" => new[] { 8.0, 3 },
+            "sysDash" => new[] { 3.0, 1 },
+            "dot" => new[] { 1.0, 3 },
+            "sysDot" => new[] { 1.0, 1 },
+            "dashDot" => new[] { 4.0, 3, 1, 3 },
+            "lgDashDot" => new[] { 8.0, 3, 1, 3 },
+            "sysDashDot" => new[] { 3.0, 1, 1, 1 },
+            _ => null,
+        };
+        if (pattern == null || shape.LineColor == null)
+            return null;
 
-    private static string GradientId(SlideShapeModel shape) =>
-        "g" + new string((shape.Id ?? string.Empty).Where(char.IsLetterOrDigit).ToArray());
+        var width = Math.Max(shape.LineWidthPt, 0.25);
+        return string.Join(" ", pattern.Select(p => Num(p * width)));
+    }
+
+    private string GradientId(SlideShapeModel shape) =>
+        "g" + _uid + new string((shape.Id ?? string.Empty).Where(char.IsLetterOrDigit).ToArray());
 
     private static string TagOf(SlideBoxModel box) => box.Kind switch
     {
@@ -327,12 +359,20 @@
             style += $"; color: {box.Color}";
 
         if (box.FontFamily != null)
-            style += $"; font-family: \"{box.FontFamily}\"";
+            style += box.FontFamily.Contains('"') ? $"; font-family: {box.FontFamily}" : $"; font-family: \"{box.FontFamily}\"";
 
-        if (box.Align == SlideTextAlign.Center)
+        if (box.NoWrap)
+            style += "; white-space: pre";
+
+        if (box.Align != SlideTextAlign.Left)
         {
-            style += "; text-align: center";
-            if (box.Kind == SlideBoxKind.Body)
+            style += box.Align switch
+            {
+                SlideTextAlign.Center => "; text-align: center",
+                SlideTextAlign.Right => "; text-align: right",
+                _ => "; text-align: justify",
+            };
+            if (box.Kind == SlideBoxKind.Body && box.LineStyles == null)
                 style += "; list-style-position: inside; padding-left: 0";
         }
 
@@ -377,6 +417,8 @@
 
         return OnBoxCommitted.InvokeAsync(box);
     }
+
+    private static double PointsOf(double percent, double cm) => percent / 100.0 * cm / 2.54 * 72;
 
     private static string Num(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 

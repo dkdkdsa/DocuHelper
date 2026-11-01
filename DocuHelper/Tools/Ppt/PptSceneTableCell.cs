@@ -25,5 +25,13 @@ namespace DocuHelper.Tools.Ppt
         public bool VMerge { get; set; }
 
         public string Anchor { get; set; } = "t";
+
+        public long InsetL { get; set; } = 91440;
+
+        public long InsetT { get; set; } = 45720;
+
+        public long InsetR { get; set; } = 91440;
+
+        public long InsetB { get; set; } = 45720;
     }
 }

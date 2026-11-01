@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -83,10 +83,15 @@ namespace DocuHelper.Tools.Ppt
             for (var i = 0; i < 3; i++)
             {
                 var value = int.Parse(hex.AsSpan(i * 2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                channels[i] = (int)Math.Round(255 - (255 - value) * amount);
+                var linear = Linear(value / 255.0) * amount + (1 - amount);
+                channels[i] = (int)Math.Round(Math.Clamp(Gamma(linear), 0, 1) * 255);
             }
 
             return string.Create(CultureInfo.InvariantCulture, $"{channels[0]:X2}{channels[1]:X2}{channels[2]:X2}");
         }
+
+        private static double Linear(double value) => value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+
+        private static double Gamma(double value) => value <= 0.0031308 ? value * 12.92 : 1.055 * Math.Pow(value, 1 / 2.4) - 0.055;
     }
 }

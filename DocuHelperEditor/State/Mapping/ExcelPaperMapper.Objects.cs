@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -81,6 +81,9 @@ namespace DocuHelperEditor.State.Mapping
                 if (anchor.Element.GetFirstChild<Xdr.GraphicFrame>() != null)
                 {
                     shape.Kind = SheetObjectKind.Chart;
+                    shape.Chart = ReadChart(drawings, anchor.Element, context.Book);
+                    if (anchor.Kind == AnchorKind.TwoCell)
+                        (shape.Width, shape.Height) = Span(context.View, shape.Anchor);
                 }
                 else if (anchor.Element.GetFirstChild<Xdr.Picture>() != null)
                 {
@@ -104,6 +107,21 @@ namespace DocuHelperEditor.State.Mapping
 
                 context.View.Objects.Add(shape);
             }
+        }
+
+        private static (double Width, double Height) Span(Sheet view, SheetObjectAnchor anchor)
+        {
+            var width = 0.0;
+            for (var c = anchor.FromColumn; c < anchor.ToColumn && c < MaxColumns; c++)
+                width += view.IsColumnHidden(c) ? 0 : c < view.Columns.Count ? view.Columns[c].Width ?? OpenColumnWidth : view.Columns.LastOrDefault()?.Width ?? OpenColumnWidth;
+
+            var height = 0.0;
+            for (var r = anchor.FromRow; r < anchor.ToRow && r < MaxRows; r++)
+                height += view.IsRowHidden(r) ? 0 : view.FindRow(r)?.Height ?? view.DefaultRowHeight;
+
+            width += anchor.ToColumnOffset - anchor.FromColumnOffset;
+            height += anchor.ToRowOffset - anchor.FromRowOffset;
+            return (Clamp(Math.Max(1, width)), Clamp(Math.Max(1, height)));
         }
 
         private enum AnchorKind
@@ -224,6 +242,9 @@ namespace DocuHelperEditor.State.Mapping
             }
 
             var bytes = buffer.ToArray();
+            if (Services.MetafileImages.IsMetafile(bytes))
+                return Services.MetafileImages.ToPngDataUri(bytes);
+
             var mime = ImageMime(bytes);
             return mime == null ? null : "data:" + mime + ";base64," + Convert.ToBase64String(bytes);
         }

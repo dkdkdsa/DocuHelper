@@ -35,6 +35,8 @@ namespace DocuHelperEditor.State.Papers
 
         public double PointSize { get; set; }
 
+        public bool NoWrap { get; set; }
+
         public bool Bold { get; set; }
 
         public bool Italic { get; set; }

@@ -37,6 +37,38 @@
     line-height: 1.65;
 }
 
+.styled {
+    min-height: 1.2em;
+    padding-left: 0;
+    line-height: 1.2;
+    letter-spacing: normal;
+    list-style: none;
+}
+
+.ln {
+    display: block;
+    min-width: 0;
+}
+
+.ln:empty::after {
+    content: "\200b";
+}
+
+.ln[data-b]::before {
+    content: attr(data-b);
+    display: inline-block;
+    min-width: var(--bw, 0);
+    padding-right: 0.25em;
+    box-sizing: border-box;
+    text-indent: 0;
+    color: var(--bc, inherit);
+    font-family: var(--bf, inherit);
+    font-size: var(--bs, 100%);
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+}
+
 .u,
 .u .mk {
     text-decoration: underline;

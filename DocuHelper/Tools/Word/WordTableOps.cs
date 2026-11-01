@@ -42,7 +42,7 @@ namespace DocuHelper.Tools.Word
         public static bool IsHeader(TableRow row)
         {
             var header = row.TableRowProperties?.GetFirstChild<TableHeader>();
-            return header != null && (header.Val == null || header.Val.Value == OnOffOnlyValues.On);
+            return header != null && (header.Val == null || header.Val.InnerText is "on" or "true" or "1");
         }
 
         public static List<int> GridWidths(Table table) =>

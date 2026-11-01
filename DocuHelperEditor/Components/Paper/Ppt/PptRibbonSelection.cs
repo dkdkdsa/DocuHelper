@@ -74,7 +74,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             selection.Underline = box.Underline;
             selection.Strike = box.Strike;
             selection.Bullet = box.Bullet;
-            selection.Align = box.Align == SlideTextAlign.Center ? "center" : "left";
+            selection.Align = box.Align switch { SlideTextAlign.Center => "center", SlideTextAlign.Right => "right", SlideTextAlign.Justify => "justify", _ => "left" };
             return selection;
         }
 

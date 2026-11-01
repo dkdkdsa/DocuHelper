@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using DocuHelperEditor.Services;
@@ -58,19 +58,13 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
             var visual = cell.Visual;
             var parts = new List<string>();
-            if (cell.FillColor == null)
-            {
-                var fill = visual?.ScaleFill ?? visual?.FillColor ?? cell.TableLook?.Fill;
-                if (fill != null)
-                    parts.Add("background-color: #" + fill);
-            }
+            var fill = visual?.ScaleFill ?? visual?.FillColor ?? (cell.FillColor == null ? cell.TableLook?.Fill : null);
+            if (fill != null)
+                parts.Add("background-color: #" + fill);
 
-            if (cell.FontColor == null)
-            {
-                var font = visual?.FontColor ?? cell.TableLook?.FontColor;
-                if (font != null)
-                    parts.Add("color: #" + font);
-            }
+            var font = visual?.FontColor ?? (cell.FontColor == null ? cell.TableLook?.FontColor : null);
+            if (font != null)
+                parts.Add("color: #" + font);
 
             if (visual?.Strike == true)
                 parts.Add("text-decoration: line-through");

@@ -105,7 +105,7 @@ namespace DocuHelper.Tools.Ppt
             result.Geometry = Geometry(shape.ShapeProperties);
             result.Fill = Fill(shape.ShapeProperties, context.Owner, context.Theme, context.ColorMap);
             result.Line = Line(shape.ShapeProperties, context.Theme, context.ColorMap);
-            ApplyStyle(result, shape, context.Theme, context.ColorMap);
+            ApplyStyle(result, shape.ShapeProperties, shape.ShapeStyle, context);
             result.Shadow = Shadow(shape.ShapeProperties, context.Theme, context.ColorMap);
             result.Text = shape.TextBody == null ? null : TextOf(shape.TextBody, context, context.Styles.For(shape));
             ApplyFontStyle(result, shape.ShapeStyle, context.Theme, context.ColorMap);
@@ -155,7 +155,7 @@ namespace DocuHelper.Tools.Ppt
             {
                 var result = Base(props, PptShapeKind.Chart, context, frame);
                 ApplyFrame(result, frame, map);
-                result.Chart = Chart(PptChartReader.Read(chart));
+                result.Chart = PptChartScene.Read(chart, context.Theme, context.ColorMap);
                 return result;
             }
 
@@ -196,7 +196,7 @@ namespace DocuHelper.Tools.Ppt
             ApplyBox(result, box, connection);
             result.Geometry = Geometry(connection.ShapeProperties);
             result.Line = Line(connection.ShapeProperties, context.Theme, context.ColorMap);
-            ApplyStyle(result, connection.ShapeProperties, connection.ShapeStyle, context.Theme, context.ColorMap);
+            ApplyStyle(result, connection.ShapeProperties, connection.ShapeStyle, context);
             return result;
         }
 
@@ -390,18 +390,20 @@ namespace DocuHelper.Tools.Ppt
             };
         }
 
-        private static void ApplyStyle(PptSceneShape result, P.Shape shape, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap) =>
-            ApplyStyle(result, shape.ShapeProperties, shape.ShapeStyle, theme, colorMap);
-
-        private static void ApplyStyle(PptSceneShape result, OpenXmlElement properties, P.ShapeStyle style, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
+        private static void ApplyStyle(PptSceneShape result, OpenXmlElement properties, P.ShapeStyle style, PptSceneContext context)
         {
             if (properties == null || style == null)
                 return;
 
+            var theme = context.Theme;
+            var colorMap = context.ColorMap;
             var fillElement = StyleColorElement(style.FillReference);
             var fillColor = fillElement == null ? null : PptColor.Resolve(fillElement, theme, colorMap, null);
             if (IsHexColor(fillColor) && !HasExplicitFill(properties))
-                result.Fill = new PptSceneFill { Kind = "solid", Color = fillColor, Alpha = PptColor.AlphaOf(fillElement) };
+            {
+                result.Fill = ThemeFill(context, StyleIndex(style.FillReference), fillColor)
+                    ?? new PptSceneFill { Kind = "solid", Color = fillColor, Alpha = PptColor.AlphaOf(fillElement) };
+            }
 
             var outline = properties.GetFirstChild<A.Outline>();
             if (outline?.GetFirstChild<A.NoFill>() != null || outline?.GetFirstChild<A.SolidFill>() != null)
@@ -412,7 +414,10 @@ namespace DocuHelper.Tools.Ppt
             if (!IsHexColor(lineColor))
                 return;
 
-            result.Line ??= new PptSceneLine { WidthPt = 0.75 };
+            result.Line ??= new PptSceneLine { WidthPt = ThemeLineWidth(context, StyleIndex(style.LineReference)) ?? 0.75 };
+            if (result.Line.WidthPt <= 0)
+                result.Line.WidthPt = ThemeLineWidth(context, StyleIndex(style.LineReference)) ?? 0.75;
+
             result.Line.Color = lineColor;
             result.Line.Alpha = PptColor.AlphaOf(lineElement);
         }
@@ -428,7 +433,57 @@ namespace DocuHelper.Tools.Ppt
                 return;
 
             foreach (var run in result.Text.Paragraphs.SelectMany(p => p.Runs))
-                run.Color ??= color;
+            {
+                if (!run.ColorExplicit)
+                    run.Color = color;
+            }
+        }
+
+        private static int StyleIndex(OpenXmlElement reference)
+        {
+            var index = reference?.GetAttributes().FirstOrDefault(a => a.LocalName == "idx").Value;
+            return int.TryParse(index, out var value) ? value : 0;
+        }
+
+        private static A.FormatScheme FormatScheme(PptSceneContext context) =>
+            context.Part?.SlideLayoutPart?.SlideMasterPart?.ThemePart?.Theme?.ThemeElements?.FormatScheme;
+
+        private static PptSceneFill ThemeFill(PptSceneContext context, int index, string placeholder)
+        {
+            var scheme = FormatScheme(context);
+            OpenXmlElement list = index >= 1001 ? scheme?.BackgroundFillStyleList : scheme?.FillStyleList;
+            var position = (index >= 1001 ? index - 1000 : index) - 1;
+            var item = list?.ChildElements.ElementAtOrDefault(position);
+            if (item == null)
+                return null;
+
+            if (item is A.SolidFill solid)
+            {
+                var color = PptColor.Resolve(solid.GetFirstChild<OpenXmlElement>(), context.Theme, context.ColorMap, placeholder);
+                return IsHexColor(color) ? new PptSceneFill { Kind = "solid", Color = color, Alpha = PptColor.AlphaOf(solid.GetFirstChild<OpenXmlElement>()) } : null;
+            }
+
+            if (item is not A.GradientFill gradient)
+                return null;
+
+            var fill = new PptSceneFill { Kind = "gradient" };
+            foreach (var stop in gradient.GradientStopList?.Elements<A.GradientStop>() ?? Enumerable.Empty<A.GradientStop>())
+            {
+                var element = stop.GetFirstChild<OpenXmlElement>();
+                var color = element == null ? null : PptColor.Resolve(element, context.Theme, context.ColorMap, placeholder);
+                fill.Stops.Add(new PptSceneStop { Pos = (stop.Position?.Value ?? 0) / 1000.0, Color = color, Alpha = element == null ? 100 : PptColor.AlphaOf(element) });
+            }
+
+            fill.Color = fill.Stops.FirstOrDefault()?.Color;
+            fill.Color2 = fill.Stops.LastOrDefault()?.Color;
+            fill.AngleDeg = (gradient.GetFirstChild<A.LinearGradientFill>()?.Angle?.Value ?? 5400000) / 60000.0;
+            return IsHexColor(fill.Color) ? fill : null;
+        }
+
+        private static double? ThemeLineWidth(PptSceneContext context, int index)
+        {
+            var line = FormatScheme(context)?.LineStyleList?.Elements<A.Outline>().ElementAtOrDefault(index - 1);
+            return line?.Width?.Value is int width && width > 0 ? width / 12700.0 : null;
         }
 
         private static OpenXmlElement FontColorElement(OpenXmlElement reference)
@@ -555,8 +610,12 @@ namespace DocuHelper.Tools.Ppt
             else if (lineSpacing?.SpacingPoints?.Val != null)
                 result.LineSpacing = new PptSceneSpacing { Kind = "pt", Value = lineSpacing.SpacingPoints.Val.Value / 100.0 };
 
-            result.SpaceBeforePt = Pick(p => p.SpaceBefore)?.SpacingPoints?.Val?.Value / 100.0 ?? 0;
-            result.SpaceAfterPt = Pick(p => p.SpaceAfter)?.SpacingPoints?.Val?.Value / 100.0 ?? 0;
+            var before = Pick(p => p.SpaceBefore);
+            var after = Pick(p => p.SpaceAfter);
+            result.SpaceBeforePt = before?.SpacingPoints?.Val?.Value / 100.0 ?? 0;
+            result.SpaceAfterPt = after?.SpacingPoints?.Val?.Value / 100.0 ?? 0;
+            result.SpaceBeforePct = before?.SpacingPercent?.Val?.Value / 1000.0 ?? 0;
+            result.SpaceAfterPct = after?.SpacingPercent?.Val?.Value / 1000.0 ?? 0;
             foreach (var element in paragraph.Elements())
             {
                 switch (element)
@@ -629,16 +688,19 @@ namespace DocuHelper.Tools.Ppt
             var underline = Pick(r => r.Underline);
             var strike = Pick(r => r.Strike);
             var baseline = Pick(r => r.Baseline);
+            var spacing = Pick(r => r.Spacing);
             run.SizePt = size != null && size.HasValue ? size.Value / 100.0 : null;
             run.Bold = bold != null && bold.HasValue && bold.Value;
             run.Italic = italic != null && italic.HasValue && italic.Value;
             run.Underline = underline != null && underline.HasValue && underline.Value != A.TextUnderlineValues.None;
             run.Strike = strike != null && strike.HasValue && strike.Value != A.TextStrikeValues.NoStrike;
             run.Baseline = baseline != null && baseline.HasValue ? baseline.Value / 1000.0 : 0;
+            run.SpacingPt = spacing != null && spacing.HasValue ? spacing.Value / 100.0 : 0;
             run.FontLatin = ThemeFont(Pick(r => r.GetFirstChild<A.LatinFont>())?.Typeface?.Value, context.Theme);
             run.FontEa = ThemeFont(Pick(r => r.GetFirstChild<A.EastAsianFont>())?.Typeface?.Value, context.Theme);
             var fill = Pick(r => r.GetFirstChild<A.SolidFill>())?.GetFirstChild<OpenXmlElement>();
             run.Color = fill == null ? null : PptColor.Resolve(fill, context.Theme, context.ColorMap, null);
+            run.ColorExplicit = properties?.GetFirstChild<A.SolidFill>() != null;
             var highlight = properties?.GetFirstChild<A.Highlight>()?.GetFirstChild<OpenXmlElement>();
             run.Highlight = highlight == null ? null : PptColor.Resolve(highlight, context.Theme, context.ColorMap, null);
             var link = properties?.GetFirstChild<A.HyperlinkOnClick>();
@@ -704,8 +766,14 @@ namespace DocuHelper.Tools.Ppt
                     };
                     if (cell.TextBody != null)
                     {
+                        var style = context.Styles.ForText(cell.TextBody.ListStyle);
                         foreach (var paragraph in cell.TextBody.Elements<A.Paragraph>())
-                            sceneCell.Paragraphs.Add(ParagraphOf(paragraph, context));
+                            sceneCell.Paragraphs.Add(ParagraphOf(paragraph, context, style));
+
+                        sceneCell.InsetL = properties2?.LeftMargin?.Value ?? 91440;
+                        sceneCell.InsetR = properties2?.RightMargin?.Value ?? 91440;
+                        sceneCell.InsetT = properties2?.TopMargin?.Value ?? 45720;
+                        sceneCell.InsetB = properties2?.BottomMargin?.Value ?? 45720;
                     }
 
                     rowScene.Cells.Add(sceneCell);

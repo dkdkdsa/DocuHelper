@@ -31,6 +31,10 @@ namespace DocuHelper.Tools.Word
             ["궁서체"] = "GungsuhChe",
         };
 
+        private const uint EastAsianCodePages = (1u << 17) | (1u << 18) | (1u << 19) | (1u << 20) | (1u << 21);
+        private const double EastAsianLineFactor = 1.3;
+        private const string SubstituteFamily = "Malgun Gothic";
+
         private readonly Dictionary<int, int> _glyphs;
         private readonly int[] _advances;
         private readonly double _unitsPerEm;
@@ -70,7 +74,7 @@ namespace DocuHelper.Tools.Word
                 name = alias;
 
             if (!s_faces.Value.TryGetValue(name, out var face))
-                return new WordFontMetrics();
+                return name == SubstituteFamily ? new WordFontMetrics() : For(SubstituteFamily);
 
             try
             {
@@ -163,8 +167,9 @@ namespace DocuHelper.Tools.Word
             {
                 var ascent = U16(data, os2 + 74);
                 var descent = U16(data, os2 + 76);
+                var eastAsian = (U32(data, os2 + 78) & EastAsianCodePages) != 0;
                 if (ascent + descent > 0)
-                    return (ascent + descent) / unitsPerEm;
+                    return (ascent + descent) / unitsPerEm * (eastAsian ? EastAsianLineFactor : 1);
             }
 
             var hhea = tables["hhea"];

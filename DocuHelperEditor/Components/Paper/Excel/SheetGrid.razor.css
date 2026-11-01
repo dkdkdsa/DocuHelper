@@ -1,4 +1,4 @@
-.grid {
+﻿.grid {
     position: relative;
     flex: 1;
     min-height: 0;
@@ -33,7 +33,7 @@
 }
 
 .grid.nogrid .sheet tr.fz-end > td {
-    border-bottom: 2px solid var(--ink-2);
+    border-bottom: 1px solid var(--ink-2);
 }
 
 .grid.nohead thead {
@@ -75,8 +75,8 @@
 
 .sheet th,
 .sheet td {
-    height: 30px;
-    padding: 0 5px;
+    height: var(--row, 22px);
+    padding: 0 3px;
     border: 1px solid var(--hair);
     white-space: nowrap;
     overflow: hidden;
@@ -124,7 +124,9 @@
 
 .sheet td {
     position: relative;
-    color: var(--ink);
+    color: #000000;
+    line-height: 1.25;
+    vertical-align: bottom;
     cursor: cell;
 }
 
@@ -167,6 +169,7 @@
 }
 
 .sheet td.wr {
+    line-height: var(--lh, 1.4);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     text-overflow: clip;
@@ -184,6 +187,12 @@
     vertical-align: bottom;
 }
 
+.wrc {
+    display: block;
+    max-height: calc(var(--rh) - 1px);
+    overflow: hidden;
+}
+
 .sheet td.ovf {
     overflow: visible;
     text-overflow: clip;
@@ -196,8 +205,18 @@
     max-width: none;
     overflow: hidden;
     white-space: nowrap;
-    text-overflow: ellipsis;
+    text-overflow: clip;
     vertical-align: bottom;
+    pointer-events: none;
+}
+
+.sheet td.ovf.fzc,
+.sheet tr.fz > td.ovf {
+    z-index: 3;
+}
+
+.sheet tr.fz > td.ovf.fzc {
+    z-index: 4;
 }
 
 .sheet tr.fz > td,
@@ -243,12 +262,12 @@
 
 .sheet tr.fz-end > td,
 .sheet tr.fz-end > th {
-    border-bottom: 2px solid var(--ink-2);
+    border-bottom: 1px solid var(--ink-2);
 }
 
 .sheet td.fzc-end,
 .sheet th.fzc-end {
-    border-right: 2px solid var(--ink-2);
+    border-right: 1px solid var(--ink-2);
 }
 
 .sheet thead th.gap {
@@ -360,15 +379,6 @@
     cursor: default;
 }
 
-.sheet tr.tot td {
-    border-top: 1px solid var(--ink);
-    border-bottom: 3px double var(--ink);
-}
-
-.sheet tr.pre-tot td {
-    border-bottom-color: var(--ink);
-}
-
 .pc {
     padding: 1px 7px;
     margin: 0 -7px;
@@ -381,14 +391,16 @@
     inset: 0;
     width: 100%;
     height: 100%;
+    box-sizing: border-box;
     margin: 0;
-    padding: 0 8px;
+    padding: 0 3px;
     border: 0;
     border-radius: 0;
     background: transparent;
     color: transparent;
     caret-color: transparent;
     font: inherit;
+    letter-spacing: inherit;
     text-align: left;
     cursor: cell;
     user-select: text;
@@ -398,10 +410,27 @@
     outline: none;
 }
 
+.sheet td:not(.ar):not(.al-c) .sink.on {
+    right: auto;
+    width: auto;
+    min-width: 100%;
+    max-width: 640px;
+    field-sizing: content;
+}
+
+.sheet td.ar .sink {
+    text-align: right;
+}
+
+.sheet td.al-c .sink {
+    text-align: center;
+}
+
 .sink.on {
-    background: var(--paper);
-    color: var(--ink);
-    caret-color: var(--ink);
+    z-index: 4;
     box-shadow: inset 0 0 0 2px var(--ink);
+    background-color: var(--paper);
+    color: inherit;
+    caret-color: currentColor;
     cursor: text;
 }

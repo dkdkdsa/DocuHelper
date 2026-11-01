@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
 {
@@ -50,6 +52,54 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         }
 
         public static bool IsLine(string preset) => preset == "line";
+
+        private static readonly Regex s_attribute = new("(?<name>[a-z0-9]+)=\"(?<value>[^\"]*)\"", RegexOptions.CultureInvariant);
+
+        private static readonly Regex s_number = new(@"-?[0-9]*\.?[0-9]+", RegexOptions.CultureInvariant);
+
+        public static string Sized(string preset, double width, double height, IReadOnlyList<double> adjust = null)
+        {
+            var w = Math.Max(width, 0.01);
+            var h = Math.Max(height, 0.01);
+            if (preset == "roundRect")
+            {
+                var ratio = adjust != null && adjust.Count > 0 ? Math.Clamp(adjust[0] / 100000.0, 0, 0.5) : 0.16667;
+                var radius = Math.Min(w, h) * ratio;
+                return string.Format(CultureInfo.InvariantCulture, "<rect x=\"0\" y=\"0\" width=\"{0:0.###}\" height=\"{1:0.###}\" rx=\"{2:0.###}\" ry=\"{2:0.###}\" />", w, h, radius);
+            }
+
+            var markup = preset == "line" ? LineMarkup(width, height) : Markup(preset);
+            return Scale(markup, w / 100.0, h / 100.0);
+        }
+
+        public static string Scale(string markup, double sx, double sy) => s_attribute.Replace(markup, match =>
+        {
+            var name = match.Groups["name"].Value;
+            var value = match.Groups["value"].Value;
+            string scaled = name switch
+            {
+                "x" or "cx" or "rx" or "x1" or "x2" or "width" => Number(value, sx),
+                "y" or "cy" or "ry" or "y1" or "y2" or "height" => Number(value, sy),
+                "points" or "d" => Pairs(value, sx, sy),
+                _ => value,
+            };
+            return name + "=\"" + scaled + "\"";
+        });
+
+        private static string Number(string value, double factor) =>
+            double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
+                ? (number * factor).ToString("0.###", CultureInfo.InvariantCulture)
+                : value;
+
+        private static string Pairs(string value, double sx, double sy)
+        {
+            var index = 0;
+            return s_number.Replace(value, match =>
+            {
+                var factor = index++ % 2 == 0 ? sx : sy;
+                return Number(match.Value, factor);
+            });
+        }
 
         private static string Polygon(string points) => "<polygon points=\"" + points + "\" />";
     }

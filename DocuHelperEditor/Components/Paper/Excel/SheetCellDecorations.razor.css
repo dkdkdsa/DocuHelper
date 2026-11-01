@@ -1,10 +1,9 @@
-.bar {
+﻿.bar {
     position: absolute;
-    left: 2px;
-    top: 15%;
-    height: 70%;
-    opacity: 0.85;
-    border-radius: 2px;
+    left: 1px;
+    top: 1px;
+    bottom: 1px;
+    mix-blend-mode: multiply;
     pointer-events: none;
 }
 

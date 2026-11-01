@@ -6,6 +6,8 @@
     overflow: hidden;
     container-type: inline-size;
     box-shadow: var(--shadow-slide);
+    word-break: normal;
+    letter-spacing: normal;
 }
 
 .slide:not([data-locked="true"]) {
@@ -62,10 +64,6 @@
 
 .geo {
     overflow: visible;
-}
-
-.geo * {
-    vector-effect: non-scaling-stroke;
 }
 
 .pic {

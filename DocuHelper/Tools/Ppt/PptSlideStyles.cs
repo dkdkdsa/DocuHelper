@@ -96,6 +96,12 @@ namespace DocuHelper.Tools.Ppt
             return new PptShapeStyle(family, lists.Where(l => l != null).ToList(), bodies, transform);
         }
 
+        public PptShapeStyle ForText(OpenXmlElement listStyle)
+        {
+            var lists = new List<OpenXmlElement> { listStyle, _defaults, _textStyles?.OtherStyle };
+            return new PptShapeStyle("text", lists.Where(l => l != null).ToList(), new List<A.BodyProperties>(), null);
+        }
+
         private static void Collect(P.Shape shape, List<OpenXmlElement> lists, List<A.BodyProperties> bodies, List<A.Transform2D> transforms)
         {
             if (shape == null)

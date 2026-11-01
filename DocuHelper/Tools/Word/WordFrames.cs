@@ -146,6 +146,9 @@ namespace DocuHelper.Tools.Word
             if (number.Length == 0 && IsOnlyNumber(text, fields))
                 return new WordStoryLine(string.Empty, "left");
 
+            if (paragraph.Elements<SimpleField>().Any(f => string.IsNullOrEmpty(f.InnerText) && IsNumberInstruction(f.Instruction?.Value)))
+                return new WordStoryLine(SimpleText(paragraph, number, pages), text.Contains('\t') ? "tabs" : AlignOf(paragraph.ParagraphProperties?.Justification?.Val?.Value));
+
             var builder = new StringBuilder();
             var cursor = 0;
             foreach (var field in fields)
@@ -163,6 +166,28 @@ namespace DocuHelper.Tools.Word
 
             builder.Append(text, cursor, text.Length - cursor);
             return new WordStoryLine(builder.ToString(), text.Contains('\t') ? "tabs" : AlignOf(paragraph.ParagraphProperties?.Justification?.Val?.Value));
+        }
+
+        private static bool IsNumberInstruction(string instruction) =>
+            (instruction ?? string.Empty).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToUpperInvariant() is "PAGE" or "NUMPAGES";
+
+        private static string SimpleText(Paragraph paragraph, string number, string pages)
+        {
+            var builder = new StringBuilder();
+            foreach (var child in paragraph.ChildElements)
+            {
+                if (child is SimpleField field && string.IsNullOrEmpty(field.InnerText) && IsNumberInstruction(field.Instruction?.Value))
+                {
+                    var name = field.Instruction.Value.Trim().Split(' ')[0].ToUpperInvariant();
+                    builder.Append(name == "PAGE" ? number : pages);
+                    continue;
+                }
+
+                foreach (var part in child.Descendants().Where(d => d is Text or TabChar))
+                    builder.Append(part is TabChar ? "\t" : ((Text)part).Text);
+            }
+
+            return builder.ToString();
         }
 
         private static bool IsOnlyNumber(string text, IReadOnlyList<WordField> fields)

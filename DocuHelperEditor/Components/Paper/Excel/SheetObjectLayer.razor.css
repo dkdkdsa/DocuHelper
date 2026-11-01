@@ -1,4 +1,4 @@
-.layer {
+﻿.layer {
     position: absolute;
     left: 0;
     top: 0;
@@ -36,6 +36,12 @@
     object-fit: contain;
     pointer-events: none;
     user-select: none;
+}
+
+.obj.k-chart {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 .obj.k-shape,

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -56,6 +56,10 @@ namespace DocuHelper.Tools.Excel
             var tint = color.Tint?.Value ?? 0;
             return tint == 0 ? hex : Tint(hex, tint);
         }
+
+        public static string Indexed(int index) => s_indexed.ElementAtOrDefault(index);
+
+        public string ThemeHex(int index) => Theme().ElementAtOrDefault(index);
 
         public static bool IsHex(string text) =>
             text != null && text.Length == 6 && text.All(Uri.IsHexDigit);

@@ -111,7 +111,7 @@ namespace DocuHelper.Tools.Word
                 return false;
 
             var header = row.TableRowProperties?.GetFirstChild<TableHeader>();
-            if (header != null && (header.Val == null || header.Val.Value == OnOffOnlyValues.On))
+            if (header != null && (header.Val == null || header.Val.InnerText is "on" or "true" or "1"))
                 return true;
 
             var cells = row.Elements<TableCell>().ToList();

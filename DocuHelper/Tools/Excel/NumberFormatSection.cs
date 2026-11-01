@@ -39,6 +39,10 @@ namespace DocuHelper.Tools.Excel
 
         public bool HasThousands { get; }
 
+        public string Color { get; private set; }
+
+        public bool IsKorean { get; private set; }
+
         public static List<string> Split(string code)
         {
             var sections = new List<string>();
@@ -91,6 +95,8 @@ namespace DocuHelper.Tools.Excel
         public static NumberFormatSection Parse(string section)
         {
             var tokens = new List<(char Kind, string Text)>();
+            string color = null;
+            var korean = false;
             var i = 0;
             while (i < section.Length)
             {
@@ -127,7 +133,10 @@ namespace DocuHelper.Tools.Excel
                     if (end < 0)
                         end = section.Length;
 
-                    AddBracket(tokens, section.Substring(i + 1, Math.Max(0, end - i - 1)));
+                    var content = section.Substring(i + 1, Math.Max(0, end - i - 1));
+                    color ??= ColorName(content);
+                    korean |= content.EndsWith("-412", StringComparison.OrdinalIgnoreCase) || content.EndsWith("-ko-KR", StringComparison.OrdinalIgnoreCase);
+                    AddBracket(tokens, content);
                     i = end + 1;
                 }
                 else if (c == '0' || c == '#' || c == '?')
@@ -188,7 +197,36 @@ namespace DocuHelper.Tools.Excel
                 }
             }
 
-            return new NumberFormatSection(tokens);
+            return new NumberFormatSection(tokens) { Color = color, IsKorean = korean };
+        }
+
+        private static string ColorName(string content)
+        {
+            switch (content.Trim().ToLowerInvariant())
+            {
+                case "red":
+                    return "FF0000";
+                case "blue":
+                    return "0000FF";
+                case "green":
+                    return "00FF00";
+                case "yellow":
+                    return "FFFF00";
+                case "magenta":
+                    return "FF00FF";
+                case "cyan":
+                    return "00FFFF";
+                case "white":
+                    return "FFFFFF";
+                case "black":
+                    return "000000";
+            }
+
+            var lower = content.Trim().ToLowerInvariant();
+            if (lower.StartsWith("color", StringComparison.Ordinal) && int.TryParse(lower.Substring(5), out var index) && index >= 1 && index <= 56)
+                return ExcelColors.Indexed(index + 7);
+
+            return null;
         }
 
         private static void AddBracket(List<(char Kind, string Text)> tokens, string content)

@@ -126,7 +126,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 box.Bold,
                 box.Italic,
                 box.Underline,
-                box.Align == SlideTextAlign.Center ? "center" : "left");
+                box.Align switch { SlideTextAlign.Center => "center", SlideTextAlign.Right => "right", SlideTextAlign.Justify => "justify", _ => "left" });
             Notify(PainterOnText);
             return Task.CompletedTask;
         }

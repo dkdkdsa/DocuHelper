@@ -10,6 +10,8 @@ namespace DocuHelperEditor.State.Papers
 
         public string TextColor { get; set; }
 
+        public string InheritedColor { get; set; }
+
         public bool Bold { get; set; }
 
         public double FontCqw { get; set; }
@@ -31,5 +33,15 @@ namespace DocuHelperEditor.State.Papers
         public string BorderBottom { get; set; }
 
         public string BorderLeft { get; set; }
+
+        public double InsetLeft { get; set; }
+
+        public double InsetTop { get; set; }
+
+        public double InsetRight { get; set; }
+
+        public double InsetBottom { get; set; }
+
+        public List<SlideLineStyle> LineStyles { get; set; }
     }
 }

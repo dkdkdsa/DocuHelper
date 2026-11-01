@@ -12,7 +12,7 @@ namespace DocuHelperEditor.State.Papers
 
         private const int EmptyColumns = 7;
 
-        private const int EmptyColumnWidth = 96;
+        private const int EmptyColumnWidth = 72;
 
         private Dictionary<long, SheetRegion> _mergeCells;
 
@@ -35,6 +35,10 @@ namespace DocuHelperEditor.State.Papers
         public string ExtentRef { get; set; }
 
         public List<SheetColumn> Columns { get; set; } = new();
+
+        public int DefaultRowHeight { get; set; } = 22;
+
+        public int DigitWidth { get; set; } = 8;
 
         public SheetRowList Rows { get; } = new();
 

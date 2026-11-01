@@ -34,12 +34,22 @@ namespace DocuHelperEditor.State.Mapping
             var revisions = WordInventory.Revisions(word, scan);
             var authors = revisions.Where(r => r.Author != null).Select(r => r.Author).Distinct().ToList();
             var earlier = old?.Blocks.Where(b => b?.Id != null).GroupBy(b => b.Id).ToDictionary(g => g.Key, g => g.First()) ?? new Dictionary<string, WordBlockModel>();
+            var context = new WordLayoutContext(word.Document, scan.Styles);
             var blocks = new List<WordBlockModel>(scan.Blocks.Count);
             var looks = new List<WordLook>(scan.Blocks.Count);
             foreach (var block in scan.Blocks)
             {
                 var look = WordLook.Of(scan, block);
-                var model = block.IsTable ? MapTable(scan, block) : MapParagraph(block, look);
+                var model = block.IsTable ? MapTable(scan, block, context) : MapParagraph(block, look);
+                if (!block.IsTable && block.Paragraph != null)
+                {
+                    var run = block.Paragraph.Descendants<Run>().FirstOrDefault(r => r.Descendants<Text>().Any(t => !string.IsNullOrEmpty(t.Text)));
+                    model.Color = HexOf(look.Color);
+                    model.FontFamily = run == null
+                        ? WordTableLooks.FontStack(context.MarkLatinFamily(block.Paragraph), context.EastAsiaFamily(null, block.Paragraph))
+                        : WordTableLooks.FontStack(context.LatinFamily(run, block.Paragraph), context.EastAsiaFamily(run, block.Paragraph));
+                }
+
                 model.Id = block.Id == null ? $"b:{block.Index}" : block.Anchor;
                 model.ParagraphIds = block.IsTable ? block.Table.Descendants<Paragraph>().Select(WordIds.Of).Where(id => id != null).ToList() : Array.Empty<string>();
                 model.Page = block.Page;
@@ -70,6 +80,7 @@ namespace DocuHelperEditor.State.Mapping
             {
                 Blocks = blocks,
                 Layout = scan.Layout,
+                FontFamily = WordTableLooks.FontStack(context.LatinFamily(null, null), context.EastAsiaFamily(null, null)),
                 Frames = scan.Frames,
                 Comments = comments,
                 Revisions = revisions,
@@ -150,7 +161,10 @@ namespace DocuHelperEditor.State.Mapping
             Alignment = look.Centered ? WordAlignment.Center : WordAlignment.Left,
         };
 
-        private static WordBlockModel MapTable(WordScan scan, WordBlock block)
+        private static string HexOf(string value) =>
+            value != null && value.Length == 6 && value.All(Uri.IsHexDigit) ? "#" + value.ToUpperInvariant() : null;
+
+        private static WordBlockModel MapTable(WordScan scan, WordBlock block, WordLayoutContext context)
         {
             var grid = WordTables.Grid(block.Table);
             var rows = WordTables.Texts(grid);
@@ -189,6 +203,36 @@ namespace DocuHelperEditor.State.Mapping
                 }
             }
 
+            var columnCount = WordTables.ColumnCount(grid);
+            var css = new Dictionary<(int Row, int Column), string>();
+            for (var r = 0; r < grid.Count; r++)
+            {
+                for (var c = 0; c < grid[r].Count; c++)
+                {
+                    var cell = grid[r][c];
+                    if (!cell.IsOrigin || cell.Owner == null)
+                        continue;
+
+                    var span = spans.TryGetValue((r, c), out var value) ? value : (1, 1);
+                    css[(r, c)] = WordTableLooks.CellCss(scan.Styles, context, block.Table, cell.Owner, r, c, span.Item1, span.Item2, grid.Count, columnCount);
+                }
+            }
+
+            var locked = new HashSet<(int Row, int Column)>();
+            for (var r = 0; r < grid.Count; r++)
+            {
+                for (var c = 0; c < grid[r].Count; c++)
+                {
+                    var owner = grid[r][c].Owner;
+                    if (!grid[r][c].IsOrigin || owner == null || !owner.Elements<Table>().Any())
+                        continue;
+
+                    rows[r][c] = NestedText(owner, 0);
+                    locked.Add((r, c));
+                }
+            }
+
+            var widths = WordTableLooks.WidthsPt(block.Table, columnCount);
             var last = rows.Count - 1;
             var hasHeader = WordTables.HasHeaderRow(scan.Styles, block.Table) && !spans.Any(s => s.Key.Row == 0 && s.Value.Rows > 1);
             var hasFooter = IsFooter(rows, hasHeader) && !spans.Any(s => s.Key.Row < last && s.Key.Row + s.Value.Rows > last);
@@ -204,18 +248,46 @@ namespace DocuHelperEditor.State.Mapping
                     Caption = Caption(rows, hasHeader),
                     Spans = spans,
                     Covered = covered,
-                    ColumnWidths = ColumnWidths(block.Table),
+                    ColumnWidths = Percentages(widths),
                     CellLooks = looks,
+                    CellCss = css,
+                    Locked = locked,
+                    TableCss = WordTableLooks.TableCss(block.Table, widths),
                 },
             };
         }
 
-        private static List<double> ColumnWidths(Table table)
+        private static string NestedText(TableCell cell, int depth)
         {
-            var widths = table.GetFirstChild<TableGrid>()?.Elements<GridColumn>()
-                .Select(c => double.TryParse(c.Width?.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var width) ? width : 0)
-                .ToList() ?? new List<double>();
+            var lines = new List<string>();
+            foreach (var element in cell.ChildElements)
+            {
+                if (element is Paragraph paragraph)
+                {
+                    lines.Add(WordText.Of(paragraph));
+                    continue;
+                }
 
+                if (element is not Table nested || depth > 4)
+                    continue;
+
+                foreach (var row in nested.Elements<TableRow>())
+                {
+                    var cells = row.Elements<TableCell>()
+                        .Select(c => NestedText(c, depth + 1).Replace('\n', ' ').Trim())
+                        .Where(t => t.Length > 0);
+                    lines.Add(string.Join("   ", cells));
+                }
+            }
+
+            while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[^1]))
+                lines.RemoveAt(lines.Count - 1);
+
+            return string.Join("\n", lines);
+        }
+
+        private static List<double> Percentages(List<double> widths)
+        {
             var total = widths.Sum();
             if (widths.Count == 0 || widths.Any(w => w <= 0) || total <= 0)
                 return new List<double>();

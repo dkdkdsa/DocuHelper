@@ -1,4 +1,5 @@
-﻿@using DocuHelperEditor.State.Papers
+﻿@using System.Globalization
+@using DocuHelperEditor.State.Papers
 @inject IJSRuntime JS
 
 @switch (Tag)
@@ -8,65 +9,34 @@
             @for (var i = 0; i < ShownLines.Count; i++)
             {
                 var index = i;
-                <li style="@LineCss(index, true)">
-                    @if (ShownLit)
-                    {
-                        <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
-                    }
-                    else
-                    {
-                        @ShownLines[index]
-                    }
-                </li>
+                if (Styled)
+                {
+                    <li class="ln" style="@LineCss(index)" data-b="@BulletOf(index)">@Content(index)</li>
+                }
+                else
+                {
+                    <li style="@LegacyCss(index, true)">
+                        @if (ShownLit)
+                        {
+                            <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
+                        }
+                        else
+                        {
+                            @ShownLines[index]
+                        }
+                    </li>
+                }
             }
         </ul>
         break;
     case "h2":
         <h2 @key="_epoch" @ref="_element" class="@RootClass" style="@Style" contenteditable="@EditableValue" spellcheck="false" @onfocus="HandleFocus" @oninput="HandleInput" @onblur="HandleBlur" @attributes="Attributes">
-            @for (var i = 0; i < ShownLines.Count; i++)
-            {
-                var index = i;
-                if (index > 0)
-                {
-                    <br />
-                }
-                if (ShownLit)
-                {
-                    <span class="mk on" data-change="@ShownChangeId" style="@MarkStyle(index)">@ShownLines[index]</span>
-                }
-                else if (LineCss(index, false) != null)
-                {
-                    <span style="@LineCss(index, false)">@ShownLines[index]</span>
-                }
-                else
-                {
-                    @ShownLines[index]
-                }
-            }
+            @Body
         </h2>
         break;
     default:
         <p @key="_epoch" @ref="_element" class="@RootClass" style="@Style" contenteditable="@EditableValue" spellcheck="false" @onfocus="HandleFocus" @oninput="HandleInput" @onblur="HandleBlur" @attributes="Attributes">
-            @for (var i = 0; i < ShownLines.Count; i++)
-            {
-                var index = i;
-                if (index > 0)
-                {
-                    <br />
-                }
-                if (ShownLit)
-                {
-                    <span class="mk on" data-change="@ShownChangeId" style="@MarkStyle(index)">@ShownLines[index]</span>
-                }
-                else if (LineCss(index, false) != null)
-                {
-                    <span style="@LineCss(index, false)">@ShownLines[index]</span>
-                }
-                else
-                {
-                    @ShownLines[index]
-                }
-            }
+            @Body
         </p>
         break;
 }
@@ -78,6 +48,7 @@
     private int _epoch;
     private bool _dirty;
     private List<string> _frozenLines;
+    private List<SlideLineStyle> _frozenStyles;
     private bool _frozenLit;
     private string _frozenChangeId;
 
@@ -122,6 +93,10 @@
 
     private List<string> ShownLines => _dirty ? _frozenLines : (Lines ?? s_noLines);
 
+    private List<SlideLineStyle> ShownStyles => _dirty ? _frozenStyles : LineStyles;
+
+    private bool Styled => ShownStyles != null && ShownStyles.Count == ShownLines.Count && ShownLines.Count > 0;
+
     private bool ShownLit => _dirty ? _frozenLit : IsLit;
 
     private string ShownChangeId => _dirty ? _frozenChangeId : ChangeId;
@@ -141,12 +116,74 @@
             if (Framed)
                 css += " framed";
 
+            if (Styled)
+                css += " styled";
+
             if (_dirty && _frozenLit && !IsLit)
                 css += " cleared";
 
             return css;
         }
     }
+
+    private RenderFragment Body => __builder =>
+    {
+        for (var i = 0; i < ShownLines.Count; i++)
+        {
+            var index = i;
+            if (Styled)
+            {
+                <span class="ln" style="@LineCss(index)" data-b="@BulletOf(index)">@Content(index)</span>
+            }
+            else
+            {
+                if (index > 0)
+                {
+                    <br />
+                }
+                if (ShownLit)
+                {
+                    <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
+                }
+                else if (LegacyCss(index, false) != null)
+                {
+                    <span style="@LegacyCss(index, false)">@ShownLines[index]</span>
+                }
+                else
+                {
+                    @ShownLines[index]
+                }
+            }
+        }
+    };
+
+    private RenderFragment Content(int index) => __builder =>
+    {
+        if (ShownLit)
+        {
+            <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@Runs(index)</span>
+        }
+        else
+        {
+            @Runs(index)
+        }
+    };
+
+    private RenderFragment Runs(int index) => __builder =>
+    {
+        var line = ShownLines[index];
+        var style = ShownStyles[index];
+        if (!SlideTextCss.RunsMatch(style, line))
+        {
+            @line
+            return;
+        }
+
+        foreach (var run in style.Runs)
+        {
+            <span style="@SlideTextCss.Run(run)">@run.Text</span>
+        }
+    };
 
     public async Task FocusAsync()
     {
@@ -167,14 +204,17 @@
 
     private static string DelayStyle(int index) => $"--i: {index}; ";
 
-    private string MarkStyle(int index) => DelayStyle(index) + LineCss(index, false);
+    private string BulletOf(int index) => SlideTextCss.BulletOf(ShownStyles[index]);
 
-    private string LineCss(int index, bool block)
+    private string LineCss(int index) => SlideTextCss.Line(ShownStyles[index], index == 0, index == ShownLines.Count - 1);
+
+    private string LegacyCss(int index, bool block)
     {
-        if (_dirty || LineStyles == null || Lines == null || LineStyles.Count != Lines.Count || index >= LineStyles.Count)
+        var styles = ShownStyles;
+        if (styles == null || styles.Count != ShownLines.Count || index >= styles.Count)
             return null;
 
-        var style = LineStyles[index];
+        var style = styles[index];
         var css = new List<string>();
         if (style.FontCqw > 0)
             css.Add("font-size: " + Num(style.FontCqw) + "cqw");
@@ -192,14 +232,13 @@
                 css.Add("margin-left: " + Num(style.IndentCqw) + "cqw");
 
             css.Add("list-style-type: " + (style.Bullet == "number" ? "decimal" : style.Bullet == "bullet" ? "disc" : "none"));
-            if (style.Align == SlideTextAlign.Center)
-                css.Add("text-align: center");
+            css.Add("text-align: " + SlideTextCss.Align(style.Align));
         }
 
         return string.Join("; ", css);
     }
 
-    private static string Num(double value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Num(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 
     private Task HandleFocus() => OnFocus.InvokeAsync();
 
@@ -208,6 +247,7 @@
         if (!_dirty)
         {
             _frozenLines = (Lines ?? s_noLines).ToList();
+            _frozenStyles = LineStyles;
             _frozenLit = IsLit;
             _frozenChangeId = ChangeId;
             _dirty = true;
@@ -224,6 +264,7 @@
         var lines = await ReadLinesAsync();
         _dirty = false;
         _frozenLines = null;
+        _frozenStyles = null;
         _frozenChangeId = null;
         _epoch++;
         await OnCommit.InvokeAsync(lines);
@@ -261,6 +302,7 @@
 
     private static List<string> Parse(string text) => text
         .Replace((char)0xA0, ' ')
+        .Replace(((char)0x200B).ToString(), string.Empty)
         .Replace("\r", string.Empty)
         .Split('\n')
         .Select(line => line.Trim())

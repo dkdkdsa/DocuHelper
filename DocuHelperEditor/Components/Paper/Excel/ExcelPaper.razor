@@ -76,6 +76,8 @@
                    ShowFillHandle="@(!IsLocked && !IsEditing)"
                    Locked="@IsLocked"
                    Zoom="@ZoomValue"
+                   FontName="@Model.DefaultFontName"
+                   FontSize="@Model.DefaultFontSize"
                    OnNeedRows="GrowRows"
                    CellDecorations="@CellDecorations"
                    RowDecorations="@RowDecorations"

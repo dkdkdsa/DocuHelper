@@ -97,16 +97,45 @@ namespace DocuHelper.Tools.Word
             if (direct != null)
                 return direct;
 
+            var table = paragraph?.Ancestors<Table>().FirstOrDefault();
+            var checkedTable = table == null;
             foreach (var style in ParagraphChain(paragraph))
             {
+                if (!checkedTable && string.Equals(style.StyleId?.Value, NormalId, StringComparison.OrdinalIgnoreCase))
+                {
+                    checkedTable = true;
+                    var fromTable = TableParagraphValue<T>(table);
+                    if (fromTable != null)
+                        return fromTable;
+                }
+
                 var value = style.StyleParagraphProperties?.GetFirstChild<T>() ?? style.StyleRunProperties?.GetFirstChild<T>();
                 if (value != null)
                     return value;
             }
 
+            if (!checkedTable)
+            {
+                var fromTable = TableParagraphValue<T>(table);
+                if (fromTable != null)
+                    return fromTable;
+            }
+
             var defaults = Root?.DocDefaults;
             return defaults?.ParagraphPropertiesDefault?.ParagraphPropertiesBaseStyle?.GetFirstChild<T>()
                 ?? defaults?.RunPropertiesDefault?.RunPropertiesBaseStyle?.GetFirstChild<T>();
+        }
+
+        private T TableParagraphValue<T>(Table table) where T : OpenXmlElement
+        {
+            foreach (var style in Chain(table?.GetFirstChild<TableProperties>()?.TableStyle?.Val?.Value))
+            {
+                var value = style.StyleParagraphProperties?.GetFirstChild<T>();
+                if (value != null)
+                    return value;
+            }
+
+            return null;
         }
 
         public T RunValue<T>(Run run, Paragraph paragraph) where T : OpenXmlElement =>

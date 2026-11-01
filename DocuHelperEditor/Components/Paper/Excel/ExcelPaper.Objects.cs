@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using DocuHelper.Editors;
 using DocuHelperEditor.State.Papers;
 using Microsoft.AspNetCore.Components;
@@ -19,6 +19,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
             builder.AddAttribute(3, nameof(SheetObjectLayer.SelectedId), _selectedObjectSheet == sheet.Name ? _selectedObjectId : null);
             builder.AddAttribute(4, nameof(SheetObjectLayer.OnSelect), EventCallback.Factory.Create<string>(this, id => SelectObject(sheet.Name, id)));
             builder.AddAttribute(5, nameof(SheetObjectLayer.OnChange), EventCallback.Factory.Create<SheetObjectChange>(this, ChangeObject));
+            builder.AddAttribute(6, nameof(SheetObjectLayer.FontName), Model.DefaultFontName);
             builder.CloseComponent();
         };
 

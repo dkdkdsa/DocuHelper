@@ -407,12 +407,13 @@ namespace DocuHelperEditor.Components.Paper.Excel
             object arguments;
             if (resize.Rows)
             {
-                object height = resize.Pixels < 0 ? "auto" : Math.Round(resize.Pixels * 11.0 / 20, 2);
+                object height = resize.Pixels < 0 ? "auto" : Math.Round(resize.Pixels * 0.75 * 4) / 4;
                 arguments = new { sheet = CurrentSheet.Name, rows = LineRef(true, first, last), height };
             }
             else
             {
-                object width = resize.Pixels < 0 ? "auto" : Math.Round(Math.Max(0, resize.Pixels - 5) / 7.0, 2);
+                var digit = Math.Max(1, CurrentSheet.DigitWidth);
+                object width = resize.Pixels < 0 ? "auto" : Math.Round(Math.Max(0, resize.Pixels) / (double)digit, 2);
                 arguments = new { sheet = CurrentSheet.Name, columns = LineRef(false, first, last), width };
             }
 

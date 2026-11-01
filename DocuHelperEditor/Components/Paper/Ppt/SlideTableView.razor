@@ -17,9 +17,30 @@
                     if (!cell.Merged)
                     {
                         <td colspan="@cell.GridSpan" rowspan="@cell.RowSpan" style="@CellStyle(cell)">
-                            @foreach (var line in cell.Lines)
+                            @for (var i = 0; i < cell.Lines.Count; i++)
                             {
-                                <span class="line">@line</span>
+                                var index = i;
+                                var style = StyleOf(cell, index);
+                                if (style == null)
+                                {
+                                    <span class="line">@cell.Lines[index]</span>
+                                }
+                                else
+                                {
+                                    <span class="line" style="@SlideTextCss.Line(style, index == 0, index == cell.Lines.Count - 1)" data-b="@SlideTextCss.BulletOf(style)">
+                                        @if (SlideTextCss.RunsMatch(style, cell.Lines[index]))
+                                        {
+                                            foreach (var run in style.Runs)
+                                            {
+                                                <span style="@SlideTextCss.Run(run)">@run.Text</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @cell.Lines[index]
+                                        }
+                                    </span>
+                                }
                             }
                         </td>
                     }
@@ -35,7 +56,9 @@
 
     private static string CellStyle(SlideTableCellModel cell)
     {
-        var css = $"font-size: {Num(cell.FontCqw)}cqw; font-weight: {(cell.Bold ? 700 : 400)}; text-align: {(cell.Align == SlideTextAlign.Center ? "center" : "left")}; vertical-align: {VerticalOf(cell.VerticalAlign)}";
+        var css = $"font-size: {Num(cell.FontCqw)}cqw; font-weight: {(cell.Bold ? 700 : 400)}; text-align: {SlideTextCss.Align(cell.Align)}; vertical-align: {VerticalOf(cell.VerticalAlign)}";
+        if (cell.InsetLeft > 0 || cell.InsetTop > 0 || cell.InsetRight > 0 || cell.InsetBottom > 0)
+            css += $"; padding: {Num(cell.InsetTop)}cqw {Num(cell.InsetRight)}cqw {Num(cell.InsetBottom)}cqw {Num(cell.InsetLeft)}cqw";
         if (cell.FillColor != null)
             css += $"; background: {cell.FillColor}";
 
@@ -45,6 +68,9 @@
         css += $"; border-top: {cell.BorderTop ?? "none"}; border-right: {cell.BorderRight ?? "none"}; border-bottom: {cell.BorderBottom ?? "none"}; border-left: {cell.BorderLeft ?? "none"}";
         return css;
     }
+
+    private static SlideLineStyle StyleOf(SlideTableCellModel cell, int index) =>
+        cell.LineStyles != null && cell.LineStyles.Count == cell.Lines.Count ? cell.LineStyles[index] : null;
 
     private static string VerticalOf(string anchor) => anchor switch
     {

@@ -38,7 +38,6 @@ else
     private const double PaperWidthPixels = 700.0;
     private const double PixelsPerCentimeter = 37.8;
     private const double ColumnFallbackPixels = 96;
-    private const double RowFallbackPixels = 30;
     private const int MaxDrawnPages = 300;
 
     private static readonly (int Size, double Width, double Height)[] s_papers =
@@ -182,7 +181,7 @@ else
         for (var r = 0; r < count; r++)
         {
             var row = Sheet?.FindRow(r);
-            heights[r] = row?.Hidden == true ? 0 : row?.Height ?? RowFallbackPixels;
+            heights[r] = row?.Hidden == true ? 0 : row?.Height ?? Sheet?.DefaultRowHeight ?? 22;
         }
 
         return heights;

@@ -13,11 +13,11 @@ namespace DocuHelperEditor.State.Mapping
         private const int MaxRows = ExcelViewState.MaxRows;
         private const int MaxColumns = 100;
         private const int MinColumns = 26;
-        private const int DefaultWidth = 64;
         private const int MinWidth = 24;
-        private const int CellPadding = 16;
+        private const int CellPadding = 6;
         private const int OpenColumnWidth = 120;
-        private const double PixelsPerPoint = 20.0 / 11.0;
+        private const double PixelsPerPoint = 96.0 / 72.0;
+        private const double BaseColumnWidth = 8;
         private const string PendingText = "엑셀에서 계산";
 
         public DocuType Type => DocuType.Excel;
@@ -86,6 +86,8 @@ namespace DocuHelperEditor.State.Mapping
                 FreezeColumns = Math.Min(freezeColumns, MaxColumns - 1),
                 ShowGridlines = sheetView?.ShowGridLines?.Value ?? true,
                 ShowHeadings = sheetView?.ShowRowColHeaders?.Value ?? true,
+                DigitWidth = DigitWidth(model.DefaultFontName, model.DefaultFontSize),
+                DefaultRowHeight = DefaultRowPixels(sheet, model),
             };
             view.IsNew = view.ChangeId != null;
 
@@ -130,7 +132,7 @@ namespace DocuHelperEditor.State.Mapping
                 view.Columns.Add(new SheetColumn
                 {
                     Letter = CellAddress.ColumnName(c),
-                    Width = c == columnCount - 1 ? null : Width(stored ?? sheet.DefaultColumnWidth),
+                    Width = c == columnCount - 1 ? null : stored.HasValue ? Width(stored.Value, view.DigitWidth) : DefaultWidth(sheet, view.DigitWidth),
                     Hidden = hidden || stored <= 0,
                     IsCustom = custom,
                 });
@@ -145,14 +147,15 @@ namespace DocuHelperEditor.State.Mapping
                 if (index < 0 || index > lastRow)
                     continue;
 
-                var height = sheet.RowHeight(index, out var customHeight);
+                var height = sheet.RowHeight(index, out _);
                 var hidden = sheet.IsRowHidden(index);
-                if (!hidden && !customHeight)
+                var pixels = height.HasValue ? Math.Max(1, (int)Math.Round(height.Value * PixelsPerPoint)) : (int?)null;
+                if (!hidden && (pixels == null || pixels == view.DefaultRowHeight))
                     continue;
 
                 var row = view.Rows.Ensure(index);
                 row.Hidden = hidden;
-                row.Height = customHeight && height.HasValue ? Math.Max(1, (int)Math.Round(height.Value * PixelsPerPoint)) : null;
+                row.Height = pixels;
             }
 
             foreach (var merge in merges)
@@ -217,7 +220,8 @@ namespace DocuHelperEditor.State.Mapping
                         continue;
 
                     var total = width;
-                    for (var next = c + 1; next < view.Columns.Count && total < needed; next++)
+                    var reach = needed + (needed / 4);
+                    for (var next = c + 1; next < view.Columns.Count && total < reach; next++)
                     {
                         if (view.IsColumnHidden(next))
                             continue;
@@ -230,12 +234,12 @@ namespace DocuHelperEditor.State.Mapping
                     }
 
                     if (total > width)
-                        cell.OverflowWidth = Math.Min(total, needed) - CellPadding;
+                        cell.OverflowWidth = total - CellPadding;
                 }
             }
         }
 
-        private static double Scale(SheetCell cell, double defaultSize) => (cell.FontSize ?? defaultSize) / defaultSize;
+        private static double Scale(SheetCell cell, double defaultSize) => (cell.FontSize ?? defaultSize) * PixelsPerPoint / 14;
 
         private static int TextWidth(string text, bool bold, double scale)
         {
@@ -261,12 +265,47 @@ namespace DocuHelperEditor.State.Mapping
                 cells.Add(new SheetCell { Ref = SheetRef.Make(cells.Count, row) });
         }
 
-        private static int? Width(double? characters)
+        private static int Width(double stored, int digit)
         {
-            if (!characters.HasValue)
-                return DefaultWidth;
+            if (stored <= 0)
+                return MinWidth;
 
-            return Math.Max(MinWidth, (int)Math.Round((characters.Value * 7) + 5));
+            var pixels = (int)Math.Truncate(((256 * stored) + Math.Truncate(128.0 / digit)) / 256 * digit);
+            return Math.Max(MinWidth, pixels);
+        }
+
+        private static int DefaultWidth(ExcelSheet sheet, int digit)
+        {
+            var format = sheet.Worksheet?.SheetFormatProperties;
+            if (format?.DefaultColumnWidth?.Value is double stored && stored > 0)
+                return Width(stored, digit);
+
+            var characters = format?.BaseColumnWidth?.Value is uint baseWidth ? baseWidth : BaseColumnWidth;
+            return Math.Max(MinWidth, (int)Math.Ceiling(((characters * digit) + 5) / 8) * 8);
+        }
+
+        private static int DigitWidth(string fontName, double size)
+        {
+            var perPoint = (fontName ?? string.Empty).Trim().ToLowerInvariant() switch
+            {
+                "calibri" or "calibri light" or "aptos" or "aptos narrow" => 7.0 / 11,
+                "arial" or "verdana" or "tahoma" or "segoe ui" => 7.0 / 10,
+                "times new roman" or "cambria" => 6.0 / 10,
+                _ => 8.0 / 11,
+            };
+            return Math.Max(4, (int)Math.Round(size * perPoint));
+        }
+
+        private static int DefaultRowPixels(ExcelSheet sheet, ExcelPaperModel model)
+        {
+            var points = sheet.Worksheet?.SheetFormatProperties?.DefaultRowHeight?.Value;
+            if (points is not > 0)
+            {
+                var korean = DigitWidth(model.DefaultFontName, 11) == 8;
+                points = Math.Round(model.DefaultFontSize * (korean ? 1.5 : 15.0 / 11) * 4) / 4;
+            }
+
+            return Math.Max(8, (int)Math.Round(points.Value * PixelsPerPoint));
         }
 
         private static SheetCell MapCell(ExcelBook book, ExcelSheet sheet, ExcelCellEntry entry, ExcelChangeIndex changes, ExcelPaperModel model, Dictionary<(bool Horizontal, int Row, int Column), ExcelBorder> borders)
@@ -291,7 +330,7 @@ namespace DocuHelperEditor.State.Mapping
                 Bold = style.Bold,
                 Italic = style.Italic,
                 Underline = style.Underline,
-                FontColor = style.FontColor,
+                FontColor = (value.IsNumber ? ExcelNumberFormat.ColorOf(value.Number, style.FormatCode) : null) ?? style.FontColor,
                 FillColor = style.FillColor,
                 FontFamily = style.FontName != null && style.FontName != model.DefaultFontName ? style.FontName : null,
                 FontSize = style.FontSize.HasValue && Math.Abs(style.FontSize.Value - model.DefaultFontSize) > 0.01 ? style.FontSize : null,

@@ -316,6 +316,7 @@ namespace DocuHelper.Importers.Hwp
                         ColumnSpan = Math.Max(1, (int)child.UInt16(12)),
                         RowSpan = Math.Max(1, (int)child.UInt16(14)),
                         Width = child.Int32(16),
+                        Height = Math.Max(0, child.Int32(20)),
                     };
                     ReadList(children, k, cell.Blocks, depth);
                     table.Cells.Add(cell);

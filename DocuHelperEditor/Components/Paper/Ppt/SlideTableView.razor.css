@@ -11,10 +11,26 @@
     padding: 2px 4px;
     overflow: hidden;
     overflow-wrap: anywhere;
-    line-height: 1.25;
+    line-height: 1.2;
 }
 
 .line {
     display: block;
     min-height: 1em;
+}
+
+.line:empty::after {
+    content: "\200b";
+}
+
+.line[data-b]::before {
+    content: attr(data-b);
+    display: inline-block;
+    min-width: var(--bw, 0);
+    padding-right: 0.25em;
+    box-sizing: border-box;
+    text-indent: 0;
+    color: var(--bc, inherit);
+    font-family: var(--bf, inherit);
+    font-size: var(--bs, 100%);
 }

@@ -20,9 +20,13 @@ namespace DocuHelper.Tools.Ppt
 
         public string Color { get; set; }
 
+        public bool ColorExplicit { get; set; }
+
         public string Highlight { get; set; }
 
         public double Baseline { get; set; }
+
+        public double SpacingPt { get; set; }
 
         public PptSceneLink Link { get; set; }
 

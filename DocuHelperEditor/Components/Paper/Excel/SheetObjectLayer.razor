@@ -1,4 +1,4 @@
-@implements IAsyncDisposable
+﻿@implements IAsyncDisposable
 @using System
 @using System.Collections.Generic
 @using System.Globalization
@@ -42,6 +42,10 @@
                 {
                     <img src="@current.ImageUrl" alt="@(current.Alt ?? current.Name)" draggable="false" />
                 }
+                else if (current.IsChart)
+                {
+                    <SheetChartView Chart="@current.Chart" Width="@current.Width" Height="@current.Height" FontName="@FontName" />
+                }
                 else if (current.Kind == SheetObjectKind.Chart)
                 {
                     <span class="ph">차트 · @current.Name</span>
@@ -81,6 +85,9 @@
 
     [Parameter]
     public string SelectedId { get; set; }
+
+    [Parameter]
+    public string FontName { get; set; }
 
     [Parameter]
     public EventCallback<string> OnSelect { get; set; }

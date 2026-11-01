@@ -72,6 +72,9 @@ namespace DocuHelperEditor.State.Papers
             if (bytes == null || bytes.Length == 0 || bytes.Length > MaxBytes)
                 return null;
 
+            if (Services.MetafileImages.IsMetafile(bytes))
+                return Services.MetafileImages.ToPngDataUri(bytes);
+
             PptImageInfo info;
             try
             {

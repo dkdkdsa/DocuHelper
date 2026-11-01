@@ -118,7 +118,7 @@
         get
         {
             var layout = Model?.Layout;
-            return layout == null ? null : VariablesOf(layout);
+            return layout == null ? null : (Model.FontFamily == null ? string.Empty : "--doc-font: " + Model.FontFamily + "; ") + VariablesOf(layout);
         }
     }
 
@@ -434,21 +434,37 @@
     private RenderFragment ReadOnlyBody(WordBlockModel block, WordFragment fragment) =>
         block.Table == null
             ? @<div class="@BlockClass(block)" style="@BlockStyle(block, fragment)"><p class="@TextClass(block)">@block.Text</p></div>
-            : @<div class="@BlockClass(block)" style="@BlockStyle(block, fragment)"><table class="@TableClass(block, block.Table)" style="--pitch: 0; line-height: calc(var(--lh, 1.2em) - 1px)">@ReadOnlyRows(block)</table></div>;
+            : @<div class="@BlockClass(block)" style="@BlockStyle(block, fragment)"><table class="@TableClass(block, block.Table)" style="@TableStyle(block.Table)">@ReadOnlyRows(block)</table></div>;
 
-    private RenderFragment ReadOnlyRows(WordBlockModel block) =>
-        @<tbody>
-            @for (var r = 0; r < block.Table.Rows.Count; r++)
+    private RenderFragment ReadOnlyRows(WordBlockModel block) => __builder =>
+    {
+        var table = block.Table;
+        if (table.HasColumnWidths)
+        {
+            <colgroup>
+                @foreach (var width in table.ColumnWidths)
+                {
+                    <col style="@ColumnStyle(width)" />
+                }
+            </colgroup>
+        }
+        <tbody>
+            @for (var r = 0; r < table.Rows.Count; r++)
             {
                 var row = r;
                 <tr style="@RowStyle(block, row)">
-                    @foreach (var cell in block.Table.Rows[row])
+                    @for (var c = 0; c < table.ColumnCount; c++)
                     {
-                        <td>@cell</td>
+                        var column = c;
+                        if (table.IsCovered(row, column))
+                            continue;
+
+                        <td rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" style="@CellStyleOf(table, row, column)">@table.CellText(row, column)</td>
                     }
                 </tr>
             }
-        </tbody>;
+        </tbody>
+    };
 
     private RenderFragment BlockBody(WordBlockModel block, WordFragment? fragment) =>
         @<div class="@BlockClassOf(block)" data-change="@ChangeOf(block)" style="@BlockStyle(block, fragment)" @key="block.Id">
@@ -516,7 +532,7 @@
         </div>;
 
     private RenderFragment TableView(WordBlockModel block, WordTableModel table) =>
-        @<table class="@TableClass(block, table)" style="--pitch: 0; line-height: calc(var(--lh, 1.2em) - 1px)">
+        @<table class="@TableClass(block, table)" style="@TableStyle(table)">
             @if (!string.IsNullOrEmpty(table.Caption))
             {
                 <caption class="sr-only">@table.Caption</caption>
@@ -540,7 +556,7 @@
                             if (table.IsCovered(0, column))
                                 continue;
 
-                            <th scope="col" data-table="@block.Id" data-row="1" data-column="@(column + 1)" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, 0, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
+                            <th scope="col" data-table="@block.Id" data-row="1" data-column="@(column + 1)" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, 0, column)" contenteditable="@CellEditable(table, 0, column)" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
                         }
                     </tr>
                 </thead>
@@ -555,7 +571,7 @@
                             if (table.IsCovered(row, column))
                                 continue;
 
-                            <td data-table="@block.Id" data-row="@(row + 1)" data-column="@(column + 1)" rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, row, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
+                            <td data-table="@block.Id" data-row="@(row + 1)" data-column="@(column + 1)" rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, row, column)" contenteditable="@CellEditable(table, row, column)" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
                         }
                     </tr>
                 }
@@ -571,7 +587,7 @@
                             if (table.IsCovered(footer, column))
                                 continue;
 
-                            <td data-table="@block.Id" data-row="@(footer + 1)" data-column="@(column + 1)" colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, footer, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
+                            <td data-table="@block.Id" data-row="@(footer + 1)" data-column="@(column + 1)" colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, footer, column)" contenteditable="@CellEditable(table, footer, column)" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
                         }
                     </tr>
                 </tfoot>
@@ -724,6 +740,12 @@
 
         if (block.FontSize > 0)
             style.Add("font-size: " + Length(block.FontSize));
+
+        if (block.Color != null)
+            style.Add("color: " + block.Color);
+
+        if (block.FontFamily != null)
+            style.Add("font-family: " + block.FontFamily);
 
         if (block.LineHeight > 0)
             style.Add("--lh: " + Length(block.LineHeight));
@@ -986,12 +1008,20 @@
     private static bool IsFontName(string name) =>
         !string.IsNullOrEmpty(name) && name.All(c => char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '.');
 
+    private string CellEditable(WordTableModel table, int row, int column) => table.IsLocked(row, column) ? "false" : Editable;
+
+    private static string TableStyle(WordTableModel table) =>
+        "--pitch: 0; line-height: " + (table.CellCss.Count == 0 ? "calc(var(--lh, 1.2em) - 1px)" : "1.4") + (table.TableCss == null ? string.Empty : "; " + table.TableCss);
+
     private static string CellStyleOf(WordTableModel table, int row, int column)
     {
-        if (!table.CellLooks.TryGetValue((row, column), out var look))
-            return null;
-
         var css = new List<string>();
+        if (table.CellCss.TryGetValue((row, column), out var own))
+            css.Add(own);
+
+        if (!table.CellLooks.TryGetValue((row, column), out var look))
+            return css.Count == 0 ? null : string.Join("; ", css);
+
         if (look.Shade != null)
             css.Add("background-color: #" + look.Shade);
 
@@ -1032,6 +1062,18 @@
 
             if (look.FirstPt != 0)
                 css.Add("text-indent: " + Length(look.FirstPt));
+        }
+        else
+        {
+            var start = Math.Max(0, look.LeftPt + Math.Min(0, look.FirstPt));
+            if (start > 0)
+                css.Add("padding-left: " + Length(start));
+
+            if (look.RightPt > 0)
+                css.Add("padding-right: " + Length(look.RightPt));
+
+            if (look.FirstPt < 0)
+                css.Add("--label: " + Length(-look.FirstPt));
         }
 
         if (look.Shade != null)

@@ -1,0 +1,42 @@
+@using DocuHelperEditor.State.Papers
+
+<div class="chart" role="img" aria-label="@Caption">@((MarkupString)Svg)</div>
+
+@code {
+    [Parameter]
+    public SheetChartModel Chart { get; set; }
+
+    [Parameter]
+    public double Width { get; set; }
+
+    [Parameter]
+    public double Height { get; set; }
+
+    [Parameter]
+    public string FontName { get; set; }
+
+    private SheetChartModel _built;
+    private double _builtWidth;
+    private double _builtHeight;
+    private string _builtFont;
+    private string _svg = string.Empty;
+
+    private string Caption => string.IsNullOrWhiteSpace(Chart?.Title) ? "차트" : "차트 " + Chart.Title;
+
+    private string Svg
+    {
+        get
+        {
+            if (!ReferenceEquals(_built, Chart) || _builtWidth != Width || _builtHeight != Height || _builtFont != FontName)
+            {
+                _built = Chart;
+                _builtWidth = Width;
+                _builtHeight = Height;
+                _builtFont = FontName;
+                _svg = Chart == null ? string.Empty : SheetChartSvg.Build(Chart, Width, Height, SheetFonts.Family(FontName));
+            }
+
+            return _svg;
+        }
+    }
+}

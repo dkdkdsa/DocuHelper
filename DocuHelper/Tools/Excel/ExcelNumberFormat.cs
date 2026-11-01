@@ -51,10 +51,14 @@ namespace DocuHelper.Tools.Excel
             32 => "h\"시\" mm\"분\"",
             33 => "h\"시\" mm\"분\" ss\"초\"",
             34 or 35 or 52 or 53 or 55 or 56 => "yyyy-mm-dd",
-            37 => "#,##0 ;(#,##0)",
-            38 => "#,##0 ;[Red](#,##0)",
-            39 => "#,##0.00;(#,##0.00)",
-            40 => "#,##0.00;[Red](#,##0.00)",
+            37 => "#,##0;-#,##0",
+            38 => "#,##0;[Red]-#,##0",
+            39 => "#,##0.00;-#,##0.00",
+            40 => "#,##0.00;[Red]-#,##0.00",
+            41 => "_-* #,##0_-;-* #,##0_-;_-* \"-\"_-;_-@_-",
+            42 => "_-\"₩\"* #,##0_-;-\"₩\"* #,##0_-;_-\"₩\"* \"-\"_-;_-@_-",
+            43 => "_-* #,##0.00_-;-* #,##0.00_-;_-* \"-\"??_-;_-@_-",
+            44 => "_-\"₩\"* #,##0.00_-;-\"₩\"* #,##0.00_-;_-\"₩\"* \"-\"??_-;_-@_-",
             45 => "mm:ss",
             46 => "[h]:mm:ss",
             47 => "mmss.0",
@@ -139,6 +143,21 @@ namespace DocuHelper.Tools.Excel
                 text = "-" + text;
 
             return text;
+        }
+
+        public static string ColorOf(double value, string code)
+        {
+            if (IsGeneral(code) || double.IsNaN(value) || double.IsInfinity(value))
+                return null;
+
+            var sections = Sections(code);
+            if (value < 0 && sections.Count >= 2)
+                return sections[1].Color;
+
+            if (value == 0 && sections.Count >= 3)
+                return sections[2].Color;
+
+            return sections[0].Color;
         }
 
         public static string FormatGeneral(double value)
@@ -487,7 +506,7 @@ namespace DocuHelper.Tools.Excel
                         builder.Append(DatePart(date, value, text, twelveHour, IsMinute(tokens, i)));
                         break;
                     case NumberFormatSection.AmPm:
-                        builder.Append(text == "A/P" ? (date.Hour < 12 ? "A" : "P") : (date.Hour < 12 ? "오전" : "오후"));
+                        builder.Append(text == "A/P" ? (date.Hour < 12 ? "A" : "P") : (section.IsKorean ? (date.Hour < 12 ? "오전" : "오후") : (date.Hour < 12 ? "AM" : "PM")));
                         break;
                     case NumberFormatSection.Literal:
                     case NumberFormatSection.Point:

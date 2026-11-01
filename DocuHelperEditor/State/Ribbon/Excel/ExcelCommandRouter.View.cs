@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -12,8 +12,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         private const string ZoomSelectionFeature = "zoom-selection";
         private const double ZoomViewportWidth = 720;
         private const double ZoomViewportHeight = 440;
-        private const double ZoomDefaultColumnPx = 96;
-        private const double ZoomDefaultRowPx = 30;
+        private const double ZoomOpenColumnPx = 120;
         private const int ZoomMaxRows = 500;
         private const int ZoomMaxColumns = 50;
 
@@ -104,7 +103,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 var column = c < State.Sheet.Columns.Count ? State.Sheet.Columns[c] : null;
                 if (column?.Hidden != true)
                 {
-                    width += column?.Width ?? ZoomDefaultColumnPx;
+                    width += column?.Width ?? ZoomOpenColumnPx;
                 }
             }
 
@@ -114,7 +113,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 var row = State.Sheet.FindRow(r);
                 if (row?.Hidden != true)
                 {
-                    height += row?.Height ?? ZoomDefaultRowPx;
+                    height += row?.Height ?? State.Sheet.DefaultRowHeight;
                 }
             }
 

@@ -52,6 +52,10 @@ namespace DocuHelperEditor.State.Papers
 
         public WordAlignment Alignment { get; set; }
 
+        public string Color { get; set; }
+
+        public string FontFamily { get; set; }
+
         public string ChangeId { get; set; }
 
         public WordSourceNoteModel Source { get; set; }

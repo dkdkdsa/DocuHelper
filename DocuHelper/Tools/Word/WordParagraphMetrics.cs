@@ -51,12 +51,26 @@ namespace DocuHelper.Tools.Word
 
         private readonly record struct Atom(Kind Kind, double Width, double Height, bool Space, bool Break);
 
+        private static bool SameStyle(WordLayoutContext context, Paragraph paragraph, Paragraph other) =>
+            other != null && string.Equals(
+                paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value ?? context.Styles.NormalId,
+                other.ParagraphProperties?.ParagraphStyleId?.Val?.Value ?? context.Styles.NormalId,
+                System.StringComparison.OrdinalIgnoreCase);
+
         public static WordParagraphBox Measure(WordLayoutContext context, Paragraph paragraph, double width)
         {
             var spacing = context.Styles.ParagraphValue<SpacingBetweenLines>(paragraph);
             var indent = context.Styles.ParagraphValue<Indentation>(paragraph);
             var before = Twips(spacing, "before") / TwipsPerPt;
             var after = Twips(spacing, "after") / TwipsPerPt;
+            if (WordStyles.IsOn(context.Styles.ParagraphValue<ContextualSpacing>(paragraph)))
+            {
+                if (SameStyle(context, paragraph, paragraph.PreviousSibling() as Paragraph))
+                    before = 0;
+
+                if (SameStyle(context, paragraph, paragraph.NextSibling() as Paragraph))
+                    after = 0;
+            }
             var line = Twips(spacing, "line", SingleLine);
             var rule = Attribute(spacing, "lineRule") ?? "auto";
             var left = Twips(indent, "left") / TwipsPerPt;
