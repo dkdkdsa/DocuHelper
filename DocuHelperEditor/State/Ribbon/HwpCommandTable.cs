@@ -1136,8 +1136,8 @@ namespace DocuHelperEditor.State.Ribbon
             {
                 Id = "hwp.review.proof.helper",
                 Label = "맞춤법 도우미",
-                Class = RibbonCommandClass.View,
-                Action = "toggleSpellcheck",
+                Class = RibbonCommandClass.Assistant,
+                Prompt = "이 문서의 맞춤법, 띄어쓰기, 문법을 검사해서 틀린 곳을 고쳐 줘. 어디를 어떻게 고쳤는지 알려 줘.",
             },
             new HwpCommandSpec
             {

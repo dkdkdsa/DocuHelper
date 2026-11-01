@@ -23,6 +23,7 @@ namespace DocuHelperEditor.State.Ribbon
         {
             Provide("word.mail.merge.recipients", _ => ChooseRecipientsAsync());
             Provide("word.mail.merge.recipients.existing", _ => ChooseRecipientsAsync());
+            Provide("word.mail.merge.editlist", _ => OpenRecipientsAsync());
             Provide("word.mail.finish.merge", _ => FinishMergeAsync());
         }
 
@@ -47,6 +48,26 @@ namespace DocuHelperEditor.State.Ribbon
 
             var args = new JsonObject { ["name"] = arg.Substring(FieldPrefix.Length) };
             return new MenuEntry(new WordMenuSpec(arg.Substring(FieldPrefix.Length), args.ToJsonString(), null), args);
+        }
+
+        private Task OpenRecipientsAsync()
+        {
+            var name = State.Recipients?.FileName;
+            if (name == null)
+            {
+                Notify("받는 사람 목록을 먼저 골라 주세요.");
+                return Task.CompletedTask;
+            }
+
+            var file = Workspace.Files.FirstOrDefault(f => f.Name == name);
+            if (file == null)
+            {
+                Notify("받는 사람 파일이 작업 폴더에 없어요. 받는 사람을 다시 골라 주세요.");
+                return Task.CompletedTask;
+            }
+
+            Workspace.Open(file.Id);
+            return Task.CompletedTask;
         }
 
         private async Task ChooseRecipientsAsync()

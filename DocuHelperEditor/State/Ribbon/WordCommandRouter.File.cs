@@ -24,6 +24,20 @@ namespace DocuHelperEditor.State.Ribbon
         private void ProvideFileCommands()
         {
             Provide("word.file.info", _ => ShowDocumentInfoAsync());
+            Provide("word.review.proofing.wordcount", _ => ShowWordCountAsync());
+        }
+
+        private Task ShowWordCountAsync()
+        {
+            if (File?.Docu is not WordDocu word || Model == null)
+            {
+                Notify(NoFileReason);
+                return Task.CompletedTask;
+            }
+
+            var counts = WordStats.Count(word);
+            Notify($"‘{File.Name}’에는 {counts.Words:N0}단어, {counts.Characters:N0}글자가 있어요. {counts.Pages}쪽이에요.");
+            return Task.CompletedTask;
         }
 
         private async Task ShowDocumentInfoAsync()
