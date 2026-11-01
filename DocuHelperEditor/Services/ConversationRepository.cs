@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using DocuHelperEditor.State;
 
@@ -12,6 +14,9 @@ namespace DocuHelperEditor.Services
     public class ConversationRepository : IConversationRepository
     {
         private const string Extension = ".json";
+        private const int SaveAttempts = 3;
+
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> s_gates = new(StringComparer.OrdinalIgnoreCase);
 
         private static readonly JsonSerializerOptions s_json = new()
         {
@@ -65,9 +70,47 @@ namespace DocuHelperEditor.Services
                 return;
 
             Directory.CreateDirectory(Path.GetDirectoryName(path));
-            var temp = path + ".tmp";
-            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(conversation, s_json));
-            File.Move(temp, path, true);
+            var json = JsonSerializer.Serialize(conversation, s_json);
+            var gate = s_gates.GetOrAdd(path, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync();
+            try
+            {
+                for (var attempt = 1; ; attempt++)
+                {
+                    try
+                    {
+                        await WriteOnceAsync(path, json);
+                        return;
+                    }
+                    catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                    {
+                        if (attempt >= SaveAttempts)
+                            throw;
+
+                        AppLog.Write($"Retrying the conversation save ({attempt})", e);
+                        await Task.Delay(150 * attempt);
+                    }
+                }
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        private static async Task WriteOnceAsync(string path, string json)
+        {
+            var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                await File.WriteAllTextAsync(temp, json);
+                File.Move(temp, path, true);
+            }
+            finally
+            {
+                if (File.Exists(temp))
+                    File.Delete(temp);
+            }
         }
 
         private static async Task<SavedConversation> ReadAsync(string path)
