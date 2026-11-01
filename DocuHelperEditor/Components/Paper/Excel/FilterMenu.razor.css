@@ -7,6 +7,7 @@
 .fm {
     position: fixed;
     z-index: 41;
+    overflow-y: auto;
     width: 270px;
     max-width: calc(100vw - 16px);
     padding: 6px;
@@ -47,7 +48,7 @@
     display: block;
     box-sizing: border-box;
     width: calc(100% - 8px);
-    height: 32px;
+    height: var(--hit);
     margin: 0 4px 6px;
     padding: 0 8px;
     border: 1px solid var(--line-strong);
@@ -82,6 +83,17 @@
     font-size: 12px;
 }
 
+.note.warn {
+    color: var(--warn);
+}
+
+.v {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .actions {
     display: flex;
     justify-content: flex-end;
@@ -94,7 +106,7 @@
 .cancel,
 .ok {
     min-width: 72px;
-    height: 36px;
+    height: var(--hit);
     padding: 0 12px;
     border: 1px solid var(--rule);
     border-radius: var(--radius-sm);

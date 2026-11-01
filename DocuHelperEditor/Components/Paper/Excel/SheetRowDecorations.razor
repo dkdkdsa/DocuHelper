@@ -1,4 +1,5 @@
 @using System.Collections.Generic
+@using System.Globalization
 @using DocuHelperEditor.State.Papers
 
 @if (Context.Row?.OutlineLevel > 0)
@@ -7,7 +8,7 @@
 }
 @if (Toggle is { } toggle)
 {
-    <button type="button" class="tog" tabindex="-1" aria-label="@toggle.Label" title="@toggle.Label" @onclick="() => OnOutline.InvokeAsync(toggle.Command)" @onmousedown:stopPropagation="true">@toggle.Glyph</button>
+    <button type="button" class="tog" aria-label="@toggle.Label" aria-expanded="@(toggle.Expanded ? "true" : "false")" title="@toggle.Label" @onclick="() => OnOutline.InvokeAsync(toggle.Command)" @onmousedown:stopPropagation="true">@toggle.Glyph</button>
 }
 
 @code {
@@ -20,7 +21,7 @@
     [Parameter]
     public EventCallback<string> OnOutline { get; set; }
 
-    private (string Glyph, string Label, string Command)? Toggle
+    private (string Glyph, string Label, string Command, bool Expanded)? Toggle
     {
         get
         {
@@ -29,7 +30,10 @@
 
             var expanded = SheetOutline.IsExpanded(Context.Sheet, group);
             var command = (expanded ? "collapse:" : "expand:") + group.First + ":" + group.Last;
-            return expanded ? ("−", "그룹 접기", command) : ("+", "그룹 펼치기", command);
+            var row = (Context.RowIndex + 1).ToString(CultureInfo.InvariantCulture);
+            return expanded
+                ? ("−", "행 " + row + " 그룹 접기", command, true)
+                : ("+", "행 " + row + " 그룹 펼치기", command, false);
         }
     }
 }

@@ -12,13 +12,13 @@ namespace DocuHelperEditor.Components.Paper.Excel
     public partial class ExcelPaper
     {
         private const string BlankFilterLabel = "(빈 셀)";
-        private const int FilterValueLimit = 200;
+        private const int FilterValueLimit = 5000;
 
         private FilterRequest _filterMenu;
         private Sheet _summarySheet;
         private Dictionary<int, OutlineGroup> _summaries = new();
 
-        private sealed record FilterRequest(SheetRegion Region, int Column, string Header, double X, double Y, IReadOnlyList<string> Values, IReadOnlyCollection<string> Checked, bool Active, bool Truncated);
+        private sealed record FilterRequest(string SheetName, SheetRegion Region, int Row, int Column, string Header, double X, double Y, string AnchorId, IReadOnlyList<string> Values, IReadOnlyCollection<string> Checked, bool Active, bool Truncated);
 
         private RenderFragment<SheetRowContext> RowDecorations => context => builder =>
         {
@@ -45,7 +45,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
                 if (filter == null || !filter.IsActive)
                     return null;
 
-                return filter.MatchCount.ToString(CultureInfo.InvariantCulture) + "개 중 " + filter.TotalCount.ToString(CultureInfo.InvariantCulture) + "개 레코드";
+                return "레코드 " + filter.TotalCount.ToString(CultureInfo.InvariantCulture) + "개 중 " + filter.MatchCount.ToString(CultureInfo.InvariantCulture) + "개를 찾았어요";
             }
         }
 
@@ -63,7 +63,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
             }
         }
 
-        private void OpenFilterMenu(SheetMenuRequest request)
+        private void OpenFilterMenu(SheetMenuRequest request, string anchorId = null)
         {
             var sheet = CurrentSheet;
             var region = SheetFilterRules.RegionAt(sheet, request.Row, request.Column);
@@ -86,18 +86,38 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (truncated)
                 values = values.Take(FilterValueLimit).ToList();
 
-            var active = sheet.Filter?.IsColumnActive(request.Column) == true;
-            var header = FilterText(sheet, area.Top, request.Column);
+            var column = sheet.Filter?.FindColumn(request.Column);
+            var active = column?.Active == true;
+            IReadOnlyCollection<string> checkedValues;
+            if (!active)
+                checkedValues = values;
+            else if (column.Evaluable)
+                checkedValues = values.Where(value => column.Values.Contains(value) || (value == BlankFilterLabel && column.IncludeBlank)).ToList();
+            else
+                checkedValues = values.Where(visible.Contains).ToList();
+
             _filterMenu = new FilterRequest(
+                sheet.Name,
                 area,
+                request.Row,
                 request.Column,
-                SheetRef.ColumnName(request.Column) + " " + header,
+                SheetRef.ColumnName(request.Column) + " " + FilterText(sheet, area.Top, request.Column),
                 request.X,
                 request.Y,
+                anchorId,
                 values,
-                active ? values.Where(visible.Contains).ToList() : values,
+                checkedValues,
                 active,
                 truncated);
+        }
+
+        private void OpenFilterFromKeyboard()
+        {
+            if (IsLocked || (IsEditing && !CommitEdit()))
+                return;
+
+            SheetRef.TryParse(SelectedRef, out var column, out var row);
+            OpenFilterMenu(new SheetMenuRequest("filter", row, column, 0, 0), SinkId);
         }
 
         private static string FilterText(Sheet sheet, int row, int column)
@@ -113,13 +133,14 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (menu == null)
                 return;
 
-            var sheet = CurrentSheet.Name;
             var range = menu.Region.ToRef();
             var column = SheetRef.ColumnName(menu.Column);
             if (selected == null)
-                Edit(EditCommand.Create("filter_range", new { sheet, action = "clear_criteria", range, column }));
+                Edit(EditCommand.Create("filter_range", new { sheet = menu.SheetName, action = "clear_criteria", range, column }));
             else
-                Edit(EditCommand.Create("filter_range", new { sheet, action = "set_criteria", range, column, values = selected.ToArray() }));
+                Edit(EditCommand.Create("filter_range", new { sheet = menu.SheetName, action = "set_criteria", range, column, values = selected.ToArray() }));
+
+            _focusSink = true;
         }
 
         private void ClearFilterMenu()
@@ -127,7 +148,9 @@ namespace DocuHelperEditor.Components.Paper.Excel
             var menu = _filterMenu;
             _filterMenu = null;
             if (menu != null)
-                Edit(EditCommand.Create("filter_range", new { sheet = CurrentSheet.Name, action = "clear_criteria", range = menu.Region.ToRef(), column = SheetRef.ColumnName(menu.Column) }));
+                Edit(EditCommand.Create("filter_range", new { sheet = menu.SheetName, action = "clear_criteria", range = menu.Region.ToRef(), column = SheetRef.ColumnName(menu.Column) }));
+
+            _focusSink = true;
         }
 
         private void SortFilterMenu(bool descending)
@@ -135,10 +158,16 @@ namespace DocuHelperEditor.Components.Paper.Excel
             var menu = _filterMenu;
             _filterMenu = null;
             if (menu != null)
-                Edit(EditCommand.Create("sort_range", new { sheet = CurrentSheet.Name, range = menu.Region.ToRef(), by = SheetRef.ColumnName(menu.Column), descending, has_header = true }));
+                Edit(EditCommand.Create("sort_range", new { sheet = menu.SheetName, range = menu.Region.ToRef(), by = SheetRef.ColumnName(menu.Column), descending, has_header = true }));
+
+            _focusSink = true;
         }
 
-        private void CloseFilterMenu() => _filterMenu = null;
+        private void CloseFilterMenu()
+        {
+            _filterMenu = null;
+            _focusSink = true;
+        }
 
         private void RunOutline(string command)
         {

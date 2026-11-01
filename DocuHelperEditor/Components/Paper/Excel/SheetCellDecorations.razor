@@ -17,7 +17,7 @@
 }
 @if (FilterRegion != null)
 {
-    <button type="button" class="flt" tabindex="-1" aria-label="필터" title="필터" @onclick="OpenFilter" @onmousedown:stopPropagation="true">▾</button>
+    <button type="button" class="flt" aria-label="@FilterLabel" title="@FilterLabel" aria-haspopup="dialog" aria-expanded="@(FilterExpanded ? "true" : "false")" @onclick="OpenFilter" @onmousedown:stopPropagation="true">▾</button>
 }
 @if (Context.Active && Validation is { HasDropDown: true })
 {
@@ -66,7 +66,21 @@
         }
     }
 
+    [Parameter]
+    public bool FilterExpanded { get; set; }
+
     private SheetRegion? FilterRegion => SheetFilterRules.RegionAt(Context.Sheet, Context.RowIndex, Context.ColumnIndex);
+
+    private string FilterLabel
+    {
+        get
+        {
+            var region = FilterRegion;
+            var header = region == null ? null : Context.Sheet.FindCell(region.Value.Top, Context.ColumnIndex)?.Text;
+            var name = SheetRef.ColumnName(Context.ColumnIndex);
+            return string.IsNullOrEmpty(header) ? name + " 필터" : name + " " + header + " 필터";
+        }
+    }
 
     private Task OpenList(MouseEventArgs e) => OnMenu.InvokeAsync(new SheetMenuRequest("validation", Context.RowIndex, Context.ColumnIndex, e.ClientX, e.ClientY));
 

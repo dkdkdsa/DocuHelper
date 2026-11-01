@@ -14,7 +14,7 @@ namespace DocuHelperEditor.State.Papers
 
             var allowed = rule.Type switch
             {
-                SheetValidationType.List => rule.Items.Count == 0 || rule.Items.Any(item => string.Equals(item, text, StringComparison.OrdinalIgnoreCase)),
+                SheetValidationType.List => !rule.ItemsResolved || rule.Items.Any(item => string.Equals(item, text, StringComparison.OrdinalIgnoreCase)),
                 SheetValidationType.Whole => Number(text, true, out var whole) && Within(rule, whole),
                 SheetValidationType.Decimal => Number(text, false, out var value) && Within(rule, value),
                 SheetValidationType.TextLength => Within(rule, text.Length),

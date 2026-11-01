@@ -4,7 +4,7 @@
         @for (var level = 1; level <= Levels; level++)
         {
             var number = level;
-            <button type="button" class="lv" tabindex="-1" aria-label="윤곽 수준 @number" title="윤곽 수준 @(number)까지 보기" @onclick="() => OnLevel.InvokeAsync(number)" @onmousedown:stopPropagation="true">@number</button>
+            <button type="button" class="lv" aria-label="윤곽 수준 @number" title="윤곽 수준 @(number)까지 보기" @onclick="() => OnLevel.InvokeAsync(number)" @onmousedown:stopPropagation="true">@number</button>
         }
     </span>
 }

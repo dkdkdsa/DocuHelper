@@ -38,7 +38,10 @@ namespace DocuHelperEditor.State.Mapping
                     ErrorMessage = item.Error?.Value,
                 };
                 if (rule.IsList)
-                    rule.Items = ListItems(context, rule.Formula1);
+                {
+                    rule.Items = ListItems(context, rule.Formula1, out var resolved);
+                    rule.ItemsResolved = resolved;
+                }
 
                 context.View.Validations.Add(rule);
                 var index = context.View.Validations.Count - 1;
@@ -66,9 +69,10 @@ namespace DocuHelperEditor.State.Mapping
             return ranges;
         }
 
-        private static List<string> ListItems(ExcelFeatureContext context, string formula)
+        private static List<string> ListItems(ExcelFeatureContext context, string formula, out bool resolved)
         {
             var items = new List<string>();
+            resolved = false;
             if (string.IsNullOrEmpty(formula))
                 return items;
 
@@ -77,11 +81,14 @@ namespace DocuHelperEditor.State.Mapping
                 foreach (var text in formula.Trim('"').Split(','))
                     items.Add(text.Trim());
 
+                resolved = true;
                 return items;
             }
 
             if (!CellRange.TryParse(formula.Replace("$", string.Empty), out var range))
                 return items;
+
+            resolved = true;
 
             for (var row = range.Top; row <= range.Bottom; row++)
             {

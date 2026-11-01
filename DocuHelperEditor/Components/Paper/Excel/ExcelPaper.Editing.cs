@@ -22,6 +22,12 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (e.IsComposing)
                 return;
 
+            if (e.AltKey && e.Key == "ArrowDown" && !_editInCell)
+            {
+                OpenFilterFromKeyboard();
+                return;
+            }
+
             if (_editInCell)
             {
                 switch (e.Key)

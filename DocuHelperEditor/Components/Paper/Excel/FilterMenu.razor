@@ -1,12 +1,15 @@
+@implements IAsyncDisposable
 @using System
 @using System.Collections.Generic
 @using System.Globalization
 @using System.Linq
+@using System.Threading.Tasks
 @using Microsoft.AspNetCore.Components.Web
-@using DocuHelperEditor.State.Papers
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
 
-<div class="scrim" @onclick="OnClose"></div>
-<div class="fm" role="dialog" aria-label="@Header 필터" style="@Position" @onkeydown="HandleKey">
+<div class="scrim" @onclick="() => OnClose.InvokeAsync()"></div>
+<div class="fm" @ref="_card" id="@CardId" role="dialog" aria-modal="true" aria-label="@Header 필터">
     <button type="button" class="item" @onclick="() => OnSort.InvokeAsync(false)">오름차순 정렬</button>
     <button type="button" class="item" @onclick="() => OnSort.InvokeAsync(true)">내림차순 정렬</button>
     @if (Active)
@@ -14,32 +17,54 @@
         <button type="button" class="item" @onclick="() => OnClear.InvokeAsync()">필터 지우기</button>
     }
     <div class="rule" role="separator"></div>
-    <input class="search" type="search" aria-label="검색" placeholder="검색" value="@_search" @oninput="OnSearch" />
-    <label class="check all">
-        <input type="checkbox" checked="@AllChecked" @onchange="ToggleAll" />
-        <span>(모두 선택)</span>
-    </label>
-    <div class="values" role="group" aria-label="값 목록">
-        @foreach (var value in Visible)
+    <input id="@SearchId" class="search" type="search" aria-label="검색" placeholder="검색" value="@_search" @oninput="OnSearch" />
+    @if (Visible.Count == 0)
+    {
+        <p class="note" role="status">맞는 값이 없어요</p>
+    }
+    else
+    {
+        <label class="check all">
+            <input type="checkbox" checked="@AllVisibleChecked" @onchange="ToggleAll" />
+            <span>(모두 선택)</span>
+        </label>
+        <div class="values" role="group" aria-label="값 목록">
+            @foreach (var value in Visible.Take(DisplayLimit))
+            {
+                var text = value;
+                <label class="check">
+                    <input type="checkbox" checked="@_selected.Contains(text)" @onchange="e => Toggle(text, e)" />
+                    <span class="v" title="@text">@text</span>
+                </label>
+            }
+        </div>
+        @if (Visible.Count > DisplayLimit)
         {
-            var text = value;
-            <label class="check">
-                <input type="checkbox" checked="@_selected.Contains(text)" @onchange="e => Toggle(text, e)" />
-                <span>@text</span>
-            </label>
+            <p class="note">맞는 값이 @Visible.Count.ToString(CultureInfo.InvariantCulture)개 있어요. 검색으로 줄여 주세요.</p>
         }
-    </div>
+    }
     @if (Truncated)
     {
-        <p class="note">값이 많아서 앞의 @Values.Count.ToString(CultureInfo.InvariantCulture)개만 보여요.</p>
+        <p class="note warn" role="status">값이 @FilterValueLimit.ToString(CultureInfo.InvariantCulture)개를 넘어서 필터를 적용할 수 없어요. 칸 범위를 좁혀 주세요.</p>
+    }
+    else if (_selected.Count == 0)
+    {
+        <p class="note warn" role="status">선택한 값이 없어요</p>
     }
     <div class="actions">
         <button type="button" class="cancel" @onclick="() => OnClose.InvokeAsync()">취소</button>
-        <button type="button" class="ok" @onclick="Apply">확인</button>
+        <button type="button" class="ok" disabled="@ApplyDisabled" @onclick="Apply">확인</button>
     </div>
 </div>
 
 @code {
+    private const int DisplayLimit = 200;
+    private const int FilterValueLimit = 5000;
+    private const string ModulePath = "./Components/Paper/Excel/FilterMenu.razor.js";
+
+    private ElementReference _card;
+    private IJSObjectReference _module;
+    private DotNetObjectReference<FilterMenu> _self;
     private string _search = string.Empty;
     private HashSet<string> _selected = new(StringComparer.Ordinal);
     private IReadOnlyList<string> _loaded;
@@ -52,6 +77,9 @@
 
     [Parameter]
     public double Y { get; set; }
+
+    [Parameter]
+    public string AnchorId { get; set; }
 
     [Parameter]
     public IReadOnlyList<string> Values { get; set; } = Array.Empty<string>();
@@ -77,13 +105,26 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
-    private string Position => "left: " + X.ToString(CultureInfo.InvariantCulture) + "px; top: " + Y.ToString(CultureInfo.InvariantCulture) + "px";
+    private readonly string _id = "fm" + Guid.NewGuid().ToString("N").Substring(0, 8);
 
-    private IEnumerable<string> Visible => string.IsNullOrEmpty(_search)
-        ? Values
-        : Values.Where(value => value.Contains(_search, StringComparison.OrdinalIgnoreCase));
+    private string CardId => _id;
 
-    private bool AllChecked => Values.All(value => _selected.Contains(value));
+    private string SearchId => _id + "-search";
+
+    private List<string> Visible => string.IsNullOrEmpty(_search)
+        ? Values.ToList()
+        : Values.Where(value => value.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private bool AllVisibleChecked
+    {
+        get
+        {
+            var visible = Visible.ToList();
+            return visible.Count > 0 && visible.All(value => _selected.Contains(value));
+        }
+    }
+
+    private bool ApplyDisabled => Truncated || _selected.Count == 0;
 
     protected override void OnParametersSet()
     {
@@ -93,6 +134,19 @@
         _loaded = Values;
         _selected = new HashSet<string>(Checked, StringComparer.Ordinal);
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        _self = DotNetObjectReference.Create(this);
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+        await _module.InvokeVoidAsync("attach", _card, _self, SearchId, X, Y, AnchorId);
+    }
+
+    [JSInvokable]
+    public Task CloseFromKeyboard() => OnClose.InvokeAsync();
 
     private void OnSearch(ChangeEventArgs e) => _search = e.Value?.ToString() ?? string.Empty;
 
@@ -106,10 +160,29 @@
 
     private void ToggleAll(ChangeEventArgs e)
     {
-        _selected = e.Value is true ? new HashSet<string>(Values, StringComparer.Ordinal) : new HashSet<string>(StringComparer.Ordinal);
+        foreach (var value in Visible.ToList())
+        {
+            if (e.Value is true)
+                _selected.Add(value);
+            else
+                _selected.Remove(value);
+        }
     }
 
-    private Task Apply() => OnApply.InvokeAsync(AllChecked ? null : _selected.ToList());
+    private Task Apply()
+    {
+        var everything = Values.All(value => _selected.Contains(value));
+        return OnApply.InvokeAsync(everything ? null : _selected.ToList());
+    }
 
-    private Task HandleKey(KeyboardEventArgs e) => e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
+    public async ValueTask DisposeAsync()
+    {
+        if (_module != null)
+        {
+            await _module.InvokeVoidAsync("detach", _card);
+            await _module.DisposeAsync();
+        }
+
+        _self?.Dispose();
+    }
 }

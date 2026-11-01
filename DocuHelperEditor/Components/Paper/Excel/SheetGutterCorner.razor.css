@@ -23,3 +23,8 @@
 .lv:hover {
     background: var(--paper-2);
 }
+
+.lv:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+}

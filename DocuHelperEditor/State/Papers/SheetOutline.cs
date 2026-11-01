@@ -39,6 +39,6 @@ namespace DocuHelperEditor.State.Papers
             return groups;
         }
 
-        public static bool IsExpanded(Sheet sheet, OutlineGroup group) => !sheet.Rows[group.First].Hidden;
+        public static bool IsExpanded(Sheet sheet, OutlineGroup group) => !sheet.Rows[group.Summary].Collapsed;
     }
 }
