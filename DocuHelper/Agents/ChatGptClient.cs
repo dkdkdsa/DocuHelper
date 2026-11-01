@@ -19,8 +19,7 @@ namespace DocuHelper.Agents
 
         public ChatGptClient()
         {
-            var configured = Environment.GetEnvironmentVariable(BaseUrlVariable);
-            _baseUrl = (string.IsNullOrWhiteSpace(configured) ? DefaultBaseUrl : configured.Trim()).TrimEnd('/');
+            _baseUrl = BaseUrl();
         }
 
         public async Task<ChatGptReply> PostAsync(string apiKey, string path, JsonObject body, CancellationToken cancellationToken)
@@ -38,12 +37,42 @@ namespace DocuHelper.Agents
             return await SendAsync(request, apiKey, cancellationToken);
         }
 
+        private static string BaseUrl()
+        {
+#if DEBUG
+            var configured = Environment.GetEnvironmentVariable(BaseUrlVariable);
+            if (!string.IsNullOrWhiteSpace(configured))
+                return configured.Trim().TrimEnd('/');
+#endif
+            return DefaultBaseUrl;
+        }
+
         private static async Task<ChatGptReply> SendAsync(HttpRequestMessage request, string apiKey, CancellationToken cancellationToken)
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
             using var response = await s_http.SendAsync(request, cancellationToken);
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new ChatGptReply { Status = response.StatusCode, Body = body };
+            return new ChatGptReply
+            {
+                Status = response.StatusCode,
+                Body = body,
+                RetryAfter = RetryAfterOf(response),
+            };
+        }
+
+        private static TimeSpan? RetryAfterOf(HttpResponseMessage response)
+        {
+            var retry = response.Headers.RetryAfter;
+            if (retry == null)
+                return null;
+
+            if (retry.Delta is TimeSpan delta)
+                return delta;
+
+            if (retry.Date is DateTimeOffset date)
+                return date - DateTimeOffset.UtcNow;
+
+            return null;
         }
     }
 }

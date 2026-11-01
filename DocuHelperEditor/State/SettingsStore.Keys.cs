@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,8 +35,6 @@ namespace DocuHelperEditor.State
 
         public bool IsConfigured => HasKey(AgentProvider.Claude) || HasKey(AgentProvider.OpenAi);
 
-        private AgentRouter Router => _workspace.Agent as AgentRouter ?? throw new InvalidOperationException("도우미가 연결되지 않았어요.");
-
         public KeySlot SlotFor(AgentProvider provider) => _slots[provider];
 
         public string KeyFor(AgentProvider provider) => _slots[provider].Key;
@@ -66,9 +65,9 @@ namespace DocuHelperEditor.State
             _draftState = KeyCheckState.Checking;
             Notify();
 
-            var ok = await CheckAsync(provider.Value, key);
+            var outcome = await CheckAsync(provider.Value, key);
             if (_draftKey.Trim() == key)
-                _draftState = ok ? KeyCheckState.Ok : KeyCheckState.Failed;
+                _draftState = outcome;
 
             Notify();
         }
@@ -132,11 +131,18 @@ namespace DocuHelperEditor.State
             slot.NewState = KeyCheckState.Checking;
             Notify();
 
-            var ok = await CheckAsync(provider, key);
+            var outcome = await CheckAsync(provider, key);
             if (slot.NewKey.Trim() != key)
                 return false;
 
-            if (!ok || !WriteSecret(provider, key))
+            if (outcome != KeyCheckState.Ok)
+            {
+                slot.NewState = outcome;
+                Notify();
+                return false;
+            }
+
+            if (!WriteSecret(provider, key))
             {
                 slot.NewState = KeyCheckState.Failed;
                 Notify();
@@ -146,6 +152,26 @@ namespace DocuHelperEditor.State
             slot.Key = key;
             slot.State = KeyCheckState.Ok;
             slot.CheckedAt = DateTime.Now;
+            ResetEditing(slot);
+            WriteSettings();
+            Notify();
+            return true;
+        }
+
+        public bool SaveUnverifiedKey(AgentProvider provider)
+        {
+            var slot = SlotFor(provider);
+            var key = slot.NewKey.Trim();
+            if (AgentKeys.Detect(key) != provider || !WriteSecret(provider, key))
+            {
+                slot.NewState = KeyCheckState.Failed;
+                Notify();
+                return false;
+            }
+
+            slot.Key = key;
+            slot.State = KeyCheckState.Unverified;
+            slot.CheckedAt = null;
             ResetEditing(slot);
             WriteSettings();
             Notify();
@@ -162,11 +188,11 @@ namespace DocuHelperEditor.State
             slot.State = KeyCheckState.Checking;
             Notify();
 
-            var ok = await CheckAsync(provider, key);
+            var outcome = await CheckAsync(provider, key);
             if (slot.Key == key)
             {
-                slot.State = ok ? KeyCheckState.Ok : KeyCheckState.Failed;
-                if (ok)
+                slot.State = outcome;
+                if (outcome == KeyCheckState.Ok)
                 {
                     slot.CheckedAt = DateTime.Now;
                     WriteSettings();
@@ -198,7 +224,7 @@ namespace DocuHelperEditor.State
             {
                 _secrets?.Delete(SecretName(provider));
             }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is CryptographicException)
             {
                 AppLog.Write("Could not delete the key", e);
                 Notify();
@@ -294,19 +320,35 @@ namespace DocuHelperEditor.State
             }
         }
 
-        private async Task<bool> CheckAsync(AgentProvider provider, string key)
+        private async Task<KeyCheckState> CheckAsync(AgentProvider provider, string key)
         {
             try
             {
                 using var timeout = new CancellationTokenSource(s_checkTimeout);
-                await Router.VerifyKeyAsync(provider, key, timeout.Token);
-                return true;
+                await VerifyWithAgentAsync(provider, key, timeout.Token);
+                return KeyCheckState.Ok;
+            }
+            catch (AgentUnverifiedKeyException e)
+            {
+                AppLog.Write("Key could not be verified", e);
+                return KeyCheckState.Unverified;
             }
             catch (Exception e)
             {
                 AppLog.Write("Key check failed", e);
-                return false;
+                return KeyCheckState.Failed;
             }
+        }
+
+        private Task VerifyWithAgentAsync(AgentProvider provider, string key, CancellationToken cancellationToken)
+        {
+            if (_workspace.Agent is AgentRouter router)
+                return router.VerifyKeyAsync(provider, key, cancellationToken);
+
+            if (provider == AgentProvider.Claude && _workspace.Agent != null)
+                return _workspace.Agent.VerifyKeyAsync(key, cancellationToken);
+
+            throw new AgentUnverifiedKeyException("지금은 이 열쇠를 확인할 수 없어요. 그대로 저장할까요?");
         }
 
         private bool WriteSecret(AgentProvider provider, string key)
@@ -316,7 +358,7 @@ namespace DocuHelperEditor.State
                 _secrets?.Save(SecretName(provider), key);
                 return true;
             }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is CryptographicException)
             {
                 AppLog.Write("Could not save the key", e);
                 return false;
