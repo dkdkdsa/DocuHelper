@@ -7,6 +7,9 @@ namespace DocuHelperEditor.State.Papers
     {
         public const int MinZoom = 50;
         public const int MaxZoom = 200;
+        public const int DefaultRowLimit = 100;
+        public const int RowStep = 1000;
+        public const int MaxRows = 1048576;
 
         private readonly Dictionary<string, SheetView> _sheets = new(StringComparer.Ordinal);
 
@@ -21,6 +24,10 @@ namespace DocuHelperEditor.State.Papers
         public int ZoomOf(string sheet) => Of(sheet).Zoom;
 
         public void SetZoom(string sheet, int zoom) => Of(sheet).Zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+
+        public int RowLimitOf(string sheet) => Of(sheet).RowLimit;
+
+        public void SetRowLimit(string sheet, int limit) => Of(sheet).RowLimit = Math.Clamp(limit, DefaultRowLimit, MaxRows);
 
         public void Seed(string sheet, string mode, int zoom)
         {
@@ -44,6 +51,8 @@ namespace DocuHelperEditor.State.Papers
             public string Mode { get; set; } = SheetViewMode.Normal;
 
             public int Zoom { get; set; } = 100;
+
+            public int RowLimit { get; set; } = DefaultRowLimit;
         }
     }
 }

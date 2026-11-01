@@ -43,6 +43,9 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (IsEditing && !CommitEdit())
                 return;
 
+            if (SheetRef.TryParse(cellRef, out _, out var targetRow))
+                GrowRowsTo(targetRow);
+
             _editError = null;
             sheet = CurrentSheet;
             sheet.SelectedRef = cellRef;
@@ -55,6 +58,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (IsEditing && !CommitEdit())
                 return;
 
+            GrowRowsTo(region.Bottom);
             var sheet = CurrentSheet;
             sheet.SelectedRef = SheetRef.Make(region.Left, region.Top);
             sheet.ExtentRef = region.IsSingle ? null : SheetRef.Make(region.Right, region.Bottom);

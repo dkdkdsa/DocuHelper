@@ -14,13 +14,25 @@ namespace DocuHelperEditor.State.Mapping
             view.SummaryBelow = properties?.SummaryBelow?.Value ?? true;
             view.SummaryRight = properties?.SummaryRight?.Value ?? true;
             var levels = 0;
-            for (var row = 0; row < view.Rows.Count; row++)
+            foreach (var element in context.Source.Data?.Elements<DocumentFormat.OpenXml.Spreadsheet.Row>() ?? Enumerable.Empty<DocumentFormat.OpenXml.Spreadsheet.Row>())
             {
-                var source = context.Source.FindRow(row);
-                var target = view.Rows[row];
-                target.OutlineLevel = (int)(source?.OutlineLevel?.Value ?? 0);
-                target.Collapsed = source?.Collapsed?.Value == true;
-                levels = Math.Max(levels, target.OutlineLevel);
+                var level = (int)(element.OutlineLevel?.Value ?? 0);
+                var collapsed = element.Collapsed?.Value == true;
+                if (level == 0 && !collapsed)
+                    continue;
+
+                var index = (int)(element.RowIndex?.Value ?? 1) - 1;
+                if (index < 0 || index >= view.Rows.Count)
+                    continue;
+
+                var target = view.Rows.Ensure(index);
+                target.OutlineLevel = level;
+                target.Collapsed = collapsed;
+                levels = Math.Max(levels, level);
+            }
+
+            foreach (var (_, target) in view.Rows.Entries)
+            {
                 if (target.Cells.Any(cell => cell?.Formula != null && cell.Formula.Contains("SUBTOTAL(", StringComparison.OrdinalIgnoreCase)))
                     target.Kind = SheetRowKind.Total;
             }

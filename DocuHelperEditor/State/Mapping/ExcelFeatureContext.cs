@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using DocuHelper.Tools.Excel;
 using DocuHelperEditor.State.Papers;
 
@@ -51,10 +52,9 @@ namespace DocuHelperEditor.State.Mapping
 
         public IEnumerable<SheetCell> ExistingCells(SheetRegion region)
         {
-            var bottom = Math.Min(region.Bottom, View.Rows.Count - 1);
-            for (var row = Math.Max(region.Top, 0); row <= bottom; row++)
+            foreach (var (_, row) in View.Rows.Entries.Where(entry => entry.Index >= Math.Max(region.Top, 0) && entry.Index <= region.Bottom))
             {
-                var cells = View.Rows[row].Cells;
+                var cells = row.Cells;
                 var right = Math.Min(region.Right, cells.Count - 1);
                 for (var column = Math.Max(region.Left, 0); column <= right; column++)
                     yield return cells[column];
