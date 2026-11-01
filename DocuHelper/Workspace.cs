@@ -283,7 +283,7 @@ namespace DocuHelper
             if (docu.IsLocked)
                 throw new InvalidOperationException("도우미가 고치는 중에는 저장할 수 없어요.");
 
-            var what = docu.Changes.Count > 0 ? $"도우미가 {docu.Changes.Count}곳 고친 걸 저장함" : "고친 걸 저장함";
+            var what = docu.Changes.Count > 0 ? $"저장함, 도우미가 {docu.Changes.Count}곳 고침" : "저장함, 직접 고침";
             var editor = GetEditor(docu);
             var target = editor.SavePath(docu);
             if (!string.Equals(target, docu.FilePath, StringComparison.OrdinalIgnoreCase))
