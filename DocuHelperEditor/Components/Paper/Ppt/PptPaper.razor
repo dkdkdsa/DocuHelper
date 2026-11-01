@@ -26,7 +26,7 @@
                 }
                 else
                 {
-                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @((560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture))px">
+                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @SlideMax">
                         @if (_ribbon.Rulers)
                         {
                             <span class="corner" aria-hidden="true"></span>
@@ -67,7 +67,7 @@
         {
             <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
         }
-        <PptStatusBar Model="_model" State="_ribbon" Commands="_ribbonHost?.Commands" SorterOpen="Sorter" OnToggleSorter="ToggleSorter" />
+        <PptStatusBar Model="_model" State="_ribbon" Commands="_ribbonHost?.Commands" SorterOpen="Sorter" OnToggleSorter="ToggleSorter" OnZoom="SetZoom" />
         <PptDialogHost Presenter="_presenter" />
         <ChangeNavigator File="File" />
     </div>
@@ -280,7 +280,13 @@
         _ribbon.View = on ? "sorter" : "normal";
     }
 
-    private void SetZoom(int value) => _ribbon.Zoom = Math.Clamp(value, PptRibbonState.MinZoom, PptRibbonState.MaxZoom);
+    private void SetZoom(int value)
+    {
+        _ribbon.Zoom = Math.Clamp(value, PptRibbonState.MinZoom, PptRibbonState.MaxZoom);
+        _ribbon.FitRequested = false;
+    }
+
+    private string SlideMax => _ribbon.FitRequested ? "100%" : (560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture) + "px";
 
     private void PickSlide(int index)
     {

@@ -23,6 +23,9 @@
     [Parameter]
     public EventCallback OnToggleSorter { get; set; }
 
+    [Parameter]
+    public EventCallback<int> OnZoom { get; set; }
+
     protected override void OnParametersSet() => _selection = PptRibbonSelection.From(Model);
 
     private PptRibbonSelection Selection => _selection ?? new PptRibbonSelection();
@@ -53,7 +56,7 @@
         await Command("ppt.view.normal");
     }
 
-    private Task SetZoomAsync(int value) => Commands?.InvokeAsync("ppt.view.zoom", Text(value)) ?? Task.CompletedTask;
+    private Task SetZoomAsync(int value) => OnZoom.InvokeAsync(value);
 
     private RenderFragment Left => __builder =>
     {
