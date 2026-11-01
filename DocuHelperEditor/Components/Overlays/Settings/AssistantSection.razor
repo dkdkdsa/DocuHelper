@@ -1,0 +1,82 @@
+﻿<section aria-labelledby="settings-ai-h">
+    <h2 id="settings-ai-h">도우미</h2>
+    <p class="lead">입력창 아래에서 바꾼 것도 여기에 같이 바뀌어요.</p>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">기본 모델</span>
+            <span class="row-note">비용은 Sonnet 5.5 기준이에요.</span>
+        </div>
+        <fieldset class="row-body options">
+            <legend class="sr-only">기본 모델</legend>
+            @foreach (var model in AssistantModels.Models)
+            {
+                <RadioOption @key="model.Id" Group="settings-model" Value="@model.Id" Class="compact" Selected="@(Settings.ModelId == model.Id)" OnSelect="Settings.SetModel">
+                    <span class="opt-line">
+                        <span class="opt-name">@model.Name</span>
+                        @if (model.IsDefault)
+                        {
+                            <span class="default-tag">기본</span>
+                        }
+                        <span class="opt-cost">@model.Cost</span>
+                    </span>
+                    <span class="opt-note">@model.Description</span>
+                </RadioOption>
+            }
+        </fieldset>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">기본 노력</span>
+            <span class="row-note">도우미가 얼마나 깊이 생각할지예요.</span>
+        </div>
+        <fieldset class="row-body options">
+            <legend class="sr-only">기본 노력</legend>
+            @foreach (var effort in AssistantModels.Efforts)
+            {
+                <RadioOption @key="effort.Id" Group="settings-effort" Value="@effort.Id" Class="compact" Selected="@(Settings.EffortId == effort.Id)" OnSelect="Settings.SetEffort">
+                    <span class="opt-line">
+                        <span class="opt-name">@effort.Name</span>
+                        @if (effort.IsDefault)
+                        {
+                            <span class="default-tag">기본</span>
+                        }
+                    </span>
+                    <span class="opt-note">@effort.Description</span>
+                </RadioOption>
+            }
+        </fieldset>
+    </div>
+
+    <div class="row center">
+        <div class="row-head">
+            <label for="settings-ask" class="row-title">큰 변경은 먼저 물어보기</label>
+            <span id="settings-ask-d" class="row-note">한 번에 20곳 넘게 바꿀 때 시작하기 전에 확인해요.</span>
+        </div>
+        <div class="row-body switch-row">
+            <input type="checkbox" role="switch" id="settings-ask" class="switch" checked="@Settings.AskBigChanges" aria-describedby="settings-ask-d" @onchange="e => Settings.SetAskBigChanges(IsOn(e))" />
+            <span class="switch-text" aria-hidden="true">@OnOff(Settings.AskBigChanges)</span>
+        </div>
+    </div>
+
+    <div class="row center">
+        <div class="row-head">
+            <label for="settings-track" class="row-title">워드 변경 내용 추적으로도 남기기</label>
+            <span id="settings-track-d" class="row-note">켜면 도우미가 고친 곳이 워드의 ‘변경 내용 추적’에도 남아요.</span>
+        </div>
+        <div class="row-body switch-row">
+            <input type="checkbox" role="switch" id="settings-track" class="switch" checked="@Settings.TrackChanges" aria-describedby="settings-track-d" @onchange="e => Settings.SetTrackChanges(IsOn(e))" />
+            <span class="switch-text" aria-hidden="true">@OnOff(Settings.TrackChanges)</span>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public SettingsStore Settings { get; set; }
+
+    private static bool IsOn(ChangeEventArgs e) => e.Value is bool on ? on : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+    private static string OnOff(bool on) => on ? "켜짐" : "꺼짐";
+}

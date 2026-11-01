@@ -1,0 +1,71 @@
+﻿<section aria-labelledby="settings-folder-h">
+    <h2 id="settings-folder-h">작업 폴더</h2>
+    <p class="lead">작업 폴더를 어디에 만들고, 켤 때 무엇부터 보여 줄지예요.</p>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">새 작업 폴더를 만들 곳</span>
+            <span class="row-note">작업 폴더 고르기 화면에서 만들 때 쓰여요.</span>
+        </div>
+        <div class="row-body inline">
+            <p class="path">
+                <Icon Name="folder" Size="16" />
+                <span>@Settings.WorkspaceRoot</span>
+            </p>
+            <ActionButton Kind="ButtonKind.Secondary" aria-label="만들 곳 바꾸기" OnClick="Settings.ChangeWorkspaceRootAsync">바꾸기</ActionButton>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">켤 때</span>
+            <span class="row-note">처음 시작 화면은 열쇠가 없을 때만 나와요.</span>
+        </div>
+        <fieldset class="row-body options">
+            <legend class="sr-only">켤 때</legend>
+            <RadioOption Group="settings-start" Value="pick" Class="compact" Selected="@(!Settings.OpenLastFolder)" OnSelect="_ => Settings.SetOpenLastFolder(false)">
+                <span class="opt-line">
+                    <span class="opt-name">작업 폴더 고르기부터</span>
+                    <span class="default-tag">기본</span>
+                </span>
+                <span class="opt-note">최근에 연 폴더 목록이 먼저 떠요</span>
+            </RadioOption>
+            <RadioOption Group="settings-start" Value="last" Class="compact" Selected="@Settings.OpenLastFolder" OnSelect="_ => Settings.SetOpenLastFolder(true)">
+                <span class="opt-line">
+                    <span class="opt-name">마지막 작업 폴더 바로 열기</span>
+                </span>
+                <span class="opt-note">고르기 화면은 파일 목록 위 바꾸기 버튼으로 열어요</span>
+            </RadioOption>
+        </fieldset>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">최근 목록</span>
+            <span class="row-note">목록만 비워요. 폴더와 파일은 그대로 있어요.</span>
+        </div>
+        <div class="row-body">
+            <ActionButton Kind="ButtonKind.Secondary" Disabled="@(Workspace.RecentFolders.Count == 0 && RecentsCleared)" OnClick="ClearRecents">목록 비우기</ActionButton>
+            @if (RecentsCleared)
+            {
+                <p class="done" role="status">최근 목록을 비웠어요.</p>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public SettingsStore Settings { get; set; }
+
+    [Parameter]
+    public WorkspaceStore Workspace { get; set; }
+
+    [Parameter]
+    public bool RecentsCleared { get; set; }
+
+    [Parameter]
+    public EventCallback OnClearRecents { get; set; }
+
+    private Task ClearRecents() => OnClearRecents.InvokeAsync();
+}

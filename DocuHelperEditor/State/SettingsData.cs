@@ -1,4 +1,6 @@
-﻿namespace DocuHelperEditor.State
+﻿using System;
+
+namespace DocuHelperEditor.State
 {
     public class SettingsData
     {
@@ -19,5 +21,9 @@
         public bool HwpNewAsHwp { get; set; }
 
         public string TextSize { get; set; }
+
+        public DateTime? ClaudeCheckedAt { get; set; }
+
+        public DateTime? OpenAiCheckedAt { get; set; }
     }
 }

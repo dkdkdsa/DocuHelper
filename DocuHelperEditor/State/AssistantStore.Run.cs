@@ -205,7 +205,8 @@ namespace DocuHelperEditor.State
             {
                 var request = new AgentRequest
                 {
-                    ApiKey = _settings.ApiKey,
+                    Provider = _settings.Model.Provider,
+                    ApiKey = _settings.KeyFor(_settings.Model.Provider),
                     Prompt = prompt,
                     ActiveFile = _workspace.ActiveFile?.Name,
                     Selection = _workspace.SelectionLabel,

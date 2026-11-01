@@ -1,0 +1,45 @@
+﻿<section aria-labelledby="settings-view-h">
+    <h2 id="settings-view-h">화면</h2>
+    <p class="lead">메뉴와 대화 글자만 바뀌어요. 문서 안 글자는 그대로예요.</p>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">글자 크기</span>
+        </div>
+        <fieldset class="row-body options">
+            <legend class="sr-only">글자 크기</legend>
+            @foreach (var size in s_sizes)
+            {
+                <RadioOption @key="size.Id" Group="settings-size" Value="@size.Id" Class="compact size" Selected="@(Settings.TextSize == size.Id)" OnSelect="Settings.SetTextSize">
+                    <span class="opt-line">
+                        <span class="opt-name">@size.Name</span>
+                        @if (size.Id == SettingsStore.DefaultTextSize)
+                        {
+                            <span class="default-tag">기본</span>
+                        }
+                        <span class="sample" aria-hidden="true" style="font-size: @(size.Sample)px">가나다</span>
+                    </span>
+                </RadioOption>
+            }
+        </fieldset>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">움직임</span>
+        </div>
+        <p class="row-body text">윈도우의 ‘애니메이션 효과’ 설정을 따라요. 꺼 두면 형광펜도 그어지지 않고 바로 칠해져요.</p>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public SettingsStore Settings { get; set; }
+
+    private static readonly (string Id, string Name, int Sample)[] s_sizes =
+    {
+        ("m", "보통", 15),
+        ("l", "크게", 17),
+        ("xl", "아주 크게", 19),
+    };
+}
