@@ -154,6 +154,12 @@
     text-align: right;
 }
 
+.sheet tr.spacer td {
+    height: 0;
+    padding: 0;
+    border: 0;
+}
+
 .sheet tr.hx > th,
 .sheet tr.hx > td {
     height: var(--rh);
