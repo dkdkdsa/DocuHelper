@@ -22,7 +22,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private static WordRibbonState Create()
         {
-            var state = new WordRibbonState();
+            var state = new WordRibbonState { Dialogs = new WordDialogPresenter() };
             foreach (var feature in s_features)
                 state.Enable(feature);
 

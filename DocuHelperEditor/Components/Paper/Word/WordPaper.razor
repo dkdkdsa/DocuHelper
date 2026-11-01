@@ -1,5 +1,6 @@
 ﻿@using DocuHelperEditor.Components.Paper
 @using DocuHelperEditor.Components.Paper.Hwp
+@using DocuHelperEditor.Components.Paper.Word.Dialogs
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 
@@ -14,6 +15,7 @@
     }
 
     <WordPage File="File" />
+    <WordDialogHost File="File" />
     @if (File?.Type == DocuType.Hwp)
     {
         <ChangeNavigator File="File" />

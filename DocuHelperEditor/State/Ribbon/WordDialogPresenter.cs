@@ -1,0 +1,76 @@
+using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
+
+namespace DocuHelperEditor.State.Ribbon
+{
+    public sealed class WordDialogPresenter : IWordDialogPresenter
+    {
+        private static readonly IReadOnlyDictionary<string, JsonNode> s_none = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
+
+        private WordDialogRequest _active;
+
+        public event Action<WordDialogRequest> Requested;
+
+        public bool CanOpen(string commandId, string dialogName) =>
+            dialogName == null || WordNamedDialogs.TryGet(commandId, dialogName, out _);
+
+        public Task<IReadOnlyDictionary<string, JsonNode>> AskFieldsAsync(string commandId, WordDialogSpec spec, IReadOnlyDictionary<string, JsonNode> defaults) =>
+            OpenAsync(spec.Title, spec.Fields, defaults ?? s_none, null);
+
+        public async Task<JsonObject> AskArgsAsync(string commandId, string dialogName, JsonObject current)
+        {
+            if (!WordNamedDialogs.TryGet(commandId, dialogName, out var dialog))
+                return null;
+
+            var values = await OpenAsync(dialog.Title, dialog.Fields, DefaultsOf(dialog.Fields), dialog.Validate);
+            return values == null ? null : dialog.Build(values);
+        }
+
+        public static IReadOnlyDictionary<string, JsonNode> DefaultsOf(IEnumerable<WordDialogField> fields)
+        {
+            var defaults = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
+            foreach (var field in fields)
+            {
+                if (string.IsNullOrEmpty(field.Default))
+                    continue;
+
+                try
+                {
+                    defaults[field.Name] = JsonNode.Parse(field.Default);
+                }
+                catch (JsonException)
+                {
+                }
+            }
+
+            return defaults;
+        }
+
+        private Task<IReadOnlyDictionary<string, JsonNode>> OpenAsync(string title, IReadOnlyList<WordDialogField> fields, IReadOnlyDictionary<string, JsonNode> defaults, Func<IReadOnlyDictionary<string, JsonNode>, string> validate)
+        {
+            if (_active != null)
+                return Task.FromResult<IReadOnlyDictionary<string, JsonNode>>(null);
+
+            var request = new WordDialogRequest(title, fields, defaults, validate);
+            _active = request;
+            Requested?.Invoke(request);
+            return Completed(request);
+        }
+
+        private async Task<IReadOnlyDictionary<string, JsonNode>> Completed(WordDialogRequest request)
+        {
+            try
+            {
+                return await request.Completion.Task;
+            }
+            finally
+            {
+                if (ReferenceEquals(_active, request))
+                    _active = null;
+            }
+        }
+    }
+}

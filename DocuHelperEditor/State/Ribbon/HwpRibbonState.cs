@@ -14,7 +14,7 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly HashSet<string> _features = new HashSet<string>(StringComparer.Ordinal);
         private int _zoom = 100;
 
-        public static HwpRibbonState Of(WorkspaceFile file) => file == null ? null : s_states.GetValue(file, _ => new HwpRibbonState());
+        public static HwpRibbonState Of(WorkspaceFile file) => file == null ? null : s_states.GetValue(file, _ => new HwpRibbonState { Dialogs = new WordDialogPresenter() });
 
         public event Action Changed;
 
