@@ -29,6 +29,7 @@ namespace DocuHelperEditor.State.Ribbon
             "fitMulti",
             "fitWidth",
             "goToPage",
+            "goToBlock",
         };
 
         private static readonly Dictionary<string, string> s_features = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -123,9 +124,14 @@ namespace DocuHelperEditor.State.Ribbon
                 case "openNavigation":
                     State.NavOpen = true;
                     State.NavPane = Text(args, "pane") ?? "res";
+                    State.SearchFocus = Text(args, "focus") == "search";
                     break;
                 case "search":
                     State.SearchText = Text(args, "query") ?? arg ?? string.Empty;
+                    State.SearchIndex = -1;
+                    break;
+                case "goToBlock":
+                    GoToBlock(Text(args, "id"));
                     break;
                 case "setMarkup":
                     State.MarkupMode = Text(args, "markup") ?? State.MarkupMode;
@@ -204,6 +210,16 @@ namespace DocuHelperEditor.State.Ribbon
 
             State.CurrentPage = page;
             State.PageTarget = page;
+        }
+
+        private void GoToBlock(string id)
+        {
+            var block = Model?.FindBlock(id);
+            if (block == null)
+                return;
+
+            State.CurrentPage = block.Page;
+            State.BlockTarget = block.Id;
         }
 
         private void SetPageMovement(JsonObject args)

@@ -27,7 +27,10 @@
     }
     else
     {
-        <WordPage File="File" />
+        <div class="stage">
+            <WordNavPane File="File" />
+            <WordPage File="File" />
+        </div>
     }
     <WordDialogHost File="File" />
     @if (File?.Type == DocuType.Hwp)

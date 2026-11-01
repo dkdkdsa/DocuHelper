@@ -119,6 +119,29 @@ namespace DocuHelperEditor.State
             return word == null ? Array.Empty<WordCharRange>() : new[] { new WordCharRange(word.BlockId, word.Start, word.End) };
         }
 
+        public static string SelectedText(WordPaperModel model, int limit = 200)
+        {
+            if (model == null || model.Selection == null || model.Selection.Kind == WordSelectionKind.None)
+                return string.Empty;
+
+            var targets = Targets(model, model.Selection);
+            if (targets.Count == 0)
+                return model.Selection.Kind == WordSelectionKind.Caret ? Limit(model.SelectedBlock?.PlainText ?? string.Empty, limit) : string.Empty;
+
+            var pieces = targets.Select(t => Slice(model.FindBlock(t.Id), t.Start, t.End)).Where(s => s.Length > 0);
+            return Limit(string.Join("\n", pieces), limit);
+        }
+
+        private static string Slice(WordBlockModel block, int start, int end)
+        {
+            var text = block?.Text ?? string.Empty;
+            var from = Math.Clamp(start, 0, text.Length);
+            var to = Math.Clamp(end, from, text.Length);
+            return text.Substring(from, to - from);
+        }
+
+        private static string Limit(string text, int limit) => text.Length <= limit ? text : text.Substring(0, limit) + "…";
+
         public static IReadOnlyList<WordCharRange> FormatRanges(WordPaperModel model, WordSelection selection)
         {
             var targets = Targets(model, selection);

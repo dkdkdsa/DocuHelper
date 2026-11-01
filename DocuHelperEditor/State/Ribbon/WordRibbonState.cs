@@ -11,7 +11,7 @@ namespace DocuHelperEditor.State.Ribbon
         public const int MinZoom = 50;
         public const int MaxZoom = 200;
 
-        private static readonly string[] s_features = { "views", "ruler", "grid" };
+        private static readonly string[] s_features = { "views", "ruler", "grid", "nav" };
 
         private static readonly ConditionalWeakTable<WorkspaceFile, WordRibbonState> s_states = new ConditionalWeakTable<WorkspaceFile, WordRibbonState>();
 
@@ -50,6 +50,12 @@ namespace DocuHelperEditor.State.Ribbon
         public int CurrentPage { get; set; } = 1;
 
         public string SearchText { get; set; } = string.Empty;
+
+        public int SearchIndex { get; set; } = -1;
+
+        public bool SearchFocus { get; set; }
+
+        public string BlockTarget { get; set; }
 
         public string MarkupMode { get; set; } = "all";
 

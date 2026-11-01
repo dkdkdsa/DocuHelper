@@ -130,6 +130,10 @@ window.docuHelper = (function () {
             var el = document.querySelector(selector);
             if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         },
+        focusById: function (id) {
+            var el = document.getElementById(id);
+            if (el) el.focus();
+        },
         prefersReducedMotion: function () {
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         }

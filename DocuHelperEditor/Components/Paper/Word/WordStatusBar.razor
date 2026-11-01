@@ -55,11 +55,7 @@
     {
         get
         {
-            var page = Model?.FindBlock(Model.SelectedBlockId)?.Page ?? 1;
-            if (Ribbon != null)
-                Ribbon.CurrentPage = page;
-
-            return page;
+            return Ribbon?.CurrentPage ?? 1;
         }
     }
 

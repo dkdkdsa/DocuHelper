@@ -312,14 +312,14 @@ namespace DocuHelperEditor.State.Ribbon
 
         private string PromptOf(HwpCommandSpec spec)
         {
-            var text = Block?.PlainText ?? string.Empty;
+            var text = WordSelectionService.SelectedText(Model);
             var prompt = _run?.Entry?.Prompt ?? (text.Length > 0 && spec.SelectionPrompt != null ? spec.SelectionPrompt : spec.Prompt) ?? string.Empty;
-            return prompt.Replace(SelectedTextMarker, text.Length > 24 ? text.Substring(0, 24) : text, StringComparison.Ordinal);
+            return prompt.Replace(SelectedTextMarker, text, StringComparison.Ordinal);
         }
 
         private string AssistantBlocker(HwpCommandSpec spec)
         {
-            if (spec.Prompt != null && spec.Prompt.Contains(SelectedTextMarker, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(Block?.PlainText))
+            if (spec.Prompt != null && spec.Prompt.Contains(SelectedTextMarker, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(WordSelectionService.SelectedText(Model)))
                 return SelectWordReason;
 
             return null;

@@ -1,0 +1,49 @@
+@using DocuHelperEditor.State.Papers
+
+<ol class="thumbs">
+    @foreach (var page in Model.Pages)
+    {
+        var number = page;
+        var current = number == Current;
+        <li>
+            <button type="button" class="thumb @(current ? "on" : null)" aria-current="@(current ? "page" : "false")" aria-label="@($"{number}쪽으로 이동")" @onclick="() => OnPick.InvokeAsync(number)">
+                <span class="mini" style="aspect-ratio: @Ratio;">
+                    @foreach (var width in LinesOf(number))
+                    {
+                        <span class="ln" style="width: @(width)%"></span>
+                    }
+                </span>
+                <span class="no">@(number)쪽</span>
+            </button>
+        </li>
+    }
+</ol>
+
+@code {
+    private const int MaxLines = 40;
+    private const int MinWidth = 18;
+
+    [Parameter]
+    public WordPaperModel Model { get; set; }
+
+    [Parameter]
+    public int Current { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnPick { get; set; }
+
+    private string Ratio => Model?.Layout == null ? "1 / 1.4142" : $"{Model.Layout.Width} / {Model.Layout.Height}";
+
+    private IEnumerable<int> LinesOf(int page)
+    {
+        var lines = 0;
+        foreach (var block in Model.BlocksOnPage(page))
+        {
+            if (lines++ >= MaxLines)
+                break;
+
+            var length = block.IsTable ? 60 : (block.PlainText ?? string.Empty).Length;
+            yield return length == 0 ? MinWidth : Math.Clamp(length * 2, MinWidth, 100);
+        }
+    }
+}

@@ -1,4 +1,4 @@
-@using DocuHelper.Docus
+﻿@using DocuHelper.Docus
 @using DocuHelper.Importers.Hwp
 @using DocuHelperEditor.Components.Ui
 @using DocuHelperEditor.State.Papers
@@ -30,24 +30,7 @@
         }
         else
         {
-            <ol class="thumbs">
-                @foreach (var page in Model.Pages)
-                {
-                    var number = page;
-                    var current = number == Ribbon.CurrentPage;
-                    <li>
-                        <button type="button" class="thumb @(current ? "on" : null)" aria-current="@(current ? "page" : "false")" aria-label="@($"{number}쪽으로 이동")" @onclick="() => GoToPageAsync(number)">
-                            <span class="mini" style="aspect-ratio: @Ratio;">
-                                @foreach (var width in LinesOf(number))
-                                {
-                                    <span class="ln" style="width: @(width)%"></span>
-                                }
-                            </span>
-                            <span class="no">@(number)쪽</span>
-                        </button>
-                    </li>
-                }
-            </ol>
+            <PageThumbnails Model="Model" Current="Ribbon.CurrentPage" OnPick="GoToPageAsync" />
         }
     </aside>
 }
@@ -81,25 +64,7 @@
         }
     }
 
-    private string Ratio => Model?.Layout == null ? "1 / 1.4142" : $"{Model.Layout.Width} / {Model.Layout.Height}";
-
     private static string IndentOf(int level) => $"padding-left: {Math.Max(0, level - 1) * 14}px";
-
-    private IEnumerable<int> LinesOf(int page)
-    {
-        var lines = 0;
-        foreach (var block in Model.BlocksOnPage(page))
-        {
-            if (lines++ >= MaxLines)
-                break;
-
-            var length = block.IsTable ? 60 : (block.PlainText ?? string.Empty).Length;
-            yield return length == 0 ? MinWidth : Math.Clamp(length * 2, MinWidth, 100);
-        }
-    }
-
-    private const int MaxLines = 40;
-    private const int MinWidth = 18;
 
     private async Task GoToPageAsync(int page)
     {

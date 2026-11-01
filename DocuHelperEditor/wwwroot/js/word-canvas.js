@@ -42,6 +42,10 @@ window.docuHelperWordCanvas = (function () {
                 observers.delete(canvas);
             }
         },
+        scrollToBlock: function (canvas, id) {
+            var target = canvas && canvas.querySelector('[data-block="' + id + '"]');
+            if (target) target.scrollIntoView({ block: 'start' });
+        },
         scrollToPage: function (canvas, page) {
             var target = canvas && canvas.querySelector('article[aria-label="' + page + '쪽"]');
             if (target) target.scrollIntoView({ block: 'start' });

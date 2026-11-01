@@ -237,13 +237,12 @@ namespace DocuHelperEditor.State.Ribbon
             if (!prompt.Contains(marker, StringComparison.Ordinal))
                 return prompt;
 
-            var text = Block?.PlainText ?? string.Empty;
-            return prompt.Replace(marker, text.Length > 24 ? text.Substring(0, 24) : text);
+            return prompt.Replace(marker, WordSelectionService.SelectedText(Model));
         }
 
         private string AssistantBlocker(WordCommandSpec spec)
         {
-            if (spec.Prompt != null && spec.Prompt.Contains("{선택한 글}", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(Block?.PlainText))
+            if (spec.Prompt != null && spec.Prompt.Contains("{선택한 글}", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(WordSelectionService.SelectedText(Model)))
                 return "비슷한 말을 찾을 문단을 먼저 눌러 골라 주세요.";
 
             return null;

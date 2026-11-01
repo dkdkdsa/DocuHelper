@@ -302,6 +302,22 @@
             }
         }
 
+        var blockTarget = Ribbon?.BlockTarget;
+        if (blockTarget != null && Ribbon != null)
+        {
+            Ribbon.BlockTarget = null;
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordCanvas.scrollToBlock", _canvas, blockTarget);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
         var changeId = Workspace.SelectedChangeId;
         var target = Model != null && IsLiveChange(changeId) && Model.HasChange(changeId) ? changeId : null;
         if (target == _scrolledChangeId && Workspace.ChangePickVersion == _scrolledPickVersion)
@@ -361,6 +377,8 @@
         model.SelectedBlockId = focus.Id;
         if (Hwp != null)
             Hwp.CurrentPage = focus.Page;
+        if (Ribbon != null)
+            Ribbon.CurrentPage = focus.Page;
         Workspace.SetSelection(model.Describe(focus));
     }
 
