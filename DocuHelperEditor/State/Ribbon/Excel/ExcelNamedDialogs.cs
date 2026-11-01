@@ -27,6 +27,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.GoalSeek] = context => GoalSeek(context),
             [ExcelDialogIds.PivotSummary] = context => PivotSummary(context),
             [ExcelDialogIds.Link] = context => Link(context),
+            [ExcelDialogIds.Note] = context => Note(context),
+            [ExcelDialogIds.NewNote] = context => Note(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -287,6 +289,29 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 AddText(args, "location", WordNamedDialogs.Text(values, "location"));
                 AddText(args, "text", WordNamedDialogs.Text(values, "text"));
                 AddText(args, "tooltip", WordNamedDialogs.Text(values, "tooltip"));
+                return args;
+            });
+
+        private static ExcelNamedDialog Note(ExcelDialogContext context) => new(
+            "edit_comment",
+            "메모",
+            new[]
+            {
+                WordNamedDialogs.Text("cell", "메모를 붙일 칸", context.Cell),
+                WordNamedDialogs.Text("text", "메모 내용", string.Empty),
+                WordNamedDialogs.Text("author", "작성자 (선택)", string.Empty),
+            },
+            values => Required(values, "text", "메모 내용"),
+            (values, context) =>
+            {
+                var args = new JsonObject
+                {
+                    ["sheet"] = context.Sheet,
+                    ["cell"] = WordNamedDialogs.Text(values, "cell").Trim(),
+                    ["action"] = "set",
+                    ["text"] = WordNamedDialogs.Text(values, "text").Trim(),
+                };
+                AddText(args, "author", WordNamedDialogs.Text(values, "author"));
                 return args;
             });
 

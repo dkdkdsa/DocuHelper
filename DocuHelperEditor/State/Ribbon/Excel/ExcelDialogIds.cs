@@ -13,5 +13,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string GoalSeek = "excel.data.whatif";
         public const string PivotSummary = "excel.insert.pivot";
         public const string Link = "excel.insert.link";
+        public const string Note = "excel.insert.note";
+        public const string NewNote = "excel.review.newnote";
     }
 }
