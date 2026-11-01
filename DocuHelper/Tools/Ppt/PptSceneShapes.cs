@@ -105,6 +105,7 @@ namespace DocuHelper.Tools.Ppt
             result.Geometry = Geometry(shape.ShapeProperties);
             result.Fill = Fill(shape.ShapeProperties, context.Part, context.Theme);
             result.Line = Line(shape.ShapeProperties, context.Theme);
+            ApplyStyle(result, shape, context.Theme);
             result.Shadow = Shadow(shape.ShapeProperties, context.Theme);
             result.Text = shape.TextBody == null ? null : TextOf(shape.TextBody, context);
             result.AltText = props?.Description?.Value;
@@ -384,6 +385,54 @@ namespace DocuHelper.Tools.Ppt
                 Head = line.GetFirstChild<A.HeadEnd>()?.Type?.InnerText,
                 Tail = line.GetFirstChild<A.TailEnd>()?.Type?.InnerText,
             };
+        }
+
+        private static void ApplyStyle(PptSceneShape result, P.Shape shape, PptThemeInfo theme)
+        {
+            var properties = shape.ShapeProperties;
+            var style = shape.ShapeStyle;
+            if (properties == null || style == null)
+                return;
+
+            var fillElement = StyleColorElement(style.FillReference);
+            if (fillElement != null && !HasExplicitFill(properties))
+            {
+                var color = PptColor.Resolve(fillElement, theme, (OpenXmlElement)null);
+                if (color != null)
+                    result.Fill = new PptSceneFill { Kind = "solid", Color = color, Alpha = PptColor.AlphaOf(fillElement) };
+            }
+
+            var outline = properties.GetFirstChild<A.Outline>();
+            if (outline?.GetFirstChild<A.NoFill>() != null)
+                return;
+
+            if (outline?.GetFirstChild<A.SolidFill>() != null)
+                return;
+
+            var lineElement = StyleColorElement(style.LineReference);
+            var lineColor = lineElement == null ? null : PptColor.Resolve(lineElement, theme, (OpenXmlElement)null);
+            if (lineColor == null)
+                return;
+
+            result.Line ??= new PptSceneLine { WidthPt = 0.75 };
+            result.Line.Color = lineColor;
+            result.Line.Alpha = PptColor.AlphaOf(lineElement);
+        }
+
+        private static bool HasExplicitFill(OpenXmlElement properties) =>
+            properties.GetFirstChild<A.NoFill>() != null
+            || properties.GetFirstChild<A.SolidFill>() != null
+            || properties.GetFirstChild<A.GradientFill>() != null
+            || properties.GetFirstChild<A.BlipFill>() != null
+            || properties.GetFirstChild<A.PatternFill>() != null;
+
+        private static OpenXmlElement StyleColorElement(OpenXmlElement reference)
+        {
+            if (reference == null)
+                return null;
+
+            var index = reference.GetAttributes().FirstOrDefault(a => a.LocalName == "idx").Value;
+            return int.TryParse(index, out var value) && value > 0 ? reference.GetFirstChild<OpenXmlElement>() : null;
         }
 
         private static PptSceneShadow Shadow(OpenXmlElement properties, PptThemeInfo theme)
