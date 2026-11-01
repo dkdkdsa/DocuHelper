@@ -65,6 +65,7 @@ namespace DocuHelper.Agents
                 },
                 "hint": {"type": "string", "description": "Optional one-line note under the question."},
                 "file": {"type": "string", "description": "The file the question is about, if any."},
+                "cells": {"type": "array", "description": "Excel only: the cells the question is about, such as B2 or '거래처 목록'!B2:B9. They get a pencil circle on the sheet. At most 10.", "items": {"type": "string"}},
                 "user_value": {"type": "string", "description": "conflict only: what the user typed by hand."},
                 "suggested_value": {"type": "string", "description": "conflict only: what you would put instead."},
                 "impacts": {
@@ -370,6 +371,7 @@ namespace DocuHelper.Agents
             };
             question.Choices.AddRange(ParseChoices(args));
             question.Impacts.AddRange(ParseImpacts(args));
+            question.Cells.AddRange(AskCells.Parse(args));
 
             var step = new AgentStep { Label = StepLabel(args, "여쭤보기"), FileName = question.FileName };
             host.OnStepStarted(step);

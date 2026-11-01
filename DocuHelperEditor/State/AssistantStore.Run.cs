@@ -121,7 +121,7 @@ namespace DocuHelperEditor.State
             if (IsPanelCollapsed)
                 HasUnseenResult = true;
 
-            _workspace.SetAskingFile(request.FileId);
+            _workspace.SetAsking(request.FileId, request.Cells);
             var answer = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             _answer = answer;
             Notify();
@@ -408,6 +408,7 @@ namespace DocuHelperEditor.State
                 Legend = "어떻게 할까요?",
                 MineValue = question.UserValue,
                 AssistantValue = question.SuggestedValue,
+                Cells = question.Cells.ToList(),
             };
 
             if (request.Kind == AskKind.BigChange)

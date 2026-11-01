@@ -33,6 +33,7 @@ namespace DocuHelper.Agents
             - which_file: only when two or more files could be the one the user means. With one candidate, just use it.
             - big_change: before a task would change more than 20 places in total; give the number of places per file in impacts.
             - conflict: when you would overwrite something the user changed by hand since your last look. Put the user's value in user_value and yours in suggested_value, and make keeping the user's value the first option.
+            - Excel: when the question is about specific cells, pass them in cells, such as B2 or '거래처 목록'!B2:B9 (at most 10).
             - choice: when the request is ambiguous in a way that changes the result, for example whether "한빛상사" and "(주)한빛상사" are the same company.
             """;
 
