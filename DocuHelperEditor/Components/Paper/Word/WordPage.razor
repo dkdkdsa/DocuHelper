@@ -7,15 +7,15 @@
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 
-<div class="pane">
+<div class="pane" style="@PaneStyle">
     @if (ShowRuler)
     {
-        <WordRuler Box="Box" Layout="RulerLayout" Vertical="false" />
+        <WordRuler Box="Box" Layout="RulerLayout" Vertical="false" Millimeters="IsHwp" />
     }
     <div class="row">
-        @if (ShowRuler)
+        @if (ShowVRuler)
         {
-            <WordRuler Box="Box" Layout="RulerLayout" Vertical="true" />
+            <WordRuler Box="Box" Layout="RulerLayout" Vertical="true" Millimeters="IsHwp" />
         }
         <div class="canvas @CanvasClass" style="@CanvasStyle" @ref="_canvas">
             @if (Model == null)
@@ -164,15 +164,23 @@
 
     private WordRibbonState Ribbon => File?.Type == DocuType.Hwp ? null : WordRibbonState.Of(File);
 
-    private string View => Ribbon?.View ?? "print";
+    private HwpRibbonState Hwp => File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File) : null;
+
+    private string View => Ribbon?.View ?? (Hwp?.PageOutline == false ? "draft" : "print");
 
     private bool Flow => View is "web" or "draft" or "outline";
 
     private bool Reading => View == "read";
 
-    private bool ShowRuler => Ribbon != null && Ribbon.Ruler && View == "print" && Model != null;
+    private bool ShowRuler => Model != null && View == "print" && (Ribbon?.Ruler ?? Hwp?.Ruler ?? false);
 
-    private WordCanvasBox Box => Ribbon?.Canvas;
+    private bool ShowVRuler => Ribbon != null ? ShowRuler : Model != null && View == "print" && Hwp?.VRuler == true;
+
+    private bool IsHwp => File?.Type == DocuType.Hwp;
+
+    private string PaneStyle => ShowVRuler ? "--vr: 24px;" : "--vr: 0px;";
+
+    private WordCanvasBox Box => Ribbon?.Canvas ?? Hwp?.Canvas;
 
     private WordPageLayout RulerLayout => Model?.FrameOf(1)?.Layout ?? Model?.Layout;
 
@@ -182,9 +190,10 @@
     {
         View,
         Flow ? "flow" : null,
-        !Flow && (Reading || (Ribbon?.SideBySide ?? false)) ? "multi" : null,
+        !Flow && (Reading || (Ribbon?.SideBySide ?? Hwp?.Multi ?? false)) ? "multi" : null,
         Zoom != 100 ? "zoomed" : null,
         Ribbon?.Gridlines == true && View == "print" ? "grid" : null,
+        Hwp?.ShowParaMarks == true && View == "print" ? "marks" : null,
     }.Where(c => c != null));
 
     private string CanvasStyle => $"{PaperVariables} --zoom: {Css(Zoom / 100.0)};";
@@ -211,17 +220,20 @@
 
     private async Task MeasureAsync()
     {
-        var ribbon = Ribbon;
-        if (ribbon == null || Model == null)
+        if (Model == null || (Ribbon == null && Hwp == null))
             return;
 
         try
         {
             var json = await JS.InvokeAsync<string>("docuHelperWordCanvas.measure", _canvas);
             var box = json == null ? null : JsonSerializer.Deserialize<WordCanvasBox>(json, s_json);
-            if (box != null && box != ribbon.Canvas)
+            if (box != null && box != Box)
             {
-                ribbon.Canvas = box;
+                if (Ribbon != null)
+                    Ribbon.Canvas = box;
+                else
+                    Hwp.Canvas = box;
+
                 Workspace.Notify();
             }
         }

@@ -12,6 +12,8 @@
 @code {
     private const double TwipsPerCm = 567.0;
 
+    private double UnitsPerCm => Millimeters ? 0.1 : 1.0;
+
     [Parameter]
     public WordCanvasBox Box { get; set; }
 
@@ -21,17 +23,20 @@
     [Parameter]
     public bool Vertical { get; set; }
 
+    [Parameter]
+    public bool Millimeters { get; set; }
+
     private string Style => Vertical ? VerticalStyle() : HorizontalStyle();
 
     private string HorizontalStyle()
     {
-        var cm = Box.PageWidth / (Layout.Width / TwipsPerCm);
+        var cm = Box.PageWidth / (Layout.Width / TwipsPerCm) * UnitsPerCm;
         return $"--left: {Css(Box.PageLeft)}px; --page: {Css(Box.PageWidth)}px; --pl: {Css(Box.PaddingLeft)}px; --pr: {Css(Box.PaddingRight)}px; --cm: {Css(cm)}px;";
     }
 
     private string VerticalStyle()
     {
-        var cm = Box.PageHeight / (Layout.Height / TwipsPerCm);
+        var cm = Box.PageHeight / (Layout.Height / TwipsPerCm) * UnitsPerCm;
         return $"--top: {Css(Box.PageTop)}px; --page: {Css(Box.PageHeight)}px; --pt: {Css(Box.PaddingTop)}px; --pb: {Css(Box.PaddingBottom)}px; --cm: {Css(cm)}px;";
     }
 

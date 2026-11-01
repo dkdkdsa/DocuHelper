@@ -1,6 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.State.Ribbon
 {
@@ -14,7 +15,18 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly HashSet<string> _features = new HashSet<string>(StringComparer.Ordinal);
         private int _zoom = 100;
 
-        public static HwpRibbonState Of(WorkspaceFile file) => file == null ? null : s_states.GetValue(file, _ => new HwpRibbonState { Dialogs = new WordDialogPresenter() });
+        private static readonly string[] s_features = { "outline", "fullscreen", "multi", "ruler", "vruler", "paramarks" };
+
+        public static HwpRibbonState Of(WorkspaceFile file) => file == null ? null : s_states.GetValue(file, _ => Create());
+
+        private static HwpRibbonState Create()
+        {
+            var state = new HwpRibbonState { Dialogs = new WordDialogPresenter() };
+            foreach (var feature in s_features)
+                state.Enable(feature);
+
+            return state;
+        }
 
         public event Action Changed;
 
@@ -56,6 +68,8 @@ namespace DocuHelperEditor.State.Ribbon
 
         public IWordDialogPresenter Dialogs { get; set; }
 
+        public WordCanvasBox Canvas { get; set; }
+
         public IReadOnlyCollection<string> Features => _features;
 
         public int Zoom
@@ -73,5 +87,6 @@ namespace DocuHelperEditor.State.Ribbon
         public bool Supports(string feature) => _features.Contains(feature);
 
         public void Touch() => Changed?.Invoke();
+
     }
 }

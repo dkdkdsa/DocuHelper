@@ -48,6 +48,21 @@ namespace DocuHelperEditor.State.Ribbon
             ["goToHeading"] = "goto",
         };
 
+        private int FitZoomOr(string action, int fallback) =>
+            WordZoomFit.Compute(action, State.Canvas, Model?.FrameOf(State.CurrentPage)?.Layout ?? Model?.Layout) ?? fallback;
+
+        private static string FeatureReason(string feature) => feature switch
+        {
+            "codes" => "조판 부호는 아직 보여 줄 수 없어요.",
+            "transparent" => "투명 선은 아직 보여 줄 수 없어요.",
+            "overwrite" => "삽입과 수정 전환은 아직 쓸 수 없어요.",
+            "spellcheck" => "맞춤법 도우미는 아직 준비 중이에요.",
+            "panes" => "탐색 창은 아직 준비 중이에요.",
+            "preview" => "미리 보기는 아직 준비 중이에요.",
+            "goto" => "쪽과 줄 찾아가기는 아직 준비 중이에요.",
+            _ => PendingReason,
+        };
+
         private string ViewBlocker(HwpCommandSpec spec)
         {
             if (IsProvided(spec.Id))
@@ -55,7 +70,7 @@ namespace DocuHelperEditor.State.Ribbon
 
             var action = spec.Action ?? string.Empty;
             if (s_features.TryGetValue(action, out var feature))
-                return State.Supports(feature) ? null : PendingReason;
+                return State.Supports(feature) ? null : FeatureReason(feature);
 
             if (!s_internal.Contains(action))
                 return PendingReason;
@@ -94,12 +109,12 @@ namespace DocuHelperEditor.State.Ribbon
                     State.Zoom = int.TryParse(arg, NumberStyles.Integer, CultureInfo.InvariantCulture, out var percent) ? percent : Int(args, "zoom", State.Zoom);
                     break;
                 case "fitPage":
-                    State.Zoom = FitPageZoom;
+                    State.Zoom = FitZoomOr("fitPage", FitPageZoom);
                     State.Multi = false;
                     State.PageOutline = true;
                     break;
                 case "fitWidth":
-                    State.Zoom = FitWidthZoom;
+                    State.Zoom = FitZoomOr("fitWidth", FitWidthZoom);
                     State.Multi = false;
                     break;
                 case "zoomBy":
@@ -134,7 +149,7 @@ namespace DocuHelperEditor.State.Ribbon
                 case "toggleMulti":
                     State.Multi = !State.Multi;
                     State.PageOutline = State.PageOutline || State.Multi;
-                    State.Zoom = State.Multi ? MultiPageZoom : 100;
+                    State.Zoom = State.Multi ? FitZoomOr("fitMulti", MultiPageZoom) : 100;
                     break;
                 case "toggleCodes":
                     State.ShowCodes = !State.ShowCodes;

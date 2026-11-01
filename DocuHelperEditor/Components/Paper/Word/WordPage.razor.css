@@ -142,6 +142,12 @@
     flex: 0 1 calc(900px * var(--zoom, 1));
 }
 
+.canvas.marks .blk > .txt::after {
+    content: "¶";
+    margin-left: calc(2 * var(--u));
+    color: var(--ink-3);
+}
+
 .canvas.draft .sheet {
     padding: calc(16 * var(--u)) calc(24 * var(--u));
 }

@@ -2,12 +2,16 @@
 @using DocuHelperEditor.Components.Paper.Hwp
 @using DocuHelperEditor.Components.Paper.Word.Dialogs
 @using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.State.Ribbon
 @inherits StoreComponentBase
 
 <div class="word">
     @if (File?.Type == DocuType.Hwp)
     {
-        <HwpRibbonHost File="File" />
+        @if (HwpRibbonState.Of(File)?.FullScreen != true)
+        {
+            <HwpRibbonHost File="File" />
+        }
     }
     else
     {
@@ -18,7 +22,7 @@
     <WordDialogHost File="File" />
     @if (File?.Type == DocuType.Hwp)
     {
-        <ChangeNavigator File="File" />
+        <HwpStatusBar File="File" />
     }
     else
     {

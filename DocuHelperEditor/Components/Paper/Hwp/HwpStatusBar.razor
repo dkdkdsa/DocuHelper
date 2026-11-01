@@ -1,0 +1,93 @@
+@using System.Globalization
+@using DocuHelper.Docus
+@using DocuHelperEditor.Components.Ribbon
+@using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.State.Ribbon
+@inherits StoreComponentBase
+
+@if (File != null)
+{
+    <StatusBar Format="DocuType.Hwp" Label="상황 선" Left="Left" Right="Right" />
+}
+
+@code {
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private HwpRibbonState Ribbon => HwpRibbonState.Of(File);
+
+    private WordPaperModel Model => File?.Paper as WordPaperModel;
+
+    private int Pages => Model?.Pages.Count ?? 1;
+
+    private int Page
+    {
+        get
+        {
+            var page = Model?.FindBlock(Model.SelectedBlockId)?.Page ?? 1;
+            if (Ribbon != null)
+                Ribbon.CurrentPage = page;
+
+            return page;
+        }
+    }
+
+    private int Line
+    {
+        get
+        {
+            var block = Model?.FindBlock(Model.SelectedBlockId);
+            if (block == null)
+                return 1;
+
+            return Model.BlocksOnPage(block.Page).ToList().FindIndex(b => b.Id == block.Id) + 1;
+        }
+    }
+
+    private int Column => (Model?.Selection?.Caret?.Offset ?? 0) + 1;
+
+    private bool ShowChanges => File != null && File.Changes.Count > 0 && File.Activity != FileActivity.Editing;
+
+    private int Position
+    {
+        get
+        {
+            var index = File.Changes.FindIndex(c => c.Id == Workspace.SelectedChangeId);
+            return index < 0 ? 1 : index + 1;
+        }
+    }
+
+    private Task Command(string id) => Ribbon?.Router?.InvokeAsync(id, null) ?? Task.CompletedTask;
+
+    private Task SetZoomAsync(int value)
+    {
+        if (Ribbon == null)
+            return Task.CompletedTask;
+
+        Ribbon.Zoom = value;
+        Ribbon.Touch();
+        Workspace.Notify();
+        return Task.CompletedTask;
+    }
+
+    private RenderFragment Left => __builder =>
+    {
+        <StatusButton Tip="쪽 찾아가기 (Alt+G)" OnClick='() => Command("hwp.status.page")'>@(Page)/@(Pages)쪽</StatusButton>
+        <StatusButton Tip="줄과 칸은 쪽 안의 문단 순서와 글자 위치로 계산한 근사 값이에요">@(Line)줄 @(Column)칸</StatusButton>
+        <StatusButton Tip="삽입과 수정 전환은 아직 쓸 수 없어요">삽입</StatusButton>
+        <RibbonDivider Gap="6" />
+        @if (ShowChanges)
+        {
+            <StatusChanges Label="바뀐 곳" Position="Position" Count="File.Changes.Count" OnPrevious="() => Workspace.MoveChange(-1)" OnNext="() => Workspace.MoveChange(1)" OnRevertAll="() => Workspace.RevertAllAsync(File.Id)" />
+        }
+    };
+
+    private RenderFragment Right => __builder =>
+    {
+        <StatusButton Icon="view-page" Label="쪽 윤곽" Tip="쪽 윤곽 (Ctrl+G,L)" Pressed="@(Ribbon?.PageOutline == true)" OnClick='() => Command("hwp.view.screen.outline")' />
+        <StatusButton Icon="side" Label="여러 쪽" Tip="여러 쪽 보기" Pressed="@(Ribbon?.Multi == true)" OnClick='() => Command("hwp.view.zoom.multi")' />
+        <RibbonDivider Gap="4" />
+        <ZoomControl Value="@(Ribbon?.Zoom ?? 100)" ValueChanged="SetZoomAsync" SliderWidth="92" />
+        <StatusButton Icon="fit" Label="전체 화면" Tip="전체 화면 (Ctrl+G,Z)" Pressed="@(Ribbon?.FullScreen == true)" OnClick='() => Command("hwp.view.screen.fullscreen")' />
+    };
+}
