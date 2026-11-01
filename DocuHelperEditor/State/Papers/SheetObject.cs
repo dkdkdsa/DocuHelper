@@ -4,6 +4,8 @@
     {
         public string Id { get; set; }
 
+        public bool Editable { get; set; }
+
         public string Name { get; set; }
 
         public SheetObjectKind Kind { get; set; }
