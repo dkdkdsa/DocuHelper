@@ -57,13 +57,14 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         private static readonly string[] s_print =
         {
-            "ppt.file.pdf", "ppt.file.print", "ppt.file.printHandout",
+            "ppt.file.printHandout",
         };
 
         private static readonly Regex s_hex = new("^[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
 
         private readonly PptRibbonState _state;
         private readonly IClipboardService _clipboard;
+        private readonly IPrintService _prints;
         private readonly IFileDialogService _dialogs;
         private readonly Dictionary<string, PptCommandSpec> _specs = new(StringComparer.Ordinal);
         private readonly Dictionary<string, (Tool Instance, PptToolSchema Schema)> _schemas = new(StringComparer.Ordinal);
@@ -71,12 +72,13 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private string _pickedName;
         private int _activate = -1;
 
-        public PptRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IFileDialogService dialogs, PptRibbonState state, IClipboardService clipboard)
+        public PptRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IFileDialogService dialogs, PptRibbonState state, IClipboardService clipboard, IPrintService prints)
             : base(workspace, assistant, js)
         {
             _dialogs = dialogs;
             _state = state;
             _clipboard = clipboard;
+            _prints = prints;
             foreach (var spec in PptCommandData.All)
             {
                 _specs[spec.Id] = spec;
@@ -232,6 +234,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             AddSaveCopy("ppt.file.saveAs");
             RegisterFile();
             RegisterSymbol();
+            RegisterPrint();
             foreach (var id in s_print)
                 AddDisabled(id, PrintReason);
 

@@ -24,6 +24,14 @@ window.docuHelper = (function () {
         });
     }
 
+    function removeSlidePrint() {
+        document.querySelectorAll('.docu-slide-print').forEach(function (node) {
+            node.remove();
+        });
+        var style = document.getElementById('docu-slide-page');
+        if (style) style.remove();
+    }
+
     function sheetPiece(table, range, layout, zoom) {
         var copy = table.cloneNode(false);
         copy.style.zoom = layout.scale;
@@ -86,16 +94,17 @@ window.docuHelper = (function () {
         return rowCopy;
     }
 
-    function markPrintTree(root) {
+    function markPrintTree(root, selector) {
+        var sel = selector || '.page';
         Array.prototype.forEach.call(root.children, function (child) {
-            if (child.matches('.page')) {
+            if (child.matches(sel)) {
                 child.classList.add('docu-print-keep', 'docu-print-page');
                 return;
             }
 
-            if (child.querySelector('.page')) {
+            if (child.querySelector(sel)) {
                 child.classList.add('docu-print-keep');
-                markPrintTree(child);
+                markPrintTree(child, sel);
                 return;
             }
 
@@ -289,8 +298,45 @@ window.docuHelper = (function () {
             document.body.classList.add('docu-printing');
             return layout.pages.length;
         },
+        pptPrintEnter: function (widthCm, heightCm) {
+            var slides = Array.prototype.slice.call(document.querySelectorAll('.strip .mini > .slide'));
+            if (slides.length === 0 || !(widthCm > 0) || !(heightCm > 0))
+                return 0;
+
+            removeSheetPrint();
+            removeSlidePrint();
+            var style = document.createElement('style');
+            style.id = 'docu-slide-page';
+            style.textContent = '@page { size: ' + widthCm + 'cm ' + heightCm + 'cm; margin: 0; }';
+            document.head.appendChild(style);
+
+            var container = document.createElement('div');
+            container.className = 'docu-slide-print';
+            document.body.appendChild(container);
+            slides.forEach(function (slide) {
+                var page = document.createElement('div');
+                page.className = 'page';
+                page.style.setProperty('width', widthCm + 'cm', 'important');
+                page.style.setProperty('height', heightCm + 'cm', 'important');
+                page.style.setProperty('padding', '0', 'important');
+                page.style.setProperty('box-sizing', 'border-box', 'important');
+                var copy = slide.cloneNode(true);
+                copy.removeAttribute('id');
+                copy.style.setProperty('width', '100%', 'important');
+                copy.style.setProperty('max-width', 'none', 'important');
+                copy.style.setProperty('box-shadow', 'none', 'important');
+                page.appendChild(copy);
+                container.appendChild(page);
+            });
+
+            markPrintTree(document.body, '.docu-slide-print');
+            container.lastElementChild.classList.add('docu-print-last');
+            document.body.classList.add('docu-printing');
+            return slides.length;
+        },
         printExit: function () {
             removeSheetPrint();
+            removeSlidePrint();
             document.body.classList.remove('docu-printing');
             document.querySelectorAll('.docu-print-hide, .docu-print-keep, .docu-print-page, .docu-print-last').forEach(function (el) {
                 el.classList.remove('docu-print-hide', 'docu-print-keep', 'docu-print-page', 'docu-print-last');
