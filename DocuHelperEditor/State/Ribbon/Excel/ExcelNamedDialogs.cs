@@ -23,6 +23,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.Margins] = _ => Margins(),
             [ExcelDialogIds.Subtotal] = context => Subtotal(context),
             [ExcelDialogIds.TextToColumns] = context => TextToColumns(context),
+            [ExcelDialogIds.RemoveDuplicates] = context => RemoveDuplicates(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -157,6 +158,31 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 var destination = WordNamedDialogs.Text(values, "destination").Trim();
                 if (destination.Length > 0)
                     args["destination"] = destination;
+
+                return args;
+            });
+
+        private static ExcelNamedDialog RemoveDuplicates(ExcelDialogContext context) => new(
+            "remove_duplicates",
+            "중복 값 제거",
+            new[]
+            {
+                WordNamedDialogs.Text("range", "범위", context.Range),
+                WordNamedDialogs.Flag("has_header", "첫 줄은 머리글", "true"),
+                WordNamedDialogs.Text("columns", "중복을 확인할 열 (쉼표로 나눠 입력, 비우면 모든 열)", string.Empty),
+            },
+            null,
+            (values, context) =>
+            {
+                var args = new JsonObject
+                {
+                    ["sheet"] = context.Sheet,
+                    ["range"] = WordNamedDialogs.Text(values, "range"),
+                    ["has_header"] = WordNamedDialogs.Flag(values, "has_header"),
+                };
+                var columns = Items(WordNamedDialogs.Text(values, "columns"));
+                if (columns.Length > 0)
+                    args["columns"] = Strings(columns);
 
                 return args;
             });

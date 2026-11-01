@@ -9,5 +9,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string Margins = "excel.layout.margins";
         public const string Subtotal = "excel.data.subtotal";
         public const string TextToColumns = "excel.data.texttocolumns";
+        public const string RemoveDuplicates = "excel.data.removeduplicates";
     }
 }
