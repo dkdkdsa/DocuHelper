@@ -5,7 +5,7 @@
     @foreach (var item in Items)
     {
         <li>
-            <span class="order" aria-hidden="true">@item.Order.ToString(CultureInfo.InvariantCulture)</span>
+            <span class="order" aria-hidden="true">@((item.Order + 1).ToString(CultureInfo.InvariantCulture))</span>
             <span class="target">@item.Target</span>
             <span class="effect">@item.Effect</span>
             <span class="meta">@StartLabel(item.Start) · @item.DurationSec.ToString("0.#", CultureInfo.InvariantCulture)초@(item.DelaySec > 0 ? " · 지연 " + item.DelaySec.ToString("0.#", CultureInfo.InvariantCulture) + "초" : string.Empty)</span>

@@ -329,10 +329,15 @@ window.docuHelperPptCanvas = (function () {
             session.onDblClick = function (e) {
                 var shape = e.target.closest ? e.target.closest('[data-shape]') : null;
                 if (!shape || !slide.contains(shape) || slide.dataset.locked === 'true') return;
-                if (!shape.classList.contains('on')) {
-                    send(session, { kind: 'select', id: shape.dataset.shape, additive: false });
+                if (shape.classList.contains('on')) {
+                    startEditing(shape);
+                    return;
                 }
-                startEditing(shape);
+
+                send(session, { kind: 'select', id: shape.dataset.shape, additive: false });
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(function () { startEditing(shape); });
+                });
             };
 
             sessions.set(slide, session);
