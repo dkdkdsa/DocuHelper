@@ -71,6 +71,11 @@ namespace DocuHelperEditor
 #endif
             builder.Services.AddSingleton<ISpeechService, WindowsSpeechService>();
             builder.Services.AddSingleton<IPrintService, WindowsPrintService>();
+#if DEBUG
+            if (System.Environment.GetEnvironmentVariable(FakeUpdateService.ScenarioVariable) is { Length: > 0 })
+                builder.Services.AddSingleton<IUpdateService, FakeUpdateService>();
+            else
+#endif
             builder.Services.AddSingleton<IUpdateService, VelopackUpdateService>();
             builder.Services.AddSingleton<ISecretStore, DpapiSecretStore>();
             builder.Services.AddSingleton<IOfficeInterop, OfficeComInterop>();

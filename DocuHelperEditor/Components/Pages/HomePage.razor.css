@@ -9,6 +9,8 @@
 }
 
 .home-header {
+    position: relative;
+    z-index: 20;
     flex: none;
     display: flex;
     flex-wrap: wrap;

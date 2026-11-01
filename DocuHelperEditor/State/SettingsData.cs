@@ -19,5 +19,11 @@
         public bool HwpNewAsHwp { get; set; }
 
         public string TextSize { get; set; }
+
+        public string LastRunVersion { get; set; }
+
+        public bool UpdateCheck { get; set; } = true;
+
+        public bool UpdateAuto { get; set; } = true;
     }
 }

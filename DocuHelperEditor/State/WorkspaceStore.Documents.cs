@@ -55,6 +55,7 @@ namespace DocuHelperEditor.State
             _workspace.OpenFolder(folderPath);
             FolderPath = _workspace.FolderPath;
             FolderName = Path.GetFileName(FolderPath);
+            RestoreFolderPanel();
             FolderOpened?.Invoke();
 
             var failed = new List<string>();
@@ -81,6 +82,8 @@ namespace DocuHelperEditor.State
             var first = _files.FirstOrDefault();
             if (first != null)
                 Open(first.Id);
+
+            RestoreSession();
 
             if (failed.Count > 0)
                 RaiseNotice($"‘{string.Join("’, ‘", failed)}’ 파일은 열지 못했어요. 파일이 망가졌거나 암호가 걸려 있을 수 있어요.");
