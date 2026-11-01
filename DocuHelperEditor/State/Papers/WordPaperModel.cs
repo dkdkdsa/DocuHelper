@@ -15,6 +15,27 @@ namespace DocuHelperEditor.State.Papers
 
         public IReadOnlyList<WordPageFrame> Frames { get; set; } = Array.Empty<WordPageFrame>();
 
+        public IReadOnlyList<WordCommentInfo> Comments { get; set; } = Array.Empty<WordCommentInfo>();
+
+        public IReadOnlyList<WordRevisionInfo> Revisions { get; set; } = Array.Empty<WordRevisionInfo>();
+
+        public IReadOnlyList<string> Authors { get; set; } = Array.Empty<string>();
+
+        public IReadOnlyList<WordCommentInfo> CommentsOn(string blockId) =>
+            Comments.Where(c => WordIds.ParagraphAnchor(c.ParagraphId) == blockId).ToList();
+
+        public IReadOnlyList<WordRevisionInfo> RevisionsOn(string blockId) =>
+            Revisions.Where(r => WordIds.ParagraphAnchor(r.ParagraphId) == blockId).ToList();
+
+        public IReadOnlyList<WordCommentInfo> RepliesOf(string commentId) =>
+            Comments.Where(c => c.ParentId == commentId).ToList();
+
+        public int ToneOf(string author)
+        {
+            var index = Authors.ToList().IndexOf(author ?? string.Empty);
+            return index < 0 ? 1 : index % 4 + 1;
+        }
+
         public WordPageFrame FrameOf(int page) => page >= 1 && page <= Frames.Count ? Frames[page - 1] : null;
 
         public string SelectedBlockId { get; set; }

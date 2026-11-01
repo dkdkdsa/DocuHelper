@@ -1,4 +1,5 @@
-@using DocuHelper.Docus
+﻿@using DocuHelper.Docus
+@using DocuHelper.Tools.Word
 @using DocuHelperEditor.Components.Paper
 @using DocuHelperEditor.Components.Ui
 @using DocuHelperEditor.State
@@ -80,6 +81,36 @@
                     <p class="empty">위 검색 상자에 찾을 말을 넣으면 찾은 곳이 여기에 나와요.</p>
                 }
             }
+            else if (Ribbon.NavPane == "review")
+            {
+                @if (Model.Comments.Count == 0 && Model.Revisions.Count == 0)
+                {
+                    <p class="empty">메모나 변경 내용이 없어요.</p>
+                }
+                else
+                {
+                    <ul class="list">
+                        @foreach (var comment in Model.Comments)
+                        {
+                            <li>
+                                <button type="button" class="row" aria-label="@($"{comment.Author}의 메모, {comment.Text}")" @onclick="() => GoToReviewAsync(comment.ParagraphId)">
+                                    <span class="page">메모 · @comment.Author</span>
+                                    <span class="snippet">@comment.Text</span>
+                                </button>
+                            </li>
+                        }
+                        @foreach (var revision in Model.Revisions)
+                        {
+                            <li>
+                                <button type="button" class="row" aria-label="@($"{revision.Author}의 변경, {revision.Text}")" @onclick="() => GoToReviewAsync(revision.ParagraphId)">
+                                    <span class="page">@(revision.Kind == "insert" ? "삽입" : revision.Kind == "delete" ? "삭제" : "서식") · @revision.Author</span>
+                                    <span class="snippet">@revision.Text</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            }
             else
             {
                 <PageThumbnails Model="Model" Current="Ribbon.CurrentPage" OnPick="GoToPageAsync" />
@@ -94,6 +125,7 @@
         ("head", "제목"),
         ("pages", "페이지"),
         ("res", "결과"),
+        ("review", "검토"),
     };
 
     private ElementReference _search;
@@ -275,6 +307,8 @@
         Workspace.Notify();
         await WordSelectionService.RestoreAsync(JS, Model.Selection);
     }
+
+    private Task GoToReviewAsync(string paragraphId) => GoToHeadingAsync(WordIds.ParagraphAnchor(paragraphId));
 
     private Task CloseAsync()
     {

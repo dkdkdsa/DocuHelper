@@ -32,6 +32,10 @@ namespace DocuHelperEditor.State.Papers
 
         public IReadOnlyList<WordCharSegment> Segments { get; set; } = Array.Empty<WordCharSegment>();
 
+        public IReadOnlyList<WordViewSegment> ViewSegments { get; set; } = Array.Empty<WordViewSegment>();
+
+        public bool HasRevisions { get; set; }
+
         public WordParagraphLook Look { get; set; }
 
         public string ListLabel { get; set; }

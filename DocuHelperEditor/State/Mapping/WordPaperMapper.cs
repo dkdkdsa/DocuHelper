@@ -30,6 +30,9 @@ namespace DocuHelperEditor.State.Mapping
             var labels = WordNumberingLabels.Compute(scan);
             var notes = NoteNumbers(scan);
             var changes = ChangeIds(docu);
+            var comments = WordInventory.Comments(word, scan);
+            var revisions = WordInventory.Revisions(word, scan);
+            var authors = revisions.Where(r => r.Author != null).Select(r => r.Author).Distinct().ToList();
             var earlier = old?.Blocks.Where(b => b?.Id != null).GroupBy(b => b.Id).ToDictionary(g => g.Key, g => g.First()) ?? new Dictionary<string, WordBlockModel>();
             var blocks = new List<WordBlockModel>(scan.Blocks.Count);
             var looks = new List<WordLook>(scan.Blocks.Count);
@@ -45,6 +48,8 @@ namespace DocuHelperEditor.State.Mapping
                 model.FontSize = block.FontSize;
                 model.RowHeights = block.RowHeights.ToList();
                 model.Segments = block.IsTable || block.Paragraph == null ? Array.Empty<WordCharSegment>() : SegmentsOf(block, notes);
+                model.ViewSegments = WordReviewRuns.Of(block, model, comments, author => ToneIn(authors, author));
+                model.HasRevisions = !block.IsTable && WordReviewRuns.HasRevisions(block.Paragraph);
                 model.Look = block.IsTable || block.Paragraph == null ? null : WordLooks.ParagraphOf(scan.Styles, block.Paragraph);
                 model.ListLabel = !block.IsTable && block.Paragraph != null && model.ListKind != WordListKind.None ? labels.LabelOf(block.Paragraph) : null;
                 model.IsBold = look.Bold;
@@ -64,6 +69,9 @@ namespace DocuHelperEditor.State.Mapping
                 Blocks = blocks,
                 Layout = scan.Layout,
                 Frames = scan.Frames,
+                Comments = comments,
+                Revisions = revisions,
+                Authors = authors,
                 SelectedBlockId = selected != null && blocks.Any(b => b.Id == selected) ? selected : null,
             };
             var selection = old?.Selection ?? WordSelection.None;
@@ -71,6 +79,12 @@ namespace DocuHelperEditor.State.Mapping
                 paper.Selection = selection;
 
             return paper;
+        }
+
+        private static int ToneIn(IReadOnlyList<string> authors, string author)
+        {
+            var index = authors.ToList().IndexOf(author ?? string.Empty);
+            return index < 0 ? 1 : index % 4 + 1;
         }
 
         private static IReadOnlyList<WordCharSegment> SegmentsOf(WordBlock block, IReadOnlyDictionary<string, string> notes)

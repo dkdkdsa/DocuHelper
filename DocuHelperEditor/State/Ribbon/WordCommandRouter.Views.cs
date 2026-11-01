@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -30,6 +30,7 @@ namespace DocuHelperEditor.State.Ribbon
             "fitWidth",
             "goToPage",
             "goToBlock",
+            "goToRevision",
         };
 
         private static readonly Dictionary<string, string> s_features = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -133,6 +134,9 @@ namespace DocuHelperEditor.State.Ribbon
                 case "goToBlock":
                     GoToBlock(Text(args, "id"));
                     break;
+                case "goToRevision":
+                    GoToRevision(Text(args, "direction") == "prev" ? -1 : 1);
+                    break;
                 case "setMarkup":
                     State.MarkupMode = Text(args, "markup") ?? State.MarkupMode;
                     break;
@@ -220,6 +224,21 @@ namespace DocuHelperEditor.State.Ribbon
 
             State.CurrentPage = block.Page;
             State.BlockTarget = block.Id;
+        }
+
+        private void GoToRevision(int step)
+        {
+            var blocks = Model?.Blocks.Where(b => b.HasRevisions).ToList();
+            if (blocks == null || blocks.Count == 0)
+                return;
+
+            var current = Model.Blocks.FindIndex(b => b.Id == Model.SelectedBlockId);
+            var target = step > 0
+                ? blocks.FirstOrDefault(b => Model.Blocks.IndexOf(b) > current) ?? blocks[0]
+                : blocks.LastOrDefault(b => Model.Blocks.IndexOf(b) < current) ?? blocks[^1];
+            Model.SelectedBlockId = target.Id;
+            State.CurrentPage = target.Page;
+            State.BlockTarget = target.Id;
         }
 
         private void SetPageMovement(JsonObject args)

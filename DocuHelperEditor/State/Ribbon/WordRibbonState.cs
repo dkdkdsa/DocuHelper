@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -11,7 +11,7 @@ namespace DocuHelperEditor.State.Ribbon
         public const int MinZoom = 50;
         public const int MaxZoom = 200;
 
-        private static readonly string[] s_features = { "views", "ruler", "grid", "nav" };
+        private static readonly string[] s_features = { "views", "ruler", "grid", "nav", "comments", "markup" };
 
         private static readonly ConditionalWeakTable<WorkspaceFile, WordRibbonState> s_states = new ConditionalWeakTable<WorkspaceFile, WordRibbonState>();
 

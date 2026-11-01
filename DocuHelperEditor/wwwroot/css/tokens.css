@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     --ink: #1C2A48;
     --ink-hover: #0E1830;
     --ink-2: #4A5570;
@@ -20,6 +20,10 @@
     --press-soft: #F5F5F5;
     --bubble: #EEF1F6;
     --thumb-line: #9AA3B5;
+    --rev-1: #0F7B6C;
+    --rev-2: #B8432F;
+    --rev-3: #6B4FBB;
+    --rev-4: #8A5F00;
     --hl: #FFE35A;
     --hl-soft: #FFF3B0;
     --hl-edge: #B59A00;

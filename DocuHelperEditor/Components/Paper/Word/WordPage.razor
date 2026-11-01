@@ -194,6 +194,7 @@
         Zoom != 100 ? "zoomed" : null,
         Ribbon?.Gridlines == true && View == "print" ? "grid" : null,
         Hwp?.ShowParaMarks == true && View == "print" ? "marks" : null,
+        ShowReviewRoom ? "review" : null,
     }.Where(c => c != null));
 
     private string CanvasStyle => $"{PaperVariables} --zoom: {Css(Zoom / 100.0)};";
@@ -286,6 +287,19 @@
         }
 
         await MeasureAsync();
+        if (Model != null && (Model.Comments.Count > 0 || Model.Revisions.Count > 0))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordCanvas.layoutBalloons", _canvas);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
         var pageTarget = Ribbon?.PageTarget;
         if (pageTarget is int page && Ribbon != null)
         {
@@ -437,13 +451,13 @@
             @switch (block.Kind)
             {
                 case WordBlockKind.Heading1:
-                    <h1 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@SegmentsOf(block)</span></h1>
+                    <h1 class="@TextClass(block)" contenteditable="@EditableOf(block)" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@ContentOf(block)</span></h1>
                     break;
                 case WordBlockKind.Heading2:
-                    <h2 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@SegmentsOf(block)</span></h2>
+                    <h2 class="@TextClass(block)" contenteditable="@EditableOf(block)" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@ContentOf(block)</span></h2>
                     break;
                 case WordBlockKind.Byline:
-                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)">@foreach (var part in block.Parts){<span class="@MarkClass(block)" data-change="@MarkChange(block)">@part</span>}</p>
+                    <p class="@TextClass(block)" contenteditable="@EditableOf(block)" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)">@foreach (var part in block.Parts){<span class="@MarkClass(block)" data-change="@MarkChange(block)">@part</span>}</p>
                     break;
                 case WordBlockKind.Table:
                     if (block.Table != null)
@@ -452,8 +466,26 @@
                     }
                     break;
                 default:
-                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@SegmentsOf(block)</span></p>
+                    <p class="@TextClass(block)" contenteditable="@EditableOf(block)" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@ContentOf(block)</span></p>
                     break;
+            }
+            @if (block.HasRevisions && ShowRevisionBar)
+            {
+                <span class="rvbar" style="--rev: var(--rev-@RevisionTone(block))" aria-hidden="true"></span>
+            }
+            @if (ShowCommentBalloons)
+            {
+                @foreach (var comment in Model.CommentsOn(block.Id).Where(c => c.ParentId == null))
+                {
+                    <WordCommentBalloon Comment="comment" Replies="Model.RepliesOf(comment.Id)" Ribbon="Ribbon" />
+                }
+            }
+            @if (ShowRevisionBalloons)
+            {
+                @foreach (var revision in Model.RevisionsOn(block.Id))
+                {
+                    <WordRevisionBalloon Revision="revision" Tone="Model.ToneOf(revision.Author)" Ribbon="Ribbon" />
+                }
             }
             @if (block.Source != null)
             {
@@ -563,6 +595,74 @@
 
         return block.Source == null ? classes : classes + " has-note";
     }
+
+    private string MarkupMode => Ribbon?.MarkupMode ?? "all";
+
+    private bool ShowRevisionBar => MarkupMode is "all" or "simple";
+
+    private bool ShowRevisionBalloons => MarkupMode == "all" && View == "print" && !Flow && !Reading;
+
+    private bool ShowReviewRoom => (Model?.Comments.Count > 0 || Model?.Revisions.Count > 0) && (ShowCommentBalloons || ShowRevisionBalloons);
+
+    private bool ShowCommentBalloons => (Ribbon?.ShowComments ?? false) && View == "print" && !Flow && !Reading;
+
+    private string EditableOf(WordBlockModel block) => block.HasRevisions ? "false" : Editable;
+
+    private int RevisionTone(WordBlockModel block) => block.ViewSegments.FirstOrDefault(s => s.Kind != null)?.Tone ?? 1;
+
+    private RenderFragment ContentOf(WordBlockModel block) => block.ViewSegments.Count > 0 ? ViewOf(block) : SegmentsOf(block);
+
+    private RenderFragment ViewOf(WordBlockModel block) => builder =>
+    {
+        var sequence = 0;
+        foreach (var segment in block.ViewSegments)
+        {
+            var look = segment.Look;
+            if (look.Mark == "bm" || look.Mark != null)
+            {
+                builder.OpenElement(sequence++, "span");
+                builder.AddAttribute(sequence++, "class", look.Mark == "bm" ? "mk-bm" : "mk-fn");
+                builder.AddAttribute(sequence++, look.Mark == "bm" ? "data-bookmark" : "data-note", look.MarkText);
+                builder.CloseElement();
+                continue;
+            }
+
+            if (segment.IsDeleted && MarkupMode is "simple" or "none")
+                continue;
+
+            if (segment.IsInserted && MarkupMode == "original")
+                continue;
+
+            var inserted = segment.IsInserted && MarkupMode == "all";
+            var deleted = segment.IsDeleted && MarkupMode == "all";
+            var comment = segment.CommentId != null && (Ribbon?.ShowComments ?? false);
+            var classes = new List<string> { look.Link ? "seg lnk" : "seg" };
+            if (inserted)
+                classes.Add("rv-ins");
+
+            if (deleted)
+                classes.Add("rv-del");
+
+            if (comment)
+                classes.Add("cmt");
+
+            var style = SegmentStyle(look);
+            if (segment.Kind != null && MarkupMode == "all")
+                style += $"; --rev: var(--rev-{segment.Tone})";
+
+            builder.OpenElement(sequence++, "span");
+            builder.AddAttribute(sequence++, "class", string.Join(" ", classes));
+            builder.AddAttribute(sequence++, "style", style);
+            if (segment.Kind != null && MarkupMode == "all")
+                builder.AddAttribute(sequence++, "data-revision", "r:" + segment.RevisionId);
+
+            if (comment)
+                builder.AddAttribute(sequence++, "data-comment", segment.CommentId);
+
+            builder.AddContent(sequence++, segment.Text);
+            builder.CloseElement();
+        }
+    };
 
     private static string TextClass(WordBlockModel block) => FormatClass(block.Kind == WordBlockKind.Byline ? "txt byline" : "txt", block);
 

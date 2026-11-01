@@ -1,0 +1,57 @@
+@using DocuHelper.Editors
+@using DocuHelper.Tools.Word
+@using DocuHelperEditor.State.Ribbon
+
+<aside class="bal rv" style="--rev: var(--rev-@Tone)" aria-label="@($"{KindLabel} 변경, {Revision.Author}")" data-revision="@Revision.Ref">
+    <header>
+        <span class="badge" aria-hidden="true">@KindMark</span>
+        <span class="who">@Revision.Author</span>
+        <span class="tag">@KindLabel</span>
+        <time datetime="@Revision.Date?.ToString("o")">@DateText</time>
+    </header>
+    @if (!string.IsNullOrWhiteSpace(Revision.Text))
+    {
+        <p class="body">@Revision.Text</p>
+    }
+    <div class="actions">
+        <button type="button" class="act" aria-label="@($"{Revision.Author}의 변경 적용")" @onclick="() => Apply(true)">적용</button>
+        <button type="button" class="act" aria-label="@($"{Revision.Author}의 변경 적용 안 함")" @onclick="() => Apply(false)">적용 안 함</button>
+    </div>
+</aside>
+
+@code {
+    [Parameter]
+    public WordRevisionInfo Revision { get; set; }
+
+    [Parameter]
+    public int Tone { get; set; } = 1;
+
+    [Parameter]
+    public WordRibbonState Ribbon { get; set; }
+
+    private string KindLabel => Revision.Kind switch
+    {
+        "insert" => "삽입",
+        "delete" => "삭제",
+        _ => "서식",
+    };
+
+    private string KindMark => Revision.Kind switch
+    {
+        "insert" => "+",
+        "delete" => "−",
+        _ => "~",
+    };
+
+    private string DateText => Revision.Date?.ToLocalTime().ToString("yyyy. M. d. HH:mm") ?? string.Empty;
+
+    private void Apply(bool accept)
+    {
+        Ribbon.Router.Apply(EditCommand.Create("manage_revisions", new
+        {
+            action = accept ? "accept" : "reject",
+            scope = "ids",
+            revision_ids = new[] { Revision.Ref },
+        }));
+    }
+}

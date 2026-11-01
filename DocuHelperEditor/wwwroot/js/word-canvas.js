@@ -1,4 +1,4 @@
-window.docuHelperWordCanvas = (function () {
+﻿window.docuHelperWordCanvas = (function () {
     var observers = new Map();
 
     function measure(canvas) {
@@ -41,6 +41,23 @@ window.docuHelperWordCanvas = (function () {
                 observer.disconnect();
                 observers.delete(canvas);
             }
+        },
+        layoutBalloons: function (canvas) {
+            if (!canvas) return;
+            canvas.querySelectorAll('article.page').forEach(function (page) {
+                var balloons = Array.prototype.slice.call(page.querySelectorAll('.bal'));
+                balloons.forEach(function (balloon) { balloon.style.transform = ''; });
+                var placed = balloons.map(function (balloon) {
+                    var box = balloon.getBoundingClientRect();
+                    return { element: balloon, top: box.top, height: box.height };
+                }).sort(function (a, b) { return a.top - b.top; });
+                var floor = -Infinity;
+                placed.forEach(function (item) {
+                    var shift = Math.max(0, floor + 8 - item.top);
+                    if (shift > 0) item.element.style.transform = 'translateY(' + shift + 'px)';
+                    floor = item.top + shift + item.height;
+                });
+            });
         },
         scrollToBlock: function (canvas, id) {
             var target = canvas && canvas.querySelector('[data-block="' + id + '"]');
