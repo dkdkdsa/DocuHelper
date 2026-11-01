@@ -45,7 +45,7 @@ namespace DocuHelper.Importers.Hwp
             HwpFeature.Bookmarks => true,
             HwpFeature.ClickHere => false,
 
-            HwpFeature.NamedStyles => false,
+            HwpFeature.NamedStyles => true,
 
             HwpFeature.RealNumbering => false,
 

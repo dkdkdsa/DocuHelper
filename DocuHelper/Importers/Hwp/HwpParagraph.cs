@@ -41,5 +41,7 @@ namespace DocuHelper.Importers.Hwp
         internal HwpxBorderFill Border { get; set; }
 
         public List<HwpTabStop> Tabs { get; set; } = new();
+
+        public string StyleName { get; set; }
     }
 }

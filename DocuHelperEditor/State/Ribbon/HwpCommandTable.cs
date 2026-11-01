@@ -903,7 +903,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_style",
                 Args = """{"action":"define","style":"{name}","based_on":"{based_on}","next_style":"{next_style}","copy_from":{"id":"{id}"}}""",
-                Reason = "새 스타일은 아직 한글 파일에 저장되지 않아서 쓸 수 없어요. 저장하면 이름이 사라지거든요.",
+                Reason = "스타일 이름과 바탕 스타일을 정하는 대화상자는 아직 이 앱에서 열 수 없어요.",
                 Gates = new[] { "NamedStyles" },
                 Dialog = new WordDialogSpec("스타일 추가하기", new[]
                 {
@@ -919,7 +919,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_style",
                 Args = """{"action":"modify","style":"{cur.style}","copy_from":{"id":"{id}"}}""",
-                Reason = "스타일 고치기는 아직 한글 파일에 저장되지 않아서 쓸 수 없어요.",
+                Reason = "스타일을 고치려면 문단을 골라 주세요.",
                 Gates = new[] { "NamedStyles" },
             },
             new HwpCommandSpec

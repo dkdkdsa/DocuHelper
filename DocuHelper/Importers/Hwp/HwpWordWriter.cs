@@ -43,6 +43,7 @@ namespace DocuHelper.Importers.Hwp
 
                 body.AppendChild(section);
                 HwpWordNotes.Write(word, document.Notes, width);
+                HwpWordStyles.Ensure(word);
                 HwpWordPictures.Embed(word, document.Pictures);
                 HwpWordFields.ResolveLinks(word);
 

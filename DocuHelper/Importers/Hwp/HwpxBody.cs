@@ -146,6 +146,7 @@ namespace DocuHelper.Importers.Hwp
                 LineSpacingKind = shape.LineSpacingKind,
                 Border = BorderOf(shape.BorderFillId),
                 Tabs = new List<HwpTabStop>(_header.TabStops(shape.TabPrId)),
+                StyleName = _header.Style(HwpxXml.Int(element, "styleIDRef", -1))?.Name,
             };
             _pageBreak = false;
 

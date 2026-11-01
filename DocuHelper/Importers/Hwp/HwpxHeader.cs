@@ -16,6 +16,7 @@ namespace DocuHelper.Importers.Hwp
         private readonly Dictionary<int, (string Normal, string Checked)> _bullets = new();
         private readonly Dictionary<int, HwpxBorderFill> _borderFills = new();
         private readonly Dictionary<int, List<HwpTabStop>> _tabStops = new();
+        private readonly Dictionary<int, HwpxStyle> _styleDefs = new();
         private readonly HwpxCharShape _defaultChar = new();
         private readonly HwpxParaShape _defaultPara = new();
 
@@ -42,6 +43,9 @@ namespace DocuHelper.Importers.Hwp
                     case "borderFill" when parent == "borderFills":
                         _borderFills[HwpxXml.Int(element, "id", -1)] = HwpxBorderFill.Read(element);
                         break;
+                    case "style" when parent == "styles":
+                        _styleDefs[HwpxXml.Int(element, "id", -1)] = StyleOf(element);
+                        break;
                     case "tabPr" when parent == "tabProperties":
                         _tabStops[HwpxXml.Int(element, "id", -1)] = TabStopsOf(element);
                         break;
@@ -50,6 +54,15 @@ namespace DocuHelper.Importers.Hwp
         }
 
         public HwpxBorderFill BorderFill(int id) => _borderFills.TryGetValue(id, out var fill) ? fill : null;
+
+        public HwpxStyle Style(int id) => _styleDefs.TryGetValue(id, out var style) ? style : null;
+
+        private static HwpxStyle StyleOf(XElement element) => new(
+            HwpxXml.Int(element, "id", 0),
+            HwpxXml.Attribute(element, "name") ?? string.Empty,
+            HwpxXml.Attribute(element, "engName") ?? string.Empty,
+            HwpxXml.Int(element, "paraPrIDRef", 0),
+            HwpxXml.Int(element, "charPrIDRef", 0));
 
         public IReadOnlyList<HwpTabStop> TabStops(int id) => _tabStops.TryGetValue(id, out var stops) ? stops : new List<HwpTabStop>();
 

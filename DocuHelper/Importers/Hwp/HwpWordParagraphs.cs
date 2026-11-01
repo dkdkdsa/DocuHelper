@@ -43,6 +43,10 @@ namespace DocuHelper.Importers.Hwp
             properties.AppendChild(new Justification { Val = Justify(source.Alignment) });
 
             var paragraph = new Paragraph(properties);
+            var style = HwpWordStyles.IdOf(source.StyleName);
+            if (style != null)
+                properties.PrependChild(new ParagraphStyleId { Val = style });
+
             if (source.ColumnBreakBefore)
                 paragraph.AppendChild(new Run(new Break { Type = BreakValues.Column }));
 

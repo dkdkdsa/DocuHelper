@@ -118,7 +118,7 @@ namespace DocuHelper.Importers.Hwp
             if (runs.Count == 0)
                 runs.Add(TextRun(CharId(CharKeyOf(null, paragraph)), string.Empty));
 
-            return Paragraph(para, 0, pageBreak, runs, columnBreak);
+            return Paragraph(para, StyleIdOf(paragraph, para, CharId(CharKeyOf(null, paragraph))), pageBreak, runs, columnBreak);
         }
 
         private static bool Owns(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, OpenXmlElement element) =>

@@ -89,11 +89,7 @@ namespace DocuHelper.Importers.Hwp
                     chars,
                     TabProperties(),
                     paras,
-                    new XElement(Hh + "styles", new XAttribute("itemCnt", "1"),
-                        new XElement(Hh + "style",
-                            new XAttribute("id", "0"), new XAttribute("type", "PARA"), new XAttribute("name", "바탕글"),
-                            new XAttribute("engName", "Normal"), new XAttribute("paraPrIDRef", "0"), new XAttribute("charPrIDRef", "0"),
-                            new XAttribute("nextStyleIDRef", "0"), new XAttribute("langID", "1042"), new XAttribute("lockForm", "0")))),
+                    StylesElement()),
                 new XElement(Hh + "compatibleDocument", new XAttribute("targetProgram", "HWP201X"), new XElement(Hh + "layoutCompatibility")),
                 new XElement(Hh + "docOption", new XElement(Hh + "linkinfo", new XAttribute("path", ""), new XAttribute("pageInherit", "0"), new XAttribute("footnoteInherit", "0"))),
                 new XElement(Hh + "trackchageConfig", new XAttribute("flags", "56")));
