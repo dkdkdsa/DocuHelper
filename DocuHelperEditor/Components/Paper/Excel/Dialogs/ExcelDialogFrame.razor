@@ -1,4 +1,5 @@
 @using DocuHelperEditor.Components.Ui
+@using DocuHelperEditor.Services
 @using Microsoft.AspNetCore.Components.Web
 @implements IDisposable
 @inject IJSRuntime JS
@@ -40,6 +41,9 @@
     [Parameter]
     public EventCallback OnCancel { get; set; }
 
+    [CascadingParameter(Name = "DialogReturnFocus")]
+    public string ReturnFocus { get; set; }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!_focusPending)
@@ -48,10 +52,11 @@
         _focusPending = false;
         try
         {
-            await JS.InvokeVoidAsync("docuHelperDialog.open", _dialog);
+            await JS.InvokeVoidAsync("docuHelperDialog.open", _dialog, ReturnFocus);
         }
-        catch (JSException)
+        catch (JSException e)
         {
+            AppLog.Write("Failed to open the Excel dialog", e);
         }
         catch (JSDisconnectedException)
         {
@@ -67,5 +72,31 @@
 
     private Task SubmitAsync() => OnSubmit.InvokeAsync();
 
-    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? CancelAsync() : Task.CompletedTask;
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await CancelAsync();
+            return;
+        }
+
+        if (e.Key == "Enter" && await IsTextFieldAsync())
+            await SubmitAsync();
+    }
+
+    private async Task<bool> IsTextFieldAsync()
+    {
+        try
+        {
+            return await JS.InvokeAsync<bool>("docuHelperDialog.isTextField");
+        }
+        catch (JSException)
+        {
+            return false;
+        }
+        catch (JSDisconnectedException)
+        {
+            return false;
+        }
+    }
 }

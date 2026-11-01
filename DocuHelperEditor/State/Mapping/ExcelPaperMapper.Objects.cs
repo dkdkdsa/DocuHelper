@@ -17,6 +17,7 @@ namespace DocuHelperEditor.State.Mapping
         private const int MaxObjects = 256;
         private const long MaxImageBytes = 2 * 1024 * 1024;
         private const long MaxTotalImageBytes = 16 * 1024 * 1024;
+        private const long MaxUrlPrefix = 32;
         private const double EmuPerPixel = 9525.0;
         private const double MaxOffset = 4096;
         private const string AutoObjectName = "개체 ";
@@ -29,10 +30,16 @@ namespace DocuHelperEditor.State.Mapping
             if (drawings?.WorksheetDrawing == null)
                 return;
 
-            var anchors = drawings.WorksheetDrawing.ChildElements.Select(Classify).Where(anchor => anchor != null).ToList();
+            var children = drawings.WorksheetDrawing.ChildElements.ToList();
+            var anchors = children.Select(Classify).Where(anchor => anchor != null).ToList();
             var names = anchors
                 .Select(anchor => anchor.Element.Descendants<Xdr.NonVisualDrawingProperties>().FirstOrDefault()?.Name?.Value)
                 .ToList();
+            var ids = anchors
+                .Select(anchor => anchor.Element.Descendants<Xdr.NonVisualDrawingProperties>().FirstOrDefault()?.Id?.Value.ToString(CultureInfo.InvariantCulture))
+                .ToList();
+            var idCounts = ids.Where(id => id != null).GroupBy(id => id).ToDictionary(group => group.Key, group => group.Count());
+            context.View.UnreadObjects += children.Count(child => Classify(child) == null && child.LocalName != "extLst");
             var budget = 0L;
             var order = 0;
             foreach (var (anchor, index) in anchors.Select((anchor, i) => (anchor, i)))
@@ -52,7 +59,8 @@ namespace DocuHelperEditor.State.Mapping
                 order++;
                 var properties = anchor.Element.Descendants<Xdr.NonVisualDrawingProperties>().FirstOrDefault();
                 var name = names[index];
-                var editable = !string.IsNullOrEmpty(name) && names.Count(n => n == name) == 1;
+                var id = ids[index];
+                var editable = !string.IsNullOrEmpty(name) && names.Count(n => n == name) == 1 && id != null && idCounts[id] == 1;
                 var shape = new SheetObject
                 {
                     Id = properties?.Id?.Value.ToString(CultureInfo.InvariantCulture) ?? order.ToString(CultureInfo.InvariantCulture),
@@ -66,8 +74,8 @@ namespace DocuHelperEditor.State.Mapping
                 if (anchor.Kind == AnchorKind.OneCell)
                 {
                     var extent = anchor.Element.Descendants<Xdr.Extent>().FirstOrDefault();
-                    shape.Width = Pixels(extent?.Cx?.Value);
-                    shape.Height = Pixels(extent?.Cy?.Value);
+                    shape.Width = Clamp(Pixels(extent?.Cx?.Value));
+                    shape.Height = Clamp(Pixels(extent?.Cy?.Value));
                 }
 
                 if (anchor.Element.GetFirstChild<Xdr.GraphicFrame>() != null)
@@ -78,6 +86,8 @@ namespace DocuHelperEditor.State.Mapping
                 {
                     shape.Kind = SheetObjectKind.Picture;
                     shape.ImageUrl = ImageUrl(drawings, anchor.Element, ref budget);
+                    if (shape.ImageUrl == null)
+                        context.View.UnreadObjects++;
                 }
                 else if (anchor.Element.GetFirstChild<Xdr.Shape>() is { } drawn)
                 {
@@ -171,7 +181,14 @@ namespace DocuHelperEditor.State.Mapping
             if (s_images.TryGetValue(image, out var cached))
                 return Budgeted(cached, ref budget);
 
-            var url = ReadImage(image);
+            var remaining = MaxTotalImageBytes - budget;
+            if (remaining <= 0)
+                return null;
+
+            var url = ReadImage(image, remaining);
+            if (url == null)
+                return null;
+
             s_images.AddOrUpdate(image, url);
             return Budgeted(url, ref budget);
         }
@@ -188,17 +205,22 @@ namespace DocuHelperEditor.State.Mapping
             return url;
         }
 
-        private static string ReadImage(ImagePart image)
+        private static string ReadImage(ImagePart image, long remainingChars)
         {
+            var limit = Math.Min(MaxImageBytes, (remainingChars - MaxUrlPrefix) / 4 * 3);
+            if (limit <= 0)
+                return null;
+
             using var stream = image.GetStream();
             var buffer = new MemoryStream();
             var chunk = new byte[64 * 1024];
             int read;
             while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
             {
-                buffer.Write(chunk, 0, read);
-                if (buffer.Length > MaxImageBytes)
+                if (buffer.Length + read > limit)
                     return null;
+
+                buffer.Write(chunk, 0, read);
             }
 
             var bytes = buffer.ToArray();

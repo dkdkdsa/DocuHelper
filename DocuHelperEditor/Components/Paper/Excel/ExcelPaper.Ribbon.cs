@@ -13,6 +13,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
     {
         private ExcelCommandRouter _router;
         private Painter _painter;
+        private string _shownDialog;
 
         [Inject]
         private IFileDialogService FileDialogs { get; set; }
@@ -80,7 +81,17 @@ namespace DocuHelperEditor.Components.Paper.Excel
             Clipboards.Changed -= OnRouterChanged;
         }
 
-        private void OnRouterChanged() => _ = InvokeAsync(StateHasChanged);
+        private void OnRouterChanged()
+        {
+            var dialog = _router.State.ActiveDialog;
+            if (dialog != _shownDialog)
+            {
+                _shownDialog = dialog;
+                _editError = null;
+            }
+
+            _ = InvokeAsync(StateHasChanged);
+        }
 
         bool IExcelSurface.Prepare()
         {

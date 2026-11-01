@@ -17,14 +17,14 @@ namespace DocuHelperEditor.Components.Paper.Excel
             builder.AddAttribute(1, nameof(SheetObjectLayer.SheetName), sheet.Name);
             builder.AddAttribute(2, nameof(SheetObjectLayer.Objects), sheet.Objects);
             builder.AddAttribute(3, nameof(SheetObjectLayer.SelectedId), _selectedObjectSheet == sheet.Name ? _selectedObjectId : null);
-            builder.AddAttribute(4, nameof(SheetObjectLayer.OnSelect), EventCallback.Factory.Create<string>(this, SelectObject));
+            builder.AddAttribute(4, nameof(SheetObjectLayer.OnSelect), EventCallback.Factory.Create<string>(this, id => SelectObject(sheet.Name, id)));
             builder.AddAttribute(5, nameof(SheetObjectLayer.OnChange), EventCallback.Factory.Create<SheetObjectChange>(this, ChangeObject));
             builder.CloseComponent();
         };
 
-        private void SelectObject(string id)
+        private void SelectObject(string sheet, string id)
         {
-            _selectedObjectSheet = string.IsNullOrEmpty(id) ? null : CurrentSheet.Name;
+            _selectedObjectSheet = string.IsNullOrEmpty(id) ? null : sheet;
             _selectedObjectId = string.IsNullOrEmpty(id) ? null : id;
         }
 
@@ -48,7 +48,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
                     break;
                 case SheetObjectAction.Delete:
                     if (Edit(EditCommand.Create("change_object", new { sheet, @object = item.Name, action = "delete" })))
-                        SelectObject(null);
+                        SelectObject(sheet, null);
                     break;
             }
         }

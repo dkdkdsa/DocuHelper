@@ -1,0 +1,52 @@
+@using System.Text.Json.Nodes
+@using DocuHelper.Editors
+@using DocuHelperEditor.Components.Paper.Word.Dialogs
+@using DocuHelperEditor.State.Ribbon
+@using DocuHelperEditor.State.Ribbon.Excel
+
+@if (_request != null)
+{
+    <WordFormDialog Request="_request" Closed="Done" ReturnFocus="@ReturnFocus" />
+}
+
+@code {
+    private WordDialogRequest _request;
+
+    [Parameter]
+    public string Id { get; set; }
+
+    [Parameter]
+    public ExcelDialogContext Context { get; set; }
+
+    [Parameter]
+    public Func<EditCommand, string> Commit { get; set; }
+
+    [Parameter]
+    public EventCallback Done { get; set; }
+
+    [CascadingParameter(Name = "DialogReturnFocus")]
+    public string ReturnFocus { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (_request != null || !ExcelNamedDialogs.Has(Id))
+            return;
+
+        var dialog = ExcelNamedDialogs.Create(Id, Context);
+        _request = new WordDialogRequest(
+            dialog.Title,
+            dialog.Fields,
+            WordDialogPresenter.DefaultsOf(dialog.Fields),
+            values => Submit(dialog, values));
+    }
+
+    private string Submit(ExcelNamedDialog dialog, IReadOnlyDictionary<string, JsonNode> values)
+    {
+        var problem = dialog.Validate?.Invoke(values);
+        if (problem != null)
+            return problem;
+
+        var args = dialog.Build(values, Context);
+        return Commit(EditCommand.Create(dialog.Tool, args));
+    }
+}

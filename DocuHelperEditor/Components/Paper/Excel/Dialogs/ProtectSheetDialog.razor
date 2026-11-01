@@ -1,18 +1,18 @@
 @using DocuHelper.Editors
 
-<ExcelDialogFrame Title="시트 보호" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
+<ExcelDialogFrame Title="시트 보호" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="Close">
     <p class="hint">@SheetName 시트의 잠긴 칸은 고칠 수 없어요.</p>
     <div class="pair">
         <div class="field">
             <label class="field-label" for="ps-password">암호 (선택)</label>
-            <input id="ps-password" class="field-input" type="password" autocomplete="new-password" @bind="_password" />
+            <input id="ps-password" class="field-input" type="password" autocomplete="new-password" @bind="_password" @bind:event="oninput" />
         </div>
         <div class="field">
             <label class="field-label" for="ps-confirm">암호 확인</label>
-            <input id="ps-confirm" class="field-input" type="password" autocomplete="new-password" @bind="_confirm" />
+            <input id="ps-confirm" class="field-input" type="password" autocomplete="new-password" @bind="_confirm" @bind:event="oninput" />
         </div>
     </div>
-    <p class="hint">암호를 잊으면 이 앱으로는 풀 수 없어요. 비워 두면 암호 없이 보호해요.</p>
+    <p class="hint">암호를 잊으면 풀 수 없어요. 보안용이 아니에요. 비워 두면 암호 없이 보호해요.</p>
     <fieldset class="group">
         <legend>보호된 시트에서도 허용할 작업</legend>
         <div class="checks">
@@ -51,20 +51,17 @@
     public string SheetName { get; set; }
 
     [Parameter]
-    public string Error { get; set; }
+    public Func<EditCommand, string> Apply { get; set; }
 
     [Parameter]
-    public EventCallback<EditCommand> OnApply { get; set; }
-
-    [Parameter]
-    public EventCallback OnCancel { get; set; }
+    public EventCallback Close { get; set; }
 
     private readonly HashSet<string> _allowed = new(StringComparer.Ordinal) { "select_locked", "select_unlocked" };
     private string _password = string.Empty;
     private string _confirm = string.Empty;
     private string _error;
 
-    private string ErrorText => _error ?? Error;
+    private string ErrorText => _error;
 
     private void Toggle(string value, bool on)
     {
@@ -78,8 +75,12 @@
     {
         _error = null;
         var command = Build();
-        if (command != null)
-            await OnApply.InvokeAsync(command);
+        if (command == null)
+            return;
+
+        _error = Apply(command);
+        if (_error == null)
+            await Close.InvokeAsync();
     }
 
     private EditCommand Build()
