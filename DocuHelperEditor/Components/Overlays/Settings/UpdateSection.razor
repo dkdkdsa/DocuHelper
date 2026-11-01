@@ -87,7 +87,7 @@
                     }
                     else if (Updates.Phase == UpdatePhase.Latest)
                     {
-                        <p class="status"><Icon Name="check" Size="18" Stroke="2.4" /> 최신 버전이에요</p>
+                        <CheckLine>최신 버전이에요</CheckLine>
                     }
                     <div class="actions">
                         <ActionButton Kind="ButtonKind.Secondary" id="settings-update-check" Disabled="!Updates.IsInstalled" aria-disabled="@(CheckBusy ? "true" : "false")" OnClick="Check">지금 확인</ActionButton>
@@ -102,9 +102,8 @@
             <label for="settings-update-check-switch" class="row-title">새 버전 확인하기</label>
             <span id="settings-update-check-d" class="row-note">인터넷이 안 되면 조용히 넘어가요.</span>
         </div>
-        <div class="row-body switch-row">
-            <input type="checkbox" role="switch" id="settings-update-check-switch" class="switch" checked="@Settings.UpdateCheck" aria-describedby="settings-update-check-d" @onchange="e => Settings.SetUpdateCheck(IsOn(e))" />
-            <span class="switch-text" aria-hidden="true">@OnOff(Settings.UpdateCheck)</span>
+        <div class="row-body">
+            <Switch Id="settings-update-check-switch" Checked="Settings.UpdateCheck" DescribedBy="settings-update-check-d" OnChange="Settings.SetUpdateCheck" />
         </div>
     </div>
 

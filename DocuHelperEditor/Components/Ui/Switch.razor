@@ -1,0 +1,20 @@
+﻿<span class="switch-row">
+    <input type="checkbox" role="switch" id="@Id" class="switch" checked="@Checked" aria-describedby="@DescribedBy" @onchange="OnChanged" />
+    <span class="switch-text" aria-hidden="true">@(Checked ? "켜짐" : "꺼짐")</span>
+</span>
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    [Parameter]
+    public bool Checked { get; set; }
+
+    [Parameter]
+    public string DescribedBy { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnChange { get; set; }
+
+    private Task OnChanged(ChangeEventArgs e) => OnChange.InvokeAsync(e.Value is bool on ? on : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase));
+}
