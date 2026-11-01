@@ -7,6 +7,85 @@ window.docuHelper = (function () {
         if (e.target && e.target !== document.body) lastFocused = e.target;
     }, true);
 
+    function fitPage(sheet, piece, scale) {
+        var factor = scale;
+        for (var attempt = 0; attempt < 60; attempt++) {
+            if (sheet.scrollHeight <= sheet.clientHeight + 1 && sheet.scrollWidth <= sheet.clientWidth + 1)
+                return;
+
+            factor *= 0.97;
+            piece.style.zoom = factor;
+        }
+    }
+
+    function removeSheetPrint() {
+        document.querySelectorAll('.docu-sheet-print').forEach(function (node) {
+            node.remove();
+        });
+    }
+
+    function sheetPiece(table, range, layout, zoom) {
+        var copy = table.cloneNode(false);
+        copy.style.zoom = layout.scale;
+        copy.style.tableLayout = 'fixed';
+        copy.style.borderCollapse = 'collapse';
+
+        var head = table.querySelector('thead');
+        if (head) {
+            var headCopy = head.cloneNode(false);
+            Array.prototype.forEach.call(head.rows, function (row) {
+                headCopy.appendChild(rowPiece(row, range, layout, zoom));
+            });
+            copy.appendChild(headCopy);
+        }
+
+        var bodyCopy = document.createElement('tbody');
+        var body = table.tBodies[0];
+        if (body) {
+            Array.prototype.forEach.call(body.rows, function (row) {
+                if (row.dataset.r === undefined)
+                    return;
+
+                var r = Number(row.dataset.r);
+                if (r < range.r0 || r > range.r1)
+                    return;
+
+                bodyCopy.appendChild(rowPiece(row, range, layout, zoom));
+            });
+        }
+
+        copy.appendChild(bodyCopy);
+        return copy;
+    }
+
+    function rowPiece(row, range, layout, zoom) {
+        var rowCopy = row.cloneNode(false);
+        if (row.dataset.r !== undefined) {
+            var points = layout.rowPoints[Number(row.dataset.r)];
+            if (points === 0)
+                rowCopy.style.display = 'none';
+            else if (points !== undefined)
+                rowCopy.style.height = (points * 4 / 3) + 'px';
+        }
+
+        Array.prototype.forEach.call(row.cells, function (cell) {
+            var width = cell.getBoundingClientRect().width / zoom;
+            if (cell.dataset.c !== undefined) {
+                var c = Number(cell.dataset.c);
+                if (c < range.c0 || c > range.c1)
+                    return;
+
+                if (layout.columnPoints[c] !== undefined)
+                    width = layout.columnPoints[c] * 4 / 3;
+            }
+
+            var cellCopy = cell.cloneNode(true);
+            cellCopy.style.width = width + 'px';
+            rowCopy.appendChild(cellCopy);
+        });
+        return rowCopy;
+    }
+
     function markPrintTree(root) {
         Array.prototype.forEach.call(root.children, function (child) {
             if (child.matches('.page')) {
@@ -181,7 +260,37 @@ window.docuHelper = (function () {
             document.body.classList.add('docu-printing');
             return pages.length;
         },
+        sheetPrintEnter: function (layout) {
+            var table = document.querySelector('table.sheet');
+            if (!table || !layout || !layout.pages || layout.pages.length === 0)
+                return 0;
+
+            removeSheetPrint();
+            var container = document.createElement('div');
+            container.className = 'docu-sheet-print';
+            document.body.appendChild(container);
+
+            var zoom = parseFloat(table.style.zoom) || 1;
+            layout.pages.forEach(function (range) {
+                var sheet = document.createElement('div');
+                sheet.className = 'page';
+                sheet.style.setProperty('width', layout.widthCm + 'cm', 'important');
+                sheet.style.setProperty('height', layout.heightCm + 'cm', 'important');
+                sheet.style.setProperty('box-sizing', 'border-box', 'important');
+                sheet.style.setProperty('padding', layout.margins.top + 'cm ' + layout.margins.right + 'cm ' + layout.margins.bottom + 'cm ' + layout.margins.left + 'cm', 'important');
+                container.appendChild(sheet);
+                var piece = sheetPiece(table, range, layout, zoom);
+                sheet.appendChild(piece);
+                fitPage(sheet, piece, layout.scale);
+            });
+
+            markPrintTree(document.body);
+            container.lastElementChild.classList.add('docu-print-last');
+            document.body.classList.add('docu-printing');
+            return layout.pages.length;
+        },
         printExit: function () {
+            removeSheetPrint();
             document.body.classList.remove('docu-printing');
             document.querySelectorAll('.docu-print-hide, .docu-print-keep, .docu-print-page, .docu-print-last').forEach(function (el) {
                 el.classList.remove('docu-print-hide', 'docu-print-keep', 'docu-print-page', 'docu-print-last');

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using DocuHelper.Editors;
 using DocuHelperEditor.Services;
+using DocuHelperEditor.State.Papers;
 using DocuHelperEditor.State.Ribbon.Excel;
 
 namespace DocuHelperEditor.Components.Paper.Excel
@@ -12,7 +13,15 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         private const string DialogApplyFailed = "적용하지 못했어요. 입력한 값과 시트 상태를 확인해 주세요.";
 
-        private ExcelDialogContext DialogContext => new(CurrentSheet.Name, SelectionText, SelectedRef);
+        private ExcelDialogContext DialogContext
+        {
+            get
+            {
+                SheetRef.TryParse(SelectedRef, out var column, out var row);
+                var cell = CurrentSheet.FindCell(row, column);
+                return new ExcelDialogContext(CurrentSheet.Name, SelectionText, SelectedRef, cell?.Note?.Text, cell?.EditText ?? string.Empty);
+            }
+        }
 
         private string DialogReturn => DialogReturnSelector;
 
@@ -25,7 +34,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
                     return null;
 
                 AppLog.Write("Excel dialog command was rejected: " + result.Content);
-                return IsKorean(result.Content) ? "적용하지 못했어요. " + result.Content : DialogApplyFailed;
+                return StartsWithHangul(result.Content) ? "적용하지 못했어요. " + result.Content : DialogApplyFailed;
             }
             catch (Exception e)
             {
@@ -34,8 +43,18 @@ namespace DocuHelperEditor.Components.Paper.Excel
             }
         }
 
+        private string ApplyPaste(EditCommand command)
+        {
+            var problem = ApplyDialog(command);
+            if (problem == null && _clip is { IsCut: true })
+                _clip = null;
+
+            return problem;
+        }
+
         private void CloseDialog() => _router.State.CloseDialog();
 
-        private static bool IsKorean(string text) => !string.IsNullOrEmpty(text) && text.Any(ch => ch >= '가' && ch <= '힣');
+        private static bool StartsWithHangul(string text) =>
+            !string.IsNullOrEmpty(text) && text[0] >= '가' && text[0] <= '힣';
     }
 }

@@ -152,7 +152,7 @@
             <ChartDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Apply="ApplyDialog" Close="CloseDialog" />
             break;
         case ExcelDialogIds.Paste:
-            <PasteSpecialDialog ClipSheet="@_clip?.Sheet" ClipRef="@_clip?.Region.ToRef()" ClipIsCut="@(_clip?.IsCut == true)" TargetSheet="@CurrentSheet.Name" Target="@SheetRef.Make(Selection.Left, Selection.Top)" Apply="ApplyDialog" Close="CloseDialog" />
+            <PasteSpecialDialog ClipSheet="@_clip?.Sheet" ClipRef="@_clip?.Region.ToRef()" ClipIsCut="@(_clip?.IsCut == true)" TargetSheet="@CurrentSheet.Name" Target="@SheetRef.Make(Selection.Left, Selection.Top)" Apply="ApplyPaste" Close="CloseDialog" />
             break;
         case ExcelDialogIds.NameManager:
             <NameManagerDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Names="@Model.Names" Apply="ApplyDialog" Close="CloseDialog" />
