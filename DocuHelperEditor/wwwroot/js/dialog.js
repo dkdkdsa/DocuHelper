@@ -2,6 +2,17 @@ window.docuHelperDialog = (function () {
     var FOCUSABLE = 'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])';
     var active = null;
     var returnFocus = null;
+    var enterAllowed = false;
+
+    function isSubmitControl(el) {
+        if (!el || !el.tagName) return false;
+        if (el.tagName === 'SELECT') return true;
+        return el.tagName === 'INPUT' && !/^(color|button|submit|reset|file|image)$/i.test(el.type);
+    }
+
+    document.addEventListener('keydown', function (e) {
+        enterAllowed = e.key === 'Enter' && !e.isComposing && e.keyCode !== 229 && isSubmitControl(e.target);
+    }, true);
 
     function trap(e) {
         if (e.key !== 'Tab' || !active) return;
@@ -31,9 +42,8 @@ window.docuHelperDialog = (function () {
     }
 
     return {
-        isTextField: function () {
-            var el = document.activeElement;
-            return !!el && el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|file)$/i.test(el.type);
+        enterAllowed: function () {
+            return enterAllowed;
         },
         open: function (dialog, returnSelector) {
             if (!dialog) return;

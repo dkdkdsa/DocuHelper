@@ -100,6 +100,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             return percent && count > 100 ? "백분율은 100 이하로 넣어 주세요." : null;
         }
 
+        public static bool LooksNumeric(string text) => !string.IsNullOrEmpty(text) && (TryNumber(text, out _) || TryDate(text, out _));
+
         private static bool TryNumber(string text, out double value) =>
             double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
 

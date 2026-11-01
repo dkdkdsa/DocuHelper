@@ -386,7 +386,9 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             },
             values => context.CellText.StartsWith("=", StringComparison.Ordinal)
                 ? "수식 칸에는 기호를 넣을 수 없어요."
-                : SingleSymbol(WordNamedDialogs.Text(values, "symbol")),
+                : ExcelDialogInput.LooksNumeric(context.CellText)
+                    ? "숫자나 날짜 칸에 기호를 붙이면 글자로 바뀌어요. 글자 칸에서 써 주세요."
+                    : SingleSymbol(WordNamedDialogs.Text(values, "symbol")),
             (values, context) => new JsonObject
             {
                 ["sheet"] = context.Sheet,
