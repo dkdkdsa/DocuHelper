@@ -13,6 +13,7 @@ namespace DocuHelper
         private readonly List<HandEdit> _runHandEdits = new();
         private readonly Dictionary<Docu, DocuState> _runHandEditBefore = new();
         private readonly List<string> _lostHandEdits = new();
+        private readonly List<string> _mergedHandEdits = new();
 
         public int RunHandEditCount
         {
@@ -68,7 +69,11 @@ namespace DocuHelper
             lock (_notes)
             {
                 foreach (var pair in _runHandEditBefore)
+                {
                     PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [pair.Key] = pair.Value }));
+                    if (_assistantBaselines.ContainsKey(pair.Key))
+                        _mergedHandEdits.Add(pair.Key.Name);
+                }
 
                 _runHandEdits.Clear();
                 _runHandEditBefore.Clear();
@@ -97,6 +102,25 @@ namespace DocuHelper
                 _runHandEdits.Clear();
                 _runHandEditBefore.Clear();
             }
+        }
+
+        public IReadOnlyList<string> TakeMergedHandEdits()
+        {
+            lock (_notes)
+            {
+                var merged = _mergedHandEdits.Distinct().ToList();
+                _mergedHandEdits.Clear();
+                return merged;
+            }
+        }
+
+        private void KeepFailedRunForRedo(IReadOnlyDictionary<Docu, DocuState> attempted, IReadOnlyDictionary<Docu, DocuState> partial)
+        {
+            if (partial.Count == 0)
+                return;
+
+            var undo = new WorkspaceEdit("도우미 작업", true, attempted);
+            _redo.Add(new WorkspaceEdit("도우미 작업", true, partial, undo));
         }
 
         private void ClearRunHandEdits()

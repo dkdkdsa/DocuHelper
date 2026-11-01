@@ -473,6 +473,12 @@ namespace DocuHelperEditor.State
                 RaiseNotice($"‘{file.Name}’: {e.Message}");
                 return false;
             }
+            catch (InvalidOperationException e)
+            {
+                AppLog.Write($"Save blocked for {file.Name}", e);
+                RaiseNotice(_workspace.IsAgentRunning ? "도우미가 일하는 중에는 저장할 수 없어요." : e.Message);
+                return false;
+            }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {
                 AppLog.Write($"Save failed for {file.Name}", e);

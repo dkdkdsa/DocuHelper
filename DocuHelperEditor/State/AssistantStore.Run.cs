@@ -243,10 +243,15 @@ namespace DocuHelperEditor.State
                 _working = null;
                 _workspace.SetAskingFile(null);
                 _workspace.ReportLostHandEdits();
+                _workspace.ReportMergedHandEdits();
                 Notify();
                 await SaveConversationAsync();
             }
         }
+
+        private string StoppedText() => _workspace.IsRunTouchingFiles
+            ? "멈췄어요. 도우미가 쓴 파일은 처음 상태로 되돌렸어요."
+            : "멈췄어요. 이번 부탁으로 바뀐 건 없어요.";
 
         private void CancelRun()
         {
@@ -256,7 +261,7 @@ namespace DocuHelperEditor.State
                 _entries.Remove(_working);
 
             _working = null;
-            _entries.Add(new ChatEntry { Kind = ChatEntryKind.Assistant, Text = "멈췄어요. 이번 부탁으로 바뀐 건 없어요." });
+            _entries.Add(new ChatEntry { Kind = ChatEntryKind.Assistant, Text = StoppedText() });
             ClearQuestion();
             Status = AssistantStatus.Idle;
             Notify();
