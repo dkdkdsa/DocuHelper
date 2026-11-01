@@ -19,7 +19,7 @@ namespace DocuHelperEditor.State
         private const string DefaultSection = "key";
 
         private static readonly string[] s_textSizes = { "m", "l", "xl" };
-        private static readonly string[] s_sections = { "key", "ai", "folder", "hwp", "view", "about" };
+        private static readonly string[] s_sections = { "key", "ai", "folder", "hwp", "view", "update", "about" };
 
         private static readonly string s_settingsPath = Path.Combine(AppPaths.DataFolder, "settings.json");
 
@@ -173,6 +173,20 @@ namespace DocuHelperEditor.State
         {
             HwpNewAsHwp = newAsHwp;
             ApplyHwp();
+            WriteSettings();
+            Notify();
+        }
+
+        public void SetUpdateCheck(bool check)
+        {
+            UpdateCheck = check;
+            WriteSettings();
+            Notify();
+        }
+
+        public void SetUpdateAuto(bool auto)
+        {
+            UpdateAuto = auto;
             WriteSettings();
             Notify();
         }

@@ -36,6 +36,8 @@ namespace DocuHelperEditor.State
 
         public bool CheckFailed { get; private set; }
 
+        public DateTime? LastCheckedAt { get; private set; }
+
         public bool DownloadFailed { get; private set; }
 
         public string CurrentVersion => _service.CurrentVersion;
@@ -144,6 +146,7 @@ namespace DocuHelperEditor.State
             {
                 notice = await _service.CheckAsync();
                 CheckFailed = false;
+                LastCheckedAt = DateTime.Now;
             }
             catch (Exception e)
             {
