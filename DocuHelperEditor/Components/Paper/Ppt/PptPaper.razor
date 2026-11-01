@@ -20,6 +20,10 @@
                 {
                     <SlideOutline Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" OnPick="PickSlide" />
                 }
+                else if (Show)
+                {
+                    <SlideShowOverlay Slides="_model.Slides" AspectRatio="_model.AspectRatio" StartIndex="_model.ActiveIndex" Reading="@(_ribbon.View == "read")" OnExit="ExitShow" />
+                }
                 else
                 {
                     <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @((560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture))px">
@@ -73,6 +77,14 @@
     private bool Sorter => _ribbon.View == "sorter";
 
     private bool Outline => _ribbon.View == "outline";
+
+    private bool Show => _ribbon.View is "show" or "read";
+
+    private void ExitShow(int index)
+    {
+        _ribbon.View = "normal";
+        SelectSlide(index);
+    }
     private int _notesHeight = 92;
 
     private WorkspaceFile _file;
