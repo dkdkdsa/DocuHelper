@@ -16,7 +16,7 @@
             @Shape(shape)
         }
     </div>
-    @if (Slide.FitChecked)
+    @if (ShowFit && Slide.FitChecked)
     {
         <p class="fit"><Icon Name="check" Size="14" Stroke="2.6" />글이 상자 안에 다 들어가요. 글자 크기는 그대로예요.</p>
     }
@@ -44,6 +44,9 @@
 
     [Parameter]
     public bool Locked { get; set; }
+
+    [Parameter]
+    public bool ShowFit { get; set; } = true;
 
     [Parameter]
     public EventCallback<SlideGesture> OnGesture { get; set; }
