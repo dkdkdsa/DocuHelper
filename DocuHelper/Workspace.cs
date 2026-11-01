@@ -9,10 +9,11 @@ using DocuHelper.Agents;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools;
+using DocuHelper.Tools.Word;
 
 namespace DocuHelper
 {
-    public class Workspace
+    public partial class Workspace
     {
         private const int MaxUndo = 30;
         private const int MaxNotes = 20;
@@ -213,10 +214,8 @@ namespace DocuHelper
             if (result.IsError)
                 return result;
 
-            PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [docu] = before }));
-
             var where = result.Change?.Location;
-            AddNote(string.IsNullOrEmpty(where)
+            RecordHandEdit(docu, new[] { command }, before, string.IsNullOrEmpty(where)
                 ? $"The user edited '{docu.Name}' by hand."
                 : $"The user edited '{docu.Name}' by hand at {where}.");
             return result;
@@ -246,8 +245,7 @@ namespace DocuHelper
                 }
             }
 
-            PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [docu] = before }));
-            AddNote($"The user edited '{docu.Name}' by hand in {commands.Count} places at once.");
+            RecordHandEdit(docu, commands, before, $"The user edited '{docu.Name}' by hand in {commands.Count} places at once.");
             return result;
         }
 
@@ -306,17 +304,21 @@ namespace DocuHelper
                 throw new InvalidOperationException("도우미가 이미 일하는 중이에요.");
 
             var notes = TakeNotes();
+            var authors = request.TrackChanges ? MarkAssistantEdits() : new List<(WordDocu Docu, string Author)>();
             var toolbox = new AgentToolbox(this, request, notes);
+            _runHandEdits.Clear();
             IsAgentRunning = true;
             try
             {
                 var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
                 CommitRun(toolbox);
+                CommitRunHandEdits(toolbox.Before.Keys);
                 return result;
             }
             catch
             {
                 toolbox.Rollback();
+                ReplayRunHandEdits();
                 _notes.InsertRange(0, notes);
                 throw;
             }
@@ -324,7 +326,21 @@ namespace DocuHelper
             {
                 toolbox.Release();
                 IsAgentRunning = false;
+                foreach (var (docu, author) in authors)
+                    docu.AssistantRevisionAuthor = author;
             }
+        }
+
+        private List<(WordDocu Docu, string Author)> MarkAssistantEdits()
+        {
+            var marked = new List<(WordDocu, string)>();
+            foreach (var docu in _docus.OfType<WordDocu>().Where(d => d is not HwpDocu))
+            {
+                marked.Add((docu, docu.AssistantRevisionAuthor));
+                docu.AssistantRevisionAuthor = WordComments.DefaultAuthor;
+            }
+
+            return marked;
         }
 
         public bool Undo()

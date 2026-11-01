@@ -2,6 +2,7 @@
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject UpdateStore Updates
 
 <div class="workspace">
     <div class="workspace-main" inert="@IsBlocked">
@@ -51,14 +52,14 @@
     [SupplyParameterFromQuery(Name = "bare")]
     public string Bare { get; set; }
 
-    private bool IsBlocked => Workspace.PendingClose != null || Workspace.IsNewFileOpen || Settings.IsDialogOpen;
+    private bool IsBlocked => Workspace.PendingClose != null || Workspace.IsNewFileOpen || Workspace.IsClosingApp || Settings.IsDialogOpen;
 
     protected override void OnParametersSet()
     {
         if (DevMode.Enabled && !string.IsNullOrEmpty(Scenario) && Scenario != SampleScenarios.Real)
         {
             if (Scenario != SampleScenarios.Current)
-                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings);
+                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings, Updates);
 
             return;
         }
@@ -77,14 +78,26 @@
             return;
         }
 
-        if (!Workspace.IsReady && !(Settings.OpenLastFolder && Workspace.OpenLastFolderOnce()))
+        var justUpdated = Updates.TakeJustUpdated() != null;
+        var restoreAfterUpdate = justUpdated && !Workspace.IsReady;
+        if (restoreAfterUpdate)
+            Workspace.RequestSessionRestore();
+
+        if (!Workspace.IsReady && !((Settings.OpenLastFolder || restoreAfterUpdate) && Workspace.OpenLastFolderOnce()))
+        {
+            Workspace.CancelSessionRestore();
             Navigation.NavigateTo("home");
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
             return;
+
+        var restoredConversation = Workspace.TakeRestoredConversationId();
+        if (restoredConversation != null)
+            await Assistant.OpenConversationAsync(restoredConversation);
 
         _self = DotNetObjectReference.Create(this);
         await JS.InvokeVoidAsync("docuHelper.registerShortcuts", _self);

@@ -1,0 +1,124 @@
+@using DocuHelper.Editors
+@using DocuHelperEditor.State.Papers
+
+<ExcelDialogFrame Title="선택하여 붙여넣기" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="Close">
+    @if (string.IsNullOrEmpty(ClipRef))
+    {
+        <p class="hint">먼저 이 앱에서 복사하거나 잘라낸 칸이 있어야 해요.</p>
+    }
+    else
+    {
+        <p class="hint">@ClipRef 범위를 @Target 칸에 붙여넣어요.</p>
+    }
+    <fieldset class="group">
+        <legend>붙여넣을 내용</legend>
+        @foreach (var (value, label) in Modes)
+        {
+            <label class="check">
+                <input type="radio" name="paste-mode" value="@value" checked="@(_paste == value)" @onchange="() => _paste = value" />
+                <span>@label</span>
+            </label>
+        }
+    </fieldset>
+    <div class="field">
+        <label class="field-label" for="ps-operation">연산</label>
+        <select id="ps-operation" class="field-input" @bind="_operation">
+            @foreach (var (value, label) in Operations)
+            {
+                <option value="@value">@label</option>
+            }
+        </select>
+    </div>
+    <label class="check">
+        <input type="checkbox" @bind="_skipBlanks" />
+        <span>빈 칸은 건너뛰기</span>
+    </label>
+    <label class="check">
+        <input type="checkbox" @bind="_transpose" />
+        <span>행과 열 바꿈</span>
+    </label>
+</ExcelDialogFrame>
+
+@code {
+    private static readonly (string Value, string Label)[] Modes =
+    {
+        ("all", "모두"),
+        ("formulas", "수식"),
+        ("values", "값"),
+        ("formats", "서식"),
+        ("values_and_formats", "값과 원본 서식"),
+        ("column_widths", "열 너비"),
+        ("validation", "데이터 유효성 검사"),
+    };
+
+    private static readonly (string Value, string Label)[] Operations =
+    {
+        ("none", "없음"),
+        ("add", "더하기"),
+        ("subtract", "빼기"),
+        ("multiply", "곱하기"),
+        ("divide", "나누기"),
+    };
+
+    [Parameter]
+    public string ClipSheet { get; set; }
+
+    [Parameter]
+    public string ClipRef { get; set; }
+
+    [Parameter]
+    public bool ClipIsCut { get; set; }
+
+    [Parameter]
+    public string TargetSheet { get; set; }
+
+    [Parameter]
+    public string Target { get; set; }
+
+    [Parameter]
+    public Func<EditCommand, string> Apply { get; set; }
+
+    [Parameter]
+    public EventCallback Close { get; set; }
+
+    private string _paste = "all";
+    private string _operation = "none";
+    private bool _skipBlanks;
+    private bool _transpose;
+    private string _error;
+
+    private string ErrorText => _error;
+
+    private async Task SubmitAsync()
+    {
+        _error = null;
+        if (string.IsNullOrEmpty(ClipRef))
+        {
+            _error = "먼저 이 앱에서 복사하거나 잘라낸 칸이 있어야 해요.";
+            return;
+        }
+
+        var args = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["sheet"] = ClipSheet,
+            ["source"] = ClipRef,
+            ["target"] = Target,
+            ["target_sheet"] = TargetSheet,
+            ["paste"] = _paste,
+            ["move"] = ClipIsCut,
+        };
+
+        if (_operation != "none")
+            args["operation"] = _operation;
+
+        if (_skipBlanks)
+            args["skip_blanks"] = true;
+
+        if (_transpose)
+            args["transpose"] = true;
+
+        _error = Apply(EditCommand.Create("copy_range", args));
+        if (_error == null)
+            await Close.InvokeAsync();
+    }
+}

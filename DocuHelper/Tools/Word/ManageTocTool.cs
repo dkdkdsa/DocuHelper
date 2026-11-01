@@ -84,7 +84,7 @@ namespace DocuHelper.Tools.Word
             }
             """;
 
-        protected override WordHwpSupport Hwp => WordHwpSupport.None;
+        protected override WordHwpSupport Hwp => WordHwpSupport.Full;
 
         protected override ToolResult Run(WordDocu docu, ToolInput input)
         {
@@ -95,6 +95,12 @@ namespace DocuHelper.Tools.Word
             var kind = (input.GetOptionalString("kind") ?? WordTocBuilder.ContentsKind).Trim().ToLowerInvariant();
             if (Array.IndexOf(s_kinds, kind) < 0)
                 throw new ToolInputException("'kind' 값은 contents, figures, index 중 하나여야 해요.");
+
+            if (docu is HwpDocu && kind == WordTocBuilder.IndexKind)
+                throw new ToolInputException("한글 파일의 색인은 한글에서 만들어 주세요.");
+
+            if (docu is HwpDocu && kind == WordTocBuilder.FiguresKind)
+                throw new ToolInputException("한글 파일의 그림 목차는 한글에서 만들어 주세요. 캡션을 넣을 수 없어서 이 앱에서는 만들 수 없어요.");
 
             var options = action == "insert" ? Options(input, kind) : null;
             var snapshot = docu.Capture();
@@ -135,7 +141,7 @@ namespace DocuHelper.Tools.Word
             var location = first == null ? null : WordInline.LocationOf(fresh, first);
             var anchors = result.Entries.Take(30).Select(p => WordIds.Of(p)).Where(id => id != null).Select(WordAnchors.Paragraph).ToList();
             return ToolResult.Changed(
-                $"Inserted a {kind} with {result.Entries.Count} entries; page numbers are estimates until Word updates the fields.",
+                $"Inserted a {kind} with {result.Entries.Count} entries; page numbers are estimates until Word updates the fields.{Estimate(docu)}",
                 Change(location, "table-of-contents", anchors),
                 kind switch
                 {
@@ -159,7 +165,7 @@ namespace DocuHelper.Tools.Word
                 });
 
             return ToolResult.Changed(
-                $"Rebuilt {count} {kind} table(s); page numbers are estimates until Word updates the fields.",
+                $"Rebuilt {count} {kind} table(s); page numbers are estimates until Word updates the fields.{Estimate(docu)}",
                 Change(location, "table-of-contents", Array.Empty<string>()),
                 kind switch
                 {
@@ -187,6 +193,9 @@ namespace DocuHelper.Tools.Word
                     _ => "목차 지움",
                 });
         }
+
+        private static string Estimate(WordDocu docu) =>
+            docu is HwpDocu ? " In 한글 the page numbers are estimates; the user should refresh the fields in 한글 for exact numbers." : string.Empty;
 
         private static (OpenXmlElement Anchor, bool After) Anchor(WordScan scan, ToolInput input)
         {

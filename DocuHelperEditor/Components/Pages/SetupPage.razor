@@ -1,6 +1,8 @@
 ﻿@page "/setup"
+@using DocuHelper.Agents
 @inherits StoreComponentBase
 @inject NavigationManager NavigationManager
+@inject UpdateStore Updates
 
 <div class="setup">
     <header class="setup-header" data-chrome>
@@ -29,7 +31,7 @@
                 </div>
 
                 <div class="key">
-                    <label for="setup-key" class="key-title">도우미 열쇠 (API 키)</label>
+                    <label for="setup-key" class="key-title">도우미 열쇠 (Claude나 ChatGPT)</label>
                     <div class="row">
                         <div class="fld">
                             <input id="setup-key" type="@KeyInputType" value="@Settings.ApiKey" autocomplete="off" spellcheck="false" aria-describedby="setup-key-status setup-key-tip" @oninput="OnKeyInput" />
@@ -42,22 +44,26 @@
                         {
                             case KeyCheckState.Ok:
                                 <span class="badge" aria-hidden="true"><Icon Name="check" Size="11" Stroke="3.6" /></span>
-                                <span>연결됐어요</span>
+                                <span>@ConnectedText</span>
                                 break;
                             case KeyCheckState.Checking:
                                 <Spinner Size="16" />
                                 <span>연결되는지 확인하고 있어요…</span>
                                 break;
+                            case KeyCheckState.Unverified:
+                                <span class="badge" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
+                                <span>@UnverifiedKeyText</span>
+                                break;
                             case KeyCheckState.Failed:
                                 <span class="badge" aria-hidden="true"><Icon Name="x" Size="11" Stroke="3.6" /></span>
-                                <span>연결이 안 됐어요. 열쇠가 맞는지 다시 봐 주세요.</span>
+                                <span>@(IsUnknownKey ? UnknownKeyText : "연결이 안 됐어요. 열쇠가 맞는지 다시 봐 주세요.")</span>
                                 break;
                             default:
                                 <span>열쇠를 붙여 넣고 [연결 확인]을 눌러 주세요.</span>
                                 break;
                         }
                     </p>
-                    <p id="setup-key-tip" class="tip">sk-ant-로 시작하는 열쇠예요. 없으면 앱을 깔아 준 분께 받아 주세요.</p>
+                    <p id="setup-key-tip" class="tip">Claude(sk-ant-)나 ChatGPT(sk-proj-) 열쇠 중 하나면 돼요. 어느 쪽인지는 알아서 알아봐요. 없으면 앱을 깔아 준 분께 받아 주세요.</p>
                 </div>
 
                 <div class="info">
@@ -70,7 +76,7 @@
 
                 @if (_saveFailed)
                 {
-                    <p class="save-error" role="alert">열쇠를 저장하지 못했어요. 문서 도우미를 사용자 폴더(%LocalAppData%\Programs\문서도우미)에 다시 설치해 주세요.</p>
+                    <p class="save-error" role="alert">@(IsUnknownKey ? UnknownKeyText : "열쇠를 저장하지 못했어요. 문서 도우미 설정 폴더에 쓸 수 있는지 봐 주세요.")</p>
                 }
 
                 <div class="foot">
@@ -141,7 +147,17 @@
     [SupplyParameterFromQuery(Name = "bare")]
     public string Bare { get; set; }
 
+    private const string UnverifiedKeyText = "열쇠는 맞는 것 같지만 확인 권한이 없어요. 그대로 저장할까요?";
+
+    private const string UnknownKeyText = "Claude(sk-ant-)나 ChatGPT(sk-) 열쇠처럼 보이지 않아요. 다시 봐 주세요.";
+
     private string KeyInputType => Settings.IsKeyVisible ? "text" : "password";
+
+    private bool IsUnknownKey => !string.IsNullOrWhiteSpace(Settings.ApiKey) && AgentKeys.Detect(Settings.ApiKey) == null;
+
+    private string ConnectedText => AgentKeys.Detect(Settings.ApiKey) == AgentProvider.OpenAi
+        ? "ChatGPT 열쇠로 연결됐어요"
+        : "Claude 열쇠로 연결됐어요";
 
     private bool VerifyDisabled => string.IsNullOrWhiteSpace(Settings.ApiKey) || Settings.KeyState == KeyCheckState.Checking;
 
@@ -158,7 +174,7 @@
         if (DevMode.Enabled && !string.IsNullOrEmpty(Scenario))
         {
             if (Scenario != SampleScenarios.Current)
-                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings);
+                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings, Updates);
 
             return;
         }

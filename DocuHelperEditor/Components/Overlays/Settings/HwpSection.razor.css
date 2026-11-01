@@ -1,0 +1,130 @@
+section {
+    display: flex;
+    flex-direction: column;
+}
+
+h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.lead {
+    margin: 2px 0 14px;
+    font-size: 14px;
+    color: var(--ink-2);
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px 24px;
+    padding: var(--space-4) 0;
+    border-top: 1px solid var(--hair);
+}
+
+.row-head {
+    flex: 1 1 200px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.45;
+}
+
+.row-title {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.row-note {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.row-body {
+    flex: 1.4 1 320px;
+    min-width: 0;
+    margin: 0;
+}
+
+.options {
+    padding: 0;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.text {
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+::deep .opt.compact {
+    min-height: 52px;
+    padding: 6px 12px;
+}
+
+::deep .opt.compact .opt-body {
+    flex: 1;
+}
+
+.opt-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.opt-name {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.opt-note {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.default-tag {
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-xs);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+}
+
+.state {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.check {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xs);
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.check.off {
+    background: var(--warn);
+}

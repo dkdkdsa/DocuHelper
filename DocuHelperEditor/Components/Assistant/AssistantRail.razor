@@ -37,7 +37,11 @@
     private const string ComposerSelector = "#composer-input";
     private const string PanelCloseSelector = "#assistant-panel-close";
 
-    private Task ExpandAsync() => ExpandAndFocusAsync(PanelCloseSelector);
+    private Task ExpandAsync()
+    {
+        Assistant.RememberPanelCollapsed(false);
+        return ExpandAndFocusAsync(PanelCloseSelector);
+    }
 
     private Task ShowResultAsync() => ExpandAndFocusAsync(ComposerTargetSelector);
 

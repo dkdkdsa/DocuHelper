@@ -68,7 +68,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             WorkbookChoice("excel.layout.theme", "theme", s_themes);
             WorkbookChoice("excel.layout.themecolors", "theme_colors", s_themeColors);
             WorkbookChoice("excel.layout.themefonts", "theme_fonts", s_themeFonts);
-            Tool("excel.layout.margins", "set_print_setup", arg => string.IsNullOrEmpty(arg) ? null : Sheetwide(("margins", arg)))
+            Tool("excel.layout.margins", "set_print_setup", MarginCommand)
                 .MenuFrom(MarginMenu);
             Tool("excel.layout.orientation", "set_print_setup", arg => string.IsNullOrEmpty(arg) ? null : Sheetwide(("orientation", arg)))
                 .MenuFrom(() => new[]
@@ -163,6 +163,17 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 return "wide";
 
             return Near(page.MarginTop, 1.91) && Near(page.MarginBottom, 1.91) && Near(page.MarginLeft, 0.64) && Near(page.MarginRight, 0.64) ? "narrow" : null;
+        }
+
+        private Dictionary<string, object> MarginCommand(string arg)
+        {
+            if (arg == "dialog")
+            {
+                State.OpenDialog(ExcelDialogIds.Margins);
+                return null;
+            }
+
+            return string.IsNullOrEmpty(arg) ? null : Sheetwide(("margins", arg));
         }
 
         private IReadOnlyList<RibbonMenuItem> MarginMenu()

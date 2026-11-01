@@ -83,6 +83,9 @@
     [Parameter]
     public EventCallback Closed { get; set; }
 
+    [Parameter]
+    public string ReturnFocus { get; set; }
+
     private WordDialogRequest _shown;
 
     protected override void OnParametersSet()
@@ -107,7 +110,7 @@
         _focusPending = false;
         try
         {
-            await JS.InvokeVoidAsync("docuHelperDialog.open", _dialog);
+            await JS.InvokeVoidAsync("docuHelperDialog.open", _dialog, ReturnFocus);
         }
         catch (JSException)
         {

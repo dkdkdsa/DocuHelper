@@ -1,5 +1,11 @@
 window.docuHelper = (function () {
     var handler = null;
+    var rememberedFocus = null;
+    var lastFocused = null;
+
+    document.addEventListener('focusin', function (e) {
+        if (e.target && e.target !== document.body) lastFocused = e.target;
+    }, true);
 
     function isEditable(el) {
         if (!el) return false;
@@ -110,9 +116,20 @@ window.docuHelper = (function () {
             el.focus();
             el.select();
         },
+        rememberFocus: function () {
+            rememberedFocus = lastFocused;
+        },
+        restoreFocus: function () {
+            if (rememberedFocus && document.contains(rememberedFocus)) rememberedFocus.focus();
+            rememberedFocus = null;
+        },
         focus: function (selector) {
             var el = document.querySelector(selector);
             if (el) el.focus();
+        },
+        scrollToTop: function (selector) {
+            var el = document.querySelector(selector);
+            if (el) el.scrollTop = 0;
         },
         focusPaperStart: function () {
             var paper = document.querySelector('[data-region="paper"]');

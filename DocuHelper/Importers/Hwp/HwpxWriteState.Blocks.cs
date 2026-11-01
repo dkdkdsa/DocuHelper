@@ -58,7 +58,7 @@ namespace DocuHelper.Importers.Hwp
                     var kept = Owns(paragraph, bookmark) ? KeptObject(bookmark, paragraph, suppressed) : null;
                     if (kept != null)
                         runs.Add(kept);
-                    else if (Owns(paragraph, bookmark) && bookmark.Name?.Value is string name && !name.StartsWith("_", System.StringComparison.Ordinal))
+                    else if (Owns(paragraph, bookmark) && bookmark.Name?.Value is string name && (!name.StartsWith("_", System.StringComparison.Ordinal) || name.StartsWith(HwpTocMarks.Prefix, System.StringComparison.Ordinal)))
                         runs.Add(BookmarkRun(name));
 
                     continue;

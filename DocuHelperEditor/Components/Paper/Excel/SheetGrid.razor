@@ -22,7 +22,7 @@
             </colgroup>
             <thead>
                 <tr>
-                    <th scope="col" title="모두 고르기"><span class="sr-only">행</span></th>
+                    <th scope="col" title="모두 고르기"><span class="sr-only">행</span>@CornerDecorations</th>
                     @for (var c = 0; c < Sheet.Columns.Count; c++)
                     {
                         var columnIndex = c;
@@ -190,6 +190,9 @@
 
     [Parameter]
     public RenderFragment<SheetRowContext> RowDecorations { get; set; }
+
+    [Parameter]
+    public RenderFragment CornerDecorations { get; set; }
 
     [Parameter]
     public RenderFragment<Sheet> Overlay { get; set; }
@@ -425,6 +428,9 @@
 
         if (row?.Height != null)
             classes.Add("hx");
+
+        if (row?.OutlineLevel > 0)
+            classes.Add("ol");
 
         if (rowIndex < Sheet.FreezeRows)
             classes.Add(rowIndex == _lastFrozenRow ? "fz fz-end" : "fz");

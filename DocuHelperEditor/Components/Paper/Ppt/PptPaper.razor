@@ -8,11 +8,11 @@
 {
     var slide = _model.ActiveSlide;
     <div class="ppt">
-        <PptRibbon File="File" State="_ribbon" OnChanged="Redraw" />
+        <PptRibbon @ref="_ribbonHost" File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" Sorter="_sorter" OnToggleSorter="ToggleSorter" />
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
             <div class="stage">
-                @if (_sorter)
+                @if (Sorter)
                 {
                     <SlideSorter Slides="_model.Slides" Sections="_model.Sections" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" OnPick="PickSlide" />
                 }
@@ -26,7 +26,7 @@
                 }
                 else
                 {
-                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)">
+                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @((560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture))px">
                         @if (_ribbon.Rulers)
                         {
                             <span class="corner" aria-hidden="true"></span>
@@ -63,17 +63,19 @@
                 }
             </div>
         </div>
-        @if (!_sorter && _ribbon.View == "normal" && _ribbon.NotesOpen)
+        @if (_ribbon.View == "normal" && _ribbon.NotesOpen)
         {
             <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
         }
+        <PptStatusBar Model="_model" State="_ribbon" Commands="_ribbonHost?.Commands" SorterOpen="Sorter" OnToggleSorter="ToggleSorter" />
+        <PptDialogHost Presenter="_presenter" />
         <ChangeNavigator File="File" />
     </div>
 }
 
 @code {
     private readonly PptRibbonState _ribbon = new();
-    private bool _sorter;
+    private bool Sorter => _ribbon.View == "sorter";
 
     private bool Outline => _ribbon.View == "outline";
 
@@ -86,6 +88,11 @@
         _ribbon.View = "normal";
         SelectSlide(index);
     }
+
+    private void ToggleSorter() => SetSorter(!Sorter);
+
+    private PptRibbon _ribbonHost;
+    private readonly PptDialogPresenter _presenter = new();
     private int _notesHeight = 92;
     private bool _previewing;
     private const int TransitionPreviewMs = 900;
@@ -118,6 +125,7 @@
         _ribbon.ModelSource = () => File?.Paper as PptPaperModel ?? _model;
         _ribbon.CommitDraft = CommitDraft;
         _ribbon.ActivateSlide = ActivateSlide;
+        _ribbon.Dialogs = _presenter;
     }
 
     protected override void OnParametersSet() => Sync();
@@ -130,6 +138,9 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && _ribbonHost != null)
+            StateHasChanged();
+
         if (_model == null)
             return;
 
@@ -261,15 +272,19 @@
 
     private void SetNotesHeight(int height) => _notesHeight = Math.Clamp(height, SpeakerNotes.MinHeight, SpeakerNotes.MaxHeight);
 
-    private void ToggleSorter()
+    private void ToggleNotes() => _ribbon.NotesOpen = !_ribbon.NotesOpen;
+
+    private void SetSorter(bool on)
     {
         CommitDraft();
-        _sorter = !_sorter;
+        _ribbon.View = on ? "sorter" : "normal";
     }
+
+    private void SetZoom(int value) => _ribbon.Zoom = Math.Clamp(value, PptRibbonState.MinZoom, PptRibbonState.MaxZoom);
 
     private void PickSlide(int index)
     {
-        _sorter = false;
+        _ribbon.View = "normal";
         SelectSlide(index);
     }
 
@@ -320,6 +335,7 @@
             return;
 
         _model.SelectShape(shapeId, additive);
+        _ribbonHost?.Commands?.SelectionChanged();
         _notesFocused = false;
         Report();
     }

@@ -26,5 +26,6 @@
         RealNumbering,
         KeepObjects,
         StaticToc,
+        FigureToc,
     }
 }

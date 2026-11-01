@@ -2,6 +2,7 @@
 @inject IJSRuntime JS
 @inject IClipboardService Clipboard
 @inject IFileDialogService Files
+@inject ISpeechService Speech
 
 @if (Router != null)
 {
@@ -56,7 +57,7 @@
             return;
         }
 
-        state.Router ??= new WordCommandRouter(Workspace, Assistant, JS, Clipboard, Files, state);
+        state.Router ??= new WordCommandRouter(Workspace, Assistant, JS, Clipboard, Files, Speech, state);
         state.Router.File = File;
         if (ReferenceEquals(_boundFile, File) && ReferenceEquals(_subscribed, state.Router))
             return;
