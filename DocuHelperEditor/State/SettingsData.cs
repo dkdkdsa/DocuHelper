@@ -1,4 +1,6 @@
-﻿namespace DocuHelperEditor.State
+﻿using System;
+
+namespace DocuHelperEditor.State
 {
     public class SettingsData
     {
@@ -25,5 +27,9 @@
         public bool UpdateCheck { get; set; } = true;
 
         public bool UpdateAuto { get; set; } = true;
+
+        public DateTime? ClaudeCheckedAt { get; set; }
+
+        public DateTime? OpenAiCheckedAt { get; set; }
     }
 }

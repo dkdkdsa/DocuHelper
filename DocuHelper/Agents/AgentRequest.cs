@@ -4,6 +4,8 @@ namespace DocuHelper.Agents
 {
     public class AgentRequest
     {
+        public AgentProvider Provider { get; set; } = AgentProvider.Claude;
+
         public string ApiKey { get; set; }
 
         public string Prompt { get; set; }

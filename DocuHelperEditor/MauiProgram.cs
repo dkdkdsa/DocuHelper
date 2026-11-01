@@ -97,7 +97,7 @@ namespace DocuHelperEditor
 
         private static Workspace CreateWorkspace()
         {
-            var workspace = new Workspace { Agent = new ClaudeAgent() };
+            var workspace = new Workspace { Agent = new AgentRouter(new ClaudeAgent(), new ChatGptAgent()) };
             workspace.RegisterEditor(new WordEditor());
             workspace.RegisterEditor(new ExcelEditor());
             workspace.RegisterEditor(new PptEditor());

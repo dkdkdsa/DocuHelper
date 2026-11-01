@@ -18,30 +18,37 @@
             <section id="composer-model-pop" class="pop" aria-labelledby="composer-model-h">
                 <div class="pop-head">
                     <h3 id="composer-model-h">모델</h3>
-                    <span class="pop-sub">다음 부탁부터 바뀌어요</span>
+                    <span class="pop-sub">다음 부탁부터 바뀌어요. 비용은 Sonnet 5.5 기준이에요</span>
                 </div>
-                <ul class="options">
-                    @foreach (var option in AssistantModels.Models)
+                @foreach (var provider in s_modelGroups)
+                {
+                    if (Settings.HasKey(provider))
                     {
-                        var on = option.Id == Settings.ModelId;
-                        <li @key="option.Id">
-                            <button type="button" class="option @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => PickModelAsync(option)">
-                                <span class="radio" aria-hidden="true"><span class="dot"></span></span>
-                                <span class="option-text">
-                                    <span class="option-top">
-                                        <span class="option-name">@option.Name</span>
-                                        @if (option.IsDefault)
-                                        {
-                                            <span class="default-tag">기본</span>
-                                        }
-                                        <span class="option-cost">@option.Cost</span>
-                                    </span>
-                                    <span class="option-desc">@option.Description</span>
-                                </span>
-                            </button>
-                        </li>
+                        <p class="group-label @(provider == DocuHelper.Agents.AgentProvider.OpenAi ? "gpt" : null)">@GroupName(provider)</p>
+                        <ul class="options">
+                            @foreach (var option in AssistantModels.For(provider))
+                            {
+                                var on = option.Id == Settings.Model.Id;
+                                <li @key="option.Id">
+                                    <button type="button" class="option @(provider == DocuHelper.Agents.AgentProvider.Claude ? "claude" : null) @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => PickModelAsync(option)">
+                                        <span class="radio" aria-hidden="true"><span class="dot"></span></span>
+                                        <span class="option-text">
+                                            <span class="option-top">
+                                                <span class="option-name">@option.Name</span>
+                                                @if (option.IsDefault)
+                                                {
+                                                    <span class="default-tag">기본</span>
+                                                }
+                                                <span class="option-cost">@option.Cost</span>
+                                            </span>
+                                            <span class="option-desc">@option.Description</span>
+                                        </span>
+                                    </button>
+                                </li>
+                            }
+                        </ul>
                     }
-                </ul>
+                }
             </section>
         }
         @if (OpenMenu == EffortMenu)
@@ -111,6 +118,7 @@
     private const string RevisePlaceholder = "어떻게 고칠지 적어 주세요. 예: 합계 줄은 빼 줘";
     private const string ModelMenu = "model";
     private const string EffortMenu = "effort";
+    private static readonly DocuHelper.Agents.AgentProvider[] s_modelGroups = { DocuHelper.Agents.AgentProvider.Claude, DocuHelper.Agents.AgentProvider.OpenAi };
 
     private ElementReference _input;
     private IJSObjectReference _module;
@@ -181,6 +189,8 @@
             AppLog.Write("Could not show the draft", e);
         }
     }
+
+    private static string GroupName(DocuHelper.Agents.AgentProvider provider) => provider == DocuHelper.Agents.AgentProvider.OpenAi ? "ChatGPT" : "Claude";
 
     private void ToggleModel() => _menu = _menu == ModelMenu ? null : ModelMenu;
 
