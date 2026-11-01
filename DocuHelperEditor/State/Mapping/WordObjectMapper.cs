@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using DocuHelper.Docus;
 using DocuHelper.Tools.Ppt;
 using DocuHelper.Tools.Word;
@@ -18,6 +19,10 @@ namespace DocuHelperEditor.State.Mapping
         private const double EmuPerPt = 12700.0;
 
         private const double TwipsPerPt = 20.0;
+
+        private const long MaxImageBytes = 6L * 1024 * 1024;
+
+        private static readonly ConditionalWeakTable<ImagePart, string> s_images = new();
 
         public static IReadOnlyList<WordObjectModel> Of(WordBlock block, string blockId, int page, WordDocu docu, WordPageLayout layout)
         {
@@ -179,10 +184,24 @@ namespace DocuHelperEditor.State.Mapping
             if (relationship == null || !main.TryGetPartById(relationship, out var part) || part is not ImagePart image)
                 return null;
 
+            if (s_images.TryGetValue(image, out var cached))
+                return cached;
+
             using var stream = image.GetStream(FileMode.Open, FileAccess.Read);
             using var memory = new MemoryStream();
-            stream.CopyTo(memory);
-            return "data:" + image.ContentType + ";base64," + Convert.ToBase64String(memory.ToArray());
+            var chunk = new byte[64 * 1024];
+            int read;
+            while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+            {
+                if (memory.Length + read > MaxImageBytes)
+                    return null;
+
+                memory.Write(chunk, 0, read);
+            }
+
+            var url = "data:" + image.ContentType + ";base64," + Convert.ToBase64String(memory.ToArray());
+            s_images.AddOrUpdate(image, url);
+            return url;
         }
 
         private static OpenXmlElement Anchor(Drawing drawing) => Descendant(drawing, "anchor");

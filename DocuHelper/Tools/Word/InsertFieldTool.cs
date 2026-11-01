@@ -145,7 +145,7 @@ namespace DocuHelper.Tools.Word
                     return Complex("NUMPAGES", scan.PageCount.ToString(CultureInfo.InvariantCulture));
 
                 case "section_pages":
-                    return Complex("SECTIONPAGES", scan.PageCount.ToString(CultureInfo.InvariantCulture));
+                    return Complex("SECTIONPAGES", SectionPages(scan, paragraph).ToString(CultureInfo.InvariantCulture));
 
                 case "section":
                     return Complex("SECTION", SectionNumber(scan, paragraph).ToString(CultureInfo.InvariantCulture));
@@ -264,6 +264,13 @@ namespace DocuHelper.Tools.Word
         {
             var number = Math.Max(1, value);
             return new string((char)('A' + (number - 1) % 26), (number - 1) / 26 + 1);
+        }
+
+        private static int SectionPages(WordScan scan, Paragraph paragraph)
+        {
+            var page = WordInline.PageOf(scan, paragraph);
+            var section = page >= 1 && page <= scan.PageSections.Count ? scan.PageSections[page - 1] : 0;
+            return Math.Max(1, scan.PageSections.Count(s => s == section));
         }
 
         private static int SectionNumber(WordScan scan, Paragraph paragraph)

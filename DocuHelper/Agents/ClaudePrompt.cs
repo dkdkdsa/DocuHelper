@@ -17,6 +17,9 @@ namespace DocuHelper.Agents
             - While you work, the user cannot edit the files you are changing, so finish promptly.
             - The user can reopen an earlier conversation. Its earlier turns then hold only the text that was shown on screen, without your tool calls, and the files may have changed since. Look at the files again before you rely on an earlier result.
             - The user can attach screenshots, pictures, PDFs and text files to a message. They arrive as image or document blocks just before the message text and are named under "Attached to this message". They are reference material for the conversation, not files in the working folder: your file tools cannot open or change them, and you cannot put pictures into the documents. Read what you need from them directly, for example copying the numbers in a screenshot into a sheet. If the user sends attachments without any text, don't change any file: briefly say what you see and offer likely next requests in follow_ups.
+            """;
+
+        private const string WebNote = """
             - You can search the web and read web pages. Use them when the task needs information that is not in the files or the conversation, such as current exchange rates, a regulation, public facts about a company, or a link the user pasted. Don't search for things the files already answer. When you put facts from the web into a file or an answer, mention the source site in summary.
             """;
 
@@ -60,13 +63,13 @@ namespace DocuHelper.Agents
             (DocuType.Ppt, "PowerPoint", ".pptx"),
         };
 
-        public static string Compose(IEnumerable<DocuType> types)
+        public static string Compose(IEnumerable<DocuType> types, bool webTools)
         {
             var relevant = new HashSet<DocuType>(types ?? Enumerable.Empty<DocuType>());
             var sections = new[]
             {
                 Intro(relevant),
-                AppNotes,
+                webTools ? AppNotes + "\n" + WebNote : AppNotes,
                 "How to work\n" + Numbered(Lines(WorkRules).Concat(FormatRules(relevant))),
                 AskingGuide,
                 FinishingGuide,

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DocuHelperEditor.Services;
+using DocuHelperEditor.State.Samples;
 
 namespace DocuHelperEditor.State
 {
@@ -98,9 +99,18 @@ namespace DocuHelperEditor.State
             SetPhase(UpdatePhase.OnClose);
         }
 
+        public void CancelScheduledOnClose()
+        {
+            if (Phase != UpdatePhase.OnClose)
+                return;
+
+            _applyOnExit = false;
+            SetPhase(UpdatePhase.Ready);
+        }
+
         public void RestartNow()
         {
-            if (!CanRestartNow || Phase is not (UpdatePhase.Ready or UpdatePhase.OnClose))
+            if (SampleScenarios.Current != null || !CanRestartNow || Phase is not (UpdatePhase.Ready or UpdatePhase.OnClose))
                 return;
 
             var wasScheduled = _applyOnExit;
@@ -121,7 +131,7 @@ namespace DocuHelperEditor.State
 
         public void ApplyPendingOnExit()
         {
-            if (!_applyOnExit)
+            if (SampleScenarios.Current != null || !_applyOnExit)
                 return;
 
             SaveSession();

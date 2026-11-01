@@ -30,6 +30,9 @@ namespace DocuHelper.Tools.Word
 
         public static Prepared Prepare(JsonElement chart, WordScan scan)
         {
+            if (chart.ValueKind != JsonValueKind.Object)
+                throw new ToolInputException("차트는 chart에 type, categories, series를 담은 객체로 알려 주세요.");
+
             var kind = Text(chart, "type")?.ToLowerInvariant() ?? "column";
             if (!Types.Contains(kind))
                 throw new ToolInputException($"차트 종류는 {string.Join(", ", Types)} 중 하나로 알려 주세요.");
@@ -89,6 +92,9 @@ namespace DocuHelper.Tools.Word
 
             foreach (var item in items.EnumerateArray())
             {
+                if (item.ValueKind != JsonValueKind.Object)
+                    throw new ToolInputException("계열은 name과 values를 담은 객체로 알려 주세요.");
+
                 var name = Text(item, "name") ?? "계열";
                 var values = new List<double>();
                 if (item.TryGetProperty("values", out var numbers) && numbers.ValueKind == JsonValueKind.Array)

@@ -84,8 +84,8 @@ namespace DocuHelper.Tools.Word
 
         private double Measure(int codepoint)
         {
-            if (_glyphs != null && _glyphs.TryGetValue(codepoint, out var glyph) && glyph < _advances.Length)
-                return _advances[glyph] / _unitsPerEm;
+            if (_glyphs != null && _glyphs.TryGetValue(codepoint, out var glyph) && _advances.Length > 0)
+                return _advances[Math.Min(glyph, _advances.Length - 1)] / _unitsPerEm;
 
             if (codepoint == ' ')
                 return FallbackSpace;

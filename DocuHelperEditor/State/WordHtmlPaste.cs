@@ -10,19 +10,25 @@ namespace DocuHelperEditor.State
 {
     public static class WordHtmlPaste
     {
-        private static readonly Regex s_token = new(@"<(/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*)>|([^<]+)", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(2);
 
-        private static readonly Regex s_comment = new(@"<!--.*?-->", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex s_token = new(@"<(/?)([a-zA-Z][a-zA-Z0-9]*)([^>]{0,2000})>|([^<]+)", RegexOptions.Compiled | RegexOptions.Singleline, s_timeout);
 
-        private static readonly Regex s_hidden = new(@"<(style|script|head)\b[^>]*>.*?</\1>", RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
+        private static readonly Regex s_comment = new(@"<!--.*?-->", RegexOptions.Compiled | RegexOptions.Singleline, s_timeout);
 
-        private static readonly Regex s_style = new(@"style\s*=\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex s_hidden = new(@"<(style|script|head)\b[^>]*>.*?</\1>", RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase, s_timeout);
+
+        private static readonly Regex s_conditional = new(@"<!\[[^>]*\]>", RegexOptions.Compiled | RegexOptions.Singleline, s_timeout);
+
+        private static readonly Regex s_style = new(@"style\s*=\s*(?:""([^""]*)""|'([^']*)')", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static readonly Regex s_spaces = new(@"\s+", RegexOptions.Compiled);
 
-        private static readonly HashSet<string> s_breaks = new(StringComparer.OrdinalIgnoreCase) { "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "br" };
+        private static readonly HashSet<string> s_breaks = new(StringComparer.OrdinalIgnoreCase) { "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "table", "br" };
 
-        public const int MaxHtmlLength = 2_000_000;
+        private static readonly HashSet<string> s_closeBreaks = new(StringComparer.OrdinalIgnoreCase) { "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "table" };
+
+        public const int MaxHtmlLength = 500_000;
 
         public const int MaxParagraphs = 200;
 
@@ -30,11 +36,23 @@ namespace DocuHelperEditor.State
 
         public static IReadOnlyList<WordClipParagraph> Parse(string html)
         {
-            var paragraphs = new List<WordClipParagraph>();
             if (string.IsNullOrWhiteSpace(html) || html.Length > MaxHtmlLength)
-                return paragraphs;
+                return new List<WordClipParagraph>();
 
-            var source = s_hidden.Replace(s_comment.Replace(html, string.Empty), string.Empty);
+            try
+            {
+                return ParseCore(html);
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                return new List<WordClipParagraph>();
+            }
+        }
+
+        private static List<WordClipParagraph> ParseCore(string html)
+        {
+            var paragraphs = new List<WordClipParagraph>();
+            var source = s_conditional.Replace(s_hidden.Replace(s_comment.Replace(html, string.Empty), string.Empty), string.Empty);
             var runs = new List<WordClipRun>();
             var styles = new Stack<WordCharLook>();
             styles.Push(WordCharLook.Plain);
@@ -48,7 +66,7 @@ namespace DocuHelperEditor.State
                     if (preDepth == 0)
                     {
                         text = s_spaces.Replace(text, " ");
-                        if (runs.Count == 0 || runs[^1].Text.EndsWith(' '))
+                        if (runs.Count == 0 || runs[^1].Text.EndsWith(' ') || runs[^1].Text.EndsWith('\t'))
                             text = text.TrimStart(' ');
                     }
 
@@ -95,7 +113,13 @@ namespace DocuHelperEditor.State
                     continue;
                 }
 
-                if ((!closing && s_breaks.Contains(name)) || (closing && name is "p" or "div" or "li"))
+                if (closing && name is "td" or "th")
+                {
+                    runs.Add(new WordClipRun("\t", styles.Peek()));
+                    continue;
+                }
+
+                if ((!closing && s_breaks.Contains(name)) || (closing && s_closeBreaks.Contains(name)))
                     AddParagraph(paragraphs, runs, preDepth == 0);
             }
 
@@ -112,7 +136,7 @@ namespace DocuHelperEditor.State
             if (trim && runs.Count > 0 && runs[^1].Text.Length > 0)
             {
                 var last = runs[^1];
-                var trimmed = last.Text.TrimEnd(' ');
+                var trimmed = last.Text.TrimEnd(' ', '\t');
                 if (trimmed.Length == 0)
                     runs.RemoveAt(runs.Count - 1);
                 else if (trimmed.Length != last.Text.Length)
@@ -129,7 +153,8 @@ namespace DocuHelperEditor.State
             if (!match.Success)
                 return look;
 
-            foreach (var declaration in match.Groups[1].Value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            var css = WebUtility.HtmlDecode(match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value);
+            foreach (var declaration in css.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 var parts = declaration.Split(':', 2, StringSplitOptions.TrimEntries);
                 if (parts.Length != 2)

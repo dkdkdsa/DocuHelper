@@ -83,6 +83,9 @@ namespace DocuHelper.Tools.Word
             if (parent is Hyperlink)
                 throw new ToolInputException("이미 링크가 걸린 글이에요. 링크를 바꾸려면 링크를 고치기로 해 주세요.");
 
+            var children = parent.ChildElements.ToList();
+            runs = runs.Distinct().OrderBy(r => children.IndexOf(r)).ToList();
+
             IReadOnlyList<OpenXmlElement> units = runs;
             if (parent is InsertedRun wrapper)
             {

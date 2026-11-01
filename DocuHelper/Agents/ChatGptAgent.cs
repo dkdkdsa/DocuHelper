@@ -24,6 +24,7 @@ namespace DocuHelper.Agents
         private const string CutOffNotice = "Your reply was cut off. Continue from where you stopped.";
         private const string SkippedNotice = "Skipped: the task was already finished.";
         private const string InvalidArgumentsNotice = "Error: The arguments were not valid JSON object.";
+        private const string CutOffArgumentsNotice = "Error: Your reply was cut off before this call was complete. Send a smaller call.";
         private const string ErrorPrefix = "Error: ";
         private const string EmptyResult = "(empty)";
         private const string MaxTurnsMessage = "일이 너무 길어져서 멈췄어요. 문서가 일부 바뀌었을 수 있어요. 부탁을 조금 나눠서 다시 말해 주세요.";
@@ -103,7 +104,8 @@ namespace DocuHelper.Agents
                         using var document = ParseArguments(ChatGptTranslator.Field(call, "arguments"));
                         if (document == null)
                         {
-                            results.Add(ChatGptTranslator.ToolOutputItem(callId, InvalidArgumentsNotice));
+                            var notice = ChatGptTranslator.IsCutOff(response) ? CutOffArgumentsNotice : InvalidArgumentsNotice;
+                            results.Add(ChatGptTranslator.ToolOutputItem(callId, notice));
                             continue;
                         }
 
@@ -179,7 +181,7 @@ namespace DocuHelper.Agents
             {
                 var reply = await _client.GetAsync(apiKey, ModelsPath, cancellationToken);
                 if (!reply.IsSuccess)
-                    throw ChatGptTranslator.Translate(reply);
+                    throw ChatGptTranslator.Translate(reply, verifyingKey: true);
             }
             catch (TaskCanceledException e) when (!cancellationToken.IsCancellationRequested)
             {
@@ -246,7 +248,7 @@ namespace DocuHelper.Agents
             return new JsonObject
             {
                 ["model"] = model,
-                ["instructions"] = ClaudePrompt.Compose(toolbox.Types),
+                ["instructions"] = ClaudePrompt.Compose(toolbox.Types, webTools: false),
                 ["input"] = new JsonArray(_items.Select(item => item.DeepClone()).ToArray()),
                 ["tools"] = new JsonArray(toolbox.Definitions.Select(definition => (JsonNode)ChatGptTranslator.ToTool(definition)).ToArray()),
                 ["tool_choice"] = "auto",

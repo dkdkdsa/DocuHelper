@@ -62,6 +62,8 @@ namespace DocuHelper.Tools.Ppt
                         PptSizeScaler.Root(layout.SlideLayout, layout.SlideLayout?.CommonSlideData?.ShapeTree, scale);
                 }
 
+                PptSizeScaler.Root(presentation.Presentation, null, scale);
+
                 presentation.Presentation.SlideSize = SizeElement(target);
                 var anchors = slides.Select(s => PptAnchor.Slide(s.SlideId)).ToList();
                 var content = $"Changed the slide size to {target.Aspect} ({PptUnits.CmText(target.Width)} x {PptUnits.CmText(target.Height)} cm) and scaled "

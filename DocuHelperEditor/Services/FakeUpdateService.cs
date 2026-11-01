@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if DEBUG
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,3 +80,4 @@ namespace DocuHelperEditor.Services
         };
     }
 }
+#endif

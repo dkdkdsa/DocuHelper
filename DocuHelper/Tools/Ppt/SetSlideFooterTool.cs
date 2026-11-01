@@ -127,6 +127,9 @@ namespace DocuHelper.Tools.Ppt
                             continue;
                         }
 
+                        if (existing.Count > 0 && (kind == PptFooters.SlideNumber || kind == PptFooters.Footer && footerText == null))
+                            continue;
+
                         var placeholder = PptFooters.LayoutPlaceholder(layoutTree, kind);
                         if (placeholder == null)
                         {

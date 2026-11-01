@@ -38,6 +38,9 @@ namespace DocuHelper.Tools.Excel
             if (toolName == "protect")
                 return;
 
+            if (!book.Sheets.Any(s => ProtectionOf(s) != null) && !StructureLocked(book))
+                return;
+
             var plan = PlanOf(book, toolName, input);
             if (plan == null)
             {
@@ -123,10 +126,29 @@ namespace DocuHelper.Tools.Excel
 
             foreach (var address in range.Cells())
             {
-                var cell = sheet.FindCell(address.Column, address.Row);
-                if (book.StyleOf(cell).Locked && !InAllowedRange(sheet, address))
+                if (book.Styles.Describe(StyleIndexOf(sheet, address.Column, address.Row)).Locked && !InAllowedRange(sheet, address))
                     throw new ToolInputException($"보호된 시트라서 고칠 수 없어요. ‘{sheet.Name}’의 {address} 칸은 잠겨 있어요. 검토 > 시트 보호 해제로 풀어 주세요.");
             }
+        }
+
+        private static uint StyleIndexOf(ExcelSheet sheet, int column, int row)
+        {
+            var cell = sheet.FindCell(column, row);
+            if (cell != null)
+                return cell.StyleIndex?.Value ?? 0;
+
+            var line = sheet.FindRow(row);
+            if (line?.CustomFormat?.Value == true && line.StyleIndex != null)
+                return line.StyleIndex.Value;
+
+            var number = (uint)(column + 1);
+            foreach (var definition in sheet.Worksheet?.GetFirstChild<Columns>()?.Elements<Column>() ?? Enumerable.Empty<Column>())
+            {
+                if (definition.Min?.Value <= number && definition.Max?.Value >= number)
+                    return definition.Style?.Value ?? 0;
+            }
+
+            return 0;
         }
 
         private static bool InAllowedRange(ExcelSheet sheet, CellAddress address) =>
@@ -140,7 +162,7 @@ namespace DocuHelper.Tools.Excel
 
             foreach (var item in ranges.Elements<ProtectedRange>())
             {
-                if (!string.IsNullOrEmpty(item.Password?.Value))
+                if (!string.IsNullOrEmpty(item.Password?.Value) || !string.IsNullOrEmpty(item.HashValue?.Value))
                     continue;
 
                 foreach (var part in (item.SequenceOfReferences?.InnerText ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries))
@@ -160,7 +182,7 @@ namespace DocuHelper.Tools.Excel
                     AddWriteTargets(book, plan, input);
                     break;
                 case "set_formula":
-                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet));
+                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet, null));
                     break;
                 case "format_range":
                     plan.Actions.Add("format_cells");
@@ -169,7 +191,7 @@ namespace DocuHelper.Tools.Excel
                     break;
                 case "sort_range":
                     plan.Actions.Add("sort");
-                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet));
+                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet, null));
                     break;
                 case "add_sheet":
                 case "copy_sheet":
@@ -200,14 +222,14 @@ namespace DocuHelper.Tools.Excel
                 case "merge_cells":
                     plan.Actions.Add("format_cells");
                     if (input.GetOptionalBool("unmerge") != true)
-                        plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet));
+                        plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet, null));
                     break;
                 case "manage_table":
                     plan.Actions.Add("autofilter");
                     if (input.Has("range"))
-                        plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet));
+                        plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet, null));
                     if (input.Has("new_range"))
-                        plan.Cells.Add(TargetOf(book, input.GetString("new_range"), plan.Sheet));
+                        plan.Cells.Add(TargetOf(book, input.GetString("new_range"), plan.Sheet, null));
                     break;
                 case "filter_range":
                     plan.Actions.Add("autofilter");
@@ -217,24 +239,25 @@ namespace DocuHelper.Tools.Excel
                     break;
                 case "set_conditional_format":
                     plan.Actions.Add("format_cells");
-                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet));
+                    if (input.Has("range"))
+                        plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet, null));
                     break;
                 case "copy_range":
-                    plan.Cells.Add(TargetOf(book, input.GetString("target"), input.GetOptionalString("target_sheet") ?? plan.Sheet));
+                    plan.Cells.Add(DestinationOf(book, input, plan.Sheet));
                     if (input.GetOptionalBool("move") == true)
-                        plan.Cells.Add(TargetOf(book, input.GetString("source"), plan.Sheet));
+                        plan.Cells.Add(TargetOf(book, input.GetString("source"), plan.Sheet, null));
                     break;
                 case "shift_cells":
                     plan.Actions.AddRange(new[] { "insert_rows", "insert_columns", "delete_rows", "delete_columns" });
-                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet));
+                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet, null));
                     break;
                 case "set_data_validation":
-                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet));
+                    plan.Cells.Add(TargetOf(book, input.GetString("range"), plan.Sheet, null));
                     break;
                 case "set_hyperlink":
                     plan.Actions.Add("insert_hyperlinks");
                     if (input.Has("cell"))
-                        plan.Cells.Add(TargetOf(book, input.GetString("cell"), plan.Sheet));
+                        plan.Cells.Add(TargetOf(book, input.GetString("cell"), plan.Sheet, null));
                     break;
                 case "edit_comment":
                 case "create_chart":
@@ -255,7 +278,7 @@ namespace DocuHelper.Tools.Excel
                         plan.Structure = true;
                     break;
                 case "goal_seek":
-                    plan.Cells.Add(TargetOf(book, input.GetString("changing_cell"), plan.Sheet));
+                    plan.Cells.Add(TargetOf(book, input.GetString("changing_cell"), plan.Sheet, null));
                     break;
                 case "protect":
                     break;
@@ -274,7 +297,7 @@ namespace DocuHelper.Tools.Excel
 
         private static void AddWriteTargets(ExcelBook book, PlanResult plan, ToolInput input)
         {
-            var start = TargetOf(book, input.GetString("start"), plan.Sheet);
+            var start = TargetOf(book, input.GetString("start"), plan.Sheet, null);
             var origin = start.Range;
             var values = input.Get("values");
             if (values.ValueKind == JsonValueKind.String)
@@ -317,27 +340,52 @@ namespace DocuHelper.Tools.Excel
             }
         }
 
-        private static CellTarget TargetOf(ExcelBook book, string text, string defaultSheet)
+        private static CellTarget DestinationOf(ExcelBook book, ToolInput input, string sourceSheet)
         {
-            var sheet = defaultSheet;
+            var source = TargetOf(book, input.GetString("source"), sourceSheet, null).Range;
+            var start = TargetOf(book, input.GetString("target"), input.GetOptionalString("target_sheet"), sourceSheet);
+            var transpose = input.GetOptionalBool("transpose") == true;
+            var width = transpose ? source.RowCount : source.ColumnCount;
+            var height = transpose ? source.ColumnCount : source.RowCount;
+            var destination = new CellRange(start.Range.Left, start.Range.Top, start.Range.Left + width - 1, start.Range.Top + height - 1);
+            return new CellTarget(start.Sheet, destination);
+        }
+
+        private static CellTarget TargetOf(ExcelBook book, string text, string explicitSheet, string fallbackSheet)
+        {
             var rest = text ?? string.Empty;
+            string prefix = null;
             var bang = rest.LastIndexOf('!');
             if (bang > 0)
             {
-                sheet = rest.Substring(0, bang).Trim();
-                if (sheet.Length > 1 && sheet[0] == '\'' && sheet[^1] == '\'')
-                    sheet = sheet.Substring(1, sheet.Length - 2).Replace("''", "'");
+                prefix = rest.Substring(0, bang).Trim();
+                if (prefix.Length > 1 && prefix[0] == '\'' && prefix[^1] == '\'')
+                    prefix = prefix.Substring(1, prefix.Length - 2).Replace("''", "'");
 
                 rest = rest.Substring(bang + 1);
             }
 
+            var sheet = string.IsNullOrWhiteSpace(explicitSheet) ? prefix ?? fallbackSheet : explicitSheet;
             if (sheet != null && book.FindSheet(sheet) == null)
                 throw new ToolInputException($"‘{sheet}’ 시트를 찾을 수 없어요. 있는 시트: {book.SheetList()}");
 
-            if (!CellRange.TryParse(rest.Trim(), out var range))
+            return new CellTarget(sheet, RangeIn(book, sheet, rest.Trim()));
+        }
+
+        private static CellRange RangeIn(ExcelBook book, string sheet, string text)
+        {
+            var lastRow = 0;
+            var lastColumn = 0;
+            foreach (var owner in sheet == null ? book.Sheets.ToList() : new List<ExcelSheet> { book.FindSheet(sheet) })
+            {
+                lastRow = Math.Max(lastRow, owner?.UsedRange?.Bottom ?? 0);
+                lastColumn = Math.Max(lastColumn, owner?.UsedRange?.Right ?? 0);
+            }
+
+            if (!CellRange.TryParse(text, lastRow, lastColumn, out var range))
                 throw new ToolInputException($"알아볼 수 없는 범위예요: ‘{text}’. B2:D10처럼 알려 주세요.");
 
-            return new CellTarget(sheet, range);
+            return range;
         }
 
         private sealed record SheetAction(string Name, string Label, bool LockedByDefault, Func<SheetProtection, BooleanValue> Get, Action<SheetProtection, BooleanValue> Set);

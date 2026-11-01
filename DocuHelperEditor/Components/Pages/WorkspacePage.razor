@@ -97,7 +97,16 @@
 
         var restoredConversation = Workspace.TakeRestoredConversationId();
         if (restoredConversation != null)
-            await Assistant.OpenConversationAsync(restoredConversation);
+        {
+            try
+            {
+                await Assistant.OpenConversationAsync(restoredConversation);
+            }
+            catch (Exception e)
+            {
+                AppLog.Write("Could not restore the conversation", e);
+            }
+        }
 
         _self = DotNetObjectReference.Create(this);
         await JS.InvokeVoidAsync("docuHelper.registerShortcuts", _self);

@@ -1,11 +1,14 @@
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace DocuHelper.Importers.Hwp
 {
     internal sealed class HwpxBorderFill
     {
+        private static readonly Regex s_hexColor = new(@"^#?[0-9A-Fa-f]{6}$", RegexOptions.CultureInvariant);
+
         public HwpBorderLine Top { get; private set; }
 
         public HwpBorderLine Left { get; private set; }
@@ -28,7 +31,7 @@ namespace DocuHelper.Importers.Hwp
                 Right = Line(element, "rightBorder"),
             };
             var face = element.Descendants().FirstOrDefault(e => e.Name.LocalName == "winBrush")?.Attribute("faceColor")?.Value;
-            fill.FaceColor = string.IsNullOrEmpty(face) ? null : face.TrimStart('#');
+            fill.FaceColor = face != null && s_hexColor.IsMatch(face) ? face.TrimStart('#') : null;
             return fill;
         }
 

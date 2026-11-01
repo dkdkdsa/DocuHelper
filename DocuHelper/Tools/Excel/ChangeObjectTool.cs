@@ -159,13 +159,14 @@ namespace DocuHelper.Tools.Excel
             var current = ExcelDrawings.CellOf(from);
             var deltaColumn = target.Column - current.Column;
             var deltaRow = target.Row - current.Row;
+            var to = anchor is Xdr.TwoCellAnchor ? anchor.ChildElements.First(e => e.LocalName == "to") : null;
+            var newEnd = to == null ? default : new CellAddress(ExcelDrawings.CellOf(to).Column + deltaColumn, ExcelDrawings.CellOf(to).Row + deltaRow);
+            if (to != null && !newEnd.IsValid)
+                throw new ToolInputException("개체를 그 자리로 옮기면 시트 끝을 넘어가요. 더 앞쪽 칸을 알려 주세요.");
+
             ExcelDrawings.SetCell(from, target);
-            if (anchor is Xdr.TwoCellAnchor)
-            {
-                var to = anchor.ChildElements.First(e => e.LocalName == "to");
-                var end = ExcelDrawings.CellOf(to);
-                ExcelDrawings.SetCell(to, new CellAddress(end.Column + deltaColumn, end.Row + deltaRow));
-            }
+            if (to != null)
+                ExcelDrawings.SetCell(to, newEnd);
         }
 
         private static void Resize(ExcelSheet sheet, OpenXmlElement anchor, int? columns, int? rows)
@@ -173,12 +174,17 @@ namespace DocuHelper.Tools.Excel
             if (!columns.HasValue && !rows.HasValue)
                 throw new ToolInputException("resize에는 columns나 rows로 새 크기를 알려 주세요.");
 
+            if (columns is < 1 or > CellAddress.MaxColumns || rows is < 1 or > CellAddress.MaxRows)
+                throw new ToolInputException("columns와 rows는 1 이상으로, 시트 안에 들어가게 알려 주세요.");
+
             if (anchor is Xdr.TwoCellAnchor)
             {
                 var from = ExcelDrawings.CellOf(anchor.ChildElements.First(e => e.LocalName == "from"));
                 var to = anchor.ChildElements.First(e => e.LocalName == "to");
                 var end = ExcelDrawings.CellOf(to);
-                ExcelDrawings.SetCell(to, new CellAddress(columns.HasValue ? from.Column + columns.Value : end.Column, rows.HasValue ? from.Row + rows.Value : end.Row));
+                var column = columns.HasValue ? (int)Math.Min((long)from.Column + columns.Value, CellAddress.MaxColumns - 1) : end.Column;
+                var row = rows.HasValue ? (int)Math.Min((long)from.Row + rows.Value, CellAddress.MaxRows - 1) : end.Row;
+                ExcelDrawings.SetCell(to, new CellAddress(column, row));
                 return;
             }
 
@@ -206,7 +212,7 @@ namespace DocuHelper.Tools.Excel
                 throw new ToolInputException("restyle에는 fill, line_color, line_width 중 하나 이상을 알려 주세요.");
 
             var geometry = properties.GetFirstChild<A.PresetGeometry>();
-            OpenXmlElement previous = (OpenXmlElement)geometry ?? properties.GetFirstChild<A.Transform2D>();
+            OpenXmlElement previous = (OpenXmlElement)geometry ?? (OpenXmlElement)properties.GetFirstChild<A.CustomGeometry>() ?? properties.GetFirstChild<A.Transform2D>();
             if (fill != null)
             {
                 foreach (var old in properties.Elements().Where(e => e is A.SolidFill or A.NoFill).ToList())
@@ -223,8 +229,19 @@ namespace DocuHelper.Tools.Excel
                 var current = outline == null ? null : Line(outline);
                 var colour = line ?? current?.Colour ?? "2F75B5";
                 var weight = width ?? current?.Width ?? 1;
-                outline?.Remove();
-                previous.InsertAfterSelf(LineElement(colour, weight));
+                var replacement = LineElement(colour, weight);
+                if (outline != null)
+                {
+                    foreach (var child in outline.ChildElements.Where(e => e is not A.SolidFill and not A.NoFill).ToList())
+                    {
+                        child.Remove();
+                        replacement.Append(child);
+                    }
+
+                    outline.Remove();
+                }
+
+                previous.InsertAfterSelf(replacement);
             }
         }
 
@@ -264,6 +281,8 @@ namespace DocuHelper.Tools.Excel
             var body = anchor.Descendants<Xdr.TextBody>().First();
             if ((text ?? string.Empty).Length > MaxTextLength)
                 throw new ToolInputException($"글은 {MaxTextLength}자까지 넣을 수 있어요.");
+
+            text = ExcelDrawings.XmlSafe(text);
 
             var run = body.Descendants<A.RunProperties>().FirstOrDefault()?.CloneNode(true) as A.RunProperties
                 ?? new A.RunProperties { Language = "ko-KR" };
@@ -329,8 +348,12 @@ namespace DocuHelper.Tools.Excel
             var range = Text(change, "data_range");
             if (range != null)
             {
-                var data = ParseRangeOf(sheet, range);
-                (categoryRef, series) = CreateChartTool.Layout(sheet, data, "columns", kind);
+                var dataSheet = sheet;
+                if (SplitSheet(range, out var prefix, out _))
+                    dataSheet = book.FindSheet(prefix) ?? throw new ToolInputException($"‘{prefix}’ 시트를 찾을 수 없어요. 있는 시트: {book.SheetList()}");
+
+                var data = ParseRangeOf(range);
+                (categoryRef, series) = CreateChartTool.Layout(dataSheet, data, "columns", kind);
             }
 
             if (series.Count == 0)
@@ -351,7 +374,7 @@ namespace DocuHelper.Tools.Excel
             part.ChartSpace = new C.ChartSpace(ChartXmlBuilder.Build(book, rebuilt));
         }
 
-        private static CellRange ParseRangeOf(ExcelSheet sheet, string text)
+        private static CellRange ParseRangeOf(string text)
         {
             var value = text.Trim();
             var bang = value.LastIndexOf('!');
@@ -371,6 +394,8 @@ namespace DocuHelper.Tools.Excel
             var plot = chart.GetFirstChild<C.PlotArea>() ?? throw new ToolInputException("차트 데이터를 읽지 못했어요.");
             var group = plot.ChildElements.FirstOrDefault(e => e.LocalName is "barChart" or "lineChart" or "pieChart" or "doughnutChart" or "areaChart" or "scatterChart")
                 ?? throw new ToolInputException("이 차트 종류는 바꿀 수 없어요.");
+            if (plot.ChildElements.Count(e => e.LocalName is "barChart" or "lineChart" or "pieChart" or "doughnutChart" or "areaChart" or "scatterChart") > 1)
+                throw new ToolInputException("종류가 두 가지 이상 섞인 차트(콤보 차트)는 이 도구로 바꿀 수 없어요.");
             var grouping = Child(group, "grouping");
             var kind = group.LocalName switch
             {
@@ -409,6 +434,9 @@ namespace DocuHelper.Tools.Excel
                 var value = Formula(s, "val") ?? Formula(s, "yVal");
                 return new ChartXmlBuilder.SeriesRef(name, value);
             }).Where(s => s.NameRef != null && s.ValueRef != null).ToList();
+            if (group.ChildElements.Count(e => e.LocalName == "ser") != series.Count)
+                throw new ToolInputException("직접 넣은 값으로 된 계열이 있어서 이 도구로 바꿀 수 없어요.");
+
             var first = group.ChildElements.FirstOrDefault(e => e.LocalName == "ser");
             var category = first == null ? null : Formula(first, "cat") ?? Formula(first, "xVal");
             return new ChartXmlBuilder.Spec

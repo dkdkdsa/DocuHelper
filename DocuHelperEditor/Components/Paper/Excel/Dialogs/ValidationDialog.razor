@@ -273,7 +273,8 @@
     private string CheckOperand(string text, string label) => _kind switch
     {
         "date" => ExcelDialogInput.Date(text, label),
-        "whole" or "decimal" or "text_length" => ExcelDialogInput.Number(text, label),
+        "time" => ExcelDialogInput.Time(text, label),
+        "whole" or "decimal" or "text_length" => ExcelDialogInput.NumberOrReference(text, label),
         _ => ExcelDialogInput.Operand(text, label),
     };
 

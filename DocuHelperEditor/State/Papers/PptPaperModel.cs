@@ -31,6 +31,7 @@ namespace DocuHelperEditor.State.Papers
         public override bool IsBlank => Slides == null || Slides.All(s =>
             s.Chart == null
             && (s.Boxes == null || s.Boxes.All(b => b.IsEmpty))
+            && (s.Shapes == null || s.Shapes.All(sh => sh.Kind == SlideShapeKind.Text))
             && (s.Notes == null || s.Notes.All(string.IsNullOrWhiteSpace)));
 
         public SlideModel ActiveSlide => Slides == null || Slides.Count == 0

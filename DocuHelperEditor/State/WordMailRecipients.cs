@@ -8,7 +8,7 @@ namespace DocuHelperEditor.State
 {
     public sealed class WordMailRecipients
     {
-        private const int MaxRecipients = 1000;
+        public const int MaxRecipients = 1000;
 
         public WordMailRecipients(string fileName, IReadOnlyList<string> fields, IReadOnlyList<IReadOnlyDictionary<string, string>> rows)
         {

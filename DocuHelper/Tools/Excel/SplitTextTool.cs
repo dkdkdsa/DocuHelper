@@ -41,6 +41,9 @@ namespace DocuHelper.Tools.Excel
             if (source.ColumnCount != 1)
                 throw new ToolInputException("텍스트 나누기는 한 열씩 골라 주세요. 예: A2:A40");
 
+            if (source.CellCount > MaxCells)
+                throw new ToolInputException($"한 번에 {MaxCells}칸까지만 나눌 수 있어요. 범위를 나눠 주세요.");
+
             var delimiterText = input.GetOptionalString("delimiter");
             var hasWidths = input.Has("widths");
             if ((delimiterText == null) == !hasWidths)
@@ -148,6 +151,9 @@ namespace DocuHelper.Tools.Excel
             var element = input.Get("widths");
             if (element.ValueKind != JsonValueKind.Array)
                 throw new ToolInputException("widths는 글자 수 목록으로 알려 주세요. 예: [4, 2, 6]");
+
+            if (element.GetArrayLength() > MaxParts)
+                throw new ToolInputException($"widths는 {MaxParts}개까지만 알려 주세요.");
 
             var widths = new List<int>();
             foreach (var item in element.EnumerateArray())

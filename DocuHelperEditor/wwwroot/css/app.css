@@ -354,7 +354,7 @@ body.docu-printing .docu-sheet-print {
     position: static !important;
 }
 
-body.docu-printing html,
+html:has(body.docu-printing),
 body.docu-printing {
     height: auto !important;
     overflow: visible !important;

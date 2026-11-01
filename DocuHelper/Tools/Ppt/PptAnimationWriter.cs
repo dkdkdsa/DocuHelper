@@ -129,7 +129,7 @@ namespace DocuHelper.Tools.Ppt
             if (list == null)
                 return kept;
 
-            var active = new HashSet<uint>(effects.Select(e => e.Info.ShapeId));
+            var active = new HashSet<uint>(effects.Where(e => !e.IsOpaque).Select(e => e.Info.ShapeId));
             var affected = new HashSet<uint>(touched);
             foreach (var entry in list.ChildElements)
             {
@@ -189,7 +189,7 @@ namespace DocuHelper.Tools.Ppt
                 };
                 var xml = effect.IsOpaque ? effect.Raw.OuterXml : EffectXml(effect.Info, nodeType, counter);
                 groups[group][inner].Add(xml);
-                var end = effect.IsOpaque ? 0 : effect.Info.DelayMs + Duration(effect.Info);
+                var end = effect.IsOpaque ? RawEnd(effect.Raw) : effect.Info.DelayMs + Duration(effect.Info);
                 innerEnds[group][inner] = Math.Max(innerEnds[group][inner], end);
             }
 
@@ -211,6 +211,18 @@ namespace DocuHelper.Tools.Ppt
             }
 
             return result;
+        }
+
+        private static int RawEnd(OpenXmlElement raw)
+        {
+            var delay = raw.Descendants().FirstOrDefault(d => d.LocalName == "stCondLst")?.Descendants().FirstOrDefault(d => d.LocalName == "cond");
+            var start = int.TryParse(Attribute(delay, "delay"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0;
+            var length = raw.Descendants()
+                .Where(d => d.LocalName == "cTn")
+                .Select(d => int.TryParse(Attribute(d, "dur"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms) ? ms : 0)
+                .DefaultIfEmpty(0)
+                .Max();
+            return start + length;
         }
 
         private static string NodeStart(OpenXmlElement raw)

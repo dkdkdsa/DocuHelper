@@ -209,7 +209,7 @@ namespace DocuHelper.Agents
         {
             var model = string.IsNullOrWhiteSpace(request.Model) ? DefaultModel : request.Model.Trim();
             var effort = ParseEffort(request.Effort);
-            var system = ClaudePrompt.Compose(toolbox.Types);
+            var system = ClaudePrompt.Compose(toolbox.Types, webTools: true);
             var tools = toolbox.Definitions.Select(ToTool).ToList();
             if (model.StartsWith("claude-haiku", StringComparison.Ordinal))
             {

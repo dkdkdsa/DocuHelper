@@ -14,7 +14,7 @@ namespace DocuHelper.Importers.Hwp
         private const int MaxHwpLevels = 10;
         private const string DefaultBullet = "•";
 
-        private readonly Dictionary<int, HwpxList> _lists = new();
+        private readonly Dictionary<(int NumId, bool Bullet), HwpxList> _lists = new();
 
         private (string Heading, int Id, int Level)? ListOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, out Indentation indentation)
         {
@@ -29,7 +29,7 @@ namespace DocuHelper.Importers.Hwp
 
             indentation = definition.PreviousParagraphProperties?.Indentation;
             var bullet = format == NumberFormatValues.Bullet;
-            if (!_lists.TryGetValue(numId, out var list))
+            if (!_lists.TryGetValue((numId, bullet), out var list))
             {
                 list = new HwpxList
                 {
@@ -37,7 +37,7 @@ namespace DocuHelper.Importers.Hwp
                     Bullet = bullet,
                     Levels = LevelsOf(numId),
                 };
-                _lists[numId] = list;
+                _lists[(numId, bullet)] = list;
             }
 
             return (bullet ? "BULLET" : "NUMBER", list.Id, Math.Max(0, level));
@@ -110,8 +110,11 @@ namespace DocuHelper.Importers.Hwp
 
         private static string BulletChar(HwpxList list)
         {
-            var text = list.Levels.Length > 0 ? list.Levels[0].LevelText?.Val?.Value : null;
-            return string.IsNullOrEmpty(text) ? DefaultBullet : text;
+            var text = list.Levels.FirstOrDefault(l => l.NumberingFormat?.Val?.Value == NumberFormatValues.Bullet)?.LevelText?.Val?.Value;
+            if (string.IsNullOrEmpty(text))
+                return DefaultBullet;
+
+            return text.Length == 1 ? HwpBullet.Text(text[0]) : text;
         }
 
         private static int StartOf(Level level) => level?.StartNumberingValue?.Val?.Value ?? 1;

@@ -158,7 +158,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
             var menu = _filterMenu;
             _filterMenu = null;
             if (menu != null)
-                Edit(EditCommand.Create("sort_range", new { sheet = menu.SheetName, range = menu.Region.ToRef(), by = SheetRef.ColumnName(menu.Column), descending, has_header = true }));
+                Edit(EditCommand.Create("sort_range", new { sheet = menu.SheetName, range = menu.Region.ToRef(), by = SheetRef.ColumnName(menu.Column), descending, has_header = true, by_column = true }));
 
             _focusSink = true;
         }

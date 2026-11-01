@@ -50,14 +50,14 @@ namespace DocuHelper.Tools.Ppt
                     if (PptCommentWriter.HasModern(part))
                         throw new ToolInputException("이 슬라이드에는 새 형식의 댓글이 있어서 메모를 넣을 수 없어요. 댓글 창에서 직접 달아 주세요.");
 
-                    var text = (input.GetOptionalString("text") ?? string.Empty).Trim();
+                    var text = PptText.Clean(input.GetOptionalString("text") ?? string.Empty).Trim();
                     if (text.Length == 0)
                         throw new ToolInputException("메모 내용을 text로 알려 주세요.");
 
                     if (text.Length > PptCommentWriter.MaxLength)
                         throw new ToolInputException($"메모는 {PptCommentWriter.MaxLength}자까지 쓸 수 있어요.");
 
-                    var author = (input.GetOptionalString("author") ?? DefaultAuthor).Trim();
+                    var author = PptText.Clean(input.GetOptionalString("author") ?? DefaultAuthor).Trim();
                     if (author.Length == 0)
                         author = DefaultAuthor;
 
@@ -101,8 +101,8 @@ namespace DocuHelper.Tools.Ppt
         {
             if (input.Has("x") || input.Has("y"))
             {
-                var x = input.Has("x") ? input.Get("x").GetDouble() : 0.5;
-                var y = input.Has("y") ? input.Get("y").GetDouble() : 0.5;
+                var x = input.GetOptionalNumber("x") ?? 0.5;
+                var y = input.GetOptionalNumber("y") ?? 0.5;
                 if (double.IsNaN(x) || double.IsNaN(y) || x < 0 || y < 0 || x > 100 || y > 100)
                     throw new ToolInputException("x와 y는 0~100cm 사이로 알려 주세요.");
 

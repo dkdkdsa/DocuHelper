@@ -43,6 +43,13 @@ namespace DocuHelperEditor.State
             if (active != null)
                 Open(active.Id);
 
+            if (_openIds.Count == 0)
+            {
+                var first = _files.FirstOrDefault();
+                if (first != null)
+                    Open(first.Id);
+            }
+
             RestoredConversationId = saved.ConversationId;
         }
     }

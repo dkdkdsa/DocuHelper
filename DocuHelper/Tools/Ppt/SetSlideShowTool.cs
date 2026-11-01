@@ -11,6 +11,7 @@ namespace DocuHelper.Tools.Ppt
     public class SetSlideShowTool : Tool
     {
         private static readonly string[] s_types = { "presenter", "browse", "kiosk" };
+        private const int MaxShowNameLength = 64;
 
         public override string Name => "set_slide_show";
 
@@ -51,22 +52,29 @@ namespace DocuHelper.Tools.Ppt
             var shows = new List<(string Name, IReadOnlyList<string> RelationshipIds)>();
             var removed = new List<string>();
             var detail = new List<string>();
-            if (input.Has("range"))
-                Range(input.Get("range"), presentation, slides, request, out _);
-
             if (input.Has("custom_shows"))
                 CustomShows(input.Get("custom_shows"), presentation, slides, shows, removed, detail);
+
+            if (input.Has("range"))
+                Range(input.Get("range"), presentation, slides, request, shows, removed);
+
+            var referenced = PptShowWriter.RangeCustomShowId(presentation);
+            if (request.RangeType == null && referenced != null && removed.Any(name => PptShowWriter.CustomShowId(presentation, name) == referenced))
+                request.RangeType = "all";
 
             var changedShow = request.ShowType != null || request.RangeType != null || request.Loop.HasValue || request.UseTimings.HasValue || request.ShowAnimation.HasValue
                 || request.ShowNarration.HasValue || request.MediaControls.HasValue;
             if (!changedShow && shows.Count == 0 && removed.Count == 0)
                 throw new ToolInputException("바꿀 것을 알려 주세요. show_type, loop, range, custom_shows 중 하나 이상을 넣어 주세요.");
 
-            if (changedShow)
-                PptShowWriter.Apply(presentation, request);
-
             if (shows.Count > 0 || removed.Count > 0)
                 PptShowWriter.Replace(presentation, shows, removed);
+
+            if (request.RangeType == "custom_show")
+                request.CustomShowId = PptShowWriter.CustomShowId(presentation, request.CustomShowName);
+
+            if (changedShow)
+                PptShowWriter.Apply(presentation, request);
 
             var parts = new List<string>();
             if (changedShow)
@@ -108,9 +116,8 @@ namespace DocuHelper.Tools.Ppt
             throw new ToolInputException($"{name}은 true나 false로 알려 주세요.");
         }
 
-        private static void Range(JsonElement range, PresentationPart presentation, List<PptSlideRef> slides, PptShowRequest request, out string name)
+        private static void Range(JsonElement range, PresentationPart presentation, List<PptSlideRef> slides, PptShowRequest request, List<(string Name, IReadOnlyList<string> RelationshipIds)> shows, List<string> removed)
         {
-            name = null;
             var type = Text(range, "type")?.ToLowerInvariant() ?? throw new ToolInputException("range에는 type(all, slides, custom_show)을 알려 주세요.");
             switch (type)
             {
@@ -128,11 +135,16 @@ namespace DocuHelper.Tools.Ppt
                     request.To = to;
                     break;
                 case "custom_show":
-                    name = Text(range, "custom_show") ?? throw new ToolInputException("custom_show에 쇼 이름을 알려 주세요.");
-                    var id = PptShowWriter.CustomShowId(presentation, name)
-                        ?? throw new ToolInputException($"‘{name}’ 사용자 지정 쇼를 찾지 못했어요. 먼저 custom_shows로 만들어 주세요.");
+                    var name = PptText.Clean(Text(range, "custom_show") ?? string.Empty).Trim();
+                    if (name.Length == 0)
+                        throw new ToolInputException("custom_show에 쇼 이름을 알려 주세요.");
+
+                    var exists = shows.Any(s => s.Name == name) || (PptShowWriter.CustomShowId(presentation, name) != null && !removed.Contains(name));
+                    if (!exists)
+                        throw new ToolInputException($"‘{name}’ 사용자 지정 쇼를 찾지 못했어요. 먼저 custom_shows로 만들어 주세요.");
+
                     request.RangeType = "custom_show";
-                    request.CustomShowId = id;
+                    request.CustomShowName = name;
                     break;
                 default:
                     throw new ToolInputException("range의 type은 all, slides, custom_show 중 하나로 알려 주세요.");
@@ -147,7 +159,13 @@ namespace DocuHelper.Tools.Ppt
             foreach (var item in items.EnumerateArray())
             {
                 var action = Text(item, "action")?.ToLowerInvariant();
-                var name = Text(item, "name") ?? throw new ToolInputException("사용자 지정 쇼에는 name을 알려 주세요.");
+                var name = PptText.Clean(Text(item, "name") ?? string.Empty).Trim();
+                if (name.Length == 0)
+                    throw new ToolInputException("사용자 지정 쇼에는 name을 알려 주세요.");
+
+                if (name.Length > MaxShowNameLength)
+                    throw new ToolInputException($"쇼 이름은 {MaxShowNameLength.ToString(CultureInfo.InvariantCulture)}자 안으로 알려 주세요.");
+
                 if (action == "save")
                 {
                     if (!item.TryGetProperty("slides", out var numbers) || numbers.ValueKind != JsonValueKind.Array || numbers.GetArrayLength() == 0)

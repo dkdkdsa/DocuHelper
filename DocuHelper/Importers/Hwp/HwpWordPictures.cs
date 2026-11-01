@@ -51,6 +51,12 @@ namespace DocuHelper.Importers.Hwp
             if (main.EndnotesPart?.Endnotes != null)
                 stories.Add((main.EndnotesPart, main.EndnotesPart.Endnotes));
 
+            foreach (var header in main.HeaderParts)
+                stories.Add((header, header.Header));
+
+            foreach (var footer in main.FooterParts)
+                stories.Add((footer, footer.Footer));
+
             foreach (var (part, root) in stories)
             {
                 var relationships = new Dictionary<int, string>();

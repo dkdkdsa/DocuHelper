@@ -94,6 +94,12 @@ namespace DocuHelper.Tools.Excel
 
             sheet.PrepareForWrite();
             var parts = new List<string>();
+            if (summary)
+            {
+                sheet.SetSummary(summaryBelow, summaryRight);
+                parts.Add("set the summary position to " + SummaryText(summaryBelow, summaryRight));
+            }
+
             if (outline != null)
                 parts.Add(ApplyOutline(sheet, outline, rows, first, last));
 
@@ -139,12 +145,6 @@ namespace DocuHelper.Tools.Excel
                 }
 
                 parts.Add(hidden.Value ? "hid them" : "showed them again");
-            }
-
-            if (summary)
-            {
-                sheet.SetSummary(summaryBelow, summaryRight);
-                parts.Add("set the summary position to " + SummaryText(summaryBelow, summaryRight));
             }
 
             sheet.SyncOutlineLevels();
@@ -200,9 +200,10 @@ namespace DocuHelper.Tools.Excel
                 case "ungroup":
                     for (var line = first; line <= last; line++)
                     {
-                        var level = Math.Max(0, LevelOf(sheet, rows, line) - 1);
+                        var before = LevelOf(sheet, rows, line);
+                        var level = Math.Max(0, before - 1);
                         SetLevel(sheet, rows, line, level);
-                        if (level == 0)
+                        if (before > 0 && level == 0)
                         {
                             SetHidden(sheet, rows, line, false);
                             SetCollapsed(sheet, rows, line, false);
@@ -213,9 +214,11 @@ namespace DocuHelper.Tools.Excel
                 case "clear":
                     for (var line = first; line <= last; line++)
                     {
+                        if (LevelOf(sheet, rows, line) > 0)
+                            SetHidden(sheet, rows, line, false);
+
                         SetLevel(sheet, rows, line, 0);
                         SetCollapsed(sheet, rows, line, false);
-                        SetHidden(sheet, rows, line, false);
                     }
 
                     return "cleared the outline";

@@ -22,6 +22,12 @@ namespace DocuHelper.Tools.Word
 
         private const double MinCm = 0.1;
 
+        private const double MaxOffsetCm = 500;
+
+        private const double MaxDistanceCm = 100;
+
+        private const double MaxRotationDeg = 3600;
+
         private const uint BaseHeight = 251658240;
 
         private static readonly string[] s_wraps = { "inline", "square", "tight", "through", "top_bottom", "behind", "in_front" };
@@ -60,13 +66,22 @@ namespace DocuHelper.Tools.Word
         protected override ToolResult Run(WordDocu docu, ToolInput input)
         {
             var action = (input.GetString("action") ?? string.Empty).Trim().ToLowerInvariant();
-            return action switch
+            var snapshot = docu.Capture();
+            try
             {
-                "insert" => Insert(docu, input),
-                "format" => Format(docu, input),
-                "delete" => Delete(docu, input),
-                _ => throw new ToolInputException("action은 insert, format, delete 중 하나로 알려 주세요."),
-            };
+                return action switch
+                {
+                    "insert" => Insert(docu, input),
+                    "format" => Format(docu, input),
+                    "delete" => Delete(docu, input),
+                    _ => throw new ToolInputException("action은 insert, format, delete 중 하나로 알려 주세요."),
+                };
+            }
+            catch
+            {
+                docu.Restore(snapshot);
+                throw;
+            }
         }
 
         private ToolResult Insert(WordDocu docu, ToolInput input)
@@ -228,6 +243,7 @@ namespace DocuHelper.Tools.Word
             var hostId = WordIds.Of(paragraph) ?? string.Empty;
             var location = WordInline.LocationOf(WordScan.Read(document), paragraph) ?? "문서";
             var relationships = WordDrawings.RelationshipsOf(drawing).ToList();
+            var owner = WordDrawings.StoryOf(document, drawing);
             var target = drawing.Ancestors<AlternateContent>().FirstOrDefault() ?? (OpenXmlElement)drawing;
             var run = target.Ancestors<Run>().FirstOrDefault();
             if (WordRevisions.Tracking(docu) && run != null)
@@ -240,7 +256,7 @@ namespace DocuHelper.Tools.Word
                 if (run != null && !run.ChildElements.Any(e => e is not RunProperties))
                     run.Remove();
 
-                WordDrawings.ReleaseUnused(document, relationships);
+                WordDrawings.ReleaseUnused(owner, relationships);
             }
 
             return ToolResult.Changed(
@@ -283,7 +299,9 @@ namespace DocuHelper.Tools.Word
             if (at.ValueKind == JsonValueKind.Object)
             {
                 var id = at.TryGetProperty("id", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-                var offset = at.TryGetProperty("offset", out var position) && position.ValueKind == JsonValueKind.Number ? position.GetInt32() : 0;
+                var offset = 0;
+                if (at.TryGetProperty("offset", out var position) && !position.TryGetInt32(out offset))
+                    throw new ToolInputException("offset은 정수로 알려 주세요.");
                 var block = scan.Find(id ?? string.Empty) ?? throw new ToolInputException($"‘{id}’ 문단을 찾지 못했어요. read_paragraphs로 id를 다시 확인해 주세요.");
                 if (block.Paragraph == null)
                     throw new ToolInputException("개체는 문단 안 위치(offset)로만 넣을 수 있어요. 문단 id를 알려 주세요.");
@@ -443,7 +461,8 @@ namespace DocuHelper.Tools.Word
                 extent.Cy = cy;
             }
 
-            foreach (var transform in drawing.Descendants<A.Extents>())
+            var transform = drawing.Descendants<A.Extents>().FirstOrDefault();
+            if (transform != null)
             {
                 transform.Cx = cx;
                 transform.Cy = cy;
@@ -459,7 +478,7 @@ namespace DocuHelper.Tools.Word
             var anchor = drawing.Descendants<Wp.Anchor>().FirstOrDefault();
             var frame = new WordDrawings.Frame
             {
-                Wrap = Wrap(layout),
+                Wrap = Text(layout, "wrap") == null ? ExistingWrap(anchor) : Wrap(layout),
                 Cx = extent.Cx.Value,
                 Cy = extent.Cy.Value,
                 DocPrId = properties.Id.Value,
@@ -469,16 +488,44 @@ namespace DocuHelper.Tools.Word
             };
             if (anchor != null)
             {
-                frame.HRelative = Attribute(anchor.Descendants().FirstOrDefault(d => d.LocalName == "positionH"), "relativeFrom") ?? frame.HRelative;
-                frame.VRelative = Attribute(anchor.Descendants().FirstOrDefault(d => d.LocalName == "positionV"), "relativeFrom") ?? frame.VRelative;
-                frame.HAlign = Child(anchor.Descendants().FirstOrDefault(d => d.LocalName == "positionH"), "align");
-                frame.VAlign = Child(anchor.Descendants().FirstOrDefault(d => d.LocalName == "positionV"), "align");
+                var horizontal = anchor.Descendants().FirstOrDefault(d => d.LocalName == "positionH");
+                var vertical = anchor.Descendants().FirstOrDefault(d => d.LocalName == "positionV");
+                frame.HRelative = Attribute(horizontal, "relativeFrom") ?? frame.HRelative;
+                frame.VRelative = Attribute(vertical, "relativeFrom") ?? frame.VRelative;
+                frame.HAlign = Child(horizontal, "align");
+                frame.VAlign = Child(vertical, "align");
+                frame.HOffset = Offset(horizontal);
+                frame.VOffset = Offset(vertical);
+                if (long.TryParse(Attribute(anchor, "distT"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var distance))
+                    frame.Distance = distance;
             }
 
             ApplyPosition(frame, layout);
             var replacement = WordDrawings.Build(frame, graphic);
             old.InsertAfterSelf(replacement);
             old.Remove();
+        }
+
+        private static string ExistingWrap(Wp.Anchor anchor)
+        {
+            if (anchor == null)
+                return "inline";
+
+            var wrap = anchor.ChildElements.FirstOrDefault(c => c.LocalName.StartsWith("wrap", StringComparison.Ordinal))?.LocalName;
+            return wrap switch
+            {
+                "wrapSquare" => "square",
+                "wrapTight" => "tight",
+                "wrapThrough" => "through",
+                "wrapTopAndBottom" => "top_bottom",
+                _ => Attribute(anchor, "behindDoc") is "1" or "true" ? "behind" : "in_front",
+            };
+        }
+
+        private static long? Offset(OpenXmlElement position)
+        {
+            var text = Child(position, "posOffset");
+            return long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : (long?)null;
         }
 
         private static void ZOrder(WordprocessingDocument document, OpenXmlElement drawing, string order)
@@ -587,7 +634,7 @@ namespace DocuHelper.Tools.Word
         private static string AltText(JsonElement picture, ToolInput input)
         {
             var alt = Text(picture, "alt") ?? input.GetOptionalString("alt");
-            return alt ?? string.Empty;
+            return WordText.Clean(alt ?? string.Empty);
         }
 
         private static string Rotation(ToolInput input)
@@ -609,13 +656,25 @@ namespace DocuHelper.Tools.Word
             if (name is "width_cm" or "height_cm" && (number < MinCm || number > MaxCm))
                 throw new ToolInputException($"{name}은 {MinCm}~{MaxCm} 사이로 알려 주세요.");
 
+            if (name == "rotation_deg" && Math.Abs(number) > MaxRotationDeg)
+                throw new ToolInputException($"rotation_deg는 -{MaxRotationDeg}~{MaxRotationDeg} 사이로 알려 주세요.");
+
             return number;
         }
 
-        private static double? Cm(JsonElement element, string name) =>
-            element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
-                ? value.GetDouble()
-                : null;
+        private static double? Cm(JsonElement element, string name)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Number)
+                return null;
+
+            var number = value.GetDouble();
+            var limit = name == "distance_cm" ? MaxDistanceCm : MaxOffsetCm;
+            var min = name == "distance_cm" ? 0 : -limit;
+            if (number < min || number > limit)
+                throw new ToolInputException($"{name}은 {min}~{limit} 사이로 알려 주세요.");
+
+            return number;
+        }
 
         private static string Text(JsonElement element, string name) =>
             element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String

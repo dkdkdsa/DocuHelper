@@ -100,11 +100,11 @@ namespace DocuHelperEditor.State.Mapping
         private static (string Accent, bool Strong) TablePalette(string style)
         {
             var match = Regex.Match(style ?? string.Empty, @"TableStyle(Light|Medium|Dark)(\d+)");
-            if (!match.Success)
+            if (!match.Success || !int.TryParse(match.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var number))
                 return (s_accents[1], true);
 
-            var number = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
-            return (s_accents[(number - 1) % s_accents.Length], match.Groups[1].Value != "Light");
+            var index = ((number - 1) % s_accents.Length + s_accents.Length) % s_accents.Length;
+            return (s_accents[index], match.Groups[1].Value != "Light");
         }
 
         private static string Tint(string hex, double amount)

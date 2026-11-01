@@ -68,8 +68,8 @@ namespace DocuHelper.Tools.Word
             if (!s_presets.ContainsKey(preset))
                 throw new ToolInputException($"도형 모양 ‘{preset}’은 지원하지 않아요. 있는 모양: {string.Join(", ", s_presets.Keys)}");
 
-            var text = Text(shape, "text");
-            if (text != null && text.Length > MaxTextLength)
+            var text = WordText.Clean(Text(shape, "text"));
+            if (text.Length > MaxTextLength)
                 throw new ToolInputException($"글상자 글은 {MaxTextLength}자까지 넣을 수 있어요.");
 
             var direction = Text(shape, "text_direction")?.ToLowerInvariant();

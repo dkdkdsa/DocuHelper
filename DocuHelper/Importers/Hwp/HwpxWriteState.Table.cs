@@ -95,7 +95,7 @@ namespace DocuHelper.Importers.Hwp
                     }
 
                     var width = Units(grid.Skip(cell.Column).Take(cell.Span).Sum());
-                    line.Add(Cell(cell, r, rowSpan, width, heights.Skip(r).Take(rowSpan).Sum(), borders, IsHeaderRow(rows[r])));
+                    line.Add(Cell(cell, r, rowSpan, width, heights.Skip(r).Take(rowSpan).Sum(), borders, IsHeaderRow(rows[r]), layout.Count, columns));
                 }
 
                 element.Add(line);
@@ -105,7 +105,7 @@ namespace DocuHelper.Importers.Hwp
             return paragraph;
         }
 
-        private XElement Cell(HwpxCellInfo cell, int row, int rowSpan, int width, int height, TableBorders borders, bool header)
+        private XElement Cell(HwpxCellInfo cell, int row, int rowSpan, int width, int height, TableBorders borders, bool header, int rowCount, int columnCount)
         {
             var properties = cell.Source.TableCellProperties;
             var fill = properties?.Shading?.Fill?.Value;
@@ -126,7 +126,7 @@ namespace DocuHelper.Importers.Hwp
                 new XAttribute("protect", "0"),
                 new XAttribute("editable", "0"),
                 new XAttribute("dirty", "0"),
-                new XAttribute("borderFillIDRef", Number(BorderFillId(LinesOf(cell.Source, borders), fill?.ToUpperInvariant()))),
+                new XAttribute("borderFillIDRef", Number(BorderFillId(LinesOf(cell.Source, borders, row == 0, cell.Column == 0, row + rowSpan >= rowCount, cell.Column + cell.Span >= columnCount), fill?.ToUpperInvariant()))),
                 new XElement(Hp + "subList",
                     new XAttribute("id", ""), new XAttribute("textDirection", "HORIZONTAL"), new XAttribute("lineWrap", "BREAK"),
                     new XAttribute("vertAlign", align), new XAttribute("linkListIDRef", "0"), new XAttribute("linkListNextIDRef", "0"),
@@ -146,15 +146,15 @@ namespace DocuHelper.Importers.Hwp
 
         private static bool IsHeaderRow(TableRow row) => row.TableRowProperties?.GetFirstChild<TableHeader>() != null;
 
-        private static HwpBorderLine[] LinesOf(TableCell cell, TableBorders borders)
+        private static HwpBorderLine[] LinesOf(TableCell cell, TableBorders borders, bool top, bool left, bool bottom, bool right)
         {
             var own = cell?.TableCellProperties?.TableCellBorders;
             return new[]
             {
-                LineOf(own?.GetFirstChild<TopBorder>(), borders?.GetFirstChild<TopBorder>()),
-                LineOf(own?.GetFirstChild<LeftBorder>(), borders?.GetFirstChild<LeftBorder>()),
-                LineOf(own?.GetFirstChild<BottomBorder>(), borders?.GetFirstChild<BottomBorder>()),
-                LineOf(own?.GetFirstChild<RightBorder>(), borders?.GetFirstChild<RightBorder>()),
+                LineOf(own?.GetFirstChild<TopBorder>(), top ? (BorderType)borders?.GetFirstChild<TopBorder>() : borders?.InsideHorizontalBorder),
+                LineOf(own?.GetFirstChild<LeftBorder>(), left ? (BorderType)borders?.GetFirstChild<LeftBorder>() : borders?.InsideVerticalBorder),
+                LineOf(own?.GetFirstChild<BottomBorder>(), bottom ? (BorderType)borders?.GetFirstChild<BottomBorder>() : borders?.InsideHorizontalBorder),
+                LineOf(own?.GetFirstChild<RightBorder>(), right ? (BorderType)borders?.GetFirstChild<RightBorder>() : borders?.InsideVerticalBorder),
             };
         }
 

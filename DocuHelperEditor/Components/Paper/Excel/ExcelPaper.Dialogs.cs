@@ -19,7 +19,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
             {
                 SheetRef.TryParse(SelectedRef, out var column, out var row);
                 var cell = CurrentSheet.FindCell(row, column);
-                return new ExcelDialogContext(CurrentSheet.Name, SelectionText, SelectedRef, cell?.Note?.Text, cell?.EditText ?? string.Empty);
+                return new ExcelDialogContext(CurrentSheet.Name, SelectionText, SelectedRef, cell?.Note?.Text, cell?.EditText ?? string.Empty, cell?.IsNumber ?? false);
             }
         }
 

@@ -99,11 +99,11 @@ window.docuHelper = (function () {
     }
 
     function isPrintPage(element, selector) {
-        return element instanceof HTMLElement && element.matches(selector || '.page');
+        return element instanceof HTMLElement && element.matches(selector || 'article.page');
     }
 
     function hasPrintPage(element, selector) {
-        return Array.prototype.some.call(element.querySelectorAll(selector || '.page'), function (el) {
+        return Array.prototype.some.call(element.querySelectorAll(selector || 'article.page'), function (el) {
             return isPrintPage(el, selector);
         });
     }
@@ -295,7 +295,7 @@ window.docuHelper = (function () {
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         },
         printEnter: function () {
-            var pages = Array.prototype.slice.call(document.querySelectorAll('.page')).filter(function (el) { return isPrintPage(el); });
+            var pages = Array.prototype.slice.call(document.querySelectorAll('article.page')).filter(function (el) { return isPrintPage(el); });
             if (pages.length === 0)
                 return 0;
 

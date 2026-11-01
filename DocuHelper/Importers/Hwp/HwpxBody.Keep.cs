@@ -30,9 +30,11 @@ namespace DocuHelper.Importers.Hwp
             runs.OpenKeep(key);
             var start = runs.Runs.Count;
             Emit(KeptText(element), shape, runs);
+            var copy = new XElement(element);
+            ResetReferences(copy);
             _document.Kept[key] = new HwpKeptObject
             {
-                Xml = element.ToString(SaveOptions.DisableFormatting),
+                Xml = copy.ToString(SaveOptions.DisableFormatting),
                 Text = string.Concat(runs.Runs.Skip(start).Select(run => run.Text ?? string.Empty)),
             };
             runs.CloseKeep(key);
@@ -58,6 +60,19 @@ namespace DocuHelper.Importers.Hwp
 
         private static bool HasReferences(XElement element) =>
             element.DescendantsAndSelf().Any(node => s_referenceNodes.Contains(node.Name.LocalName)
-                || node.Attributes().Any(attribute => attribute.Name.LocalName.EndsWith("Ref", StringComparison.Ordinal)));
+                || node.Attributes().Any(attribute => attribute.Name.LocalName.EndsWith("Ref", StringComparison.Ordinal) && !IsStyleReference(node, attribute)));
+
+        private static bool IsStyleReference(XElement node, XAttribute attribute) =>
+            (node.Name.LocalName == "dutmal" && attribute.Name.LocalName == "styleIDRef")
+            || (node.Name.LocalName == "charPr" && attribute.Name.LocalName == "prIDRef");
+
+        private static void ResetReferences(XElement element)
+        {
+            foreach (var node in element.DescendantsAndSelf().ToList())
+            {
+                foreach (var attribute in node.Attributes().Where(item => IsStyleReference(node, item)).ToList())
+                    attribute.Value = "0";
+            }
+        }
     }
 }

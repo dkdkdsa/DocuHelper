@@ -85,7 +85,7 @@ namespace DocuHelper.Tools.Excel
 
                 var value = book.ReadValue(sheet.FindCell(target.Column, target.Row));
                 if (!value.IsNumber)
-                    throw new ToolInputException($"{changing} 칸을 {x.ToString("0.######", CultureInfo.InvariantCulture)}로 바꾸면 {target} 칸이 숫자가 아니게 돼요. 목표값을 찾을 수 없어요.");
+                    return double.NaN;
 
                 return value.Number - goal;
             }
@@ -173,7 +173,7 @@ namespace DocuHelper.Tools.Excel
                 if (Math.Abs(fHigh) <= tolerance)
                     return high;
 
-                if (Math.Sign(fLow) != Math.Sign(fHigh))
+                if (!double.IsNaN(fLow) && !double.IsNaN(fHigh) && Math.Sign(fLow) != Math.Sign(fHigh))
                     return Bisect(residual, low, fLow, high, tolerance, iterations);
 
                 step *= 2;
@@ -188,8 +188,11 @@ namespace DocuHelper.Tools.Excel
             {
                 var middle = (low + high) / 2;
                 var fMiddle = residual(middle);
-                if (Math.Abs(fMiddle) <= tolerance || Math.Abs(high - low) <= 1e-12 * Math.Max(1, Math.Abs(middle)))
+                if (Math.Abs(fMiddle) <= tolerance)
                     return middle;
+
+                if (Math.Abs(high - low) <= 1e-12 * Math.Max(1, Math.Abs(middle)) || double.IsNaN(fMiddle))
+                    return null;
 
                 if (Math.Sign(fMiddle) == Math.Sign(fLow))
                 {

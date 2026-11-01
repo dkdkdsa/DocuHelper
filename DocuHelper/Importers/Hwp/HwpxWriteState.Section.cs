@@ -75,10 +75,10 @@ namespace DocuHelper.Importers.Hwp
             var footer = Math.Max(0, wordBottom - wordFooter);
             var left = margin?.Left?.Value is uint l ? Units((int)l) : 8504;
             var right = margin?.Right?.Value is uint rt ? Units((int)rt) : 8504;
-            if (top <= 0)
+            if (top + header <= 0)
                 top = 5668;
 
-            if (bottom <= 0)
+            if (bottom + footer <= 0)
                 bottom = 4252;
 
             if (landscape)

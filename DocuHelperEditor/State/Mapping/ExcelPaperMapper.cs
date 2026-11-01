@@ -105,8 +105,8 @@ namespace DocuHelperEditor.State.Mapping
             var merges = sheet.MergedRanges();
             foreach (var merge in merges)
             {
-                lastRow = Math.Max(lastRow, Math.Min(merge.Bottom, MaxRows - 1));
-                lastColumn = Math.Max(lastColumn, Math.Min(merge.Right, MaxColumns - 2));
+                lastRow = Math.Max(lastRow, Math.Min(merge.Top, MaxRows - 1));
+                lastColumn = Math.Max(lastColumn, Math.Min(merge.Left, MaxColumns - 2));
             }
 
             foreach (var element in sheet.Data?.Elements<OpenRow>() ?? Enumerable.Empty<OpenRow>())

@@ -120,6 +120,7 @@ namespace DocuHelperEditor.State.Mapping
                     Text value => value.Text,
                     DeletedText value => value.Text,
                     TabChar => "\t",
+                    Break br when br.Type == null || br.Type.Value == BreakValues.TextWrapping => "\n",
                     _ => string.Empty,
                 };
             }

@@ -23,7 +23,7 @@ namespace DocuHelper.Importers.Hwp
         private XElement PictureOf(Drawing drawing)
         {
             var blip = drawing.Descendants<A.Blip>().FirstOrDefault();
-            if (blip?.Embed?.Value is not string embed || _document.MainDocumentPart?.GetPartById(embed) is not ImagePart image)
+            if (blip?.Embed?.Value is not string embed || OwnerOf(drawing) is not { } owner || !owner.TryGetPartById(embed, out var target) || target is not ImagePart image)
                 return null;
 
             var extension = ExtensionOf(image.ContentType);
@@ -44,6 +44,25 @@ namespace DocuHelper.Importers.Hwp
             var width = (int)Math.Max(1, (extent?.Cx?.Value ?? 0) / EmuPerUnit);
             var height = (int)Math.Max(1, (extent?.Cy?.Value ?? 0) / EmuPerUnit);
             return PictureXml(id, width, height, drawing.Descendants<Wp.DocProperties>().FirstOrDefault()?.Description?.Value);
+        }
+
+        private OpenXmlPart OwnerOf(DocumentFormat.OpenXml.OpenXmlElement element)
+        {
+            var main = _document.MainDocumentPart;
+            var root = element;
+            while (root?.Parent != null)
+                root = root.Parent;
+
+            if (main == null || root == null)
+                return null;
+
+            if (ReferenceEquals(root, main.RootElement))
+                return main;
+
+            return main.HeaderParts.Cast<OpenXmlPart>()
+                .Concat(main.FooterParts.Cast<OpenXmlPart>())
+                .Concat(new OpenXmlPart[] { main.FootnotesPart, main.EndnotesPart })
+                .FirstOrDefault(part => part != null && ReferenceEquals(part.RootElement, root));
         }
 
         private static string ExtensionOf(string contentType) => contentType switch

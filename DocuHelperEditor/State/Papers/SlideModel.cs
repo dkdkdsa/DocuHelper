@@ -86,12 +86,14 @@ namespace DocuHelperEditor.State.Papers
             if (Shapes == null)
                 Shapes = new List<SlideShapeModel>();
 
-            if (Shapes.Count > 0)
-                return;
-
+            var empty = Shapes.Count == 0;
+            var represented = new HashSet<string>(Shapes.Select(s => s.Id), StringComparer.Ordinal);
             var cover = Layout == SlideLayout.Cover;
             foreach (var box in Boxes ?? new List<SlideBoxModel>())
             {
+                if (represented.Contains(box.Id))
+                    continue;
+
                 var place = box.Kind switch
                 {
                     SlideBoxKind.Title when cover => (10, 30, 80, 20),
@@ -116,7 +118,7 @@ namespace DocuHelperEditor.State.Papers
                 });
             }
 
-            if (Chart != null && Chart.HasBars)
+            if (empty && Chart != null && Chart.HasBars)
             {
                 Shapes.Add(new SlideShapeModel
                 {

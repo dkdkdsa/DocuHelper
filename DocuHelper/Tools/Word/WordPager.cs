@@ -103,7 +103,8 @@ namespace DocuHelper.Tools.Word
             if (box.PageBefore)
                 NewPage(false);
 
-            _notes = Math.Min(_notes + WordFootnotes.Height(_context, block.Paragraph, section.TextWidthPt), section.CapacityPt / 2);
+            var footnotes = WordFootnotes.Height(_context, block.Paragraph, section.TextWidthPt);
+            _notes = Math.Min(_notes + footnotes, section.CapacityPt / 2);
 
             var spacing = _fresh ? 0 : box.Before;
             block.LineHeight = box.Lines.Select(l => l.Height).FirstOrDefault(h => h > 0);
@@ -113,7 +114,10 @@ namespace DocuHelper.Tools.Word
             {
                 var extra = placed ? 0 : spacing;
                 if (!_fresh && _used + extra + line.Height > Room(section))
+                {
                     NewPage(false);
+                    _notes = Math.Min(footnotes, section.CapacityPt / 2);
+                }
 
                 if (!placed)
                 {

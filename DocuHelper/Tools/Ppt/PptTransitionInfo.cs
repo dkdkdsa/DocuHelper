@@ -13,5 +13,7 @@ namespace DocuHelper.Tools.Ppt
         public int? AdvanceAfterMs { get; set; }
 
         public string SoundName { get; set; }
+
+        public string Raw { get; set; }
     }
 }

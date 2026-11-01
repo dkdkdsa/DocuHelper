@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using DocuHelperEditor.State;
+using DocuHelperEditor.State.Samples;
 
 namespace DocuHelperEditor.Services
 {
@@ -66,7 +67,7 @@ namespace DocuHelperEditor.Services
         public async Task SaveAsync(string folderPath, SavedConversation conversation)
         {
             var path = PathOf(folderPath, conversation?.Id);
-            if (path == null)
+            if (path == null || SampleScenarios.Current != null)
                 return;
 
             Directory.CreateDirectory(Path.GetDirectoryName(path));

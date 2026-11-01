@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security;
 using System.Security.Cryptography;
+using System.Text;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
@@ -42,7 +43,7 @@ namespace DocuHelper.Tools.Excel
             part?.WorksheetDrawing?.Descendants<Xdr.NonVisualDrawingProperties>() ?? Enumerable.Empty<Xdr.NonVisualDrawingProperties>();
 
         public static IEnumerable<OpenXmlElement> Anchors(DrawingsPart part) =>
-            part?.WorksheetDrawing?.ChildElements.Where(e => e is Xdr.OneCellAnchor or Xdr.TwoCellAnchor) ?? Enumerable.Empty<OpenXmlElement>();
+            part?.WorksheetDrawing?.Descendants().Where(e => e.LocalName is "oneCellAnchor" or "twoCellAnchor" or "absoluteAnchor" && !e.Ancestors().Any(a => a.LocalName == "Fallback")) ?? Enumerable.Empty<OpenXmlElement>();
 
         public static uint NextId(DrawingsPart part) =>
             Properties(part).Select(p => p.Id?.Value ?? 0u).DefaultIfEmpty(0u).Max() + 1;
@@ -152,7 +153,7 @@ namespace DocuHelper.Tools.Excel
         public static void RemoveDrawingsIfEmpty(ExcelSheet sheet)
         {
             var part = sheet.Part.DrawingsPart;
-            if (part == null || Anchors(part).Any())
+            if (part == null || part.WorksheetDrawing?.HasChildren == true)
                 return;
 
             var id = sheet.Part.GetIdOfPart(part);
@@ -162,7 +163,30 @@ namespace DocuHelper.Tools.Excel
             sheet.Part.DeletePart(part);
         }
 
-        public static string Text(string value) => SecurityElement.Escape(value ?? string.Empty);
+        public static string Text(string value) => SecurityElement.Escape(XmlSafe(value));
+
+        public static string XmlSafe(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            var builder = new StringBuilder(value.Length);
+            for (var index = 0; index < value.Length; index++)
+            {
+                var current = value[index];
+                if (char.IsHighSurrogate(current) && index + 1 < value.Length && char.IsLowSurrogate(value[index + 1]))
+                {
+                    builder.Append(current).Append(value[index + 1]);
+                    index++;
+                }
+                else if (current is '\t' or '\n' or '\r' || (current >= ' ' && current < '\uD800') || (current >= '\uE000' && current <= '\uFFFD'))
+                {
+                    builder.Append(current);
+                }
+            }
+
+            return builder.ToString();
+        }
 
         public static string ImageRelationship(DrawingsPart part, byte[] bytes, string mime)
         {

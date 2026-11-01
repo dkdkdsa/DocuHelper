@@ -77,9 +77,13 @@ namespace DocuHelper.Tools.Ppt
             }
             else
             {
-                info = Settings(input, slides);
+                info = null;
                 foreach (var slide in slides)
-                    PptTransitionWriter.Write(slide.Part.Slide, info, null);
+                {
+                    var slideInfo = Settings(input, slide);
+                    PptTransitionWriter.Write(slide.Part.Slide, slideInfo, null);
+                    info ??= slideInfo;
+                }
             }
 
             var location = PptSlideSet.Location(slides, total);
@@ -97,13 +101,13 @@ namespace DocuHelper.Tools.Ppt
             return ToolResult.Changed(content, change, detail);
         }
 
-        private static PptTransitionInfo Settings(ToolInput input, IReadOnlyList<PptSlideRef> slides)
+        private static PptTransitionInfo Settings(ToolInput input, PptSlideRef slide)
         {
-            var effect = input.Has("effect") ? input.GetString("effect").Trim().ToLowerInvariant() : PptTransitionWriter.Read(slides[0].Part.Slide).Effect;
-            if (!PptTransitionWriter.Effects.Contains(effect))
+            var current = PptTransitionWriter.Read(slide.Part.Slide);
+            var effect = input.Has("effect") ? input.GetString("effect").Trim().ToLowerInvariant() : current.Effect;
+            if (input.Has("effect") && !PptTransitionWriter.Effects.Contains(effect))
                 throw new ToolInputException($"effect는 {string.Join(", ", PptTransitionWriter.Effects)} 중 하나로 알려 주세요.");
 
-            var current = PptTransitionWriter.Read(slides[0].Part.Slide);
             var option = input.GetOptionalString("option")?.Trim();
             if (option != null)
             {
@@ -134,6 +138,7 @@ namespace DocuHelper.Tools.Ppt
                 DurationMs = effect == "none" && !input.Has("duration") ? 0 : duration,
                 AdvanceOnClick = onClick,
                 AdvanceAfterMs = after,
+                Raw = input.Has("effect") ? null : current.Raw,
             };
         }
 

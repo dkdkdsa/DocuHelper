@@ -42,7 +42,7 @@ namespace DocuHelper.Agents
 
         private static bool IsWellFormed(string key) => key.Length > 0
             && key.Length <= MaxLength
-            && key.All(c => !char.IsWhiteSpace(c) && !char.IsControl(c));
+            && key.All(c => c >= 0x21 && c <= 0x7E);
 
         private static string PrefixOf(string key)
         {

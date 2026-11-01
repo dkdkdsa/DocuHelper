@@ -49,6 +49,14 @@ window.docuHelperPptCanvas = (function () {
         return Math.atan2(event.clientY - cy, event.clientX - cx) * 180 / Math.PI;
     }
 
+    function localDelta(item, dx, dy) {
+        var rad = item.rot * Math.PI / 180;
+        return {
+            x: Math.cos(rad) * dx + Math.sin(rad) * dy,
+            y: -Math.sin(rad) * dx + Math.cos(rad) * dy
+        };
+    }
+
     function restoreOverrides(item) {
         item.el.style.left = item.x + '%';
         item.el.style.top = item.y + '%';
@@ -257,23 +265,26 @@ window.docuHelperPptCanvas = (function () {
         }
 
         if (drag.kind === 'resize') {
+            var local = localDelta(first, dx, dy);
+            var lx = local.x / drag.box.width * 100;
+            var ly = local.y / drag.box.height * 100;
+            var right = first.x + first.w;
+            var bottom = first.y + first.h;
             var left = first.x;
             var top = first.y;
             var width = first.w;
             var height = first.h;
             var h = drag.handle || '';
-            if (h.indexOf('w') >= 0) { left = first.x + fx; width = first.w - fx; }
-            if (h.indexOf('e') >= 0) { width = first.w + fx; }
-            if (h.indexOf('n') >= 0) { top = first.y + fy; height = first.h - fy; }
-            if (h.indexOf('s') >= 0) { height = first.h + fy; }
-            width = Math.max(width, MIN_SIZE);
-            height = Math.max(height, MIN_SIZE);
+            if (h.indexOf('w') >= 0) { left = Math.min(first.x + lx, right - MIN_SIZE); width = right - left; }
+            if (h.indexOf('e') >= 0) { width = Math.max(first.w + lx, MIN_SIZE); }
+            if (h.indexOf('n') >= 0) { top = Math.min(first.y + ly, bottom - MIN_SIZE); height = bottom - top; }
+            if (h.indexOf('s') >= 0) { height = Math.max(first.h + ly, MIN_SIZE); }
             first.el.style.left = left + '%';
             first.el.style.top = top + '%';
             first.el.style.width = width + '%';
             first.el.style.height = height + '%';
-            drag.dx = fx / 100;
-            drag.dy = fy / 100;
+            drag.dx = lx / 100;
+            drag.dy = ly / 100;
             return;
         }
 
@@ -311,6 +322,8 @@ window.docuHelperPptCanvas = (function () {
 
         var current = shapes.indexOf(slide.querySelector('.shape.on'));
         var step = e.shiftKey ? -1 : 1;
+        if (current >= 0 && (current + step < 0 || current + step >= shapes.length)) return;
+
         var next = shapes[(current + step + shapes.length) % shapes.length];
         if (current < 0) next = shapes[step > 0 ? 0 : shapes.length - 1];
 
@@ -466,7 +479,7 @@ window.docuHelperPptGrip = (function () {
         var pointer = e.pointerId;
         var startY = e.clientY;
         var start = current(record);
-        var height = start;
+        var height = Math.round(start);
         grip.setPointerCapture(pointer);
 
         function move(ev) {
@@ -555,8 +568,10 @@ window.docuHelperPptGrip = (function () {
 window.docuHelperPptSorter = (function () {
     var bound = new WeakSet();
 
-    function cellsOf(section) {
-        return Array.prototype.slice.call(section.querySelectorAll('.cell'));
+    function cellsOf(cell) {
+        var grid = cell.closest('.grid');
+        if (!grid) return [cell];
+        return Array.prototype.slice.call(grid.querySelectorAll('.cell'));
     }
 
     function columnsOf(cells) {
@@ -571,7 +586,7 @@ window.docuHelperPptSorter = (function () {
         var cell = e.target && e.target.closest ? e.target.closest('.cell') : null;
         if (!cell || !section.contains(cell) || e.ctrlKey || e.altKey || e.metaKey) return;
 
-        var cells = cellsOf(section);
+        var cells = cellsOf(cell);
         var index = cells.indexOf(cell);
         var columns = columnsOf(cells);
         var target;

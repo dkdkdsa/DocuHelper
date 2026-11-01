@@ -457,9 +457,26 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 case "paragraphs":
                 case "range":
                     return null;
+                case "pickedSlides":
+                    return PickedSlides(_fields.TryGetValue(name, out var picked) ? picked : null, selection.SlideCount);
                 default:
                     return _fields.TryGetValue(name, out var field) ? field : null;
             }
+        }
+
+        private static JsonNode PickedSlides(JsonNode picked, int count)
+        {
+            var text = picked is JsonValue value && value.TryGetValue<string>(out var typed) ? typed : string.Empty;
+            var numbers = new JsonArray();
+            foreach (var part in text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out var number) || number < 1 || number > count)
+                    throw new ToolInputException($"넣을 슬라이드 번호는 1~{count} 사이의 숫자로 쉼표로 구분해 알려 주세요.");
+
+                numbers.Add(JsonValue.Create(number));
+            }
+
+            return numbers;
         }
 
         private static JsonNode NextSize(PptRibbonSelection selection, int direction)

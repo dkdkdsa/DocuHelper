@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using DocuHelper.Tools.Excel;
 
 namespace DocuHelperEditor.State.Ribbon.Excel
 {
@@ -8,15 +9,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
     {
         public const int MaxFormulaLength = 255;
 
-        private const string CellPattern = @"\$?[A-Za-z]{1,3}\$?[0-9]{1,7}";
-
-        private static readonly Regex s_cell = new("^" + CellPattern + "$", RegexOptions.CultureInvariant);
-
-        private const string RangeToken = @"\$?[A-Za-z]{1,3}\$?[0-9]{0,7}";
-
-        private static readonly Regex s_range = new(
-            "^" + RangeToken + "(:" + RangeToken + ")?(\\s+" + RangeToken + "(:" + RangeToken + ")?)*$",
-            RegexOptions.CultureInvariant);
+        private static readonly Regex s_time = new(@"^(\d{1,2}):(\d{2})(?::(\d{2}))?$", RegexOptions.CultureInvariant);
 
         private static readonly string[] s_dateFormats = { "yyyy-MM-dd", "yyyy/MM/dd", "yyyy.MM.dd" };
 
@@ -29,7 +22,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             if (problem != null)
                 return problem;
 
-            return s_range.IsMatch(text.Trim()) ? null : label + " 주소를 확인해 주세요. 예: A1:C10";
+            return CellRange.TryParse(text, CellAddress.MaxRows - 1, CellAddress.MaxColumns - 1, out _) ? null : label + " 주소를 확인해 주세요. 예: A1:C10";
         }
 
         public static string Cell(string text, string label)
@@ -38,7 +31,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             if (problem != null)
                 return problem;
 
-            return s_cell.IsMatch(text.Trim()) ? null : label + " 주소를 확인해 주세요. 예: B5";
+            return CellAddress.TryParse(text, out _) ? null : label + " 주소를 확인해 주세요. 예: B5";
         }
 
         public static string Number(string text, string label)
@@ -57,7 +50,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 return problem;
 
             var value = text.Trim();
-            if (TryNumber(value, out _) || TryDate(value, out _) || s_cell.IsMatch(value))
+            if (TryNumber(value, out _) || TryDate(value, out _) || CellAddress.TryParse(value, out _))
                 return null;
 
             return label + "에는 숫자, 날짜(예: 2026-06-30), 칸 주소(예: B1) 중 하나를 넣어 주세요.";
@@ -69,9 +62,32 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             if (problem != null)
                 return problem;
 
-            return TryDate(text.Trim(), out _) || s_cell.IsMatch(text.Trim())
+            return TryDate(text.Trim(), out _) || CellAddress.TryParse(text, out _)
                 ? null
                 : label + ": 2026-06-30 같은 날짜나 칸 주소로 넣어 주세요.";
+        }
+
+        public static string Time(string text, string label)
+        {
+            var problem = Required(text, label);
+            if (problem != null)
+                return problem;
+
+            var value = text.Trim();
+            if (CellAddress.TryParse(value, out _) || value.StartsWith("=", StringComparison.Ordinal) || IsTimeOfDay(value))
+                return null;
+
+            return TryNumber(value, out var number) && number >= 0 && number < 1 ? null : label + ": 09:00 같은 시각으로 넣어 주세요.";
+        }
+
+        public static string NumberOrReference(string text, string label)
+        {
+            var problem = Required(text, label);
+            if (problem != null)
+                return problem;
+
+            var value = text.Trim();
+            return CellAddress.TryParse(value, out _) || value.StartsWith("=", StringComparison.Ordinal) ? null : Number(text, label);
         }
 
         public static string Formula(string text, string label)
@@ -102,8 +118,20 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         public static bool LooksNumeric(string text) => !string.IsNullOrEmpty(text) && (TryNumber(text, out _) || TryDate(text, out _));
 
+        private static bool IsTimeOfDay(string text)
+        {
+            var match = s_time.Match(text);
+            if (!match.Success)
+                return false;
+
+            var hours = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+            var minutes = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+            var seconds = match.Groups[3].Success ? int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture) : 0;
+            return hours < 24 && minutes < 60 && seconds < 60;
+        }
+
         private static bool TryNumber(string text, out double value) =>
-            double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+            double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
 
         private static bool TryDate(string text, out DateTime value) =>
             DateTime.TryParseExact(text.Trim(), s_dateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);

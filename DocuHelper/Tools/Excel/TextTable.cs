@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace DocuHelper.Tools.Excel
 {
@@ -22,10 +23,59 @@ namespace DocuHelper.Tools.Excel
             return value;
         }
 
-        public static List<string> Delimited(string text, string delimiter, bool consecutiveAsOne) =>
-            consecutiveAsOne
-                ? text.Split(delimiter, StringSplitOptions.RemoveEmptyEntries).ToList()
-                : text.Split(delimiter, StringSplitOptions.None).ToList();
+        public static List<string> Delimited(string text, string delimiter, bool consecutiveAsOne)
+        {
+            var parts = new List<string>();
+            var field = new StringBuilder();
+            var quoted = false;
+            var index = 0;
+            while (index < text.Length)
+            {
+                var current = text[index];
+                if (quoted)
+                {
+                    if (current == '"' && index + 1 < text.Length && text[index + 1] == '"')
+                    {
+                        field.Append('"');
+                        index += 2;
+                        continue;
+                    }
+
+                    if (current == '"')
+                        quoted = false;
+                    else
+                        field.Append(current);
+
+                    index++;
+                    continue;
+                }
+
+                if (current == '"' && field.ToString().Trim().Length == 0)
+                {
+                    field.Clear();
+                    quoted = true;
+                    index++;
+                    continue;
+                }
+
+                if (index + delimiter.Length <= text.Length && string.CompareOrdinal(text, index, delimiter, 0, delimiter.Length) == 0)
+                {
+                    parts.Add(field.ToString());
+                    field.Clear();
+                    index += delimiter.Length;
+                    continue;
+                }
+
+                field.Append(current);
+                index++;
+            }
+
+            parts.Add(field.ToString());
+            if (consecutiveAsOne)
+                parts.RemoveAll(part => part.Length == 0);
+
+            return parts;
+        }
 
         public static List<string> Fixed(string text, IReadOnlyList<int> widths)
         {
@@ -33,9 +83,12 @@ namespace DocuHelper.Tools.Excel
             var position = 0;
             foreach (var width in widths)
             {
-                var take = Math.Min(width, text.Length - position);
-                parts.Add(text.Substring(position, take));
-                position += take;
+                var end = position;
+                for (var count = 0; count < width && end < text.Length; count++)
+                    end += char.IsSurrogatePair(text, end) ? 2 : 1;
+
+                parts.Add(text.Substring(position, end - position));
+                position = end;
             }
 
             if (position < text.Length)

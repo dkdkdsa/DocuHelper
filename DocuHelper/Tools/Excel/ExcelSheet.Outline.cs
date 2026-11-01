@@ -99,7 +99,15 @@ namespace DocuHelper.Tools.Excel
             var worksheet = Worksheet;
             var rowLevel = Data?.Elements<Row>().Select(r => (int)(r.OutlineLevel?.Value ?? 0)).DefaultIfEmpty(0).Max() ?? 0;
             var columnLevel = worksheet.GetFirstChild<Columns>()?.Elements<Column>().Select(c => (int)(c.OutlineLevel?.Value ?? 0)).DefaultIfEmpty(0).Max() ?? 0;
-            var format = worksheet.SheetFormatProperties ?? WorksheetOrder.Insert(worksheet, new SheetFormatProperties());
+            var format = worksheet.SheetFormatProperties;
+            if (format == null)
+            {
+                if (rowLevel == 0 && columnLevel == 0)
+                    return;
+
+                format = WorksheetOrder.Insert(worksheet, new SheetFormatProperties { DefaultRowHeight = 15D });
+            }
+
             format.OutlineLevelRow = rowLevel > 0 ? (byte)rowLevel : null;
             format.OutlineLevelColumn = columnLevel > 0 ? (byte)columnLevel : null;
         }

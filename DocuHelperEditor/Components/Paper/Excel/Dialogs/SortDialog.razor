@@ -91,7 +91,7 @@
             return;
         }
 
-        _error = Apply(EditCommand.Create("sort_range", new { sheet = SheetName, range = Range, keys, has_header = _hasHeader, case_sensitive = false }));
+        _error = Apply(EditCommand.Create("sort_range", new { sheet = SheetName, range = Range, keys, has_header = _hasHeader, by_column = true, case_sensitive = false }));
         if (_error == null)
             await Close.InvokeAsync();
     }

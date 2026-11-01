@@ -16,14 +16,15 @@ namespace DocuHelper.Tools.Excel
 
             var details = sheets.Select(s => (Sheet: s, Used: s.UsedRange)).ToList();
             var headers = details.Select(d => d.Used == null ? new List<string>() : HeaderNames(book, d.Sheet, d.Used)).ToList();
-            var features = details.Select(d => ExcelFeatures.Brief(ExcelFeatures.Describe(book, d.Sheet))).ToList();
+            var features = details.Select(d => ExcelFeatures.Brief(ExcelFeatures.Describe(book, d.Sheet).Where(f => f.Kind != "통합 문서 보호").ToList())).ToList();
+            var head = ProtectionGuard.StructureLocked(book) ? "[통합 문서 보호] " : string.Empty;
             foreach (var limit in new[] { 8, 5, 3, 0 })
             {
                 var parts = new List<string>();
                 for (var i = 0; i < details.Count; i++)
                     parts.Add(Part(details[i].Sheet, details[i].Used, headers[i], limit, features[i]));
 
-                var text = Join(parts, details.Count, parts.Count);
+                var text = Join(head, parts, details.Count, parts.Count);
                 if (text.Length <= MaxLength)
                     return text;
 
@@ -31,7 +32,7 @@ namespace DocuHelper.Tools.Excel
                 {
                     for (var count = parts.Count - 1; count >= 1; count--)
                     {
-                        text = Join(parts, details.Count, count);
+                        text = Join(head, parts, details.Count, count);
                         if (text.Length <= MaxLength)
                             return text;
                     }
@@ -43,9 +44,9 @@ namespace DocuHelper.Tools.Excel
             return $"시트 {sheets.Count}개";
         }
 
-        private static string Join(List<string> parts, int total, int count)
+        private static string Join(string head, List<string> parts, int total, int count)
         {
-            var text = $"시트 {total}개: " + string.Join(", ", parts.Take(count));
+            var text = head + $"시트 {total}개: " + string.Join(", ", parts.Take(count));
             return count < total ? text + $" 외 {total - count}개" : text;
         }
 

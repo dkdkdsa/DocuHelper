@@ -16,11 +16,14 @@ namespace DocuHelper.Tools.Ppt
             Part = part;
             Theme = theme;
             SlideId = slideId;
+            ColorMap = PptTheme.ColorMapOf(part);
         }
 
         public SlidePart Part { get; }
 
         public PptThemeInfo Theme { get; }
+
+        public IReadOnlyDictionary<string, string> ColorMap { get; }
 
         public uint SlideId { get; }
 
@@ -150,7 +153,7 @@ namespace DocuHelper.Tools.Ppt
                 LayoutName = layout?.CommonSlideData?.Name?.Value,
                 LayoutType = layout?.Type != null && layout.Type.HasValue ? layout.Type.InnerText : null,
                 HideMasterShapes = Attribute(root, "showMasterSp") == "0",
-                Background = BackgroundOf(root, part, theme),
+                Background = BackgroundOf(root, part, theme, PptTheme.ColorMapOf(part)),
             };
             var context = new PptSceneContext(part, theme, slide.SlideId);
             scene.Shapes = PptSceneShapes.ReadTree(slide.Tree, context, PptSceneShapes.Map.Identity);
@@ -162,7 +165,7 @@ namespace DocuHelper.Tools.Ppt
             return scene;
         }
 
-        private static PptBackgroundInfo BackgroundOf(P.Slide root, SlidePart part, PptThemeInfo theme)
+        private static PptBackgroundInfo BackgroundOf(P.Slide root, SlidePart part, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
         {
             var info = new PptBackgroundInfo { Kind = "none" };
             var background = root?.CommonSlideData?.Background;
@@ -172,7 +175,7 @@ namespace DocuHelper.Tools.Ppt
             var properties = background.BackgroundProperties;
             if (properties != null)
             {
-                var fill = PptSceneShapes.Fill(properties, part, theme);
+                var fill = PptSceneShapes.Fill(properties, part, theme, colorMap);
                 info.Kind = fill?.Kind ?? "none";
                 info.Color = fill?.Color;
                 info.Color2 = fill?.Color2;
@@ -187,7 +190,7 @@ namespace DocuHelper.Tools.Ppt
             if (color != null)
             {
                 info.Kind = "solid";
-                info.Color = PptColor.Resolve(color, theme, (OpenXmlElement)null);
+                info.Color = PptColor.Resolve(color, theme, colorMap, null);
                 info.Alpha = PptColor.AlphaOf(color);
             }
 

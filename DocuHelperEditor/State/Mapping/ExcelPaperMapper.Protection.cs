@@ -16,7 +16,7 @@ namespace DocuHelperEditor.State.Mapping
             context.View.Protection = new SheetProtection
             {
                 IsProtected = protection.Sheet?.Value == true,
-                HasPassword = protection.Password?.Value != null,
+                HasPassword = protection.Password?.Value != null || protection.HashValue?.Value != null,
                 SelectLockedCells = protection.SelectLockedCells?.Value != true,
                 SelectUnlockedCells = protection.SelectUnlockedCells?.Value != true,
                 AllowFormatCells = protection.FormatCells?.Value == false,
@@ -30,8 +30,8 @@ namespace DocuHelperEditor.State.Mapping
                 AllowSort = protection.Sort?.Value == false,
                 AllowAutoFilter = protection.AutoFilter?.Value == false,
                 AllowPivotTables = protection.PivotTables?.Value == false,
-                AllowObjects = protection.Objects?.Value == false,
-                AllowScenarios = protection.Scenarios?.Value == false,
+                AllowObjects = protection.Objects?.Value != true,
+                AllowScenarios = protection.Scenarios?.Value != true,
             };
         }
     }

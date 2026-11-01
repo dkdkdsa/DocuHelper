@@ -9,7 +9,9 @@ namespace DocuHelperEditor.State
     {
         private const int MaxNamedFiles = 3;
 
-        private bool _forceCloseNext;
+        private static readonly TimeSpan s_forceCloseWindow = TimeSpan.FromMinutes(1);
+
+        private DateTime _forceCloseUntil;
 
         public event Action QuitRequested;
 
@@ -47,8 +49,8 @@ namespace DocuHelperEditor.State
 
         public bool TakeForceCloseRequest()
         {
-            var force = _forceCloseNext;
-            _forceCloseNext = false;
+            var force = DateTime.UtcNow < _forceCloseUntil;
+            _forceCloseUntil = DateTime.MinValue;
             return force;
         }
 
@@ -90,7 +92,7 @@ namespace DocuHelperEditor.State
                 return;
             }
 
-            _forceCloseNext = true;
+            _forceCloseUntil = DateTime.UtcNow + s_forceCloseWindow;
             FailCloseApp("화면이 늦어져서 창을 닫지 않았어요. 저장 안 한 파일이 있으면 창 닫기를 한 번 더 누르면 저장 안 하고 닫아요.");
         }
 

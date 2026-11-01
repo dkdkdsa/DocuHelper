@@ -59,10 +59,9 @@ namespace DocuHelper.Tools.Ppt
             if (theme == null && !input.Has("colors") && !input.Has("fonts") && background == null)
                 throw new ToolInputException("바꿀 테마(theme), 색(colors), 글꼴(fonts), 배경 스타일(background_style) 중 하나를 알려 주세요.");
 
-            var current = PptTheme.Read(document);
             var themePreset = theme == null ? null : PptThemePresets.Theme(theme);
-            var colors = ColorsFor(input, themePreset, current, out var colorName);
-            var fonts = FontsFor(input, themePreset, current, out var fontName, out var heading, out var body);
+            var colors = ColorsFor(input, themePreset, out var colorName, out var colorOverrides);
+            var fonts = FontsFor(input, themePreset, out var fontName, out var heading, out var body, out var latinOnly);
             var themeName = themePreset?.Name;
 
             var snapshot = docu.Capture();
@@ -75,9 +74,11 @@ namespace DocuHelper.Tools.Ppt
                     {
                         if (colors != null)
                             PptThemeWriter.Colors(themePart, colorName, colors);
+                        else if (colorOverrides != null)
+                            PptThemeWriter.Colors(themePart, colorName, MasterColors(PptTheme.Read(themePart).Colors, colorOverrides));
 
                         if (fonts)
-                            PptThemeWriter.Fonts(themePart, fontName, heading, body);
+                            PptThemeWriter.Fonts(themePart, fontName, heading, body, latinOnly);
 
                         if (themeName != null)
                             themePart.Name = themeName;
@@ -96,7 +97,7 @@ namespace DocuHelper.Tools.Ppt
                     parts.Add($"set the colors to {colorName}");
 
                 if (fonts && themeName == null)
-                    parts.Add($"set the fonts to {heading} / {body}");
+                    parts.Add($"set the fonts to {heading ?? "unchanged"} / {body ?? "unchanged"}");
 
                 if (background != null)
                     parts.Add($"set the {background} background style");
@@ -120,9 +121,10 @@ namespace DocuHelper.Tools.Ppt
             }
         }
 
-        private static IReadOnlyList<string> ColorsFor(ToolInput input, PptThemePreset themePreset, PptThemeInfo current, out string name)
+        private static IReadOnlyList<string> ColorsFor(ToolInput input, PptThemePreset themePreset, out string name, out IReadOnlyDictionary<int, string> overrides)
         {
             name = themePreset?.Name ?? "사용자 지정";
+            overrides = null;
             if (!input.Has("colors"))
                 return themePreset?.Colors;
 
@@ -139,8 +141,7 @@ namespace DocuHelper.Tools.Ppt
             if (element.ValueKind != JsonValueKind.Object)
                 throw new ToolInputException("'colors'는 색 세트 이름이나 색 목록이어야 해요.");
 
-            var baseColors = themePreset?.Colors ?? current.Colors.ToList();
-            var result = baseColors.Select(Normalize).ToList();
+            var changes = new Dictionary<int, string>();
             foreach (var property in element.EnumerateObject())
             {
                 var index = Array.IndexOf(s_slotNames, property.Name);
@@ -151,16 +152,30 @@ namespace DocuHelper.Tools.Ppt
                 if (text == null || !s_hex.IsMatch(text.Trim()))
                     throw new ToolInputException($"'colors.{property.Name}' 값은 #RRGGBB 형식의 색이어야 해요.");
 
-                result[index] = Normalize(text);
+                changes[index] = Normalize(text);
             }
+
+            if (themePreset != null)
+                return MasterColors(themePreset.Colors, changes);
+
+            overrides = changes;
+            return null;
+        }
+
+        private static IReadOnlyList<string> MasterColors(IEnumerable<string> current, IReadOnlyDictionary<int, string> changes)
+        {
+            var result = current.Select(Normalize).ToList();
+            foreach (var change in changes)
+                result[change.Key] = change.Value;
 
             return result;
         }
 
-        private static bool FontsFor(ToolInput input, PptThemePreset themePreset, PptThemeInfo current, out string name, out string heading, out string body)
+        private static bool FontsFor(ToolInput input, PptThemePreset themePreset, out string name, out string heading, out string body, out bool latinOnly)
         {
-            heading = themePreset?.HeadingFont ?? current.MajorLatin;
-            body = themePreset?.BodyFont ?? current.MinorLatin;
+            heading = themePreset?.HeadingFont;
+            body = themePreset?.BodyFont;
+            latinOnly = false;
             name = themePreset == null ? "사용자 지정" : themePreset.Name;
             if (!input.Has("fonts"))
                 return false;
@@ -179,8 +194,9 @@ namespace DocuHelper.Tools.Ppt
 
             var fonts = PptInputs.Object(input, "fonts")
                 ?? throw new ToolInputException("'fonts'는 글꼴 세트 이름이나 제목과 본문 글꼴이어야 해요.");
-            heading = PptInputs.Text(fonts, "heading", MaxFontLength) ?? heading;
-            body = PptInputs.Text(fonts, "body", MaxFontLength) ?? body;
+            heading = PptInputs.Text(fonts, "heading", MaxFontLength);
+            body = PptInputs.Text(fonts, "body", MaxFontLength);
+            latinOnly = true;
             name = "사용자 지정";
             return true;
         }

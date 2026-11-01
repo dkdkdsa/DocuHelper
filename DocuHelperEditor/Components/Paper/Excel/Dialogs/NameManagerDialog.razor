@@ -84,6 +84,7 @@
         _action = "set";
         _name = item.Name;
         _refersTo = item.RefersTo;
+        _scope = item.Scope ?? string.Empty;
     }
 
     private static string AbsoluteRange(string range) =>

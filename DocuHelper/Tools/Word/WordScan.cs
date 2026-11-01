@@ -32,6 +32,8 @@ namespace DocuHelper.Tools.Word
 
         public int PageCount { get; private set; } = 1;
 
+        public IReadOnlyList<int> PageSections { get; private set; } = Array.Empty<int>();
+
         public WordPageLayout Layout { get; private set; } = WordPageLayout.Default;
 
         public IReadOnlyList<WordPageFrame> Frames { get; private set; } = Array.Empty<WordPageFrame>();
@@ -125,6 +127,7 @@ namespace DocuHelper.Tools.Word
             Layout = pager.Layout;
             Sections = pager.Sections;
             PageCount = Math.Max(pager.LastPage, _blocks.Count == 0 ? 1 : _blocks.Max(b => b.Page));
+            PageSections = pager.PageSections;
             Frames = WordFrames.Build(this, pager.Sections, pager.Marks, pager.PageSections, PageCount);
         }
 

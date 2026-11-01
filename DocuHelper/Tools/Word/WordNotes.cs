@@ -51,9 +51,14 @@ namespace DocuHelper.Tools.Word
             var paragraphs = note.Elements<Paragraph>().ToList();
             var first = paragraphs.FirstOrDefault() ?? throw Missing(endnote);
             foreach (var extra in paragraphs.Skip(1))
-                extra.Remove();
+            {
+                if (ctx == null)
+                    extra.Remove();
+                else
+                    WordRevisions.MarkDeleted(extra.Descendants<Run>().ToList(), ctx);
+            }
 
-            var old = first.Elements<Run>().Where(r => !IsMark(r)).ToList();
+            var old = first.Descendants<Run>().Where(r => !IsMark(r) && !r.Ancestors<DeletedRun>().Any()).ToList();
             var content = new Run(new Text(" " + value) { Space = SpaceProcessingModeValues.Preserve });
             if (ctx == null)
             {
