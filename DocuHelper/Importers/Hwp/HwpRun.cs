@@ -35,5 +35,11 @@
         public string Field { get; set; }
 
         public HwpPicture Picture { get; set; }
+
+        public string Link { get; set; }
+
+        public string Bookmark { get; set; }
+
+        public HwpClickHere ClickHere { get; set; }
     }
 }

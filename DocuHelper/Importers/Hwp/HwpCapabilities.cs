@@ -41,8 +41,8 @@ namespace DocuHelper.Importers.Hwp
 
             HwpFeature.Notes => false,
 
-            HwpFeature.Hyperlinks => false,
-            HwpFeature.Bookmarks => false,
+            HwpFeature.Hyperlinks => true,
+            HwpFeature.Bookmarks => true,
             HwpFeature.ClickHere => false,
 
             HwpFeature.NamedStyles => false,

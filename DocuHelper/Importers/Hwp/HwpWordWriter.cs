@@ -50,6 +50,7 @@ namespace DocuHelper.Importers.Hwp
 
                 body.AppendChild(section);
                 HwpWordPictures.Embed(word, document.Pictures);
+                HwpWordFields.ResolveLinks(word);
 
                 word.MainDocumentPart.Document.Save();
             }

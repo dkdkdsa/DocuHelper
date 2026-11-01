@@ -17,13 +17,16 @@ namespace DocuHelper.Importers.Hwp
                 return;
 
             var last = Runs.Count == 0 ? null : Runs[^1];
-            if (last != null && !_locked && shape.Matches(last))
+            if (last != null && !_locked && shape.Matches(last) && last.Link == Link && ReferenceEquals(last.ClickHere, ClickHere))
             {
                 last.Text += value;
                 return;
             }
 
-            Runs.Add(shape.ToRun(value));
+            var run = shape.ToRun(value);
+            run.Link = Link;
+            run.ClickHere = ClickHere;
+            Runs.Add(run);
             _locked = false;
         }
 
@@ -47,6 +50,57 @@ namespace DocuHelper.Importers.Hwp
             var run = shape.ToRun(text);
             run.Field = field;
             Runs.Add(run);
+            _locked = true;
+        }
+
+        public string Link { get; private set; }
+
+        public HwpClickHere ClickHere { get; private set; }
+
+        private string _linkId;
+
+        private string _controlId;
+
+        private int _controlStart;
+
+        public void OpenLink(string id, string target)
+        {
+            _linkId = id;
+            Link = target;
+        }
+
+        public void OpenClickHere(string id, HwpClickHere control)
+        {
+            _controlId = id;
+            ClickHere = control;
+            _controlStart = Runs.Count;
+        }
+
+        public void CloseField(string id)
+        {
+            if (id != null && id == _linkId)
+            {
+                Link = null;
+                _linkId = null;
+                return;
+            }
+
+            if (id == null || id != _controlId)
+                return;
+
+            if (Runs.Count == _controlStart && ClickHere != null)
+                Runs.Add(new HwpRun { Text = ClickHere.Guide ?? string.Empty, ClickHere = new HwpClickHere { Name = ClickHere.Name, Guide = ClickHere.Guide, Placeholder = true } });
+
+            ClickHere = null;
+            _controlId = null;
+        }
+
+        public void AppendBookmark(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return;
+
+            Runs.Add(new HwpRun { Bookmark = name });
             _locked = true;
         }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using DocuHelper.Docus;
+using DocuHelper.Importers.Hwp;
 using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace DocuHelper.Tools.Word
@@ -108,7 +109,33 @@ namespace DocuHelper.Tools.Word
             }
             """;
 
-        protected override WordHwpSupport Hwp => WordHwpSupport.None;
+        protected override WordHwpSupport Hwp => WordHwpSupport.Partial;
+
+        private static void RequireInHwp(WordDocu docu, string kind)
+        {
+            switch (kind)
+            {
+                case "hyperlink":
+                    HwpGuard.Require(docu, HwpFeature.Hyperlinks, "하이퍼링크");
+                    return;
+                case "bookmark":
+                    HwpGuard.Require(docu, HwpFeature.Bookmarks, "책갈피");
+                    return;
+                case "footnote":
+                case "endnote":
+                    HwpGuard.Require(docu, HwpFeature.Notes, "각주와 미주");
+                    return;
+                case "cross_reference":
+                    HwpGuard.Refuse(docu, "상호 참조");
+                    return;
+                case "caption":
+                    HwpGuard.Refuse(docu, "캡션 번호");
+                    return;
+                default:
+                    HwpGuard.Refuse(docu, "이 참조");
+                    return;
+            }
+        }
 
         protected override ToolResult Run(WordDocu docu, ToolInput input)
         {
@@ -119,6 +146,9 @@ namespace DocuHelper.Tools.Word
             var kind = input.GetString("kind").Trim().ToLowerInvariant();
             if (Array.IndexOf(s_kinds, kind) < 0)
                 throw new ToolInputException($"'kind' 값은 {string.Join(", ", s_kinds)} 중 하나여야 해요.");
+
+            if (docu is HwpDocu)
+                RequireInHwp(docu, kind);
 
             var snapshot = docu.Capture();
             try

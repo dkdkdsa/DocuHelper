@@ -49,19 +49,7 @@ namespace DocuHelper.Importers.Hwp
             if (!string.IsNullOrEmpty(source.Label))
                 HwpWordRuns.AppendRun(paragraph, source.Label + " ", LabelFormat(source.Runs.FirstOrDefault()));
 
-            foreach (var run in source.Runs)
-            {
-                if (run.Picture != null)
-                {
-                    paragraph.AppendChild(new Run(HwpWordPictures.PictureDrawing(run.Picture)));
-                    continue;
-                }
-
-                if (run.Field == "PAGE")
-                    HwpWordRuns.AppendField(paragraph, run);
-                else
-                    HwpWordRuns.AppendRun(paragraph, run.Text, run);
-            }
+            HwpWordFields.Append(paragraph, source.Runs);
 
             return paragraph;
         }

@@ -55,8 +55,18 @@ namespace DocuHelper.Importers.Hwp
                 runs.Add(TextRun(CharId(CharKeyOf(first, paragraph)), label));
             }
 
-            foreach (var run in paragraph.Descendants<Run>())
+            var scope = new HwpxFieldScope();
+            foreach (var element in paragraph.Descendants().Where(e => e is Run || e is BookmarkStart).ToList())
             {
+                if (element is BookmarkStart bookmark)
+                {
+                    if (Owns(paragraph, bookmark) && bookmark.Name?.Value is string name && !name.StartsWith("_", System.StringComparison.Ordinal))
+                        runs.Add(BookmarkRun(name));
+
+                    continue;
+                }
+
+                var run = (Run)element;
                 if (!Owns(paragraph, run))
                     continue;
 
@@ -67,6 +77,10 @@ namespace DocuHelper.Importers.Hwp
                 }
 
                 if (fields.Skip.Contains(run))
+                    continue;
+
+                MoveScope(scope, runs, LinkTargetOf(run), ControlOf(run));
+                if (scope.Placeholder)
                     continue;
 
                 foreach (var drawing in run.Descendants<Drawing>())
@@ -80,10 +94,12 @@ namespace DocuHelper.Importers.Hwp
                 if (content.Count == 0)
                     continue;
 
-                var element = new XElement(Hp + "run", new XAttribute("charPrIDRef", Number(CharId(CharKeyOf(run, paragraph)))));
-                element.Add(new XElement(Hp + "t", content));
-                runs.Add(element);
+                var element2 = new XElement(Hp + "run", new XAttribute("charPrIDRef", Number(CharId(CharKeyOf(run, paragraph)))));
+                element2.Add(new XElement(Hp + "t", content));
+                runs.Add(element2);
             }
+
+            CloseScope(scope, runs);
 
             if (runs.Count == 0)
                 runs.Add(TextRun(CharId(CharKeyOf(null, paragraph)), string.Empty));
@@ -91,8 +107,8 @@ namespace DocuHelper.Importers.Hwp
             return Paragraph(para, 0, pageBreak, runs, columnBreak);
         }
 
-        private static bool Owns(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, Run run) =>
-            ReferenceEquals(run.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Paragraph>().FirstOrDefault(), paragraph);
+        private static bool Owns(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, OpenXmlElement element) =>
+            ReferenceEquals(element.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Paragraph>().FirstOrDefault(), paragraph);
 
         private static List<object> RunContent(Run run, ref bool pageBreak, ref bool columnBreak, bool atStart)
         {
