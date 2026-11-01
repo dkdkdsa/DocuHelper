@@ -33,7 +33,7 @@
                             <RulerBar Horizontal="true" Cm="_model.SlideWidthCm" Marks="SelectedMarks(true)" />
                             <RulerBar Horizontal="false" Cm="_model.SlideHeightCm" Marks="SelectedMarks(false)" />
                         }
-                        <div class="slide-wrap">
+                        <div class="slide-wrap @(_previewing ? "play-" + (slide?.Transition ?? "none") : null)">
                             <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
                             @if (_ribbon.Gridlines)
                             {
@@ -86,6 +86,8 @@
         SelectSlide(index);
     }
     private int _notesHeight = 92;
+    private bool _previewing;
+    private const int TransitionPreviewMs = 900;
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -435,7 +437,27 @@
             Edit(file, "set_slide_text", new { slide = index + 1, shape = box.ShapeKey, lines });
     }
 
-    private void Redraw() => StateHasChanged();
+    private void Redraw()
+    {
+        if (!_previewing && string.Equals(_ribbon.Preview, "transition", StringComparison.Ordinal))
+        {
+            _ribbon.Preview = null;
+            _previewing = true;
+            _ = EndPreviewAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task EndPreviewAsync()
+    {
+        await Task.Delay(TransitionPreviewMs);
+        await InvokeAsync(() =>
+        {
+            _previewing = false;
+            StateHasChanged();
+        });
+    }
 
     private void ActivateSlide(int index)
     {

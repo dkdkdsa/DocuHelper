@@ -138,6 +138,7 @@ namespace DocuHelperEditor.State.Mapping
                         DelaySec = Math.Clamp(animation.DelayMs / 1000.0, 0, 600),
                     })
                     .ToList();
+                slide.Transition = Trim(sceneSlide.Transition?.Effect, 20) ?? "none";
                 slide.Comments = sceneSlide.Comments
                     .Take(MaxComments)
                     .Select(comment => new SlideCommentModel
