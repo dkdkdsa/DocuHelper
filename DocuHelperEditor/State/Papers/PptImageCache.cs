@@ -8,10 +8,12 @@ namespace DocuHelperEditor.State.Papers
     {
         private const int MaxEntries = 32;
         private const long MaxBytes = 6L * 1024 * 1024;
+        private const long MaxTotalChars = 64L * 1024 * 1024;
 
         private readonly Dictionary<string, string> _uris = new(StringComparer.Ordinal);
         private readonly Queue<string> _order = new();
         private readonly object _gate = new();
+        private long _totalChars;
 
         public string UriOf(string key, Func<byte[]> read)
         {
@@ -22,12 +24,23 @@ namespace DocuHelperEditor.State.Papers
             }
 
             var uri = Encode(read);
+            if (uri == null)
+                return null;
+
             lock (_gate)
             {
+                if (_uris.TryGetValue(key, out var raced))
+                    return raced;
+
                 _uris[key] = uri;
                 _order.Enqueue(key);
-                while (_order.Count > MaxEntries)
-                    _uris.Remove(_order.Dequeue());
+                _totalChars += uri.Length;
+                while ((_uris.Count > MaxEntries || _totalChars > MaxTotalChars) && _order.Count > 0)
+                {
+                    var oldest = _order.Dequeue();
+                    if (_uris.Remove(oldest, out var removed))
+                        _totalChars -= removed.Length;
+                }
             }
 
             return uri;

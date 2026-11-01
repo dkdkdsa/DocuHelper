@@ -20,6 +20,7 @@
 .shape {
     position: absolute;
     box-sizing: border-box;
+    touch-action: none;
     transform: rotate(var(--rot, 0deg));
     transform-origin: 50% 50%;
 }
@@ -99,7 +100,7 @@
 .handle::before {
     content: "";
     position: absolute;
-    inset: -17px;
+    inset: -18px;
 }
 
 .handle.nw,

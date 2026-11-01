@@ -191,6 +191,9 @@
         if (_model == null || gesture == null)
             return;
 
+        if (gesture.SlideId != null && gesture.SlideId != _model.ActiveSlide?.Id)
+            return;
+
         if (gesture.Kind == "select")
         {
             SelectShape(gesture.Id, gesture.Additive);

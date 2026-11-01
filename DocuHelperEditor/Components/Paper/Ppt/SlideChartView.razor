@@ -17,13 +17,24 @@
     }
     else if (Chart.Type is "line" or "area")
     {
-        <svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <div class="plotarea">
+            <svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                @for (var s = 0; s < Series.Count; s++)
+                {
+                    var index = s;
+                    <polyline points="@Points(index)" fill="none" stroke="@ColorOf(index)" />
+                }
+            </svg>
             @for (var s = 0; s < Series.Count; s++)
             {
                 var index = s;
-                <polyline points="@Points(index)" fill="none" stroke="@ColorOf(index)" />
+                for (var i = 0; i < Count; i++)
+                {
+                    var category = i;
+                    <span class="dot" style="left: @Share(category, index, true)%; top: @Value100(category, index)%; background: @ColorOf(index)"></span>
+                }
             }
-        </svg>
+        </div>
         <div class="cats">
             @for (var i = 0; i < Count; i++)
             {
@@ -72,10 +83,24 @@
     @if (ShowLegend)
     {
         <ul class="legend">
-            @for (var s = 0; s < Series.Count; s++)
+            @if (Chart.Type is "pie" or "doughnut")
             {
-                var index = s;
-                <li><span class="swatch" style="background: @ColorOf(index)"></span>@SeriesName(index)</li>
+                for (var i = 0; i < Count; i++)
+                {
+                    var category = i;
+                    if (Value(category, 0) > 0)
+                    {
+                        <li><span class="swatch" style="background: @SliceColor(category)"></span>@Category(category)</li>
+                    }
+                }
+            }
+            else
+            {
+                for (var s = 0; s < Series.Count; s++)
+                {
+                    var index = s;
+                    <li><span class="swatch" style="background: @ColorOf(index)"></span>@SeriesName(index)</li>
+                }
             }
         </ul>
     }
@@ -121,12 +146,24 @@
         return value.HasValue && value.Value > 0 ? value.Value : 0;
     }
 
-    private string Share(int category, int index)
+    private string Share(int category, int index, bool horizontal = false)
     {
         var max = Max;
         var ratio = max <= 0 ? 0 : Math.Clamp(Value(category, index) / max, 0, 1) * 100;
+        if (horizontal)
+            ratio = Count <= 1 ? 50 : (category + 0.5) / Count * 100;
+
         return ratio.ToString("0.##", CultureInfo.InvariantCulture);
     }
+
+    private string Value100(int category, int index)
+    {
+        var max = Max;
+        var ratio = max <= 0 ? 100 : 100 - Math.Clamp(Value(category, index) / max, 0, 1) * 100;
+        return ratio.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private string SliceColor(int index) => s_defaults[index % s_defaults.Length];
 
     private string Points(int index)
     {
@@ -150,6 +187,14 @@
         if (total <= 0)
             yield break;
 
+        var positive = values.Count(v => v.HasValue && v.Value > 0);
+        if (positive == 1)
+        {
+            var only = values.FindIndex(v => v.HasValue && v.Value > 0);
+            yield return ("M0,50 A50,50 0 1 1 100,50 A50,50 0 1 1 0,50 Z", SliceColor(only));
+            yield break;
+        }
+
         var angle = -Math.PI / 2;
         for (var i = 0; i < values.Count; i++)
         {
@@ -161,7 +206,7 @@
             var end = angle + sweep;
             var large = sweep > Math.PI ? 1 : 0;
             var path = FormattableString.Invariant($"M50,50 L{Point(angle)} A50,50 0 {large} 1 {Point(end)} Z");
-            yield return (path, s_defaults[i % s_defaults.Length]);
+            yield return (path, SliceColor(i));
             angle = end;
         }
     }

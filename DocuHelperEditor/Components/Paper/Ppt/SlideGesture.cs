@@ -4,6 +4,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
     {
         public string Kind { get; set; }
 
+        public string SlideId { get; set; }
+
         public string Id { get; set; }
 
         public string Handle { get; set; }

@@ -1,11 +1,12 @@
 window.docuHelperPptCanvas = (function () {
     var sessions = new Map();
     var MIN_SIZE = 0.2;
-    var KEYS = ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Escape'];
+    var EDIT_KEYS = ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Escape'];
 
     function send(session, payload) {
-        if (!session.reference) return;
-        session.reference.invokeMethodAsync('Receive', payload).catch(function () { });
+        if (!session.reference) return Promise.resolve();
+        payload.slideId = session.slide.dataset.slide || null;
+        return session.reference.invokeMethodAsync('Receive', payload).catch(function () { });
     }
 
     function percentOf(el, name) {
@@ -19,12 +20,26 @@ window.docuHelperPptCanvas = (function () {
             y: percentOf(el, 'y'),
             w: percentOf(el, 'w'),
             h: percentOf(el, 'h'),
-            rot: percentOf(el, 'rot')
+            rot: percentOf(el, 'rot'),
+            stamp: [el.dataset.x, el.dataset.y, el.dataset.w, el.dataset.h, el.dataset.rot].join('|')
         };
     }
 
     function selectedMovable(slide) {
         return Array.prototype.slice.call(slide.querySelectorAll('.shape.on[data-movable="true"]'));
+    }
+
+    function moveGroup(slide, shape, shift) {
+        var group;
+        if (shape.classList.contains('on')) {
+            group = selectedMovable(slide);
+        } else if (shift) {
+            group = selectedMovable(slide).concat([shape]);
+        } else {
+            group = [shape];
+        }
+
+        return group.filter(function (el, index) { return group.indexOf(el) === index; });
     }
 
     function angleOf(el, event) {
@@ -42,11 +57,27 @@ window.docuHelperPptCanvas = (function () {
         item.el.style.setProperty('--rot', item.rot + 'deg');
     }
 
+    function settle(items, pending) {
+        pending.then(function () {
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    items.forEach(function (item) {
+                        if (item.el.isConnected && itemOf(item.el).stamp === item.stamp) restoreOverrides(item);
+                    });
+                });
+            });
+        });
+    }
+
+    function cancelDrag(session) {
+        var drag = session.drag;
+        if (!drag) return;
+        session.drag = null;
+        if (drag.moved) drag.items.forEach(restoreOverrides);
+    }
+
     function startDrag(session, slide, e, kind, shape, handle) {
-        var group = kind === 'move' && shape.classList.contains('on')
-            ? selectedMovable(slide)
-            : [shape];
-        var items = group.map(itemOf);
+        var items = (kind === 'move' ? moveGroup(slide, shape, e.shiftKey) : [shape]).map(itemOf);
         if (items.length === 0) return;
 
         session.drag = {
@@ -54,6 +85,7 @@ window.docuHelperPptCanvas = (function () {
             id: shape.dataset.shape,
             handle: handle,
             items: items,
+            pointerId: e.pointerId,
             box: slide.getBoundingClientRect(),
             startX: e.clientX,
             startY: e.clientY,
@@ -65,8 +97,12 @@ window.docuHelperPptCanvas = (function () {
         };
     }
 
+    function focusSlide(slide) {
+        slide.focus({ preventScroll: true });
+    }
+
     function onDown(slide, session, e) {
-        if (e.button !== 0 || slide.dataset.locked === 'true') return;
+        if (session.drag || e.button !== 0 || slide.dataset.locked === 'true') return;
 
         var target = e.target;
         var handle = target.closest ? target.closest('[data-handle]') : null;
@@ -76,35 +112,38 @@ window.docuHelperPptCanvas = (function () {
             var kind = handle.dataset.handle === 'rot' ? 'rotate' : 'resize';
             startDrag(session, slide, e, kind, shape, handle.dataset.handle);
             e.preventDefault();
+            focusSlide(slide);
             return;
         }
 
         if (!shape || !slide.contains(shape)) {
-            slide.focus({ preventScroll: true });
+            focusSlide(slide);
             if (slide.querySelector('.shape.on')) {
                 send(session, { kind: 'select', id: null, additive: false });
             }
             return;
         }
 
-        var editing = target.isContentEditable === true;
+        if (target.isContentEditable === true) {
+            if (!shape.classList.contains('on')) {
+                send(session, { kind: 'select', id: shape.dataset.shape, additive: e.shiftKey });
+            }
+            return;
+        }
+
         if (!shape.classList.contains('on')) {
             send(session, { kind: 'select', id: shape.dataset.shape, additive: e.shiftKey });
         }
 
+        e.preventDefault();
+        focusSlide(slide);
         if (shape.dataset.movable !== 'true') return;
-        if (editing && shape.classList.contains('on')) return;
-
-        if (!editing) {
-            e.preventDefault();
-            slide.focus({ preventScroll: true });
-        }
         startDrag(session, slide, e, 'move', shape, null);
     }
 
     function onMove(session, e) {
         var drag = session.drag;
-        if (!drag) return;
+        if (!drag || e.pointerId !== drag.pointerId) return;
 
         var dx = e.clientX - drag.startX;
         var dy = e.clientY - drag.startY;
@@ -152,30 +191,70 @@ window.docuHelperPptCanvas = (function () {
         }
     }
 
-    function onUp(session) {
+    function onUp(session, e) {
         var drag = session.drag;
-        if (!drag) return;
+        if (!drag || e.pointerId !== drag.pointerId) return;
         session.drag = null;
-
-        drag.items.forEach(function (item) { restoreOverrides(item); });
         if (!drag.moved) return;
 
+        var payload;
         if (drag.kind === 'move') {
-            send(session, { kind: 'move', id: drag.id, dx: drag.dx, dy: drag.dy });
+            payload = { kind: 'move', id: drag.id, dx: drag.dx, dy: drag.dy };
         } else if (drag.kind === 'resize') {
-            send(session, { kind: 'resize', id: drag.id, handle: drag.handle, dx: drag.dx, dy: drag.dy });
-        } else if (drag.kind === 'rotate') {
-            send(session, { kind: 'rotate', id: drag.id, angle: drag.angle });
+            payload = { kind: 'resize', id: drag.id, handle: drag.handle, dx: drag.dx, dy: drag.dy };
+        } else {
+            payload = { kind: 'rotate', id: drag.id, angle: drag.angle };
         }
+
+        settle(drag.items, send(session, payload));
+    }
+
+    function onCancel(session, e) {
+        if (session.drag && e.pointerId === session.drag.pointerId) cancelDrag(session);
+    }
+
+    function cycle(slide, session, e) {
+        var shapes = Array.prototype.slice.call(slide.querySelectorAll('.shape[data-shape]'));
+        if (shapes.length === 0) return;
+
+        var current = shapes.indexOf(slide.querySelector('.shape.on'));
+        var step = e.shiftKey ? -1 : 1;
+        var next = shapes[(current + step + shapes.length) % shapes.length];
+        if (current < 0) next = shapes[step > 0 ? 0 : shapes.length - 1];
+
+        e.preventDefault();
+        next.focus({ preventScroll: true });
+        send(session, { kind: 'select', id: next.dataset.shape, additive: false });
     }
 
     function onKey(slide, session, e) {
-        if (slide.dataset.locked === 'true' || KEYS.indexOf(e.key) < 0) return;
-        if (!slide.querySelector('.shape.on')) return;
+        if (e.ctrlKey || e.altKey || e.metaKey || slide.dataset.locked === 'true') return;
 
         var active = document.activeElement;
-        if (active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) return;
-        if (active && active !== document.body && !slide.contains(active)) return;
+        if (!active || !slide.contains(active)) return;
+        if (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT') return;
+
+        if (session.drag) {
+            if (e.key === 'Escape') {
+                cancelDrag(session);
+                e.preventDefault();
+            }
+            return;
+        }
+
+        if (e.key === 'Tab') {
+            cycle(slide, session, e);
+            return;
+        }
+
+        if ((e.key === 'Enter' || e.key === ' ') && active.dataset && active.dataset.shape) {
+            e.preventDefault();
+            send(session, { kind: 'select', id: active.dataset.shape, additive: e.shiftKey });
+            return;
+        }
+
+        if (EDIT_KEYS.indexOf(e.key) < 0) return;
+        if (!slide.querySelector('.shape.on')) return;
 
         e.preventDefault();
         send(session, { kind: 'key', key: e.key, shift: e.shiftKey });
@@ -188,7 +267,7 @@ window.docuHelperPptCanvas = (function () {
         slide.removeEventListener('pointerdown', session.onDown);
         window.removeEventListener('pointermove', session.onMove);
         window.removeEventListener('pointerup', session.onUp);
-        window.removeEventListener('pointercancel', session.onUp);
+        window.removeEventListener('pointercancel', session.onCancel);
         document.removeEventListener('keydown', session.onKey);
         sessions.delete(slide);
     }
@@ -207,17 +286,18 @@ window.docuHelperPptCanvas = (function () {
                 return;
             }
 
-            session = { reference: reference, drag: null };
+            session = { reference: reference, slide: slide, drag: null };
             session.onDown = function (e) { onDown(slide, session, e); };
             session.onMove = function (e) { onMove(session, e); };
             session.onUp = function (e) { onUp(session, e); };
+            session.onCancel = function (e) { onCancel(session, e); };
             session.onKey = function (e) { onKey(slide, session, e); };
 
             sessions.set(slide, session);
             slide.addEventListener('pointerdown', session.onDown);
             window.addEventListener('pointermove', session.onMove);
             window.addEventListener('pointerup', session.onUp);
-            window.addEventListener('pointercancel', session.onUp);
+            window.addEventListener('pointercancel', session.onCancel);
             document.addEventListener('keydown', session.onKey);
         },
         detach: function (slide) {

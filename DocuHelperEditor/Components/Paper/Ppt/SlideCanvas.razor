@@ -6,7 +6,7 @@
 
 @if (Slide != null)
 {
-    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" tabindex="-1" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount">
+    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" tabindex="-1" data-slide="@Slide.Id" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount" aria-label="@SlideLabel">
         @if (Slide.Background.Kind == "picture" && Slide.Background.ImageSrc != null)
         {
             <img class="bg" src="@Slide.Background.ImageSrc" alt="" />
@@ -124,7 +124,7 @@
     [JSInvokable]
     public Task Receive(SlideGesture gesture) => OnGesture.InvokeAsync(gesture);
 
-    private RenderFragment Shape(SlideShapeModel shape) => @<div @key="shape.Id" class="@ShapeClass(shape)" data-shape="@shape.Id" data-movable="@(shape.Movable && !Locked ? "true" : null)" data-x="@Num(shape.Left)" data-y="@Num(shape.Top)" data-w="@Num(shape.Width)" data-h="@Num(shape.Height)" data-rot="@Num(shape.Rotation)" data-change="@LiveChangeOf(shape)" aria-label="@ShapeLabel(shape)" style="@ShapeStyle(shape)">
+    private RenderFragment Shape(SlideShapeModel shape) => @<div @key="shape.Id" class="@ShapeClass(shape)" role="button" tabindex="@(shape.Id == TabStopId ? "0" : "-1")" aria-pressed="@(IsSelected(shape) ? "true" : "false")" data-shape="@shape.Id" data-movable="@(shape.Movable && !Locked ? "true" : null)" data-x="@Num(shape.Left)" data-y="@Num(shape.Top)" data-w="@Num(shape.Width)" data-h="@Num(shape.Height)" data-rot="@Num(shape.Rotation)" data-change="@LiveChangeOf(shape)" aria-label="@ShapeLabel(shape)" style="@ShapeStyle(shape)">
         @if (shape.Kind == SlideShapeKind.Picture && shape.ImageSrc != null)
         {
             <img class="pic flip" src="@shape.ImageSrc" alt="@shape.AltText" style="@CropStyle(shape)" />
@@ -192,14 +192,21 @@
         return css;
     }
 
+    private string TabStopId => SelectedShapeIds != null && SelectedShapeIds.Count > 0
+        ? SelectedShapeIds[0]
+        : Slide.Shapes.FirstOrDefault(s => s.Movable)?.Id ?? Slide.Shapes.FirstOrDefault()?.Id;
+
+    private string SlideLabel => "슬라이드 " + (Slide.Id ?? string.Empty);
+
     private static string ShapeLabel(SlideShapeModel shape) => shape.Kind switch
     {
         SlideShapeKind.Picture => string.IsNullOrWhiteSpace(shape.AltText) ? "그림" : shape.AltText,
-        SlideShapeKind.Table => "표",
-        SlideShapeKind.Chart => "차트",
+        SlideShapeKind.Table => "표 " + (shape.Table?.Rows.Count ?? 0).ToString(CultureInfo.InvariantCulture) + "행 " + (shape.Table?.Columns.Count ?? 0).ToString(CultureInfo.InvariantCulture) + "열",
+        SlideShapeKind.Chart => "차트 " + (shape.Chart?.Label ?? string.Empty),
         SlideShapeKind.Line => "선",
         SlideShapeKind.Shape => string.IsNullOrWhiteSpace(shape.Name) ? "도형" : shape.Name,
-        _ => null,
+        SlideShapeKind.Text => shape.Text?.Lines.FirstOrDefault(l => !string.IsNullOrWhiteSpace(l)) ?? "글상자",
+        _ => "도형",
     };
 
     private static double MinLine(SlideShapeModel shape) => shape.Kind == SlideShapeKind.Line ? 1.5 : 0;

@@ -18,6 +18,7 @@ namespace DocuHelperEditor.State.Mapping
         private const int MaxPixels = 72;
         private const int MaxBars = 12;
         private const int MaxShapes = 300;
+        private const int MaxGroupDepth = 20;
         private const int MaxPoints = 60;
         private const int MaxSeries = 6;
         private const int MaxRows = 100;
@@ -111,7 +112,7 @@ namespace DocuHelperEditor.State.Mapping
             if (sceneSlide != null)
             {
                 slide.Background = MapBackground(sceneSlide.Background, context);
-                AddShapes(slide.Shapes, sceneSlide.Shapes, context, false);
+                AddShapes(slide.Shapes, sceneSlide.Shapes, context, false, 0);
             }
 
             slide.Chart = slide.Shapes.Select(s => s.Chart).FirstOrDefault(c => c != null && c.HasBars);
@@ -164,16 +165,18 @@ namespace DocuHelperEditor.State.Mapping
             return box;
         }
 
-        private static void AddShapes(List<SlideShapeModel> target, IEnumerable<PptSceneShape> shapes, SlideContext context, bool grouped)
+        private static void AddShapes(List<SlideShapeModel> target, IEnumerable<PptSceneShape> shapes, SlideContext context, bool grouped, int depth)
         {
             foreach (var shape in shapes ?? Enumerable.Empty<PptSceneShape>())
             {
-                if (target.Count >= MaxShapes)
+                if (context.Count >= MaxShapes)
                     return;
 
                 if (shape.Kind == PptShapeKind.Group)
                 {
-                    AddShapes(target, shape.Children, context, true);
+                    context.Count++;
+                    if (depth < MaxGroupDepth)
+                        AddShapes(target, shape.Children, context, true, depth + 1);
                     continue;
                 }
 
@@ -283,17 +286,29 @@ namespace DocuHelperEditor.State.Mapping
         private static SlideTableModel MapTable(PptSceneTable table, SlideContext context)
         {
             var model = new SlideTableModel { FirstRow = table.FirstRow };
-            var columns = table.Columns.Take(MaxColumns).ToList();
-            var totalWidth = columns.Sum(c => (double)Math.Max(0, c));
-            model.Columns = columns.Select(c => PctOf(Math.Max(0, c), totalWidth)).ToList();
+            var columns = table.Columns.Take(MaxColumns).Select(c => (double)Math.Max(0, c)).ToList();
+            var totalWidth = columns.Sum();
+            model.Columns = columns.Select(c => totalWidth <= 0 ? 100.0 / columns.Count : PctOf(c, totalWidth)).ToList();
 
             var rows = table.Rows.Take(MaxRows).ToList();
             var totalHeight = rows.Sum(r => (double)Math.Max(0, r.HeightEmu));
-            foreach (var row in rows)
+            for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
             {
-                var item = new SlideTableRowModel { Height = PctOf(Math.Max(0, row.HeightEmu), totalHeight) };
+                var row = rows[rowIndex];
+                var item = new SlideTableRowModel
+                {
+                    Height = totalHeight <= 0 ? 100.0 / rows.Count : PctOf(Math.Max(0, row.HeightEmu), totalHeight),
+                };
+
+                var column = 0;
                 foreach (var cell in row.Cells.Take(columns.Count))
-                    item.Cells.Add(MapCell(cell, context));
+                {
+                    var mapped = MapCell(cell, context);
+                    mapped.GridSpan = Math.Clamp(Math.Min(mapped.GridSpan, columns.Count - column), 1, columns.Count);
+                    mapped.RowSpan = Math.Clamp(Math.Min(mapped.RowSpan, rows.Count - rowIndex), 1, rows.Count);
+                    item.Cells.Add(mapped);
+                    column++;
+                }
 
                 model.Rows.Add(item);
             }

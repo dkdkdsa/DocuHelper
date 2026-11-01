@@ -96,6 +96,28 @@
     height: 10px;
 }
 
+.plotarea {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+
+.plotarea .lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
 .lines {
     width: 100%;
     overflow: visible;
