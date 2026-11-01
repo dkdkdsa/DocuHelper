@@ -1,6 +1,11 @@
 window.docuHelper = (function () {
     var handler = null;
     var rememberedFocus = null;
+    var lastFocused = null;
+
+    document.addEventListener('focusin', function (e) {
+        if (e.target && e.target !== document.body) lastFocused = e.target;
+    }, true);
 
     function isEditable(el) {
         if (!el) return false;
@@ -112,7 +117,7 @@ window.docuHelper = (function () {
             el.select();
         },
         rememberFocus: function () {
-            rememberedFocus = document.activeElement;
+            rememberedFocus = lastFocused;
         },
         restoreFocus: function () {
             if (rememberedFocus && document.contains(rememberedFocus)) rememberedFocus.focus();
