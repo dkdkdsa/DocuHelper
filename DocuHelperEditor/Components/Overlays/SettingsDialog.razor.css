@@ -162,3 +162,17 @@ h1 {
 .dialog ::deep .opt:hover {
     background: var(--well);
 }
+
+.nv-badge {
+    margin-left: auto;
+    height: 22px;
+    padding: 0 7px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-pill);
+    background: var(--hl);
+    box-shadow: inset 0 0 0 1px rgba(var(--ink-rgb), .3);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 22px;
+}

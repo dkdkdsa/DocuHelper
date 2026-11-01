@@ -2,6 +2,7 @@
 @using DocuHelper.Agents
 @inherits StoreComponentBase
 @inject NavigationManager NavigationManager
+@inject UpdateStore Updates
 
 <div class="setup">
     <header class="setup-header" data-chrome>
@@ -173,7 +174,7 @@
         if (DevMode.Enabled && !string.IsNullOrEmpty(Scenario))
         {
             if (Scenario != SampleScenarios.Current)
-                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings);
+                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings, Updates);
 
             return;
         }

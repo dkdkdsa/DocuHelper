@@ -94,8 +94,14 @@ namespace DocuHelperEditor.State
         public void SetAskingFile(string fileId)
         {
             AskingFileId = fileId;
+            if (fileId == null)
+                _askingCells.Clear();
+
             foreach (var file in _files.Where(f => f.Docu != null))
+            {
                 file.Activity = ActivityOf(file);
+                ApplyAskingCells(file);
+            }
 
             Notify();
         }
@@ -567,6 +573,8 @@ namespace DocuHelperEditor.State
             {
                 AppLog.Write($"Could not show {file.Name}", e);
             }
+
+            ApplyAskingCells(file);
         }
 
         private FileActivity ActivityOf(WorkspaceFile file)

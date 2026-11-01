@@ -20,6 +20,8 @@ namespace DocuHelperEditor.State
 
         public List<AskImpact> Impacts { get; set; } = new();
 
+        public List<string> Cells { get; set; } = new();
+
         public string MineValue { get; set; }
 
         public string AssistantValue { get; set; }

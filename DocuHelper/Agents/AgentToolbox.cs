@@ -65,6 +65,7 @@ namespace DocuHelper.Agents
                 },
                 "hint": {"type": "string", "description": "Optional one-line note under the question."},
                 "file": {"type": "string", "description": "The file the question is about, if any."},
+                "cells": {"type": "array", "description": "Excel only: the cells the question is about, such as B2 or '거래처 목록'!B2:B9. They get a pencil circle on the sheet. At most 10.", "items": {"type": "string"}},
                 "user_value": {"type": "string", "description": "conflict only: what the user typed by hand."},
                 "suggested_value": {"type": "string", "description": "conflict only: what you would put instead."},
                 "impacts": {
@@ -102,6 +103,7 @@ namespace DocuHelper.Agents
         private readonly IReadOnlyList<string> _notes;
         private readonly Dictionary<Docu, DocuState> _before = new();
         private readonly HashSet<Docu> _locked = new();
+        private Docu _lastWritten;
         private readonly List<Docu> _read = new();
         private readonly List<AgentChange> _changes = new();
         private readonly List<string> _untouched = new();
@@ -287,6 +289,7 @@ namespace DocuHelper.Agents
 
         private void Prepare(Docu docu)
         {
+            _lastWritten = docu;
             if (!_before.ContainsKey(docu))
                 _before[docu] = docu.Capture();
 
@@ -370,14 +373,44 @@ namespace DocuHelper.Agents
             };
             question.Choices.AddRange(ParseChoices(args));
             question.Impacts.AddRange(ParseImpacts(args));
+            question.Cells.AddRange(AskCells.Parse(args));
+            question.FileName ??= _lastWritten?.Name;
 
+            var mark = _workspace.RunHandEditCount;
             var step = new AgentStep { Label = StepLabel(args, "여쭤보기"), FileName = question.FileName };
             host.OnStepStarted(step);
-            var answer = await host.AskUserAsync(question, cancellationToken);
+            var answer = await AskWhileUnlocked(question, host, cancellationToken);
             step.Detail = Shorten(answer);
             host.OnStepCompleted(step);
 
-            return ToolResult.Ok($"The user answered: {answer}");
+            var text = $"The user answered: {answer}";
+            var changed = _workspace.HandEditsSince(mark);
+            if (changed.Count > 0)
+            {
+                text += "\nWhile you waited, the user changed these by hand:\n" + string.Join("\n", changed) + "\nRead those places again before you write over them.";
+            }
+
+            return ToolResult.Ok(text);
+        }
+
+        private async Task<string> AskWhileUnlocked(AgentQuestion question, IAgentHost host, CancellationToken cancellationToken)
+        {
+            var unlocked = _locked.Where(d => _workspace.Docus.Contains(d)).ToList();
+            foreach (var docu in unlocked)
+                docu.SetLocked(false);
+
+            try
+            {
+                return await host.AskUserAsync(question, cancellationToken);
+            }
+            finally
+            {
+                foreach (var docu in unlocked)
+                {
+                    if (_workspace.Docus.Contains(docu))
+                        docu.SetLocked(true);
+                }
+            }
         }
 
         private ToolResult Finish(ToolInput args)

@@ -1,6 +1,7 @@
 ﻿@using DocuHelperEditor.Components.Overlays.Settings
 @inherits StoreComponentBase
 @inject IJSRuntime JS
+@inject UpdateStore Updates
 
 @if (Settings.IsDialogOpen)
 {
@@ -32,6 +33,10 @@
                                         <Icon Name="@item.Icon" Size="18" />
                                     }
                                     @item.Name
+                                    @if (item.Id == "update" && UpdateBadge != null)
+                                    {
+                                        <span class="nv-badge">@UpdateBadge</span>
+                                    }
                                 </button>
                             </li>
                         }
@@ -57,6 +62,10 @@
                             <DisplaySection Settings="Settings" />
                             break;
 
+                        case "update":
+                            <UpdateSection Settings="Settings" />
+                            break;
+
                         case "about":
                             <AboutSection />
                             break;
@@ -80,12 +89,20 @@
         ("folder", "작업 폴더", "folder"),
         ("hwp", "한글 파일", null),
         ("view", "화면", "type"),
+        ("update", "업데이트", "download"),
         ("about", "정보", "info"),
     };
 
     private bool _shown;
     private bool _recentsCleared;
     private string _scrolledSection;
+
+    private string UpdateBadge => Updates.Phase switch
+    {
+        UpdatePhase.Available => "새 버전",
+        UpdatePhase.Ready or UpdatePhase.OnClose => "받음",
+        _ => null,
+    };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

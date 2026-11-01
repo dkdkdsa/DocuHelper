@@ -59,7 +59,7 @@
         if (DevMode.Enabled && !string.IsNullOrEmpty(Scenario) && Scenario != SampleScenarios.Real)
         {
             if (Scenario != SampleScenarios.Current)
-                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings);
+                SampleScenarios.Apply(Scenario, Workspace, Assistant, Settings, Updates);
 
             return;
         }
