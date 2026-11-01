@@ -34,7 +34,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
                     return null;
 
                 AppLog.Write("Excel dialog command was rejected: " + result.Content);
-                return StartsWithHangul(result.Content) ? "적용하지 못했어요. " + result.Content : DialogApplyFailed;
+                return MostlyKorean(result.Content) ? "적용하지 못했어요. " + result.Content : DialogApplyFailed;
             }
             catch (Exception e)
             {
@@ -54,7 +54,11 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         private void CloseDialog() => _router.State.CloseDialog();
 
-        private static bool StartsWithHangul(string text) =>
-            !string.IsNullOrEmpty(text) && text[0] >= '가' && text[0] <= '힣';
+        private static bool MostlyKorean(string text)
+        {
+            var korean = text.Count(ch => ch >= '가' && ch <= '힣');
+            var latin = text.Count(ch => (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'));
+            return korean > latin;
+        }
     }
 }

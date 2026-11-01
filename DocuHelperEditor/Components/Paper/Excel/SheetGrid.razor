@@ -8,7 +8,7 @@
 <div class="grid @(Locked ? "locked" : null) @(Sheet?.ShowGridlines == false ? "nogrid" : null) @(Sheet?.ShowHeadings == false ? "nohead" : null)" @ref="_grid">
     @if (Sheet != null)
     {
-        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" style="@ZoomStyle" aria-label="@TableLabel">
+        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" style="@ZoomStyle" aria-label="@TableLabel" aria-rowcount="@(_rowCount + 1)">
             <colgroup>
                 <col class="rh" />
                 @foreach (var column in Sheet.Columns)
@@ -42,7 +42,7 @@
                     var rowIndex = _order[i];
                     if (rowIndex < 0)
                     {
-                        <tr @key="rowIndex" class="spacer" style="height: @Px(_spacers[-rowIndex - 1])px" aria-hidden="true"><td colspan="@(Sheet.Columns.Count + 1)"></td></tr>
+                        <tr @key="rowIndex" class="spacer" role="presentation" style="height: @Px(_spacers[-rowIndex - 1])px"><td colspan="@(Sheet.Columns.Count + 1)"></td></tr>
                         continue;
                     }
 
@@ -53,7 +53,7 @@
                     }
 
                     var barId = BarChangeId(row);
-                    <tr @key="rowIndex" class="@RowClass(rowIndex, row)" style="@HeightStyle(row)" data-r="@rowIndex" data-change="@barId">
+                    <tr @key="rowIndex" class="@RowClass(rowIndex, row)" style="@HeightStyle(row)" data-r="@rowIndex" aria-rowindex="@(rowIndex + 2)" data-change="@barId">
                         <th scope="row" class="@RowHeadClass(rowIndex, barId)">
                             @(rowIndex + 1)
                             @if (RowDecorations != null)
@@ -128,6 +128,7 @@
     private const double DefaultRowPx = 30;
     private const double DefaultViewHeight = 900;
     private const int Overscan = 20;
+    private const int MaxMergeRows = 500;
 
     private ElementReference _grid;
     private IJSObjectReference _module;
@@ -140,7 +141,8 @@
     private readonly List<int> _order = new();
     private readonly List<double> _spacers = new();
     private double[] _tops = Array.Empty<double>();
-    private double _rowPx = DefaultRowPx;
+    private readonly Dictionary<int, double> _measured = new();
+    private int _measuredVersion = -1;
     private double _viewTop;
     private double _viewHeight = DefaultViewHeight;
 
@@ -320,21 +322,37 @@
     }
 
     [JSInvokable]
-    public void Viewport(double top, double height, double rowPx)
+    public void Viewport(double top, double height, int[] rows, double[] heights)
     {
         var before = _order.ToArray();
         var beforeSpacers = _spacers.ToArray();
-        _viewTop = top;
-        _viewHeight = height > 0 ? height : DefaultViewHeight;
-        if (rowPx > 0 && Math.Abs(rowPx - _rowPx) > 0.01)
+        var remeasured = false;
+        for (var i = 0; i < rows.Length && i < heights.Length; i++)
         {
-            _rowPx = rowPx;
+            if (rows[i] < 0 || rows[i] >= _rowCount || heights[i] <= 0)
+            {
+                continue;
+            }
+
+            if (!_measured.TryGetValue(rows[i], out var known) || Math.Abs(known - heights[i]) > 0.5)
+            {
+                _measured[rows[i]] = heights[i];
+                remeasured = true;
+            }
+        }
+
+        if (remeasured)
+        {
             RebuildTops();
         }
 
+        _viewTop = top;
+        _viewHeight = height > 0 ? height : DefaultViewHeight;
         BuildOrder();
         if (!before.SequenceEqual(_order) || !beforeSpacers.SequenceEqual(_spacers))
+        {
             StateHasChanged();
+        }
     }
 
     [JSInvokable]
@@ -424,6 +442,12 @@
 
     private void RebuildLayout()
     {
+        if (_measuredVersion != Version)
+        {
+            _measured.Clear();
+            _measuredVersion = Version;
+        }
+
         RebuildTops();
         BuildOrder();
     }
@@ -445,7 +469,12 @@
             return 0;
         }
 
-        return row?.Height ?? _rowPx;
+        if (_measured.TryGetValue(rowIndex, out var measured))
+        {
+            return measured;
+        }
+
+        return row?.Height ?? DefaultRowPx;
     }
 
     private void BuildOrder()
@@ -458,35 +487,55 @@
         }
 
         var frozen = Math.Min(Sheet?.FreezeRows ?? 0, _rowCount);
-        for (var r = 0; r < frozen; r++)
+        var overscan = Math.Max(Overscan, (int)(_viewHeight / DefaultRowPx));
+        var ranges = new List<(int First, int Last)>();
+        if (frozen > 0)
         {
-            _order.Add(r);
+            ranges.Add((0, frozen - 1));
         }
 
-        var ranges = new List<(int First, int Last)>();
-        var start = Math.Max(frozen, RowAt(_viewTop) - Overscan);
-        var end = Math.Min(_rowCount - 1, RowAt(_viewTop + _viewHeight) + Overscan);
+        var start = Math.Max(0, RowAt(_viewTop) - overscan);
+        var end = Math.Min(_rowCount - 1, RowAt(_viewTop + _viewHeight) + overscan);
         if (start <= end)
         {
             ranges.Add((start, end));
         }
 
-        if (_selectedRow >= frozen && _selectedRow < _rowCount)
+        if (_selectedRow >= 0 && _selectedRow < _rowCount)
         {
             ranges.Add((_selectedRow, _selectedRow));
         }
 
-        var cursor = frozen;
-        foreach (var range in ranges.OrderBy(range => range.First))
+        foreach (var item in Sheet.Objects)
         {
-            if (range.Last < cursor)
-            {
-                continue;
-            }
+            ranges.Add((Math.Clamp(item.Anchor.FromRow, 0, _rowCount - 1), Math.Clamp(item.Anchor.FromRow, 0, _rowCount - 1)));
+            ranges.Add((Math.Clamp(item.Anchor.ToRow, 0, _rowCount - 1), Math.Clamp(item.Anchor.ToRow, 0, _rowCount - 1)));
+        }
 
-            var first = Math.Max(range.First, cursor);
-            AddSpacer(_tops[first] - _tops[cursor]);
-            for (var r = first; r <= range.Last; r++)
+        var rendered = JoinRanges(ranges);
+        var grew = true;
+        while (grew)
+        {
+            grew = false;
+            foreach (var merge in Sheet.Merges)
+            {
+                var first = merge.Top;
+                var last = Math.Min(merge.Bottom, _rowCount - 1);
+                if (first >= _rowCount || last - first > MaxMergeRows || !Overlaps(rendered, first, last) || Covers(rendered, first, last))
+                {
+                    continue;
+                }
+
+                rendered = JoinRanges(rendered.Append((first, last)));
+                grew = true;
+            }
+        }
+
+        var cursor = 0;
+        foreach (var range in rendered)
+        {
+            AddSpacer(_tops[range.First] - _tops[cursor]);
+            for (var r = range.First; r <= range.Last; r++)
             {
                 _order.Add(r);
             }
@@ -496,6 +545,30 @@
 
         AddSpacer(_tops[_rowCount] - _tops[cursor]);
     }
+
+    private static List<(int First, int Last)> JoinRanges(IEnumerable<(int First, int Last)> ranges)
+    {
+        var joined = new List<(int First, int Last)>();
+        foreach (var range in ranges.OrderBy(range => range.First))
+        {
+            if (joined.Count > 0 && range.First <= joined[^1].Last + 1)
+            {
+                joined[^1] = (joined[^1].First, Math.Max(joined[^1].Last, range.Last));
+            }
+            else
+            {
+                joined.Add(range);
+            }
+        }
+
+        return joined;
+    }
+
+    private static bool Overlaps(List<(int First, int Last)> ranges, int first, int last) =>
+        ranges.Any(range => range.First <= last && first <= range.Last);
+
+    private static bool Covers(List<(int First, int Last)> ranges, int first, int last) =>
+        ranges.Any(range => range.First <= first && last <= range.Last);
 
     private void AddSpacer(double height)
     {
