@@ -34,18 +34,19 @@ window.docuHelperPptCanvas = (function () {
         return Math.atan2(event.clientY - cy, event.clientX - cx) * 180 / Math.PI;
     }
 
-    function clearOverrides(el) {
-        el.style.left = '';
-        el.style.top = '';
-        el.style.width = '';
-        el.style.height = '';
-        el.style.removeProperty('--rot');
+    function restoreOverrides(item) {
+        item.el.style.left = item.x + '%';
+        item.el.style.top = item.y + '%';
+        item.el.style.width = item.w + '%';
+        item.el.style.height = item.h + '%';
+        item.el.style.setProperty('--rot', item.rot + 'deg');
     }
 
     function startDrag(session, slide, e, kind, shape, handle) {
-        var items = kind === 'move'
-            ? selectedMovable(slide).map(itemOf)
-            : [itemOf(shape)];
+        var group = kind === 'move' && shape.classList.contains('on')
+            ? selectedMovable(slide)
+            : [shape];
+        var items = group.map(itemOf);
         if (items.length === 0) return;
 
         session.drag = {
@@ -152,7 +153,7 @@ window.docuHelperPptCanvas = (function () {
         if (!drag) return;
         session.drag = null;
 
-        drag.items.forEach(function (item) { clearOverrides(item.el); });
+        drag.items.forEach(function (item) { restoreOverrides(item); });
         if (!drag.moved) return;
 
         if (drag.kind === 'move') {
