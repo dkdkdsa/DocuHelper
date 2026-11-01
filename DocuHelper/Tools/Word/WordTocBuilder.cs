@@ -66,6 +66,9 @@ namespace DocuHelper.Tools.Word
             return new WordTocResult(elements, entries);
         }
 
+        public static bool InRegion(WordDocu docu, OpenXmlElement element) =>
+            Regions(docu).Any(region => Span(region.First, region.Last).Any(e => ReferenceEquals(e, element)));
+
         public static string LocationOf(WordDocu docu, WordScan scan, string kind) =>
             WordInline.LocationOf(scan, Regions(docu).FirstOrDefault(r => r.Kind == kind)?.First);
 
@@ -76,7 +79,17 @@ namespace DocuHelper.Tools.Word
             foreach (var region in Regions(docu).Where(r => kind == null || r.Kind == kind))
             {
                 var options = FromInstruction(region.Kind, region.Instruction);
-                Replace(region, Paragraphs(docu, scan, region.Kind, options, docu is HwpDocu, region.Instruction, used));
+                List<Paragraph> paragraphs;
+                try
+                {
+                    paragraphs = Paragraphs(docu, scan, region.Kind, options, docu is HwpDocu, region.Instruction, used);
+                }
+                catch (ToolInputException) when (kind == null)
+                {
+                    continue;
+                }
+
+                Replace(region, paragraphs);
                 count++;
             }
 
@@ -448,7 +461,7 @@ namespace DocuHelper.Tools.Word
                 }
             }
 
-            return defaults with { From = from, To = to, Label = label, Columns = columns, Hyperlinks = tokens.Contains("\\h") };
+            return defaults with { From = from, To = to, Label = label, Columns = columns, Hyperlinks = tokens.Contains("\\h"), PageNumbers = kind != ContentsKind || !tokens.Contains("\\n") };
         }
 
         private static bool TryLevels(string text, out int low, out int high)
@@ -466,7 +479,7 @@ namespace DocuHelper.Tools.Word
         {
             FiguresKind => $"TOC \\h \\z \\c \"{options.Label}\"",
             IndexKind => $"INDEX \\e \"\t\" \\c \"{options.Columns}\" \\z \"1042\"",
-            _ => $"TOC \\o \"{options.From}-{options.To}\"{(options.Hyperlinks ? " \\h" : string.Empty)} \\z \\u",
+            _ => $"TOC \\o \"{options.From}-{options.To}\"{(options.Hyperlinks ? " \\h" : string.Empty)} \\z \\u{(options.PageNumbers ? string.Empty : " \\n")}",
         };
 
         private static string Pages(IEnumerable<WordIndexItem> items) =>

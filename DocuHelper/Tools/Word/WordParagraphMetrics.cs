@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Wp = DocumentFormat.OpenXml.Drawing.Wordprocessing;
@@ -120,8 +121,8 @@ namespace DocuHelper.Tools.Word
                     switch (child)
                     {
                         case Text text:
-                            foreach (var c in text.Text)
-                                atoms.Add(Glyph(c, size, latin, east));
+                            foreach (var rune in text.Text.EnumerateRunes())
+                                atoms.Add(Glyph(rune, size, latin, east));
 
                             break;
                         case TabChar:
@@ -152,12 +153,13 @@ namespace DocuHelper.Tools.Word
             return atoms;
         }
 
-        private static Atom Glyph(char c, double size, WordFontMetrics latin, WordFontMetrics east)
+        private static Atom Glyph(Rune rune, double size, WordFontMetrics latin, WordFontMetrics east)
         {
-            var eastAsia = WordFontMetrics.IsEastAsia(c);
+            var halfwidth = rune.Value is >= 0xFF61 and <= 0xFFDC;
+            var eastAsia = !halfwidth && (rune.Value > 0xFFFF || WordFontMetrics.IsEastAsia((char)rune.Value));
             var metrics = eastAsia ? east : latin;
-            var breakAfter = c == ' ' || c == '-' || eastAsia;
-            return new Atom(Kind.Glyph, metrics.Advance(c) * size, metrics.LineHeight * size, c == ' ', breakAfter);
+            var breakAfter = rune.Value == ' ' || rune.Value == '-' || eastAsia;
+            return new Atom(Kind.Glyph, metrics.Advance(rune.Value) * size, metrics.LineHeight * size, rune.Value == ' ', breakAfter);
         }
 
         private static List<WordLineBox> Wrap(List<Atom> atoms, double firstWidth, double restWidth, double empty)

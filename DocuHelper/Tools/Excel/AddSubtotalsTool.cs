@@ -66,6 +66,9 @@ namespace DocuHelper.Tools.Excel
             if (range.CellCount > MaxCells)
                 throw new ToolInputException($"한 번에 {MaxCells}칸까지만 부분합을 넣을 수 있어요.");
 
+            if (ExcelTables.On(sheet).Any(table => table.Range.Intersects(range)))
+                throw new ToolInputException("표 안에는 부분합을 넣을 수 없어요. 표를 범위 밖으로 옮기거나 표를 일반 범위로 바꿔 주세요.");
+
             var hasHeader = input.GetOptionalBool("has_header") ?? true;
             var first = hasHeader ? range.Top + 1 : range.Top;
             if (first > range.Bottom)
@@ -107,7 +110,7 @@ namespace DocuHelper.Tools.Excel
                 var detailLast = groups[i].End + i;
                 var subtotalRow = detailLast + 1;
                 for (var row = detailFirst; row <= detailLast; row++)
-                    sheet.SetRowOutline(row, 1);
+                    sheet.SetRowOutline(row, Math.Min(ExcelSheet.MaxOutlineLevel, sheet.RowOutline(row) + 1));
 
                 WriteText(book, sheet, group, subtotalRow, groups[i].Label + SubtotalSuffix, written, addresses);
                 foreach (var column in columns)
@@ -164,7 +167,7 @@ namespace DocuHelper.Tools.Excel
 
             var bottom = range.Bottom - subtotalRows.Count;
             for (var row = range.Top; row <= bottom; row++)
-                sheet.SetRowOutline(row, 0);
+                sheet.SetRowOutline(row, Math.Max(0, sheet.RowOutline(row) - 1));
 
             sheet.SyncOutlineLevels();
             sheet.UpdateDimension();

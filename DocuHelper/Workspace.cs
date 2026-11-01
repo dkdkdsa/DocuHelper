@@ -165,6 +165,9 @@ namespace DocuHelper
 
         public void Rename(Docu docu, string name)
         {
+            if (IsAgentRunning)
+                throw new InvalidOperationException("도우미가 일하는 중에는 이름을 바꿀 수 없어요.");
+
             if (docu.IsLocked)
                 throw new InvalidOperationException("도우미가 이 파일을 고치는 중이에요. 끝나면 이름을 바꿀 수 있어요.");
 
@@ -305,6 +308,9 @@ namespace DocuHelper
 
         public HistoryEntry Restore(Docu docu, HistoryEntry entry)
         {
+            if (IsAgentRunning)
+                throw new InvalidOperationException("도우미가 일하는 중에는 되돌릴 수 없어요.");
+
             if (docu.IsLocked)
                 throw new InvalidOperationException("도우미가 고치는 중에는 되돌릴 수 없어요.");
 
@@ -343,8 +349,9 @@ namespace DocuHelper
                     var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
                     lock (_notes)
                     {
+                        CommitRunHandEdits(true);
                         CommitRun(toolbox);
-                        CommitRunHandEdits();
+                        CommitRunHandEdits(false);
                         IsAgentRunning = false;
                     }
 
@@ -354,7 +361,19 @@ namespace DocuHelper
                 {
                     var agentDocus = toolbox.Before.Keys.ToList();
                     var attempted = agentDocus.Where(d => _docus.Contains(d) && toolbox.Before[d] != null).ToDictionary(d => d, d => toolbox.Before[d]);
-                    var partial = attempted.Keys.ToDictionary(d => d, d => d.Capture());
+                    var partial = new Dictionary<Docu, DocuState>();
+                    foreach (var docu in attempted.Keys)
+                    {
+                        try
+                        {
+                            partial[docu] = docu.Capture();
+                        }
+                        catch (Exception)
+                        {
+                            continue;
+                        }
+                    }
+
                     toolbox.Rollback();
                     lock (_notes)
                     {
@@ -463,7 +482,7 @@ namespace DocuHelper
 
         public void Discard(Docu docu)
         {
-            if (docu.IsLocked)
+            if (IsAgentRunning || docu.IsLocked)
                 return;
 
             if (!File.Exists(docu.FilePath))

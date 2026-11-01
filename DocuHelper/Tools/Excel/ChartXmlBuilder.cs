@@ -93,7 +93,7 @@ namespace DocuHelper.Tools.Excel
             "<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"" + points + "\" b=\"" + (bold ? 1 : 0) + "\"/></a:pPr><a:r><a:rPr lang=\"ko-KR\" sz=\""
             + points + "\" b=\"" + (bold ? 1 : 0) + "\"/><a:t>" + Escape(value) + "</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"0\"/></c:title>";
 
-        public static string Escape(string value) => SecurityElement.Escape(value ?? string.Empty);
+        public static string Escape(string value) => ExcelDrawings.Text(value);
 
         private static void AppendGroup(StringBuilder text, ExcelBook book, Spec spec, IReadOnlyList<SeriesRef> series, IReadOnlyList<string> categories)
         {

@@ -12,6 +12,8 @@ namespace DocuHelper.Tools.Excel
 
         public const int DefaultSpinCount = 100000;
 
+        public const int MaxSpinCount = 10000000;
+
         public static string Legacy(string password)
         {
             var text = password ?? string.Empty;
@@ -57,7 +59,7 @@ namespace DocuHelper.Tools.Excel
             var text = Encoding.Unicode.GetBytes(password ?? string.Empty);
             var hash = sha.ComputeHash(salt.Concat(text).ToArray());
             for (var spin = 0; spin < spinCount; spin++)
-                hash = sha.ComputeHash(BitConverter.GetBytes(spin).Concat(hash).ToArray());
+                hash = sha.ComputeHash(hash.Concat(BitConverter.GetBytes(spin)).ToArray());
 
             return hash;
         }

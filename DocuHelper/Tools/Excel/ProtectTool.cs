@@ -98,6 +98,9 @@ namespace DocuHelper.Tools.Excel
                 throw new ToolInputException("action은 protect, unprotect, allow_range_add, allow_range_remove 중 하나로 알려 주세요.");
 
             var password = input.GetOptionalString("password");
+            if (action == "protect")
+                RequireLegacyPassword(password);
+
             return scope switch
             {
                 "sheet" => SheetRun(book, action, input, password),
@@ -120,6 +123,7 @@ namespace DocuHelper.Tools.Excel
                     throw new ToolInputException($"‘{sheet.Name}’ 시트는 이미 보호되어 있어요.");
 
                 var allowed = AllowedOf(input);
+                protection?.Remove();
                 WorksheetOrder.Insert(sheet.Worksheet, ProtectionFor(allowed, password));
                 return Changed($"Protected sheet '{sheet.Name}'. Allowed actions: {(allowed.Count == 0 ? "none" : string.Join(", ", allowed))}. Sheet protection guards against accidental edits and is not a security feature.", "시트 보호", "시트 보호", "lock", Anchors(sheet, new[] { new CellAddress(0, 0) }));
             }
@@ -198,13 +202,14 @@ namespace DocuHelper.Tools.Excel
                 if (action == "allow_range_add")
                 {
                     var text = TextOf(item, "range") ?? throw new ToolInputException($"‘{lastTitle}’ 범위의 칸(range)을 알려 주세요. 예: B2:C9");
+                    var rangePassword = TextOf(item, "password");
+                    RequireLegacyPassword(rangePassword);
                     lastRange = ParseRange(sheet, text);
                     ranges ??= WorksheetOrder.Insert(sheet.Worksheet, new ProtectedRanges());
                     if (ranges.Elements<ProtectedRange>().Any(r => r.Name?.Value == lastTitle))
                         throw new ToolInputException($"‘{lastTitle}’ 이름의 편집 허용 범위가 이미 있어요. 다른 이름을 써 주세요.");
 
                     var entry = new ProtectedRange { Name = lastTitle, SequenceOfReferences = new ListValue<StringValue> { InnerText = lastRange.ToString() } };
-                    var rangePassword = TextOf(item, "password");
                     if (!string.IsNullOrEmpty(rangePassword))
                         entry.Password = PasswordHash.Legacy(rangePassword);
 
@@ -214,7 +219,7 @@ namespace DocuHelper.Tools.Excel
                 {
                     var existing = ranges?.Elements<ProtectedRange>().FirstOrDefault(r => r.Name?.Value == lastTitle)
                         ?? throw new ToolInputException($"‘{lastTitle}’ 이름의 편집 허용 범위가 없어요.");
-                    CheckPassword(!string.IsNullOrEmpty(existing.Password?.Value), candidate => PasswordHash.MatchesLegacy(candidate, existing.Password?.Value), TextOf(item, "password"));
+                    CheckPassword(HasRangePassword(existing), candidate => MatchesRange(existing, candidate), TextOf(item, "password"));
                     lastRange = CellRange.TryParse(existing.SequenceOfReferences?.InnerText ?? string.Empty, out var parsed) ? parsed : null;
                     existing.Remove();
                 }
@@ -262,6 +267,22 @@ namespace DocuHelper.Tools.Excel
             return protection;
         }
 
+        private static void RequireLegacyPassword(string password)
+        {
+            if (string.IsNullOrEmpty(password))
+                return;
+
+            if (password.Length > 15 || password.Any(c => c > 127))
+                throw new ToolInputException("이 도우미로는 ASCII 문자 15자 이하의 암호만 걸 수 있어요. 한글이나 더 긴 암호는 Excel에서 직접 걸어 주세요.");
+        }
+
+        private static bool HasRangePassword(ProtectedRange range) =>
+            !string.IsNullOrEmpty(range.Password?.Value) || !string.IsNullOrEmpty(range.HashValue?.Value);
+
+        private static bool MatchesRange(ProtectedRange range, string password) =>
+            PasswordHash.MatchesLegacy(password, range.Password?.Value)
+            || PasswordHash.MatchesSha512(password, range.AlgorithmName?.Value, range.SaltValue?.Value, range.HashValue?.Value, SpinOf(range.SpinCount?.Value));
+
         private static bool HasPassword(SheetProtection protection) =>
             !string.IsNullOrEmpty(protection?.Password?.Value) || !string.IsNullOrEmpty(protection?.HashValue?.Value);
 
@@ -288,7 +309,7 @@ namespace DocuHelper.Tools.Excel
                 throw new ToolInputException("암호가 맞지 않아요. 다시 확인해 주세요.");
         }
 
-        private static int SpinOf(uint? value) => value.HasValue ? (int)value.Value : PasswordHash.DefaultSpinCount;
+        private static int SpinOf(uint? value) => value.HasValue ? (int)Math.Min(value.Value, (uint)PasswordHash.MaxSpinCount) : PasswordHash.DefaultSpinCount;
 
         private static string TextOf(JsonElement item, string name) =>
             item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;

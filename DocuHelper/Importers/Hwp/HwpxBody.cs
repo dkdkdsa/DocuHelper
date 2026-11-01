@@ -69,7 +69,12 @@ namespace DocuHelper.Importers.Hwp
 
         private void ApplyColumnsAndBorders(XElement section, XElement properties, HwpPage page)
         {
-            var columns = section.Descendants().FirstOrDefault(e => e.Name.LocalName == "colPr");
+            var columns = HwpxXml.Children(section, "p")
+                .SelectMany(paragraph => HwpxXml.Children(paragraph, "run"))
+                .SelectMany(run => HwpxXml.Children(run, "ctrl"))
+                .SelectMany(control => HwpxXml.Children(control, "colPr"))
+                .FirstOrDefault()
+                ?? section.Descendants().FirstOrDefault(e => e.Name.LocalName == "colPr");
             page.Columns = Math.Max(1, HwpxXml.Int(columns, "colCount", 1));
             page.ColumnGap = HwpxXml.Int(columns, "sameGap", 0);
             var border = properties?.Elements().FirstOrDefault(e => e.Name.LocalName == "pageBorderFill" && HwpxXml.Attribute(e, "type") == "BOTH");
@@ -187,7 +192,7 @@ namespace DocuHelper.Importers.Hwp
             paragraph.NewPageNumber = _pendingNewNumber;
             _pendingHiding = null;
             _pendingNewNumber = null;
-            var empty = paragraph.Runs.Count == 0 && paragraph.Label == null && !paragraph.PageBreakBefore && paragraph.PageHiding == null && paragraph.NewPageNumber == null;
+            var empty = paragraph.Runs.Count == 0 && paragraph.Label == null && !paragraph.PageBreakBefore && paragraph.PageHiding == null && paragraph.NewPageNumber == null && paragraph.Section == null;
             if (!empty || (anchored.Count == 0 && _deleted == deleted))
                 output.Add(paragraph);
 

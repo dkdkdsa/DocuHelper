@@ -12,6 +12,7 @@ namespace DocuHelper
     {
         private readonly List<HandEdit> _runHandEdits = new();
         private readonly Dictionary<Docu, DocuState> _runHandEditBefore = new();
+        private readonly HashSet<Docu> _runHandEditFirst = new();
         private readonly List<string> _lostHandEdits = new();
         private readonly List<string> _mergedHandEdits = new();
 
@@ -53,7 +54,12 @@ namespace DocuHelper
                 if (IsAgentRunning)
                 {
                     _runHandEdits.Add(new HandEdit(docu, where, note));
-                    _runHandEditBefore.TryAdd(docu, before);
+                    if (!_runHandEditBefore.ContainsKey(docu))
+                    {
+                        _runHandEditBefore[docu] = before;
+                        if (_runToolbox?.Before.ContainsKey(docu) != true)
+                            _runHandEditFirst.Add(docu);
+                    }
                 }
                 else
                 {
@@ -64,19 +70,28 @@ namespace DocuHelper
             AddNote(note);
         }
 
-        private void CommitRunHandEdits()
+        private void CommitRunHandEdits(bool beforeRun)
         {
             lock (_notes)
             {
                 foreach (var pair in _runHandEditBefore)
                 {
-                    PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [pair.Key] = pair.Value }));
-                    if (_assistantBaselines.ContainsKey(pair.Key))
-                        _mergedHandEdits.Add(pair.Key.Name);
+                    if (_runHandEditFirst.Contains(pair.Key) == beforeRun)
+                        PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [pair.Key] = pair.Value }));
+                }
+
+                if (beforeRun)
+                    return;
+
+                foreach (var docu in _runHandEditBefore.Keys)
+                {
+                    if (_assistantBaselines.ContainsKey(docu))
+                        _mergedHandEdits.Add(docu.Name);
                 }
 
                 _runHandEdits.Clear();
                 _runHandEditBefore.Clear();
+                _runHandEditFirst.Clear();
             }
         }
 
@@ -87,7 +102,7 @@ namespace DocuHelper
                 var agent = agentDocus.ToHashSet();
                 foreach (var pair in _runHandEditBefore)
                 {
-                    if (_docus.Contains(pair.Key) && !agent.Contains(pair.Key))
+                    if (_docus.Contains(pair.Key) && (!agent.Contains(pair.Key) || _runHandEditFirst.Contains(pair.Key)))
                         PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [pair.Key] = pair.Value }));
                 }
 
@@ -95,12 +110,13 @@ namespace DocuHelper
                 {
                     if (!_docus.Contains(edit.Docu))
                         _lostHandEdits.Add($"‘{edit.Docu.Name}’ 새 파일의 직접 고친 내용");
-                    else if (agent.Contains(edit.Docu))
+                    else if (agent.Contains(edit.Docu) && !_runHandEditFirst.Contains(edit.Docu))
                         _lostHandEdits.Add(string.IsNullOrEmpty(edit.Where) ? $"‘{edit.Docu.Name}’" : $"‘{edit.Docu.Name}’ {edit.Where}");
                 }
 
                 _runHandEdits.Clear();
                 _runHandEditBefore.Clear();
+                _runHandEditFirst.Clear();
             }
         }
 
@@ -129,6 +145,7 @@ namespace DocuHelper
             {
                 _runHandEdits.Clear();
                 _runHandEditBefore.Clear();
+                _runHandEditFirst.Clear();
             }
         }
 

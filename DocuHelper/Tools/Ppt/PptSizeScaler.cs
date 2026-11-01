@@ -97,8 +97,8 @@ namespace DocuHelper.Tools.Ppt
 
             foreach (var element in root.Descendants().Where(e => Array.IndexOf(s_paragraphParts, e.LocalName) >= 0).ToList())
             {
-                Scale(element, "marL", scale.Sx);
-                Scale(element, "indent", scale.Sx);
+                Scale(element, "marL", scale.S);
+                Scale(element, "indent", scale.S);
             }
 
             foreach (var column in root.Descendants<A.GridColumn>().ToList())
@@ -123,8 +123,11 @@ namespace DocuHelper.Tools.Ppt
             element.SetAttribute(new OpenXmlAttribute(attribute.Prefix, name, attribute.NamespaceUri, Round(value * factor).ToString(CultureInfo.InvariantCulture)));
         }
 
-        private static int FontSize(int hundredths, double factor) =>
-            Math.Max(MinFontSize, (int)Math.Round(hundredths * factor / FontStep, MidpointRounding.AwayFromZero) * FontStep);
+        private static int FontSize(int hundredths, double factor)
+        {
+            var scaled = (int)Math.Round(hundredths * factor / FontStep, MidpointRounding.AwayFromZero) * FontStep;
+            return Math.Max(Math.Min(MinFontSize, hundredths), scaled);
+        }
 
         private static long Round(double value) => (long)Math.Round(value, MidpointRounding.AwayFromZero);
     }

@@ -10,7 +10,7 @@ namespace DocuHelper.Tools.Ppt
         public override string Name => "set_slide_background";
 
         public override string Description =>
-            "Change slide backgrounds. `slides`: numbers, or \"all\" to set the slide master(s) so every slide without its own background follows (own backgrounds are cleared). "
+            "Change slide backgrounds. `slides`: numbers, or \"all\" to set the slide master(s) so every slide without its own background follows the master, except slides whose layout has a background of its own (own slide backgrounds are cleared). "
             + "fill.type: solid (color), gradient (color to color2 at angle), picture (attachment, path or base64), inherit (follow layout and master again). "
             + "hide_graphics hides the decorative shapes of layout and master (not placeholders).";
 

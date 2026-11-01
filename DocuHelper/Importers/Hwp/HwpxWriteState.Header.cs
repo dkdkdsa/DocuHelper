@@ -9,11 +9,19 @@ namespace DocuHelper.Importers.Hwp
     {
         private static readonly string[] s_languages = { "HANGUL", "LATIN", "HANJA", "JAPANESE", "OTHER", "SYMBOL", "USER" };
 
+        private static readonly double[] s_lineWidthsMm = { 0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0 };
+
+        private static string LineWidth(double mm)
+        {
+            var nearest = s_lineWidthsMm.OrderBy(width => System.Math.Abs(width - mm)).First();
+            return nearest.ToString("0.0#", CultureInfo.InvariantCulture) + " mm";
+        }
+
         private static XElement PageBorderFill(int id, HwpBorderLine[] lines, string fill)
         {
             XElement Side(string name, HwpBorderLine line) => new(Hh + name,
                 new XAttribute("type", line == null ? "NONE" : line.Type),
-                new XAttribute("width", line == null ? "0.1 mm" : line.WidthMm.ToString("0.00", CultureInfo.InvariantCulture) + " mm"),
+                new XAttribute("width", line == null ? "0.1 mm" : LineWidth(line.WidthMm)),
                 new XAttribute("color", line == null ? "#000000" : line.Color));
 
             var element = new XElement(Hh + "borderFill",

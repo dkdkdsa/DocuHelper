@@ -134,7 +134,7 @@ namespace DocuHelper.Tools.Word
                 });
 
             var scan = WordScan.Read(docu.Document);
-            var (anchor, after) = Anchor(scan, input);
+            var (anchor, after) = Anchor(docu, scan, input);
             var result = WordTocBuilder.Insert(docu, scan, kind, options, anchor, after);
             var fresh = WordScan.Read(docu.Document);
             var first = result.Entries.FirstOrDefault();
@@ -197,7 +197,7 @@ namespace DocuHelper.Tools.Word
         private static string Estimate(WordDocu docu) =>
             docu is HwpDocu ? " In 한글 the page numbers are estimates; the user should refresh the fields in 한글 for exact numbers." : string.Empty;
 
-        private static (OpenXmlElement Anchor, bool After) Anchor(WordScan scan, ToolInput input)
+        private static (OpenXmlElement Anchor, bool After) Anchor(WordDocu docu, WordScan scan, ToolInput input)
         {
             if (!input.Has("at"))
                 return (scan.Blocks.FirstOrDefault()?.Element ?? throw new ToolInputException("목차를 넣을 자리를 찾지 못했어요."), false);
@@ -214,6 +214,9 @@ namespace DocuHelper.Tools.Word
                 return (scan.Blocks.LastOrDefault()?.Element ?? throw new ToolInputException("목차를 넣을 자리를 찾지 못했어요."), true);
 
             var block = scan.Find(id) ?? throw new ToolInputException($"‘{id}’ 문단이나 표를 찾지 못했어요. read_paragraphs로 id를 다시 확인해 주세요.");
+            if (WordTocBuilder.InRegion(docu, block.Element))
+                throw new ToolInputException("목차나 색인 안에는 새 목차를 넣을 수 없어요. 목차 밖의 문단이나 표를 골라 주세요.");
+
             return (block.Element, true);
         }
 

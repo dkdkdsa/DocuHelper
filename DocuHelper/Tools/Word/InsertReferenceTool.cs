@@ -204,7 +204,9 @@ namespace DocuHelper.Tools.Word
                 }
                 else
                 {
-                    WordHyperlinks.Wrap(docu, styles, WordTextMap.Build(spot.Paragraph).Isolate(spot.Start, spot.End), target, tooltip, ctx);
+                    var map = WordTextMap.Build(spot.Paragraph);
+                    var covered = map.Isolate(spot.Start, spot.End).Concat(WordTextEditor.CoveredFieldRuns(map, spot.Start, spot.End)).ToList();
+                    WordHyperlinks.Wrap(docu, styles, covered, target, tooltip, ctx);
                 }
 
                 return Done(docu, spot.Paragraph, "Inserted a hyperlink.", "링크 넣음", "link");
@@ -285,6 +287,9 @@ namespace DocuHelper.Tools.Word
                     if (existing != null && !ReferenceEquals(existing, start))
                         throw new ToolInputException($"‘{name}’ 책갈피가 이미 있어요. 다른 이름을 골라 주세요.");
 
+                    if (!string.Equals(start.Name?.Value, name, StringComparison.Ordinal) && WordBookmarks.IsReferenced(docu.Document, start.Name?.Value))
+                        throw new ToolInputException("이 책갈피를 가리키는 링크나 참조가 있어서 이름을 바꿀 수 없어요. 링크나 참조를 먼저 지워 주세요.");
+
                     start.Name = name;
                     return Done(docu, start.Ancestors<Paragraph>().FirstOrDefault(), $"Renamed bookmark to {name}.", "책갈피 바꿈", "bookmark-plus");
                 }
@@ -299,6 +304,9 @@ namespace DocuHelper.Tools.Word
                     var name = start.Name?.Value;
                     if (name != null && name.StartsWith("_", StringComparison.Ordinal))
                         throw new ToolInputException("숨은 책갈피는 지울 수 없어요. 이 책갈피를 가리키는 링크나 참조가 깨질 수 있어요.");
+
+                    if (name != null && WordBookmarks.IsReferenced(docu.Document, name))
+                        throw new ToolInputException("이 책갈피를 가리키는 링크나 참조가 있어서 지울 수 없어요. 링크나 참조를 먼저 지워 주세요.");
 
                     WordBookmarks.Remove(docu.Document, start);
                     return Done(docu, host, $"Removed bookmark {name}.", "책갈피 지움", "bookmark-plus");

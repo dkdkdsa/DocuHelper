@@ -17,6 +17,7 @@ namespace DocuHelper.Agents
         private const string QuotaMessage = "쓸 수 있는 양을 다 썼어요.";
         private const string RegionMessage = "이 지역에서는 도우미를 쓸 수 없어요.";
         private const string UnverifiedMessage = "열쇠는 맞는 것 같지만 확인 권한이 없어요. 그대로 저장할까요?";
+        private const string ModelDeniedMessage = "이 열쇠로는 선택한 모델을 쓸 수 없어요. 열쇠 권한이나 다른 모델을 확인해 주세요.";
         private const string UnreadableAttachmentMessage = "붙인 파일을 읽지 못했어요. 다시 붙여 주세요.";
         private const string IncompleteMessage = "도우미가 답을 끝내지 못했어요. 부탁을 조금 바꿔서 다시 말해 주세요.";
 
@@ -114,7 +115,7 @@ namespace DocuHelper.Agents
             }
         }
 
-        public static AgentException Translate(ChatGptReply reply)
+        public static AgentException Translate(ChatGptReply reply, bool verifyingKey = false)
         {
             var status = (int)reply.Status;
             var error = ErrorOf(reply.Body);
@@ -124,7 +125,7 @@ namespace DocuHelper.Agents
                 return new AgentException(AgentFailure.Key, KeyMessage);
 
             if (status == 403)
-                return Forbidden(error);
+                return Forbidden(error, verifyingKey);
 
             if (status == 429 && code == "insufficient_quota")
                 return new AgentException(AgentFailure.Key, QuotaMessage);
@@ -138,7 +139,7 @@ namespace DocuHelper.Agents
             return new AgentException(AgentFailure.Other, OtherMessage);
         }
 
-        private static AgentException Forbidden(JsonNode error)
+        private static AgentException Forbidden(JsonNode error, bool verifyingKey)
         {
             var code = Field(error, "code");
             var message = Field(error, "message");
@@ -146,7 +147,9 @@ namespace DocuHelper.Agents
                 return new AgentException(AgentFailure.Other, RegionMessage);
 
             if (Contains(code, "permission", "scope") || Contains(message, "permission", "scope", "does not have access"))
-                return new AgentUnverifiedKeyException(UnverifiedMessage);
+                return verifyingKey
+                    ? new AgentUnverifiedKeyException(UnverifiedMessage)
+                    : new AgentException(AgentFailure.Other, ModelDeniedMessage);
 
             return new AgentException(AgentFailure.Key, KeyMessage);
         }
@@ -161,7 +164,7 @@ namespace DocuHelper.Agents
 
             try
             {
-                return JsonNode.Parse(body)?["error"];
+                return (JsonNode.Parse(body) as JsonObject)?["error"];
             }
             catch (JsonException)
             {

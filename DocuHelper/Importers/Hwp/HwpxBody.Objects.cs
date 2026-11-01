@@ -75,6 +75,9 @@ namespace DocuHelper.Importers.Hwp
 
         private void ReadPicture(XElement element, HwpxRunBuilder runs)
         {
+            if (_deleting > 0)
+                return;
+
             var id = HwpxXml.Attribute(HwpxXml.Child(element, "img"), "binaryItemIDRef");
             var binary = Binaries?.Invoke(id);
             var contentType = binary == null ? null : ContentTypeOf(binary.Value.Extension);

@@ -101,7 +101,7 @@ namespace DocuHelper.Tools.Excel
                 throw new ToolInputException($"라벨이 {MaxLabels}개를 넘어서 요약표를 만들 수 없어요. 라벨 필드를 줄여 주세요.");
 
             var columnLabels = columnColumn.HasValue
-                ? combinations.SelectMany(c => c.Sums.Keys).Distinct(StringComparer.Ordinal).OrderBy(c => c, StringComparer.Ordinal).ToList()
+                ? combinations.SelectMany(c => c.Sums.Keys).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList()
                 : new List<string>();
             if (columnLabels.Count > MaxColumnLabels)
                 throw new ToolInputException($"열 라벨이 {MaxColumnLabels}개를 넘어서 요약표를 만들 수 없어요.");
@@ -249,7 +249,7 @@ namespace DocuHelper.Tools.Excel
 
         private static List<Combination> ReadCombinations(ExcelBook book, ExcelSheet data, CellRange source, List<int> rowColumns, int? columnColumn, int sumColumn)
         {
-            var found = new Dictionary<string, Combination>(StringComparer.Ordinal);
+            var found = new Dictionary<string, Combination>(StringComparer.OrdinalIgnoreCase);
             for (var row = source.Top + 1; row <= source.Bottom; row++)
             {
                 var keys = rowColumns.Select(column => DisplayAt(book, data, column, row).Trim()).ToArray();
@@ -267,7 +267,7 @@ namespace DocuHelper.Tools.Excel
                 var key = string.Join("\u0001", keys);
                 if (!found.TryGetValue(key, out var combination))
                 {
-                    combination = new Combination(keys, new Dictionary<string, double>(StringComparer.Ordinal));
+                    combination = new Combination(keys, new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase));
                     found[key] = combination;
                 }
 
@@ -375,20 +375,32 @@ namespace DocuHelper.Tools.Excel
                 _sheetReference = FormulaReference.QuoteSheet(data.Name) + "!";
             }
 
+            private static string Criterion(string cell) =>
+                "\"=\"&SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(" + cell + ",\"~\",\"~~\"),\"*\",\"~*\"),\"?\",\"~?\")";
+
             public string Formula((int Column, string Function) value, int rowIndex, int? columnIndex)
             {
                 var criteria = new List<string>();
                 for (var j = 0; j < _labelCount; j++)
-                    criteria.Add($"{Range(_rowColumns[j])},${CellAddress.ColumnName(_originColumn + j)}{_originRow + 2 + rowIndex}");
+                {
+                    var label = $"${CellAddress.ColumnName(_originColumn + j)}{_originRow + 2 + rowIndex}";
+                    criteria.Add($"{Range(_rowColumns[j])},{Criterion(label)}");
+                }
 
                 if (columnIndex.HasValue)
-                    criteria.Add($"{Range(_columnColumn.Value)},{CellAddress.ColumnName(_originColumn + _labelCount + columnIndex.Value)}${_originRow + 1}");
+                {
+                    var header = $"{CellAddress.ColumnName(_originColumn + _labelCount + columnIndex.Value)}${_originRow + 1}";
+                    criteria.Add($"{Range(_columnColumn.Value)},{Criterion(header)}");
+                }
 
                 return Build(value, criteria);
             }
 
-            public string ColumnTotal((int Column, string Function) value, int columnIndex) =>
-                Build(value, new List<string> { $"{Range(_columnColumn.Value)},{CellAddress.ColumnName(_originColumn + _labelCount + columnIndex)}${_originRow + 1}" });
+            public string ColumnTotal((int Column, string Function) value, int columnIndex)
+            {
+                var header = $"{CellAddress.ColumnName(_originColumn + _labelCount + columnIndex)}${_originRow + 1}";
+                return Build(value, new List<string> { $"{Range(_columnColumn.Value)},{Criterion(header)}" });
+            }
 
             public string GrandTotal((int Column, string Function) value) => Build(value, new List<string>());
 

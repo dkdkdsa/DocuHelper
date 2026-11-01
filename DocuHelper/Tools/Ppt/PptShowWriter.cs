@@ -56,8 +56,14 @@ namespace DocuHelper.Tools.Ppt
             foreach (var show in shows)
             {
                 var entries = string.Concat(show.RelationshipIds.Select(r => $"<p:sld r:id=\"{r}\"/>"));
-                kept.Add($"<p:custShow name=\"{Escape(show.Name)}\" id=\"{next.ToString(CultureInfo.InvariantCulture)}\"><p:sldLst>{entries}</p:sldLst></p:custShow>");
-                next++;
+                var same = existing.FirstOrDefault(e => Attribute(e, "name") == show.Name);
+                if (same == null || !uint.TryParse(Attribute(same, "id"), NumberStyles.None, CultureInfo.InvariantCulture, out var id))
+                {
+                    id = next;
+                    next++;
+                }
+
+                kept.Add($"<p:custShow name=\"{Escape(show.Name)}\" id=\"{id.ToString(CultureInfo.InvariantCulture)}\"><p:sldLst>{entries}</p:sldLst></p:custShow>");
             }
 
             if (kept.Count == 0)
@@ -75,6 +81,12 @@ namespace DocuHelper.Tools.Ppt
             var shows = presentation.Presentation.CustomShowList?.ChildElements.Where(c => c is P.CustomShow);
             var match = shows?.FirstOrDefault(s => Attribute(s, "name") == name);
             return match != null && uint.TryParse(Attribute(match, "id"), NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
+        }
+
+        public static uint? RangeCustomShowId(PresentationPart presentation)
+        {
+            var range = presentation.PresentationPropertiesPart?.PresentationProperties?.ShowProperties?.ChildElements.FirstOrDefault(c => c.LocalName == "custShow");
+            return range != null && uint.TryParse(Attribute(range, "id"), NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
         }
 
         private static void ApplyShowProperties(P.PresentationProperties properties, PptShowRequest request)
@@ -97,18 +109,20 @@ namespace DocuHelper.Tools.Ppt
             if (mediaValue != null)
                 extensions.Insert(0, $"<p:ext uri=\"{MediaControlsUri}\"><p14:showMediaCtrls val=\"{mediaValue}\"/></p:ext>");
 
-            var type = request.ShowType ?? TypeOf(current) ?? "presenter";
-            var typeXml = type switch
-            {
-                "browse" => "<p:browse/>",
-                "kiosk" => "<p:kiosk/>",
-                _ => "<p:present/>",
-            };
+            var typeXml = request.ShowType == null && current?.ChildElements.FirstOrDefault(c => c.LocalName is "present" or "browse" or "kiosk") is { } existingType
+                ? existingType.OuterXml
+                : (request.ShowType ?? "presenter") switch
+                {
+                    "browse" => "<p:browse/>",
+                    "kiosk" => "<p:kiosk/>",
+                    _ => "<p:present/>",
+                };
             var range = request.RangeType switch
             {
                 "slides" => $"<p:sldRg st=\"{request.From!.Value.ToString(CultureInfo.InvariantCulture)}\" end=\"{request.To!.Value.ToString(CultureInfo.InvariantCulture)}\"/>",
                 "custom_show" => $"<p:custShow id=\"{request.CustomShowId!.Value.ToString(CultureInfo.InvariantCulture)}\"/>",
-                _ => "<p:sldAll/>",
+                "all" => "<p:sldAll/>",
+                _ => current?.ChildElements.FirstOrDefault(c => c.LocalName is "sldAll" or "sldRg" or "custShow")?.OuterXml ?? "<p:sldAll/>",
             };
             var loop = request.Loop ?? Flag(current, "loop", false);
             var narration = request.ShowNarration ?? Flag(current, "showNarration", true);
@@ -124,17 +138,6 @@ namespace DocuHelper.Tools.Ppt
                 properties.Append(showPr);
             else
                 anchor.InsertBeforeSelf(showPr);
-        }
-
-        private static string TypeOf(OpenXmlElement show)
-        {
-            if (show == null)
-                return null;
-
-            if (show.ChildElements.Any(c => c.LocalName == "browse"))
-                return "browse";
-
-            return show.ChildElements.Any(c => c.LocalName == "kiosk") ? "kiosk" : "presenter";
         }
 
         private static bool Flag(OpenXmlElement show, string name, bool fallback)

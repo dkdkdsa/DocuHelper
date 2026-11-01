@@ -103,12 +103,12 @@ namespace DocuHelper.Tools.Ppt
             result.Inherited = inherited;
             ApplyBox(result, box, shape);
             result.Geometry = Geometry(shape.ShapeProperties);
-            result.Fill = Fill(shape.ShapeProperties, context.Part, context.Theme);
-            result.Line = Line(shape.ShapeProperties, context.Theme);
-            ApplyStyle(result, shape, context.Theme);
-            result.Shadow = Shadow(shape.ShapeProperties, context.Theme);
+            result.Fill = Fill(shape.ShapeProperties, context.Part, context.Theme, context.ColorMap);
+            result.Line = Line(shape.ShapeProperties, context.Theme, context.ColorMap);
+            ApplyStyle(result, shape, context.Theme, context.ColorMap);
+            result.Shadow = Shadow(shape.ShapeProperties, context.Theme, context.ColorMap);
             result.Text = shape.TextBody == null ? null : TextOf(shape.TextBody, context);
-            ApplyFontStyle(result, shape.ShapeStyle, context.Theme);
+            ApplyFontStyle(result, shape.ShapeStyle, context.Theme, context.ColorMap);
             result.AltText = props?.Description?.Value;
             return result;
         }
@@ -131,7 +131,7 @@ namespace DocuHelper.Tools.Ppt
                 Alt = props?.Description?.Value,
             };
             result.Geometry = Geometry(picture.ShapeProperties);
-            result.Line = Line(picture.ShapeProperties, context.Theme);
+            result.Line = Line(picture.ShapeProperties, context.Theme, context.ColorMap);
             result.AltText = props?.Description?.Value;
             return result;
         }
@@ -194,8 +194,8 @@ namespace DocuHelper.Tools.Ppt
             var box = Box(connection, context, null, map, out _);
             ApplyBox(result, box, connection);
             result.Geometry = Geometry(connection.ShapeProperties);
-            result.Line = Line(connection.ShapeProperties, context.Theme);
-            ApplyStyle(result, connection.ShapeProperties, connection.ShapeStyle, context.Theme);
+            result.Line = Line(connection.ShapeProperties, context.Theme, context.ColorMap);
+            ApplyStyle(result, connection.ShapeProperties, connection.ShapeStyle, context.Theme, context.ColorMap);
             return result;
         }
 
@@ -330,14 +330,14 @@ namespace DocuHelper.Tools.Ppt
             return null;
         }
 
-        public static PptSceneFill Fill(OpenXmlElement properties, OpenXmlPart part, PptThemeInfo theme)
+        public static PptSceneFill Fill(OpenXmlElement properties, OpenXmlPart part, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
         {
             if (properties == null)
                 return null;
 
             var solid = properties.Elements<A.SolidFill>().FirstOrDefault();
             if (solid != null)
-                return SolidOf(solid, theme);
+                return SolidOf(solid, theme, colorMap);
 
             var gradient = properties.Elements<A.GradientFill>().FirstOrDefault();
             if (gradient != null)
@@ -346,7 +346,7 @@ namespace DocuHelper.Tools.Ppt
                 foreach (var stop in gradient.GradientStopList?.Elements<A.GradientStop>() ?? Enumerable.Empty<A.GradientStop>())
                 {
                     var element = stop.GetFirstChild<OpenXmlElement>();
-                    var color = element == null ? null : PptColor.Resolve(element, theme, (OpenXmlElement)null);
+                    var color = element == null ? null : PptColor.Resolve(element, theme, colorMap, null);
                     fill.Stops.Add(new PptSceneStop { Pos = (stop.Position?.Value ?? 0) / 1000.0, Color = color, Alpha = element == null ? 100 : PptColor.AlphaOf(element) });
                 }
 
@@ -363,14 +363,14 @@ namespace DocuHelper.Tools.Ppt
             return new PptSceneFill { Kind = "none" };
         }
 
-        private static PptSceneFill SolidOf(OpenXmlElement solid, PptThemeInfo theme) => new()
+        private static PptSceneFill SolidOf(OpenXmlElement solid, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap) => new()
         {
             Kind = "solid",
-            Color = PptColor.Resolve(solid.GetFirstChild<OpenXmlElement>(), theme, (OpenXmlElement)null),
+            Color = PptColor.Resolve(solid.GetFirstChild<OpenXmlElement>(), theme, colorMap, null),
             Alpha = PptColor.AlphaOf(solid.GetFirstChild<OpenXmlElement>()),
         };
 
-        private static PptSceneLine Line(OpenXmlElement properties, PptThemeInfo theme)
+        private static PptSceneLine Line(OpenXmlElement properties, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
         {
             var line = properties?.GetFirstChild<A.Outline>();
             if (line == null)
@@ -380,7 +380,7 @@ namespace DocuHelper.Tools.Ppt
             var colorElement = solid?.GetFirstChild<OpenXmlElement>();
             return new PptSceneLine
             {
-                Color = colorElement == null ? null : PptColor.Resolve(colorElement, theme, (OpenXmlElement)null),
+                Color = colorElement == null ? null : PptColor.Resolve(colorElement, theme, colorMap, null),
                 Alpha = colorElement == null ? 100 : PptColor.AlphaOf(colorElement),
                 WidthPt = (line.Width?.Value ?? 0) / 12700.0,
                 Dash = line.GetFirstChild<A.PresetDash>()?.Val?.InnerText,
@@ -389,16 +389,16 @@ namespace DocuHelper.Tools.Ppt
             };
         }
 
-        private static void ApplyStyle(PptSceneShape result, P.Shape shape, PptThemeInfo theme) =>
-            ApplyStyle(result, shape.ShapeProperties, shape.ShapeStyle, theme);
+        private static void ApplyStyle(PptSceneShape result, P.Shape shape, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap) =>
+            ApplyStyle(result, shape.ShapeProperties, shape.ShapeStyle, theme, colorMap);
 
-        private static void ApplyStyle(PptSceneShape result, OpenXmlElement properties, P.ShapeStyle style, PptThemeInfo theme)
+        private static void ApplyStyle(PptSceneShape result, OpenXmlElement properties, P.ShapeStyle style, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
         {
             if (properties == null || style == null)
                 return;
 
             var fillElement = StyleColorElement(style.FillReference);
-            var fillColor = fillElement == null ? null : PptColor.Resolve(fillElement, theme, (OpenXmlElement)null);
+            var fillColor = fillElement == null ? null : PptColor.Resolve(fillElement, theme, colorMap, null);
             if (IsHexColor(fillColor) && !HasExplicitFill(properties))
                 result.Fill = new PptSceneFill { Kind = "solid", Color = fillColor, Alpha = PptColor.AlphaOf(fillElement) };
 
@@ -407,7 +407,7 @@ namespace DocuHelper.Tools.Ppt
                 return;
 
             var lineElement = StyleColorElement(style.LineReference);
-            var lineColor = lineElement == null ? null : PptColor.Resolve(lineElement, theme, (OpenXmlElement)null);
+            var lineColor = lineElement == null ? null : PptColor.Resolve(lineElement, theme, colorMap, null);
             if (!IsHexColor(lineColor))
                 return;
 
@@ -416,13 +416,13 @@ namespace DocuHelper.Tools.Ppt
             result.Line.Alpha = PptColor.AlphaOf(lineElement);
         }
 
-        private static void ApplyFontStyle(PptSceneShape result, P.ShapeStyle style, PptThemeInfo theme)
+        private static void ApplyFontStyle(PptSceneShape result, P.ShapeStyle style, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
         {
             if (result.Text == null || style == null)
                 return;
 
             var element = FontColorElement(style.FontReference);
-            var color = element == null ? null : PptColor.Resolve(element, theme, (OpenXmlElement)null);
+            var color = element == null ? null : PptColor.Resolve(element, theme, colorMap, null);
             if (!IsHexColor(color))
                 return;
 
@@ -458,7 +458,7 @@ namespace DocuHelper.Tools.Ppt
             return int.TryParse(index, out var value) && value > 0 ? reference.GetFirstChild<OpenXmlElement>() : null;
         }
 
-        private static PptSceneShadow Shadow(OpenXmlElement properties, PptThemeInfo theme)
+        private static PptSceneShadow Shadow(OpenXmlElement properties, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
         {
             var shadow = properties?.Descendants<A.OuterShadow>().FirstOrDefault();
             if (shadow == null)
@@ -467,7 +467,7 @@ namespace DocuHelper.Tools.Ppt
             var colorElement = shadow.GetFirstChild<OpenXmlElement>();
             return new PptSceneShadow
             {
-                Color = colorElement == null ? null : PptColor.Resolve(colorElement, theme, (OpenXmlElement)null),
+                Color = colorElement == null ? null : PptColor.Resolve(colorElement, theme, colorMap, null),
                 Alpha = colorElement == null ? 100 : PptColor.AlphaOf(colorElement),
                 BlurPt = (shadow.BlurRadius?.Value ?? 0) / 12700.0,
                 DistPt = (shadow.Distance?.Value ?? 0) / 12700.0,
@@ -579,7 +579,7 @@ namespace DocuHelper.Tools.Ppt
         private static string BulletColor(A.ParagraphProperties properties, PptSceneContext context)
         {
             var color = properties.GetFirstChild<A.BulletColor>()?.GetFirstChild<OpenXmlElement>();
-            return color == null ? null : PptColor.Resolve(color, context.Theme, (OpenXmlElement)null);
+            return color == null ? null : PptColor.Resolve(color, context.Theme, context.ColorMap, null);
         }
 
         private static PptSceneRun RunOf(A.RunProperties properties, string text, PptSceneContext context, string fieldType)
@@ -597,9 +597,9 @@ namespace DocuHelper.Tools.Ppt
             run.FontLatin = properties.GetFirstChild<A.LatinFont>()?.Typeface?.Value;
             run.FontEa = properties.GetFirstChild<A.EastAsianFont>()?.Typeface?.Value;
             var fill = properties.GetFirstChild<A.SolidFill>()?.GetFirstChild<OpenXmlElement>();
-            run.Color = fill == null ? null : PptColor.Resolve(fill, context.Theme, (OpenXmlElement)null);
+            run.Color = fill == null ? null : PptColor.Resolve(fill, context.Theme, context.ColorMap, null);
             var highlight = properties.GetFirstChild<A.Highlight>()?.GetFirstChild<OpenXmlElement>();
-            run.Highlight = highlight == null ? null : PptColor.Resolve(highlight, context.Theme, (OpenXmlElement)null);
+            run.Highlight = highlight == null ? null : PptColor.Resolve(highlight, context.Theme, context.ColorMap, null);
             var link = properties.GetFirstChild<A.HyperlinkOnClick>();
             if (link != null)
                 run.Link = PptLinkRelations.Describe(context.Part, link);
@@ -638,7 +638,7 @@ namespace DocuHelper.Tools.Ppt
                             "b" => "b",
                             _ => "t",
                         },
-                        Fill = properties2 == null ? null : Fill(properties2, context.Part, context.Theme),
+                        Fill = properties2 == null ? null : Fill(properties2, context.Part, context.Theme, context.ColorMap),
                         BorderL = Border(properties2?.LeftBorderLineProperties, context),
                         BorderT = Border(properties2?.TopBorderLineProperties, context),
                         BorderR = Border(properties2?.RightBorderLineProperties, context),
@@ -668,7 +668,7 @@ namespace DocuHelper.Tools.Ppt
             var width = Attribute(line, "w");
             return new PptSceneBorder
             {
-                Color = solid == null ? null : PptColor.Resolve(solid, context.Theme, (OpenXmlElement)null),
+                Color = solid == null ? null : PptColor.Resolve(solid, context.Theme, context.ColorMap, null),
                 WidthPt = width != null && double.TryParse(width, NumberStyles.Float, CultureInfo.InvariantCulture, out var emu) ? emu / 12700.0 : 0,
                 Dash = line.GetFirstChild<A.PresetDash>()?.Val?.InnerText,
             };

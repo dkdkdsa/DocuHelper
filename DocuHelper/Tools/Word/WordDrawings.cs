@@ -175,16 +175,19 @@ namespace DocuHelper.Tools.Word
             };
         }
 
-        public static void ReleaseUnused(WordprocessingDocument document, IEnumerable<string> relationships)
+        public static OpenXmlPart StoryOf(WordprocessingDocument document, OpenXmlElement element) =>
+            Stories(document).FirstOrDefault(story => story.RootElement != null && story.RootElement.Descendants().Any(d => object.ReferenceEquals(d, element)))
+            ?? document.MainDocumentPart;
+
+        public static void ReleaseUnused(OpenXmlPart owner, IEnumerable<string> relationships)
         {
-            var main = document.MainDocumentPart;
             foreach (var relationship in relationships.Distinct().ToList())
             {
-                if (Referenced(document, relationship))
+                if (owner.RootElement != null && RelationshipsOf(owner.RootElement).Contains(relationship))
                     continue;
 
-                if (main.Parts.Any(p => p.RelationshipId == relationship))
-                    main.DeletePart(relationship);
+                if (owner.Parts.Any(p => p.RelationshipId == relationship))
+                    owner.DeletePart(relationship);
             }
         }
 
@@ -196,9 +199,6 @@ namespace DocuHelper.Tools.Word
                     yield return attribute.Value;
             }
         }
-
-        private static bool Referenced(WordprocessingDocument document, string relationship) =>
-            Stories(document).Any(story => story.RootElement != null && RelationshipsOf(story.RootElement).Contains(relationship));
 
         private static string Position(string element, string relativeTo, string align, long? offset)
         {

@@ -34,7 +34,9 @@ namespace DocuHelper.Tools.Ppt
                 return info;
 
             var effect = transition.ChildElements.FirstOrDefault(c => c.LocalName is "fade" or "push" or "wipe" or "split" or "reveal");
-            info.Effect = effect?.LocalName ?? "none";
+            var unknown = effect == null ? transition.ChildElements.FirstOrDefault(c => c.LocalName is not ("sndAc" or "extLst")) : null;
+            info.Effect = effect?.LocalName ?? unknown?.LocalName ?? "none";
+            info.Raw = unknown?.OuterXml;
             info.Option = OptionOf(effect);
             var duration = choice?.GetAttributes().FirstOrDefault(a => a.LocalName == "dur").Value
                 ?? transition.GetAttributes().FirstOrDefault(a => a.LocalName == "dur").Value;
@@ -93,9 +95,9 @@ namespace DocuHelper.Tools.Ppt
                 attributes.Add($"advTm=\"{after.ToString(CultureInfo.InvariantCulture)}\"");
 
             var soundXml = sound == null ? string.Empty : sound.OuterXml;
-            var classic = ClassicEffect(effect, info.Option);
+            var classic = info.Raw ?? ClassicEffect(effect, info.Option);
             var attrs = string.Join(" ", attributes);
-            var needsChoice = duration > 0 || effect == "reveal";
+            var needsChoice = duration > 0 || effect == "reveal" || info.Raw != null;
             if (!needsChoice)
             {
                 var plain = $"<p:transition xmlns:p=\"{PresentationNs}\" {attrs}>{classic}{soundXml}</p:transition>";

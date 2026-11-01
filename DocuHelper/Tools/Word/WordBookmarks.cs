@@ -33,7 +33,21 @@ namespace DocuHelper.Tools.Word
             document.MainDocumentPart.Document.Body.Descendants<BookmarkStart>();
 
         public static BookmarkStart Find(WordprocessingDocument document, string name) =>
-            Starts(document).FirstOrDefault(b => b.Name?.Value == name);
+            Starts(document).FirstOrDefault(b => string.Equals(b.Name?.Value, name, StringComparison.OrdinalIgnoreCase));
+
+        public static bool IsReferenced(WordprocessingDocument document, string name)
+        {
+            var body = document.MainDocumentPart.Document.Body;
+            if (body.Descendants<Hyperlink>().Any(h => string.Equals(h.Anchor?.Value, name, StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            return body.Descendants<FieldCode>().Any(text =>
+            {
+                var tokens = WordFields.Tokenize(text.Text);
+                return tokens.Count > 1 && tokens[0].ToUpperInvariant() is "REF" or "PAGEREF" or "NOTEREF" or "HYPERLINK"
+                    && tokens.Skip(1).Any(t => string.Equals(t, name, StringComparison.OrdinalIgnoreCase));
+            });
+        }
 
         public static BookmarkEnd EndOf(WordprocessingDocument document, BookmarkStart start) =>
             document.MainDocumentPart.Document.Body.Descendants<BookmarkEnd>().FirstOrDefault(e => e.Id?.Value == start.Id?.Value);

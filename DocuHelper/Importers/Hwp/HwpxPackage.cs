@@ -17,6 +17,7 @@ namespace DocuHelper.Importers.Hwp
         private const string DocumentSignaturesPath = "META-INF/documentsignatures.xml";
         private const string DefaultRoot = "Contents/content.hpf";
         private const string DefaultHeader = "Contents/header.xml";
+        private const long MaxBinaryBytes = 32L * 1024 * 1024;
 
         private static readonly XmlReaderSettings s_settings = new()
         {
@@ -29,6 +30,7 @@ namespace DocuHelper.Importers.Hwp
         private readonly ZipArchive _archive;
         private readonly Dictionary<string, ZipArchiveEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _items = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, (byte[] Bytes, string Extension)?> _binaries = new(StringComparer.Ordinal);
         private readonly List<string> _spine = new();
         private string _folder = string.Empty;
         private bool _indexed;
@@ -98,13 +100,24 @@ namespace DocuHelper.Importers.Hwp
         public (byte[] Bytes, string Extension)? Binary(string id)
         {
             Index();
-            if (id == null || !_items.TryGetValue(id, out var href) || !_entries.TryGetValue(Normalize(Resolve(href)), out var entry))
+            if (id == null || !_items.TryGetValue(id, out var href))
                 return null;
 
-            using var stream = entry.Open();
-            using var memory = new MemoryStream();
-            stream.CopyTo(memory);
-            return (memory.ToArray(), Path.GetExtension(href).TrimStart('.').ToLowerInvariant());
+            if (_binaries.TryGetValue(id, out var cached))
+                return cached;
+
+            (byte[] Bytes, string Extension)? result = null;
+            var path = Resolve(href);
+            if (path != null && _entries.TryGetValue(path, out var entry) && entry.Length <= MaxBinaryBytes)
+            {
+                using var stream = entry.Open();
+                using var memory = new MemoryStream();
+                stream.CopyTo(memory);
+                result = (memory.ToArray(), Path.GetExtension(href).TrimStart('.').ToLowerInvariant());
+            }
+
+            _binaries[id] = result;
+            return result;
         }
 
         public void Dispose() => _archive.Dispose();

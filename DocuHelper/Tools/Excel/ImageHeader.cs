@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using DocuHelper.Tools;
 using DocuHelper.Tools.Ppt;
@@ -9,6 +10,8 @@ namespace DocuHelper.Tools.Excel
         public const long MaxBytes = 10L * 1024 * 1024;
 
         public const int MaxPixels = 20000;
+
+        public const long MaxTotalPixels = 40000000;
 
         public static PptImageInfo Read(byte[] bytes, string name)
         {
@@ -28,6 +31,12 @@ namespace DocuHelper.Tools.Excel
 
             if (info.WidthPx > MaxPixels || info.HeightPx > MaxPixels)
                 throw new ToolInputException($"{label}의 가로세로가 너무 커요({info.WidthPx.ToString(CultureInfo.InvariantCulture)}x{info.HeightPx.ToString(CultureInfo.InvariantCulture)}).");
+
+            if ((long)info.WidthPx * info.HeightPx > MaxTotalPixels)
+                throw new ToolInputException($"{label}의 화소 수가 너무 많아요. 더 작은 그림을 골라 주세요.");
+
+            if (info.Type == PptImageType.Png && bytes.AsSpan().IndexOf("IDAT"u8) < 0)
+                throw new ToolInputException($"{label}의 내용이 없어서 넣을 수 없어요. 파일이 망가졌는지 확인해 주세요.");
 
             return info;
         }

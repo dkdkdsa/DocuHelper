@@ -43,6 +43,7 @@ namespace DocuHelper.Tools.Excel
                   }
                 },
                 "has_header": {"type": "boolean", "description": "The first row of range is a header: it stays and is not sorted. Default false."},
+                "by_column": {"type": "boolean", "description": "Read by and keys only as column letters, even when has_header is true (a letter is never matched against header text). Default false."},
                 "case_sensitive": {"type": "boolean", "description": "Compare text case-sensitively (lowercase before uppercase). Default false."}
               },
               "required": ["sheet", "range"]
@@ -55,7 +56,7 @@ namespace DocuHelper.Tools.Excel
             var range = ParseRange(sheet, input.GetString("range"));
             var hasHeader = input.GetOptionalBool("has_header") ?? false;
             var caseSensitive = input.GetOptionalBool("case_sensitive") ?? false;
-            var keys = ReadKeys(book, sheet, range, input, hasHeader);
+            var keys = ReadKeys(book, sheet, range, input, hasHeader && !(input.GetOptionalBool("by_column") ?? false));
 
             var data = hasHeader ? new CellRange(range.Left, Math.Min(range.Top + 1, range.Bottom), range.Right, range.Bottom) : range;
             if (range.RowCount < 2 || (hasHeader && data.RowCount < 2))

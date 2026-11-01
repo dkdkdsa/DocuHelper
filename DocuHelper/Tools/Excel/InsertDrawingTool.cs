@@ -17,6 +17,10 @@ namespace DocuHelper.Tools.Excel
         private const int DefaultColumns = 3;
         private const int DefaultRows = 2;
 
+        private const int MaxSpanColumns = 40;
+
+        private const int MaxSpanRows = 80;
+
         public override string Name => "insert_drawing";
 
         public override string Description =>
@@ -66,6 +70,9 @@ namespace DocuHelper.Tools.Excel
             var anchor = ParseCell(input.GetString("anchor"));
             var columns = input.GetOptionalInt("columns");
             var rows = input.GetOptionalInt("rows");
+            if (columns is < 1 or > MaxSpanColumns || rows is < 1 or > MaxSpanRows)
+                throw new ToolInputException($"columns는 1부터 {MaxSpanColumns}, rows는 1부터 {MaxSpanRows} 사이로 알려 주세요.");
+
             var look = Look.Read(input);
             var picture = kind == "picture" ? LoadPicture(docu, input) : null;
             var width = kind == "picture"
@@ -236,7 +243,13 @@ namespace DocuHelper.Tools.Excel
                     look.Fill = Colour(shape, "fill", "채우기");
                     look.Line = Colour(shape, "line_color", "선 색");
                     if (shape.TryGetProperty("line_width", out var width) && width.ValueKind == JsonValueKind.Number)
-                        look.LineWidth = width.GetDouble();
+                    {
+                        var lineWidth = width.GetDouble();
+                        if (lineWidth < 0 || lineWidth > 20)
+                            throw new ToolInputException("line_width는 0부터 20 사이의 점 크기로 알려 주세요.");
+
+                        look.LineWidth = lineWidth;
+                    }
                 }
 
                 look.Text = input.GetOptionalString("text");
@@ -245,7 +258,12 @@ namespace DocuHelper.Tools.Excel
 
                 var size = input.GetOptionalNumber("font_size");
                 if (size.HasValue)
+                {
+                    if (size.Value < 6 || size.Value > 96)
+                        throw new ToolInputException("font_size는 6부터 96 사이의 점 크기로 알려 주세요.");
+
                     look.Size = (int)Math.Round(size.Value * 100);
+                }
 
                 look.Bold = input.GetOptionalBool("bold") ?? false;
                 var color = input.GetOptionalString("font_color");

@@ -12,6 +12,8 @@ namespace DocuHelper.Importers.Hwp
     {
         internal const string LinkPrefix = "hwp-link:";
 
+        private static readonly string[] s_linkSchemes = { "http", "https", "mailto", "tel" };
+
         private static int s_bookmarkId = 100000;
 
         internal static void Append(Paragraph paragraph, IEnumerable<HwpRun> runs)
@@ -92,7 +94,9 @@ namespace DocuHelper.Importers.Hwp
             foreach (var link in root.Descendants<Hyperlink>().Where(h => h.Id?.Value != null && h.Id.Value.StartsWith(LinkPrefix, StringComparison.Ordinal)).ToList())
             {
                 var target = link.Id.Value.Substring(LinkPrefix.Length);
-                if (!Uri.TryCreate(target, UriKind.Absolute, out var uri))
+                if (!Uri.TryCreate(target, UriKind.Absolute, out var uri)
+                    || !s_linkSchemes.Contains(uri.Scheme)
+                    || ((uri.Scheme == "http" || uri.Scheme == "https") && string.IsNullOrEmpty(uri.Host)))
                 {
                     link.Id = null;
                     continue;

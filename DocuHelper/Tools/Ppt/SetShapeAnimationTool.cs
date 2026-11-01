@@ -67,7 +67,7 @@ namespace DocuHelper.Tools.Ppt
                     var targets = Targets(slide, input);
                     var created = Create(slide, input, targets, effects, action == "set", touched);
                     changed = $"{created} effect(s) on {targets.Count} shape(s)";
-                    index = effects.FindIndex(e => e.Info.ShapeId == touched[0] && !e.IsOpaque) + 1;
+                    index = effects.Count - created + 1;
                     break;
                 case "update":
                     var item = Item(effects, index, "index");
@@ -205,14 +205,13 @@ namespace DocuHelper.Tools.Ppt
         private static void Update(ToolInput input, PptEffect item)
         {
             var info = item.Info;
-            if (input.Has("effect"))
-                info.Effect = Kind(input).Effect;
-
-            if (input.Has("phase"))
-                info.Phase = Phase(input);
-
-            if (input.Has("option"))
-                info.Option = Kind(input).Option;
+            var effect = input.Has("effect") ? EffectOf(input) : info.Effect;
+            var phase = input.Has("phase") ? Phase(input) : info.Phase;
+            var option = input.Has("option") ? input.GetOptionalString("option")?.Trim() : input.Has("effect") ? null : info.Option;
+            var kind = Combine(effect, phase, option);
+            info.Effect = kind.Effect;
+            info.Phase = kind.Phase;
+            info.Option = kind.Option;
 
             if (input.Has("start"))
                 info.Start = Start(input);
@@ -235,13 +234,16 @@ namespace DocuHelper.Tools.Ppt
             return effects[index.Value - 1];
         }
 
-        private static (string Effect, string Phase, string Option) Kind(ToolInput input)
+        private static string EffectOf(ToolInput input) => (input.GetOptionalString("effect") ?? "fade").Trim().ToLowerInvariant();
+
+        private static (string Effect, string Phase, string Option) Kind(ToolInput input) =>
+            Combine(EffectOf(input), Phase(input), input.GetOptionalString("option")?.Trim());
+
+        private static (string Effect, string Phase, string Option) Combine(string effect, string phase, string option)
         {
-            var effect = (input.GetOptionalString("effect") ?? "fade").Trim().ToLowerInvariant();
             if (!PptAnimationWriter.Effects.Contains(effect))
                 throw new ToolInputException($"effect는 {string.Join(", ", PptAnimationWriter.Effects)} 중 하나로 알려 주세요.");
 
-            var option = input.GetOptionalString("option")?.Trim();
             if (effect is "appear" or "fade" && option != null)
                 throw new ToolInputException("나타내기와 페이드에는 option을 쓰지 않아요.");
 
@@ -257,7 +259,6 @@ namespace DocuHelper.Tools.Ppt
             if (effect == "zoom")
                 option = "in";
 
-            var phase = Phase(input);
             if (effect == "zoom" && phase == "exit")
                 throw new ToolInputException("확대/축소 나가기는 확인된 형식이 없어서 아직 지원하지 않아요. 나타내기로 바꿔 주세요.");
 

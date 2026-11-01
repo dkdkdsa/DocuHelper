@@ -31,13 +31,16 @@ namespace DocuHelper.Tools.Ppt
             }
         }
 
-        public static void Fonts(A.Theme theme, string name, string heading, string body)
+        public static void Fonts(A.Theme theme, string name, string heading, string body, bool latinOnly)
         {
             var scheme = theme.ThemeElements?.FontScheme
                 ?? throw new ToolInputException("테마의 글꼴 구성표를 읽지 못해서 글꼴을 바꿀 수 없어요.");
             scheme.Name = name;
-            Typefaces(scheme.MajorFont, heading);
-            Typefaces(scheme.MinorFont, body);
+            if (heading != null)
+                Typefaces(scheme.MajorFont, heading, latinOnly);
+
+            if (body != null)
+                Typefaces(scheme.MinorFont, body, latinOnly);
         }
 
         public static void Background(P.SlideMaster master, bool dark)
@@ -69,7 +72,7 @@ namespace DocuHelper.Tools.Ppt
             };
         }
 
-        private static void Typefaces(OpenXmlElement font, string typeface)
+        private static void Typefaces(OpenXmlElement font, string typeface, bool latinOnly)
         {
             var latin = font.GetFirstChild<A.LatinFont>();
             if (latin == null)
@@ -77,17 +80,23 @@ namespace DocuHelper.Tools.Ppt
             else
                 latin.Typeface = typeface;
 
-            var east = font.GetFirstChild<A.EastAsianFont>();
-            if (east == null)
-                font.AppendChild(new A.EastAsianFont { Typeface = typeface });
-            else
-                east.Typeface = typeface;
+            if (!latinOnly)
+            {
+                var east = font.GetFirstChild<A.EastAsianFont>();
+                if (east == null)
+                    font.AppendChild(new A.EastAsianFont { Typeface = typeface });
+                else
+                    east.Typeface = typeface;
+            }
 
             var complex = font.GetFirstChild<A.ComplexScriptFont>();
             if (complex == null)
                 font.AppendChild(new A.ComplexScriptFont { Typeface = string.Empty });
             else
                 complex.Typeface = string.Empty;
+
+            if (latinOnly)
+                return;
 
             var hang = font.Elements<A.SupplementalFont>().FirstOrDefault(f => f.Script?.Value == HangScript);
             if (hang == null)

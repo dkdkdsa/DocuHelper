@@ -33,7 +33,7 @@ namespace DocuHelper.Importers.Hwp
                 return null;
 
             if (hyperlink.Id?.Value is string id)
-                return _document.MainDocumentPart?.HyperlinkRelationships.FirstOrDefault(r => r.Id == id)?.Uri?.OriginalString;
+                return OwnerOf(run)?.HyperlinkRelationships.FirstOrDefault(r => r.Id == id)?.Uri?.OriginalString;
 
             return hyperlink.Anchor?.Value is string anchor ? "#" + anchor : null;
         }

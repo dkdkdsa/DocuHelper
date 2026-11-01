@@ -35,7 +35,7 @@ namespace DocuHelper.Tools.Word
             var changed = 0;
             foreach (var field in WordFields.Read(docu.Document.MainDocumentPart.Document.Body))
             {
-                if (field.Name != "SEQ" || field.Simple != null || !field.IsComplete || field.Separate == null || Deleted(field))
+                if (field.Name != "SEQ" || field.Simple != null || !field.IsComplete || field.Separate == null || Deleted(field) || !IsPlainSequence(field.Instruction))
                     continue;
 
                 var label = WordCaptions.LabelOf(field);
@@ -114,6 +114,9 @@ namespace DocuHelper.Tools.Word
         public static string Format(DateTime value, string picture)
         {
             var format = (picture ?? string.Empty).Replace("AM/PM", "tt", StringComparison.OrdinalIgnoreCase).Replace("/", "\\/");
+            if (format.Length == 1)
+                format = "%" + format;
+
             try
             {
                 return value.ToString(format, WordIndexEntries.Korean);
@@ -159,6 +162,21 @@ namespace DocuHelper.Tools.Word
 
             if (text.Length > 0)
                 last.InsertBeforeSelf(WordText.NewRun(text, props != null && props.HasChildren ? props : null));
+
+            return true;
+        }
+
+        private static bool IsPlainSequence(string instruction)
+        {
+            var tokens = WordFields.Tokenize(instruction);
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i] is "\\r" or "\\c" or "\\n" or "\\s")
+                    return false;
+
+                if (tokens[i] == "\\*" && (i + 1 >= tokens.Count || !string.Equals(tokens[i + 1], "ARABIC", StringComparison.OrdinalIgnoreCase)))
+                    return false;
+            }
 
             return true;
         }

@@ -1,10 +1,15 @@
 ﻿using System.Linq;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace DocuHelper.Importers.Hwp
 {
     internal sealed partial class HwpxBody
     {
+        private static readonly Regex s_linkFlags = new(@";\d+;\d+;\d+;?$", RegexOptions.CultureInvariant);
+
+        private static readonly Regex s_linkEscape = new(@"\\(.)", RegexOptions.CultureInvariant);
+
         private static void ReadFieldBegin(XElement element, HwpxRunBuilder runs)
         {
             var id = HwpxXml.Attribute(element, "id");
@@ -12,7 +17,7 @@ namespace DocuHelper.Importers.Hwp
             switch (HwpxXml.Attribute(element, "type"))
             {
                 case "HYPERLINK":
-                    var target = Parameter(parameters, "Command")?.Split(';')[0];
+                    var target = LinkTarget(Parameter(parameters, "Command"));
                     if (!string.IsNullOrEmpty(target))
                         runs.OpenLink(id, target);
 
@@ -21,6 +26,14 @@ namespace DocuHelper.Importers.Hwp
                     runs.OpenClickHere(id, new HwpClickHere { Name = HwpxXml.Attribute(element, "name"), Guide = Parameter(parameters, "Direction") });
                     break;
             }
+        }
+
+        private static string LinkTarget(string command)
+        {
+            if (string.IsNullOrEmpty(command))
+                return null;
+
+            return s_linkEscape.Replace(s_linkFlags.Replace(command, string.Empty), "$1");
         }
 
         private static string Parameter(XElement parameters, string name) =>

@@ -9,7 +9,8 @@ namespace DocuHelper.Importers.Hwp
 {
     internal sealed partial class HwpxWriteState
     {
-        private int _noteNumber;
+        private int _footnoteNumber;
+        private int _endnoteNumber;
         private int _noteInstance = 1000;
 
         private XElement NoteRunOf(OpenXmlElement reference, bool endnote)
@@ -22,7 +23,7 @@ namespace DocuHelper.Importers.Hwp
             if (note == null)
                 return null;
 
-            var number = ++_noteNumber;
+            var number = endnote ? ++_endnoteNumber : ++_footnoteNumber;
             var paragraphs = new List<XElement>();
             Blocks(note.ChildElements, paragraphs);
             if (paragraphs.Count == 0)
