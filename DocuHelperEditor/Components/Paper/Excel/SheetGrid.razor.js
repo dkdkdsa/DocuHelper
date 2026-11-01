@@ -273,11 +273,16 @@ function report(state) {
         if (!table) return;
         const zoom = parseFloat(table.style.zoom) || 1;
         const head = table.tHead ? table.tHead.getBoundingClientRect().height / zoom : 0;
-        const sample = table.querySelector('tbody tr[data-r]:not(.hx)');
-        const rowPx = sample ? sample.getBoundingClientRect().height / zoom : 0;
+        const rows = [];
+        const heights = [];
+        for (const tr of table.tBodies[0].rows) {
+            if (tr.dataset.r === undefined) continue;
+            rows.push(+tr.dataset.r);
+            heights.push(tr.getBoundingClientRect().height / zoom);
+        }
         const top = state.grid.scrollTop / zoom - head;
         const height = state.grid.clientHeight / zoom;
-        state.dotnet.invokeMethodAsync('Viewport', top, height, rowPx).catch(() => { });
+        state.dotnet.invokeMethodAsync('Viewport', top, height, rows, heights).catch(() => { });
     });
 }
 

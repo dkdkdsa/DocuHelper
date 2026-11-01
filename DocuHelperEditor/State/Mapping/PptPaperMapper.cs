@@ -73,6 +73,8 @@ namespace DocuHelperEditor.State.Mapping
                 Footer = FooterOf(deck),
                 SlideWidthCm = CmOf(scene.SlideWidthEmu, 33.867),
                 SlideHeightCm = CmOf(scene.SlideHeightEmu, 19.05),
+                UseTimings = scene.Show?.UseTimings ?? true,
+                MediaControls = scene.Show?.MediaControls ?? true,
             };
 
             for (var i = 0; i < deck.Slides.Count; i++)
@@ -139,6 +141,8 @@ namespace DocuHelperEditor.State.Mapping
                     })
                     .ToList();
                 slide.Transition = Trim(sceneSlide.Transition?.Effect, 20) ?? "none";
+                slide.AdvanceOnClick = sceneSlide.Transition?.AdvanceOnClick ?? true;
+                slide.IsHidden = sceneSlide.IsHidden;
                 slide.Comments = sceneSlide.Comments
                     .Take(MaxComments)
                     .Select(comment => new SlideCommentModel
@@ -498,6 +502,8 @@ namespace DocuHelperEditor.State.Mapping
             box.Bold = run?.Bold ?? false;
             box.Italic = run?.Italic ?? false;
             box.Underline = run?.Underline ?? false;
+            box.Strike = run?.Strike ?? false;
+            box.Bullet = paragraph?.Bullet?.Kind switch { "char" => "bullet", "number" => "number", _ => "none" };
             box.Color = HexOf(run?.Color);
             box.FontFamily = FontOf(run?.FontLatin);
             box.Align = paragraph?.Align == "ctr" ? SlideTextAlign.Center : SlideTextAlign.Left;

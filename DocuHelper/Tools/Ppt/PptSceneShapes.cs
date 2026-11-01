@@ -418,7 +418,7 @@ namespace DocuHelper.Tools.Ppt
 
         private static void ApplyFontStyle(PptSceneShape result, P.ShapeStyle style, PptThemeInfo theme)
         {
-            if (result.Text == null)
+            if (result.Text == null || style == null)
                 return;
 
             var element = FontColorElement(style.FontReference);

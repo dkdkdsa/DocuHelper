@@ -87,7 +87,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             Dialog("excel.insert.link", "set_hyperlink").PressedWhen(() => State.Cell?.Hyperlink != null);
             Dialog("excel.insert.note", "edit_comment");
             Tool("excel.insert.textbox", "insert_drawing", _ => Sheetwide(("kind", "text_box"), ("anchor", State.ActiveRef), ("text", "텍스트를 입력하세요")));
-            Gated(AddFile("excel.insert.headerfooter", _ => ShowHeaderFooter()), ExcelRibbonState.ViewModesFeature);
+            Dialog(ExcelDialogIds.HeaderFooter, "set_print_setup");
             AddExternal("excel.insert.equation")
                 .MenuFrom(() => new[] { Entry("open", "Excel에서 열기", "수식은 Excel에서 넣을 수 있어요") });
             Dialog("excel.insert.symbol", "write_cells");
@@ -168,10 +168,5 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             Apply(EditCommand.Create("insert_drawing", Sheetwide(("kind", "picture"), ("anchor", State.ActiveRef), ("source", path))));
         }
 
-        private Task ShowHeaderFooter()
-        {
-            State.ViewMode = ExcelRibbonState.PageLayoutView;
-            return Task.CompletedTask;
-        }
     }
 }

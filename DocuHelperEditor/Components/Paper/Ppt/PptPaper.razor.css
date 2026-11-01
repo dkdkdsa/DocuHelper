@@ -23,14 +23,14 @@
     background: var(--canvas);
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: safe center;
     gap: 10px;
 }
 
 .frame {
     position: relative;
-    width: 100%;
-    max-width: 560px;
+    flex: none;
+    width: var(--slide-max, 560px);
 }
 
 .frame.rulers {

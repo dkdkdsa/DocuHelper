@@ -10,6 +10,12 @@ namespace DocuHelperEditor.State.Ribbon.Excel
     public sealed partial class ExcelCommandRouter
     {
         private const string ZoomSelectionFeature = "zoom-selection";
+        private const double ZoomViewportWidth = 720;
+        private const double ZoomViewportHeight = 440;
+        private const double ZoomDefaultColumnPx = 96;
+        private const double ZoomDefaultRowPx = 30;
+        private const int ZoomMaxRows = 500;
+        private const int ZoomMaxColumns = 50;
 
         private static readonly int[] s_zoomLevels = { 200, 150, 100, 75, 50 };
 
@@ -18,6 +24,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             State.RegisterFeature(ExcelRibbonState.ZoomFeature);
             State.RegisterFeature(ExcelRibbonState.RulerFeature);
             State.RegisterFeature(ExcelRibbonState.ViewModesFeature);
+            State.RegisterFeature(ZoomSelectionFeature);
             ViewMode("excel.view.normal", ExcelRibbonState.NormalView);
             ViewMode("excel.view.pagebreak", ExcelRibbonState.PageBreakView);
             ViewMode("excel.view.pagelayout", ExcelRibbonState.PageLayoutView);
@@ -84,7 +91,35 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         private void ZoomToSelection()
         {
-            State.Zoom = Math.Min(200, State.Zoom + 50);
+            var region = State.Selection;
+            if (region.Bottom - region.Top >= ZoomMaxRows || region.Right - region.Left >= ZoomMaxColumns)
+            {
+                State.Zoom = ExcelViewState.MinZoom;
+                return;
+            }
+
+            var width = 0.0;
+            for (var c = region.Left; c <= region.Right; c++)
+            {
+                var column = c < State.Sheet.Columns.Count ? State.Sheet.Columns[c] : null;
+                if (column?.Hidden != true)
+                {
+                    width += column?.Width ?? ZoomDefaultColumnPx;
+                }
+            }
+
+            var height = 0.0;
+            for (var r = region.Top; r <= region.Bottom; r++)
+            {
+                var row = State.Sheet.FindRow(r);
+                if (row?.Hidden != true)
+                {
+                    height += row?.Height ?? ZoomDefaultRowPx;
+                }
+            }
+
+            var fit = Math.Min(ZoomViewportWidth / Math.Max(width, 1), ZoomViewportHeight / Math.Max(height, 1));
+            State.Zoom = (int)Math.Floor(fit * 100 / 5) * 5;
         }
 
         private IReadOnlyList<RibbonMenuItem> FreezeMenu()

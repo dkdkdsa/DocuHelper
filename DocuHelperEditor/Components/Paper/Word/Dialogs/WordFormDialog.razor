@@ -77,6 +77,7 @@
     private bool _focusPending = true;
     private string _error;
     private bool _submitting;
+    private bool _submitted;
 
     [Parameter]
     public WordDialogRequest Request { get; set; }
@@ -182,7 +183,7 @@
 
     private async Task SubmitAsync()
     {
-        if (_submitting)
+        if (_submitting || _submitted)
             return;
 
         _submitting = true;
@@ -192,6 +193,7 @@
             if (values == null)
                 return;
 
+            _submitted = true;
             Request.Completion.TrySetResult(values);
             await Closed.InvokeAsync();
         }
@@ -217,7 +219,7 @@
     {
         try
         {
-            return await JS.InvokeAsync<bool>("docuHelperDialog.isTextField");
+            return await JS.InvokeAsync<bool>("docuHelperDialog.enterAllowed");
         }
         catch (JSException)
         {

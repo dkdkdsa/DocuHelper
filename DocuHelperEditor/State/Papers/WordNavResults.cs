@@ -10,7 +10,7 @@ namespace DocuHelperEditor.State.Papers
     {
         private const int ContextLength = 18;
 
-        public static IReadOnlyList<WordNavHit> Find(WordPaperModel model, string query)
+        public static IReadOnlyList<WordNavHit> Find(WordPaperModel model, string query, bool matchCase = false, bool wholeWord = false)
         {
             var hits = new List<WordNavHit>();
             var needle = query?.Trim() ?? string.Empty;
@@ -23,7 +23,7 @@ namespace DocuHelperEditor.State.Papers
                     continue;
 
                 var text = block.Text ?? string.Empty;
-                foreach (var start in WordTextSearch.Find(text, needle, false, false))
+                foreach (var start in WordTextSearch.Find(text, needle, matchCase, wholeWord))
                 {
                     var end = start + needle.Length;
                     var from = Math.Max(0, start - ContextLength);

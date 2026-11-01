@@ -1,6 +1,7 @@
 ﻿@using DocuHelper.Docus
 @using DocuHelper.Importers.Hwp
 @using DocuHelperEditor.Components.Ui
+@using DocuHelperEditor.State
 @using DocuHelperEditor.State.Papers
 @using DocuHelperEditor.State.Ribbon
 @inherits StoreComponentBase
@@ -13,7 +14,21 @@
             <h2>@Title</h2>
             <IconButton Icon="x" IconSize="18" Label="작업 창 닫기" Title="작업 창 닫기" OnClick="CloseAsync" />
         </div>
-        @if (Outline)
+        @if (Find)
+        {
+            var hits = Hits;
+            <p class="empty" role="status">@FindCount(hits.Count)</p>
+            <ul class="outline">
+                @for (var i = 0; i < hits.Count; i++)
+                {
+                    var hit = hits[i];
+                    <li>
+                        <button type="button" class="link" aria-label="@($"{hit.Page}쪽, 찾은 곳 {i + 1}")" @onclick="() => GoToHitAsync(hit)">@hit.Before<mark>@hit.Match</mark>@hit.After</button>
+                    </li>
+                }
+            </ul>
+        }
+        else if (Outline)
         {
             <ul class="outline">
                 @foreach (var item in Headings)
@@ -48,7 +63,13 @@
 
     private bool Outline => Ribbon?.NavPane == "outline";
 
-    private string Title => Outline ? "개요 보기" : "쪽 모양 보기";
+    private bool Find => Ribbon?.NavPane == "find";
+
+    private string Title => Find ? "찾기 결과" : Outline ? "개요 보기" : "쪽 모양 보기";
+
+    private IReadOnlyList<WordNavHit> Hits => WordNavResults.Find(Model, Ribbon?.FindQuery, Ribbon?.FindMatchCase ?? false, Ribbon?.FindWholeWord ?? false);
+
+    private static string FindCount(int count) => count == 0 ? "찾은 곳이 없어요." : $"{count}곳에서 찾았어요.";
 
     private IReadOnlyList<HwpOutlineItem> Headings
     {
@@ -82,6 +103,18 @@
         Ribbon.CurrentPage = block.Page;
         Ribbon.Touch();
         await ScrollAsync($"[data-block=\"{blockId}\"]");
+    }
+
+    private async Task GoToHitAsync(WordNavHit hit)
+    {
+        Model.SelectedBlockId = hit.BlockId;
+        Model.Selection = new WordSelection(WordSelectionKind.Text, null, new[] { new WordSelectionRange(hit.BlockId, hit.Start, hit.End) });
+        Ribbon.CurrentPage = hit.Page;
+        Ribbon.Touch();
+        Workspace.SetSelection(Model.Describe(Model.FindBlock(hit.BlockId)));
+        Workspace.Notify();
+        await WordSelectionService.RestoreAsync(JS, Model.Selection);
+        await ScrollAsync($"[data-block=\"{hit.BlockId}\"]");
     }
 
     private Task CloseAsync()

@@ -618,6 +618,8 @@
 
     private string MarkupMode => Ribbon?.MarkupMode ?? "all";
 
+    private bool ShowInsDel => Ribbon?.ShowInsDel ?? true;
+
     private bool ShowRevisionBar => MarkupMode is "all" or "simple";
 
     private bool ShowRevisionBalloons => MarkupMode == "all" && View == "print" && !Flow && !Reading;
@@ -647,14 +649,14 @@
                 continue;
             }
 
-            if (segment.IsDeleted && MarkupMode is "simple" or "none")
+            if (segment.IsDeleted && (MarkupMode is "simple" or "none" || MarkupMode == "all" && !ShowInsDel))
                 continue;
 
             if (segment.IsInserted && MarkupMode == "original")
                 continue;
 
-            var inserted = segment.IsInserted && MarkupMode == "all";
-            var deleted = segment.IsDeleted && MarkupMode == "all";
+            var inserted = segment.IsInserted && MarkupMode == "all" && ShowInsDel;
+            var deleted = segment.IsDeleted && MarkupMode == "all" && ShowInsDel;
             var comment = segment.CommentId != null && (Ribbon?.ShowComments ?? false);
             var classes = new List<string> { look.Link ? "seg lnk" : "seg" };
             if (inserted)
@@ -667,13 +669,13 @@
                 classes.Add("cmt");
 
             var style = SegmentStyle(look);
-            if (segment.Kind != null && MarkupMode == "all")
+            if (segment.Kind != null && MarkupMode == "all" && ShowInsDel)
                 style += $"; --rev: var(--rev-{segment.Tone})";
 
             builder.OpenElement(sequence++, "span");
             builder.AddAttribute(sequence++, "class", string.Join(" ", classes));
             builder.AddAttribute(sequence++, "style", style);
-            if (segment.Kind != null && MarkupMode == "all")
+            if (segment.Kind != null && MarkupMode == "all" && ShowInsDel)
                 builder.AddAttribute(sequence++, "data-revision", "r:" + segment.RevisionId);
 
             if (comment)

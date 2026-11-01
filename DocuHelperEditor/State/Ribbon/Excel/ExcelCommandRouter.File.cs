@@ -54,7 +54,17 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 return;
 
             var job = new SheetPrintJob(plan.PaperWidthCm / 2.54, plan.PaperHeightCm / 2.54, LayoutJson(metrics), plan.Pages.Count);
-            var result = await _prints.ExportSheetPdfAsync(path, job);
+            await _surface.RenderAllRowsAsync(true);
+            PrintResult result;
+            try
+            {
+                result = await _prints.ExportSheetPdfAsync(path, job);
+            }
+            finally
+            {
+                await _surface.RenderAllRowsAsync(false);
+            }
+
             if (result.Status == PrintStatus.Cancelled)
                 return;
 

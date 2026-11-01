@@ -20,6 +20,10 @@ namespace DocuHelperEditor.State.Papers
 
         public double SlideHeightCm { get; set; } = 19.05;
 
+        public bool UseTimings { get; set; } = true;
+
+        public bool MediaControls { get; set; } = true;
+
         public double AspectRatio => SlideHeightCm > 0 ? SlideWidthCm / SlideHeightCm : 16.0 / 9.0;
 
         public string Footer { get; set; }

@@ -344,6 +344,14 @@ html[data-text-size] [data-chrome] [data-chrome] {
 
 body.docu-printing {
     background: #FFFFFF;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+body.docu-printing .docu-sheet-print {
+    margin: 0 !important;
+    padding: 0 !important;
+    position: static !important;
 }
 
 body.docu-printing html,
@@ -360,6 +368,7 @@ body.docu-printing .docu-print-keep {
     display: block !important;
     position: static !important;
     overflow: visible !important;
+    border: 0 !important;
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -387,4 +396,14 @@ body.docu-printing .page {
 body.docu-printing .page.docu-print-last {
     break-after: auto;
     page-break-after: auto;
+}
+
+body.docu-printing .docu-sheet-print > .page {
+    break-after: auto;
+    page-break-after: auto;
+}
+
+body.docu-printing .docu-sheet-print > .page + .page {
+    break-before: page;
+    page-break-before: always;
 }
