@@ -120,10 +120,10 @@ namespace DocuHelper.Tools.Ppt
             result.Picture = new PptScenePicture
             {
                 ImageKey = blip?.Embed?.Value,
-                CropL = Percent(crop?.Left),
-                CropT = Percent(crop?.Top),
-                CropR = Percent(crop?.Right),
-                CropB = Percent(crop?.Bottom),
+                CropL = Percent(crop?.Left?.Value),
+                CropT = Percent(crop?.Top?.Value),
+                CropR = Percent(crop?.Right?.Value),
+                CropB = Percent(crop?.Bottom?.Value),
                 Alt = props?.Description?.Value,
             };
             result.Geometry = Geometry(picture.ShapeProperties);
