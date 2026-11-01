@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using DocuHelper.Docus;
+using DocuHelper.Importers.Hwp;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -42,7 +43,7 @@ namespace DocuHelper.Tools.Word
         public static WordTocResult Insert(WordDocu docu, WordScan scan, string kind, WordTocOptions options, OpenXmlElement anchor, bool after)
         {
             var used = WordIds.Collect(docu.Document);
-            var manual = kind == ContentsKind && options.Style == "manual";
+            var manual = kind == ContentsKind && (options.Style == "manual" || docu is HwpDocu);
             var entries = Paragraphs(docu, scan, kind, options, manual, Instruction(kind, options), used);
             var elements = new List<OpenXmlElement>();
             if (kind == ContentsKind && !string.IsNullOrWhiteSpace(options.Title))
@@ -75,7 +76,7 @@ namespace DocuHelper.Tools.Word
             foreach (var region in Regions(docu).Where(r => kind == null || r.Kind == kind))
             {
                 var options = FromInstruction(region.Kind, region.Instruction);
-                Replace(region, Paragraphs(docu, scan, region.Kind, options, false, region.Instruction, used));
+                Replace(region, Paragraphs(docu, scan, region.Kind, options, docu is HwpDocu, region.Instruction, used));
                 count++;
             }
 
@@ -89,6 +90,9 @@ namespace DocuHelper.Tools.Word
             foreach (var region in regions)
             {
                 var span = Span(region.First, region.Last);
+                if (region.Sdt == null && region.First.PreviousSibling() is Paragraph heading && heading.ParagraphProperties?.ParagraphStyleId?.Val?.Value == "TOCHeading")
+                    span.Insert(0, heading);
+
                 anchors.AddRange(span.OfType<Paragraph>().SelectMany(p => p.Descendants<Hyperlink>()).Select(h => h.Anchor?.Value)
                     .Where(a => a != null && a.StartsWith(WordBookmarks.TocPrefix, StringComparison.Ordinal)));
                 if (region.Sdt != null)
@@ -126,6 +130,9 @@ namespace DocuHelper.Tools.Word
 
         private static IReadOnlyList<Region> Regions(WordDocu docu)
         {
+            if (docu is HwpDocu)
+                return MarkedRegions(docu);
+
             var regions = new List<Region>();
             foreach (var field in WordFields.Read(docu.Document.MainDocumentPart.Document.Body))
             {
@@ -156,7 +163,41 @@ namespace DocuHelper.Tools.Word
             if (!manual)
                 Mark(list, instruction);
 
+            if (docu is HwpDocu && kind == ContentsKind)
+                MarkHwp(docu, list);
+
             return list;
+        }
+
+        private static IReadOnlyList<Region> MarkedRegions(WordDocu docu)
+        {
+            var body = docu.Document.MainDocumentPart.Document.Body;
+            var begin = body.Descendants<BookmarkStart>().FirstOrDefault(b => b.Name?.Value == HwpTocMarks.Begin)?.Ancestors<Paragraph>().FirstOrDefault();
+            var end = body.Descendants<BookmarkStart>().FirstOrDefault(b => b.Name?.Value == HwpTocMarks.End)?.Ancestors<Paragraph>().FirstOrDefault();
+            if (begin == null || end == null || !ReferenceEquals(begin.Parent, end.Parent))
+                return Array.Empty<Region>();
+
+            return new[] { new Region(ContentsKind, begin, end, string.Empty, null) };
+        }
+
+        private static void MarkHwp(WordDocu docu, IReadOnlyList<Paragraph> paragraphs)
+        {
+            if (paragraphs.Count == 0)
+                return;
+
+            var id = docu.Document.MainDocumentPart.Document.Descendants<BookmarkStart>()
+                .Select(b => int.TryParse(b.Id?.Value, out var value) ? value : 0)
+                .DefaultIfEmpty(0)
+                .Max() + 1;
+            Bookmark(paragraphs[0], HwpTocMarks.Begin, id);
+            Bookmark(paragraphs[^1], HwpTocMarks.End, id + 1);
+        }
+
+        private static void Bookmark(Paragraph paragraph, string name, int id)
+        {
+            var text = id.ToString(CultureInfo.InvariantCulture);
+            paragraph.AppendChild(new BookmarkStart { Id = text, Name = name });
+            paragraph.AppendChild(new BookmarkEnd { Id = text });
         }
 
         private static List<Paragraph> Contents(WordDocu docu, WordScan scan, WordTocOptions options, bool manual, HashSet<string> used)

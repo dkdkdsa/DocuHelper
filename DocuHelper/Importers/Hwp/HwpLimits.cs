@@ -10,7 +10,7 @@ namespace DocuHelper.Importers.Hwp
         private const string SkippedReason = "화면에 안 보이고, 저장하면 빠져요.";
         private const string DrawingReason = "모양은 저장하면 빠지고, 안의 글만 남아요.";
         private const string FeatureReason = "이 앱이 아직 저장하지 못해서, 파일에 있으면 저장할 때 빠져요.";
-        private const string TocReason = "차례와 그림 차례는 아직 이 앱에서 만들 수 없어요.";
+        private const string TocNote = "A table of contents made here is built from heading styles and its page numbers are estimates, so the user should refresh its fields in 한글 for exact numbers. Figure and table lists and indexes cannot be made here; the user can make them in 한글.";
         private const string PromptTail = " in a 한글 file are not shown to you and are not kept when it is saved, so don't promise to change them; the user can fix those in 한글 with [한글에서 열기].";
 
         public static IReadOnlyList<HwpLimit> For(HwpDocu docu)
@@ -18,12 +18,7 @@ namespace DocuHelper.Importers.Hwp
             var limits = InFile(docu, out var covered);
             foreach (var feature in HwpCapabilities.Missing.Where(f => !covered.Contains(f)))
             {
-                var reason = feature switch
-                {
-                    HwpFeature.StaticToc => TocReason,
-                    _ => FeatureReason,
-                };
-                limits.Add(new HwpLimit(HwpLimitKind.Feature, HwpFeatureNames.Korean(feature), reason, HwpFeatureNames.English(feature)));
+                limits.Add(new HwpLimit(HwpLimitKind.Feature, HwpFeatureNames.Korean(feature), FeatureReason, HwpFeatureNames.English(feature)));
             }
 
             return limits;
@@ -55,11 +50,15 @@ namespace DocuHelper.Importers.Hwp
         public static string PromptText()
         {
             var names = HwpFeatureNames.Prompt.Where(f => !HwpCapabilities.Has(f)).Select(HwpFeatureNames.English).ToList();
-            if (names.Count == 0)
-                return null;
+            var lines = new List<string>();
+            if (names.Count > 0)
+            {
+                var list = names.Count == 1 ? names[0] : string.Join(", ", names.Take(names.Count - 1)) + " and " + names[^1];
+                lines.Add(char.ToUpperInvariant(list[0]) + list.Substring(1) + PromptTail);
+            }
 
-            var list = names.Count == 1 ? names[0] : string.Join(", ", names.Take(names.Count - 1)) + " and " + names[^1];
-            return char.ToUpperInvariant(list[0]) + list.Substring(1) + PromptTail;
+            lines.Add(TocNote);
+            return string.Join(" ", lines);
         }
 
         private static List<HwpLimit> InFile(HwpDocu docu, out HashSet<HwpFeature> covered)
