@@ -1,4 +1,6 @@
+using System;
 using System.Globalization;
+using Microsoft.AspNetCore.Components;
 using System.Threading.Tasks;
 using DocuHelperEditor.State.Papers;
 using DocuHelperEditor.State.Ribbon.Excel;
@@ -7,6 +9,9 @@ namespace DocuHelperEditor.Components.Paper.Excel
 {
     public partial class ExcelPaper
     {
+        private ElementReference _root;
+        private WheelZoom _wheel;
+
         private bool ShowFormulaBar => Model.View.ShowFormulaBar;
 
         private SheetStatsResult SelectionStats => Selection.IsSingle ? null : SheetStats.Of(CurrentSheet, Selection);
@@ -24,5 +29,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
         private Task InsertFunctionAsync() => _router.InvokeAsync("excel.fbar.insertfn", null);
 
         private Task SetZoomAsync(int value) => _router.InvokeAsync("excel.status.zoomslider", value.ToString(CultureInfo.InvariantCulture));
+
+        private Task ZoomStepAsync(int direction) => SetZoomAsync(Math.Clamp(ZoomValue + direction * 10, ExcelViewState.MinZoom, ExcelViewState.MaxZoom));
     }
 }

@@ -234,6 +234,21 @@ window.docuHelper = (function () {
             el.focus();
             el.select();
         },
+        wheelZoom: function (element, dotnet) {
+            var listener = function (e) {
+                if (!e.ctrlKey || e.deltaY === 0) return;
+                e.preventDefault();
+                dotnet.invokeMethodAsync('OnWheel', e.deltaY < 0 ? 1 : -1).catch(function () { });
+            };
+            element.__docuWheelZoom = listener;
+            element.addEventListener('wheel', listener, { passive: false });
+        },
+        unwheelZoom: function (element) {
+            var listener = element && element.__docuWheelZoom;
+            if (!listener) return;
+            element.removeEventListener('wheel', listener);
+            element.__docuWheelZoom = null;
+        },
         rememberFocus: function () {
             rememberedFocus = lastFocused;
         },

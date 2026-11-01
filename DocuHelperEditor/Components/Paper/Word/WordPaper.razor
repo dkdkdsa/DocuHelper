@@ -3,9 +3,11 @@
 @using DocuHelperEditor.Components.Paper.Word.Dialogs
 @using DocuHelperEditor.State.Papers
 @using DocuHelperEditor.State.Ribbon
+@using System.Globalization
 @inherits StoreComponentBase
+@inject IJSRuntime JS
 
-<div class="word">
+<div class="word" @ref="_root">
     @if (File?.Type == DocuType.Hwp)
     {
         @if (HwpRibbonState.Of(File)?.FullScreen != true)
@@ -45,6 +47,8 @@
 
 @code {
     private WorkspaceFile _boundFile;
+    private ElementReference _root;
+    private WheelZoom _wheel;
 
     [Parameter]
     public WorkspaceFile File { get; set; }
@@ -57,5 +61,37 @@
         _boundFile = File;
         if (File?.Paper is WordPaperModel model && string.IsNullOrEmpty(Workspace.SelectionLabel))
             model.SelectedBlockId = null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_root.Id != null)
+        {
+            _wheel ??= new WheelZoom(JS, ZoomStepAsync);
+            await _wheel.AttachAsync(_root);
+        }
+    }
+
+    protected override void OnDispose() => _ = _wheel?.Detach();
+
+    private Task ZoomStepAsync(int direction)
+    {
+        if (File == null)
+            return Task.CompletedTask;
+
+        if (File.Type == DocuType.Hwp)
+        {
+            var hwp = HwpRibbonState.Of(File);
+            if (hwp == null)
+                return Task.CompletedTask;
+
+            hwp.Zoom += direction * 10;
+            hwp.Touch();
+            Workspace.Notify();
+            return Task.CompletedTask;
+        }
+
+        var word = WordRibbonState.Of(File);
+        return word?.Router?.InvokeAsync("word.status.zoomslider", (word.Zoom + direction * 10).ToString(CultureInfo.InvariantCulture)) ?? Task.CompletedTask;
     }
 }

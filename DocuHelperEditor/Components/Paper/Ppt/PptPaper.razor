@@ -7,7 +7,7 @@
 @if (File != null && _model != null)
 {
     var slide = _model.ActiveSlide;
-    <div class="ppt">
+    <div class="ppt" @ref="_root">
         <PptRibbon @ref="_ribbonHost" File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
             <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" OnSlideAction="SlideAction" />
@@ -75,6 +75,8 @@
 
 @code {
     private readonly PptRibbonState _ribbon = new();
+    private ElementReference _root;
+    private WheelZoom _wheel;
     private bool Sorter => _ribbon.View == "sorter";
 
     private bool Outline => _ribbon.View == "outline";
@@ -138,6 +140,12 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_root.Id != null)
+        {
+            _wheel ??= new WheelZoom(JS, ZoomStepAsync);
+            await _wheel.AttachAsync(_root);
+        }
+
         if (firstRender && _ribbonHost != null)
             StateHasChanged();
 
@@ -163,7 +171,11 @@
         }
     }
 
-    protected override void OnDispose() => CommitDraft();
+    protected override void OnDispose()
+    {
+        _ = _wheel?.Detach();
+        CommitDraft();
+    }
 
     private void Sync()
     {
@@ -278,6 +290,13 @@
     {
         CommitDraft();
         _ribbon.View = on ? "sorter" : "normal";
+    }
+
+    private Task ZoomStepAsync(int direction)
+    {
+        SetZoom(_ribbon.Zoom + direction * 10);
+        StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private void SetZoom(int value)

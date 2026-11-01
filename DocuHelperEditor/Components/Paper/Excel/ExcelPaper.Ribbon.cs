@@ -77,6 +77,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         protected override void OnDispose()
         {
+            _ = _wheel?.Detach();
             if (_router == null)
                 return;
 

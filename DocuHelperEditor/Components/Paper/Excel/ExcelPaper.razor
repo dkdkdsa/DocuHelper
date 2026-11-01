@@ -8,7 +8,7 @@
 @using Microsoft.Maui.ApplicationModel.DataTransfer
 @inject IJSRuntime JS
 
-<div class="excel-paper @PaintingClass" id="@_uid">
+<div class="excel-paper @PaintingClass" id="@_uid" @ref="_root">
     <ExcelRibbon Router="_router" />
     @if (ShowFormulaBar)
     {
