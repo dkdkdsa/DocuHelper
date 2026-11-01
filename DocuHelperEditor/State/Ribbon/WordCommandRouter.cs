@@ -66,6 +66,9 @@ namespace DocuHelperEditor.State.Ribbon
             ProvideFileCommands();
             ProvideMailCommands();
             ProvideSpeechCommands();
+            ProvideSearchCommands();
+            ProvideReviewCommands();
+            ProvideMergeModeCommands();
         }
 
         public WordRibbonState State { get; }

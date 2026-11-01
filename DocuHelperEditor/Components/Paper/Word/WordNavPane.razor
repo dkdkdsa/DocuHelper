@@ -131,6 +131,7 @@
     private ElementReference _search;
     private WordPaperModel _hitsPaper;
     private string _hitsQuery;
+    private string _hitsOptions;
     private IReadOnlyList<WordNavHit> _hits = Array.Empty<WordNavHit>();
     private IReadOnlyList<WordNavHeading> _headings = Array.Empty<WordNavHeading>();
     private WordPaperModel _headingsPaper;
@@ -161,11 +162,13 @@
         get
         {
             var query = Ribbon?.SearchText ?? string.Empty;
-            if (!ReferenceEquals(_hitsPaper, Model) || _hitsQuery != query)
+            var options = $"{Ribbon?.SearchMatchCase}|{Ribbon?.SearchWholeWord}";
+            if (!ReferenceEquals(_hitsPaper, Model) || _hitsQuery != query || _hitsOptions != options)
             {
                 _hitsPaper = Model;
                 _hitsQuery = query;
-                _hits = WordNavResults.Find(Model, query);
+                _hitsOptions = options;
+                _hits = WordNavResults.Find(Model, query, Ribbon?.SearchMatchCase ?? false, Ribbon?.SearchWholeWord ?? false);
             }
 
             return _hits;
@@ -175,8 +178,10 @@
     private string CountText => Hits.Count == 0
         ? string.IsNullOrWhiteSpace(Ribbon.SearchText) ? "검색어를 넣어 주세요." : "찾은 곳이 없어요."
         : Ribbon.SearchIndex < 0
-            ? $"{Hits.Count}곳에서 찾았어요."
-            : $"{Hits.Count}곳 중 {Ribbon.SearchIndex + 1}번째";
+            ? $"{Hits.Count}곳에서 찾았어요.{OptionText}"
+            : $"{Hits.Count}곳 중 {Ribbon.SearchIndex + 1}번째{OptionText}";
+
+    private string OptionText => (Ribbon.SearchMatchCase ? " 대/소문자 구분" : string.Empty) + (Ribbon.SearchWholeWord ? " 단어 단위" : string.Empty);
 
     private static string TabId(string key) => "nav-tab-" + key;
 

@@ -56,6 +56,14 @@ namespace DocuHelperEditor.State.Ribbon
 
         public bool SearchFocus { get; set; }
 
+        public bool SearchMatchCase { get; set; }
+
+        public bool SearchWholeWord { get; set; }
+
+        public bool ShowInsDel { get; set; } = true;
+
+        public string MergeMode { get; set; } = "none";
+
         public string BlockTarget { get; set; }
 
         public int? SelectedObjectId { get; set; }

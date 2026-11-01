@@ -409,9 +409,20 @@ namespace DocuHelperEditor.State.Ribbon
                 new[]
                 {
                     new WordMenuSpec("찾기", """{"nav":true,"pane":"res","focus":"search"}""", "Ctrl+F. 탐색 창 [결과] 탭을 열고 검색 상자에 포커스"),
-                    new WordMenuSpec("고급 찾기…", """{"dialog":"find"}""", "대/소문자 구분, 단어 단위, 정규식 옵션이 있는 찾기 대화상자"),
+                    new WordMenuSpec("고급 찾기…", """{"command":"word.home.editing.findadv"}""", "대/소문자 구분, 단어 단위 옵션이 있는 찾기 대화상자"),
                     new WordMenuSpec("이동…", """{"command":"word.status.page"}""", "Ctrl+G. 쪽 번호로 가기"),
                 },
+                null),
+            new WordCommandSpec(
+                "word.home.editing.findadv",
+                "고급 찾기",
+                RibbonCommandClass.View,
+                "advancedFind",
+                null,
+                null,
+                null,
+                null,
+                Array.Empty<WordMenuSpec>(),
                 null),
             new WordCommandSpec(
                 "word.home.editing.replace",
@@ -1242,7 +1253,7 @@ namespace DocuHelperEditor.State.Ribbon
                 new[]
                 {
                     new WordMenuSpec("편지", """{"mode":"letter"}""", "본문은 그대로, 받는 사람마다 한 장씩"),
-                    new WordMenuSpec("레이블", """{"mode":"labels"}""", "먼저 [레이블]로 라벨 표를 만든 뒤 병합 필드를 넣어요"),
+                    new WordMenuSpec("레이블", """{"command":"word.mail.merge.start.labels"}""", "먼저 [레이블]로 라벨 표를 만든 뒤 병합 필드를 넣어요"),
                     new WordMenuSpec("전자 메일 메시지", """{"command":"word.mail.merge.start.email"}""", "메일 보내기는 지원하지 않아요"),
                     new WordMenuSpec("일반 Word 문서", """{"mode":"none"}""", "병합 상태를 풀어요"),
                 },
@@ -1426,6 +1437,28 @@ namespace DocuHelperEditor.State.Ribbon
                 },
                 null),
             new WordCommandSpec(
+                "word.review.track.showmarkup.format",
+                "서식 변경",
+                RibbonCommandClass.Disabled,
+                null,
+                null,
+                null,
+                null,
+                "서식 변경은 아직 따로 나누어 표시하지 않아요. 고친 모습은 삽입 및 삭제 설정을 따라요.",
+                Array.Empty<WordMenuSpec>(),
+                null),
+            new WordCommandSpec(
+                "word.review.track.showmarkup.author",
+                "특정 사용자",
+                RibbonCommandClass.Disabled,
+                null,
+                null,
+                null,
+                null,
+                "사용자별로 나누어 표시하는 기능은 아직 없어요.",
+                Array.Empty<WordMenuSpec>(),
+                null),
+            new WordCommandSpec(
                 "word.review.track.showmarkup",
                 "변경 내용 표시",
                 RibbonCommandClass.View,
@@ -1438,8 +1471,8 @@ namespace DocuHelperEditor.State.Ribbon
                 {
                     new WordMenuSpec("메모", """{"kind":"comments"}""", null),
                     new WordMenuSpec("삽입 및 삭제", """{"kind":"insdel"}""", null),
-                    new WordMenuSpec("서식", """{"kind":"format"}""", null),
-                    new WordMenuSpec("특정 사용자", """{"kind":"author:<name>"}""", "문서에 변경한 사람 이름이 목록으로 나와요"),
+                    new WordMenuSpec("서식", """{"command":"word.review.track.showmarkup.format"}""", null),
+                    new WordMenuSpec("특정 사용자", """{"command":"word.review.track.showmarkup.author"}""", null),
                 },
                 null),
             new WordCommandSpec(
@@ -1951,6 +1984,17 @@ namespace DocuHelperEditor.State.Ribbon
                 """{"ids":"{ids}","suppress_line_numbers":true}""",
                 null,
                 null,
+                Array.Empty<WordMenuSpec>(),
+                null),
+            new WordCommandSpec(
+                "word.mail.merge.start.labels",
+                "레이블 병합",
+                RibbonCommandClass.Disabled,
+                null,
+                null,
+                null,
+                null,
+                "레이블 병합은 아직 만들지 않았어요. 라벨 표를 만든 뒤 병합 필드를 넣어 주세요.",
                 Array.Empty<WordMenuSpec>(),
                 null),
             new WordCommandSpec(

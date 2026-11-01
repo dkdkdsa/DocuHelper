@@ -74,6 +74,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Notify(DocumentInfoText());
                 return Task.CompletedTask;
             });
+            ProvideSearchCommands();
         }
 
         private string DocumentInfoText()
