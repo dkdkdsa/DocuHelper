@@ -7,5 +7,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string ProtectSheet = "excel.review.protectsheet";
         public const string PrintTitles = "excel.layout.printtitles";
         public const string Margins = "excel.layout.margins";
+        public const string Subtotal = "excel.data.subtotal";
     }
 }

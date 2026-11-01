@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Nodes;
+using DocuHelperEditor.State.Ribbon;
 
 namespace DocuHelperEditor.State.Ribbon.Excel
 {
@@ -19,6 +21,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         {
             [ExcelDialogIds.PrintTitles] = _ => PrintTitles(),
             [ExcelDialogIds.Margins] = _ => Margins(),
+            [ExcelDialogIds.Subtotal] = context => Subtotal(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -90,6 +93,42 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
             return null;
         }
+
+        private static ExcelNamedDialog Subtotal(ExcelDialogContext context) => new(
+            "add_subtotals",
+            "부분합",
+            new[]
+            {
+                WordNamedDialogs.Text("range", "범위", context.Range),
+                WordNamedDialogs.Text("group_by", "그룹 기준 열 (예: A)", string.Empty),
+                WordNamedDialogs.Text("columns", "계산할 열 (쉼표로 나눠 입력, 예: C,D)", string.Empty),
+                WordNamedDialogs.Choice("function", "계산 방식", "sum", new[] { "sum", "count", "average", "max", "min", "product", "count_numbers" }, new[] { "합계", "개수", "평균", "최대", "최소", "곱", "숫자 개수" }),
+                WordNamedDialogs.Flag("replace", "기존 부분합 바꾸기", "true"),
+                WordNamedDialogs.Flag("summary_below", "요약을 데이터 아래에 표시", "true"),
+                WordNamedDialogs.Flag("grand_total", "총합계 추가", "false"),
+                WordNamedDialogs.Flag("page_break", "그룹마다 페이지 나누기", "false"),
+            },
+            values => Required(values, "group_by", "그룹 기준 열") ?? Required(values, "columns", "계산할 열"),
+            (values, context) => new JsonObject
+            {
+                ["sheet"] = context.Sheet,
+                ["range"] = WordNamedDialogs.Text(values, "range"),
+                ["group_by"] = WordNamedDialogs.Text(values, "group_by").Trim(),
+                ["columns"] = Strings(Items(WordNamedDialogs.Text(values, "columns"))),
+                ["function"] = WordNamedDialogs.Text(values, "function"),
+                ["action"] = "add",
+                ["replace"] = WordNamedDialogs.Flag(values, "replace"),
+                ["summary_below"] = WordNamedDialogs.Flag(values, "summary_below"),
+                ["grand_total"] = WordNamedDialogs.Flag(values, "grand_total"),
+                ["page_break"] = WordNamedDialogs.Flag(values, "page_break"),
+            });
+
+        private static string Required(IReadOnlyDictionary<string, JsonNode> values, string name, string label) =>
+            string.IsNullOrWhiteSpace(WordNamedDialogs.Text(values, name)) ? label + "을 넣어 주세요." : null;
+
+        private static string[] Items(string text) => text.Split(',').Select(item => item.Trim()).Where(item => item.Length > 0).ToArray();
+
+        private static JsonArray Strings(IEnumerable<string> items) => new(items.Select(item => (JsonNode)JsonValue.Create(item)).ToArray());
 
         private static string Or(string value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
     }
