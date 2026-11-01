@@ -12,8 +12,10 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         private static readonly Regex s_cell = new("^" + CellPattern + "$", RegexOptions.CultureInvariant);
 
+        private const string RangeToken = @"\$?[A-Za-z]{1,3}\$?[0-9]{0,7}";
+
         private static readonly Regex s_range = new(
-            "^" + CellPattern + "(:" + CellPattern + ")?(\\s+" + CellPattern + "(:" + CellPattern + ")?)*$",
+            "^" + RangeToken + "(:" + RangeToken + ")?(\\s+" + RangeToken + "(:" + RangeToken + ")?)*$",
             RegexOptions.CultureInvariant);
 
         private static readonly string[] s_dateFormats = { "yyyy-MM-dd", "yyyy/MM/dd", "yyyy.MM.dd" };

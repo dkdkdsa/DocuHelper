@@ -10,7 +10,7 @@ namespace DocuHelperEditor.State.Mapping
 {
     public partial class ExcelPaperMapper : IPaperMapper
     {
-        private const int MaxRows = 1000;
+        private const int MaxRows = 20000;
         private const int MaxColumns = 100;
         private const int MinColumns = 7;
         private const int DefaultWidth = 96;

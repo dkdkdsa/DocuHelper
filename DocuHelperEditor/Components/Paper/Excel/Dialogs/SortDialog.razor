@@ -99,11 +99,28 @@
     private static List<string> ColumnsOf(string range)
     {
         var parts = (range ?? string.Empty).Split(':');
-        if (!SheetRef.TryParse(parts[0], out var first, out _))
+        var first = ColumnIndex(parts[0]);
+        if (first < 0)
             return new List<string>();
 
-        var last = parts.Length > 1 && SheetRef.TryParse(parts[1], out var end, out _) ? end : first;
+        var last = parts.Length > 1 ? ColumnIndex(parts[1]) : first;
+        if (last < 0)
+            last = first;
+
         return Enumerable.Range(Math.Min(first, last), Math.Abs(last - first) + 1).Select(SheetRef.ColumnName).ToList();
+    }
+
+    private static int ColumnIndex(string part)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(part.Trim(), @"^\$?([A-Za-z]{1,3})\$?[0-9]*$");
+        if (!match.Success)
+            return -1;
+
+        var index = 0;
+        foreach (var letter in match.Groups[1].Value.ToUpperInvariant())
+            index = index * 26 + (letter - 'A' + 1);
+
+        return index - 1;
     }
 
     private sealed class SortKey

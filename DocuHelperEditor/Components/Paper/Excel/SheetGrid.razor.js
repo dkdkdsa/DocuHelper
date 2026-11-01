@@ -265,9 +265,30 @@ export function layout(grid, rows, columns) {
     }
 }
 
+function report(state) {
+    if (state.frame) return;
+    state.frame = requestAnimationFrame(() => {
+        state.frame = 0;
+        const table = state.grid.querySelector('table.sheet');
+        if (!table) return;
+        const zoom = parseFloat(table.style.zoom) || 1;
+        const head = table.tHead ? table.tHead.getBoundingClientRect().height / zoom : 0;
+        const sample = table.querySelector('tbody tr[data-r]:not(.hx)');
+        const rowPx = sample ? sample.getBoundingClientRect().height / zoom : 0;
+        const top = state.grid.scrollTop / zoom - head;
+        const height = state.grid.clientHeight / zoom;
+        state.dotnet.invokeMethodAsync('Viewport', top, height, rowPx).catch(() => { });
+    });
+}
+
+export function refresh(grid) {
+    const state = grid ? grid.__sheet : null;
+    if (state) report(state);
+}
+
 export function attach(grid, dotnet) {
     if (!grid || grid.__sheet) return;
-    const state = { grid, dotnet, mode: null, last: null, resize: null };
+    const state = { grid, dotnet, mode: null, last: null, resize: null, frame: 0, scroll: null, resizer: null };
     state.down = e => onDown(state, e);
     state.move = e => onMove(state, e);
     state.up = e => onUp(state, e);
@@ -275,6 +296,10 @@ export function attach(grid, dotnet) {
     state.menu = e => onContextMenu(state, e);
     state.paste = e => onPaste(state, e);
     state.key = e => onKey(state, e);
+    state.scroll = () => report(state);
+    state.resizer = new ResizeObserver(() => report(state));
+    grid.addEventListener('scroll', state.scroll, { passive: true });
+    state.resizer.observe(grid);
     grid.addEventListener('mousedown', state.down);
     grid.addEventListener('dblclick', state.dbl);
     grid.addEventListener('contextmenu', state.menu);
@@ -283,12 +308,16 @@ export function attach(grid, dotnet) {
     grid.addEventListener('paste', state.paste, true);
     grid.addEventListener('keydown', state.key, true);
     grid.__sheet = state;
+    report(state);
 }
 
 export function detach(grid) {
     const state = grid ? grid.__sheet : null;
     if (!state) return;
     if (state.resize) state.resize.guide.remove();
+    if (state.frame) cancelAnimationFrame(state.frame);
+    grid.removeEventListener('scroll', state.scroll);
+    state.resizer.disconnect();
     grid.removeEventListener('mousedown', state.down);
     grid.removeEventListener('dblclick', state.dbl);
     grid.removeEventListener('contextmenu', state.menu);

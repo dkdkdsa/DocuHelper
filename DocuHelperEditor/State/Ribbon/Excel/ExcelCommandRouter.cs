@@ -33,13 +33,15 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         private readonly IExcelSurface _surface;
         private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _dialogs;
+        private readonly IPrintService _prints;
 
-        public ExcelCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService dialogs, IExcelSurface surface)
+        public ExcelCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService dialogs, IPrintService prints, IExcelSurface surface)
             : base(workspace, assistant, js)
         {
             _surface = surface;
             _clipboard = clipboard;
             _dialogs = dialogs;
+            _prints = prints;
             State = new ExcelRibbonState(surface);
             RegisterHome();
             RegisterInsert();
