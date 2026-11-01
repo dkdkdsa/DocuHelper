@@ -142,6 +142,9 @@
         case ExcelDialogIds.ProtectSheet:
             <ProtectSheetDialog SheetName="@CurrentSheet.Name" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
             break;
+        case ExcelDialogIds.Sort:
+            <SortDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
     }
     @if (_router.State.ActiveDialog is { } namedDialog && ExcelNamedDialogs.Has(namedDialog))
     {

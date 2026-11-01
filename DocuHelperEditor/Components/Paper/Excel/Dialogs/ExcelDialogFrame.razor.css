@@ -157,6 +157,30 @@
     cursor: pointer;
 }
 
+.body ::deep .key-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--space-2);
+    align-items: end;
+}
+
+.body ::deep .line-btn {
+    min-height: var(--hit);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.body ::deep .line-btn:disabled {
+    color: var(--ink-disabled);
+    cursor: default;
+}
+
 .body ::deep .check input {
     width: 20px;
     height: 20px;
