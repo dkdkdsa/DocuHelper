@@ -43,5 +43,7 @@ namespace DocuHelper.Importers.Hwp
         public List<HwpTabStop> Tabs { get; set; } = new();
 
         public string StyleName { get; set; }
+
+        public HwpList List { get; set; }
     }
 }

@@ -12,6 +12,8 @@ namespace DocuHelper.Importers.Hwp
 
         public List<HwpPicture> Pictures { get; set; } = new();
 
+        public Dictionary<int, HwpNumberingDef> Numberings { get; set; } = new();
+
         public HashSet<HwpSkipped> Skipped { get; set; } = new();
 
         public List<HwpHeaderFooter> HeaderFooters { get; set; } = new();

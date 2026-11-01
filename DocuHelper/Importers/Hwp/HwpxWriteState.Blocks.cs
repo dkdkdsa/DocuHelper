@@ -42,19 +42,13 @@ namespace DocuHelper.Importers.Hwp
 
         private XElement Paragraph(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
         {
-            var label = Label(paragraph, out var listIndent);
-            var para = ParaId(ParaKeyOf(paragraph, listIndent));
+            var list = ListOf(paragraph, out var listIndent);
+            var para = ParaId(ParaKeyOf(paragraph, listIndent, list));
             var pageBreak = WordStyles.IsOn(_styles.ParagraphValue<PageBreakBefore>(paragraph));
             var columnBreak = false;
             var runs = new List<XElement>();
             runs.AddRange(ParagraphControls(paragraph));
             var fields = ScanFields(paragraph);
-            if (label != null)
-            {
-                var first = paragraph.Descendants<Run>().FirstOrDefault(r => Owns(paragraph, r));
-                runs.Add(TextRun(CharId(CharKeyOf(first, paragraph)), label));
-            }
-
             var scope = new HwpxFieldScope();
             foreach (var element in paragraph.Descendants().Where(e => e is Run || e is BookmarkStart).ToList())
             {

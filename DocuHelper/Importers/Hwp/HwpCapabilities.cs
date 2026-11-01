@@ -47,7 +47,7 @@ namespace DocuHelper.Importers.Hwp
 
             HwpFeature.NamedStyles => true,
 
-            HwpFeature.RealNumbering => false,
+            HwpFeature.RealNumbering => true,
 
             HwpFeature.KeepObjects => false,
 

@@ -23,6 +23,9 @@ namespace DocuHelper.Importers.Hwp
             if (source.WidowControl)
                 properties.AppendChild(new WidowControl());
 
+            if (source.List != null)
+                properties.AppendChild(new NumberingProperties(new NumberingLevelReference { Val = source.List.Level }, new NumberingId { Val = source.List.Id }));
+
             var borders = Borders(source.Border);
             if (borders != null)
                 properties.AppendChild(borders);

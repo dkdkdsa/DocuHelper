@@ -36,7 +36,7 @@ namespace DocuHelper.Importers.Hwp
         private readonly Dictionary<HwpxParaKey, int> _paras = new();
         private readonly Dictionary<string, (int Id, List<HwpTabStop> Stops)> _tabs = new();
 
-        private HwpxParaKey ParaKeyOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, Indentation listIndent)
+        private HwpxParaKey ParaKeyOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, Indentation listIndent, (string Heading, int Id, int Level)? list)
         {
             var justification = _styles.ParagraphValue<Justification>(paragraph)?.Val;
             var align = "JUSTIFY";
@@ -85,7 +85,7 @@ namespace DocuHelper.Importers.Hwp
             var keep = WordStyles.IsOn(_styles.ParagraphValue<KeepNext>(paragraph));
             var keepLines = WordStyles.IsOn(_styles.ParagraphValue<KeepLines>(paragraph));
             var widow = WordStyles.IsOn(_styles.ParagraphValue<WidowControl>(paragraph));
-            return new HwpxParaKey(align, Units(Math.Max(0, left)), Units(Math.Max(0, right)), Units(indent), Units(Math.Max(0, before)), Units(Math.Max(0, after)), line, keep, kind, keepLines, widow, BorderIdOf(paragraph), TabId(StopsOf(paragraph)));
+            return new HwpxParaKey(align, Units(Math.Max(0, left)), Units(Math.Max(0, right)), Units(indent), Units(Math.Max(0, before)), Units(Math.Max(0, after)), line, keep, kind, keepLines, widow, BorderIdOf(paragraph), TabId(StopsOf(paragraph)), list?.Heading ?? "NONE", list?.Id ?? 0, list?.Level ?? 0);
         }
 
         private int BorderIdOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
@@ -302,7 +302,7 @@ namespace DocuHelper.Importers.Hwp
                 new XAttribute("suppressLineNumbers", "0"),
                 new XAttribute("checked", "0"),
                 new XElement(Hh + "align", new XAttribute("horizontal", key.Align), new XAttribute("vertical", "BASELINE")),
-                new XElement(Hh + "heading", new XAttribute("type", "NONE"), new XAttribute("idRef", "0"), new XAttribute("level", "0")),
+                new XElement(Hh + "heading", new XAttribute("type", key.Heading), new XAttribute("idRef", Number(key.HeadingId)), new XAttribute("level", Number(key.HeadingLevel))),
                 new XElement(Hh + "breakSetting",
                     new XAttribute("breakLatinWord", "KEEP_WORD"), new XAttribute("breakNonLatinWord", "KEEP_WORD"),
                     new XAttribute("widowOrphan", key.WidowControl ? "1" : "0"), new XAttribute("keepWithNext", key.KeepWithNext ? "1" : "0"),

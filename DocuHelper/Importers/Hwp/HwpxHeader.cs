@@ -55,6 +55,28 @@ namespace DocuHelper.Importers.Hwp
 
         public HwpxBorderFill BorderFill(int id) => _borderFills.TryGetValue(id, out var fill) ? fill : null;
 
+        public const int BulletKey = 100000;
+
+        public void FillNumberings(HwpDocument document)
+        {
+            foreach (var pair in _numberings)
+            {
+                document.Numberings[pair.Key] = new HwpNumberingDef
+                {
+                    Levels = pair.Value.Select(level => new HwpNumberingLevelDef { Start = level.Start, Format = level.Format, Text = level.Text }).ToList(),
+                };
+            }
+
+            foreach (var pair in _bullets)
+            {
+                document.Numberings[BulletKey + pair.Key] = new HwpNumberingDef
+                {
+                    Bullet = true,
+                    Levels = new List<HwpNumberingLevelDef> { new HwpNumberingLevelDef { Format = "BULLET", Text = pair.Value.Normal ?? "•" } },
+                };
+            }
+        }
+
         public HwpxStyle Style(int id) => _styleDefs.TryGetValue(id, out var style) ? style : null;
 
         private static HwpxStyle StyleOf(XElement element) => new(

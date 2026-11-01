@@ -117,6 +117,17 @@ namespace DocuHelper.Importers.Hwp
             _deleting = deleting;
         }
 
+        private static HwpList ListOf(HwpxParaShape shape)
+        {
+            var level = System.Math.Max(0, shape.HeadingLevel);
+            return shape.HeadingType switch
+            {
+                "NUMBER" => new HwpList { Id = shape.HeadingId, Level = level },
+                "BULLET" => new HwpList { Id = HwpxHeader.BulletKey + shape.HeadingId, Level = level, Bullet = true },
+                _ => null,
+            };
+        }
+
         internal Func<string, (byte[] Bytes, string Extension)?> Binaries { get; set; }
 
         private HwpxBorderFill BorderOf(int id)
@@ -138,7 +149,8 @@ namespace DocuHelper.Importers.Hwp
                 LineSpacing = shape.LineSpacing,
                 PageBreakBefore = _pageBreak || shape.PageBreakBefore || HwpxXml.Flag(element, "pageBreak"),
                 ColumnBreakBefore = HwpxXml.Flag(element, "columnBreak"),
-                Label = _numbering.Next(shape, _outline),
+                Label = shape.HeadingType == "OUTLINE" ? _numbering.Next(shape, _outline) : null,
+                List = ListOf(shape),
                 RightIndent = shape.RightIndent,
                 KeepWithNext = shape.KeepWithNext,
                 KeepLines = shape.KeepLines,

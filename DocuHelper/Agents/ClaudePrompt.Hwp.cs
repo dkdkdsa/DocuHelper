@@ -15,6 +15,7 @@ namespace DocuHelper.Agents
             "In 한글 files manage_toc is not available. Tab stops with dot, hyphen or underline leaders in an opened file are kept when it is saved, but no tool adds them.",
             "In 한글 files hyperlinks, bookmarks, footnotes and endnotes are kept, and insert_reference adds them; cross references and captions are not available there. Existing click-here fields are kept, but none can be added yet.",
             "In 한글 files paragraph style names are kept (바탕글, 개요 1 to 7, 본문, 캡션, 쪽 번호, 머리말, 각주, 미주 and styles the file defines). A style's formatting is saved with each paragraph, so changing a style does not change text that already uses it.",
+            "In 한글 files set_list makes bulleted and numbered lists that are saved as 한글 numbering, so the numbers renumber when items move. Numbers typed into outline headings (개요 1 to 7) are plain text and do not renumber.",
             "In 한글 files edit_object inserts pictures, which are saved inline; floating pictures are saved inline too. Shapes and charts are not available.",
             "In 한글 files set_page_control hides the header, footer, page number, border or background of one page, or restarts page numbering at a paragraph.",
             "In 한글 files set_header_footer keeps the text, the page number (plain, dash or brackets; decimal, roman or letter numbers; a start number), the first-page option and odd and even headers. Watermarks, the date, time, file, title, author and page-count fields, page_x_of_y, title_page and first-page-only text are refused.",

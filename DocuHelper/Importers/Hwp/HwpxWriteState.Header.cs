@@ -88,6 +88,8 @@ namespace DocuHelper.Importers.Hwp
                     borders,
                     chars,
                     TabProperties(),
+                    NumberingsElement(),
+                    BulletsElement(),
                     paras,
                     StylesElement()),
                 new XElement(Hh + "compatibleDocument", new XAttribute("targetProgram", "HWP201X"), new XElement(Hh + "layoutCompatibility")),
