@@ -66,7 +66,9 @@ namespace DocuHelperEditor.State
 
         public string DialogReturnFocus { get; private set; }
 
-        public ModelOption Model => AssistantModels.FindModel(ModelId);
+        public ModelOption Model => ResolveModel();
+
+        public IEnumerable<ModelOption> AvailableModels => AssistantModels.Models.Where(model => HasKey(model.Provider));
 
         public EffortOption Effort => AssistantModels.FindEffort(EffortId);
 
@@ -185,7 +187,11 @@ namespace DocuHelperEditor.State
 
         public void SetModel(string modelId)
         {
-            ModelId = AssistantModels.FindModel(modelId).Id;
+            var model = AssistantModels.FindModel(modelId);
+            if (!HasKey(model.Provider))
+                return;
+
+            ModelId = model.Id;
             WriteSettings();
             Notify();
         }

@@ -9,9 +9,9 @@
         </div>
         <fieldset class="row-body options">
             <legend class="sr-only">기본 모델</legend>
-            @foreach (var model in AssistantModels.Models)
+            @foreach (var model in Settings.AvailableModels)
             {
-                <RadioOption @key="model.Id" Group="settings-model" Value="@model.Id" Class="compact" Selected="@(Settings.ModelId == model.Id)" OnSelect="Settings.SetModel">
+                <RadioOption @key="model.Id" Group="settings-model" Value="@model.Id" Class="compact" Selected="@(Settings.Model.Id == model.Id)" OnSelect="Settings.SetModel">
                     <span class="opt-line">
                         <span class="opt-name">@model.Name</span>
                         @if (model.IsDefault)

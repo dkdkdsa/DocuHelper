@@ -214,6 +214,9 @@ namespace DocuHelperEditor.State
                 _draftState = KeyCheckState.Idle;
             }
 
+            if (AssistantModels.FindModel(ModelId).Provider == provider)
+                ModelId = AssistantModels.DefaultFor(FallbackProvider()).Id;
+
             WriteSettings();
             Notify();
             return true;
@@ -319,6 +322,16 @@ namespace DocuHelperEditor.State
                 return false;
             }
         }
+
+        private ModelOption ResolveModel()
+        {
+            var model = AssistantModels.FindModel(ModelId);
+            return HasKey(model.Provider) ? model : AssistantModels.DefaultFor(FallbackProvider());
+        }
+
+        private AgentProvider FallbackProvider() => HasKey(AgentProvider.OpenAi) && !HasKey(AgentProvider.Claude)
+            ? AgentProvider.OpenAi
+            : AgentProvider.Claude;
 
         private static void ResetEditing(KeySlot slot)
         {

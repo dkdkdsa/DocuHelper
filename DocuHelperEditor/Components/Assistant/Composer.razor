@@ -21,9 +21,9 @@
                     <span class="pop-sub">다음 부탁부터 바뀌어요</span>
                 </div>
                 <ul class="options">
-                    @foreach (var option in AssistantModels.Models)
+                    @foreach (var option in Settings.AvailableModels)
                     {
-                        var on = option.Id == Settings.ModelId;
+                        var on = option.Id == Settings.Model.Id;
                         <li @key="option.Id">
                             <button type="button" class="option @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => PickModelAsync(option)">
                                 <span class="radio" aria-hidden="true"><span class="dot"></span></span>
