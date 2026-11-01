@@ -126,7 +126,7 @@ namespace DocuHelperEditor.State
             Notify();
         }
 
-        public void TogglePanel() => SetPanelCollapsed(!IsPanelCollapsed);
+        public void TogglePanel() => RememberPanelCollapsed(!IsPanelCollapsed);
 
         public void ToggleConversationList()
         {

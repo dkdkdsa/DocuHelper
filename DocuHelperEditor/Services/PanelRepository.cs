@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Security;
 using System.Text.Json;
 using DocuHelperEditor.State;
 
@@ -24,7 +25,7 @@ namespace DocuHelperEditor.Services
 
                 return JsonSerializer.Deserialize<PanelState>(File.ReadAllText(path)) ?? new PanelState();
             }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is JsonException)
+            catch (Exception e) when (IsStorageError(e))
             {
                 AppLog.Write("Could not read the panel state", e);
                 return new PanelState();
@@ -43,16 +44,39 @@ namespace DocuHelperEditor.Services
 
             var state = Load(folderPath);
             change(state);
+            var temp = path + ".tmp";
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
-                File.WriteAllText(path, JsonSerializer.Serialize(state, s_json));
+                File.WriteAllText(temp, JsonSerializer.Serialize(state, s_json));
+                File.Move(temp, path, overwrite: true);
             }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            catch (Exception e) when (IsStorageError(e))
             {
                 AppLog.Write("Could not save the panel state", e);
+                DeleteQuietly(temp);
             }
         }
+
+        private static void DeleteQuietly(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+            catch (Exception e) when (IsStorageError(e))
+            {
+                AppLog.Write("Could not remove the panel state temp file", e);
+            }
+        }
+
+        private static bool IsStorageError(Exception e) => e is IOException
+            || e is UnauthorizedAccessException
+            || e is NotSupportedException
+            || e is SecurityException
+            || e is ArgumentException
+            || e is JsonException;
 
         private static string PathOf(string folderPath) => string.IsNullOrEmpty(folderPath)
             ? null
