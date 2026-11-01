@@ -3,7 +3,7 @@
 <div class="ruler @(Horizontal ? "x" : "y")" aria-hidden="true">
     @for (var i = 0; i <= Ticks; i++)
     {
-        var n = i;
+        var n = i * Step;
         var major = n % 5 == 0;
         <span class="tick @(major ? "major" : null)" style="@PositionStyle(n)"></span>
         @if (major)
@@ -27,7 +27,9 @@
     [Parameter]
     public IEnumerable<(double From, double To)> Marks { get; set; } = Array.Empty<(double From, double To)>();
 
-    private int Ticks => (int)Math.Clamp(Math.Floor(Cm), 1, 200);
+    private int Step => (int)Math.Max(1, Math.Ceiling(Cm / 200));
+
+    private int Ticks => (int)Math.Max(1, Math.Floor(Math.Max(Cm, 1) / Step));
 
     private string PositionStyle(int cm)
     {
