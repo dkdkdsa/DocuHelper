@@ -158,3 +158,7 @@ h1 {
         width: auto;
     }
 }
+
+.dialog ::deep .opt:hover {
+    background: var(--well);
+}
