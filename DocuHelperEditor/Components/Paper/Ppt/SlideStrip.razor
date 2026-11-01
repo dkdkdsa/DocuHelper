@@ -1,8 +1,8 @@
-﻿@using System.Globalization
-@using DocuHelperEditor.State.Papers
+﻿@using DocuHelperEditor.State.Papers
 @inject IJSRuntime JS
 
 <nav class="strip" aria-label="슬라이드">
+    <button type="button" class="sorter-toggle @(Sorter ? "on" : null)" aria-pressed="@(Sorter ? "true" : "false")" @onclick="OnToggleSorter">정렬 보기</button>
     <ol class="list">
         @for (var i = 0; i < Count; i++)
         {
@@ -10,11 +10,6 @@
             var slide = Slides[index];
             var active = index == ActiveIndex;
             var changed = IsChanged(slide);
-            var title = slide.FindBox(SlideBoxKind.Title);
-            var subtitle = slide.FindBox(SlideBoxKind.Subtitle);
-            var body = slide.FindBox(SlideBoxKind.Body);
-            var chart = slide.Chart != null && slide.Chart.HasBars ? slide.Chart : null;
-            var content = slide.Layout == SlideLayout.Content;
             <li @key="slide.Id" class="item">
                 @if (changed)
                 {
@@ -22,55 +17,8 @@
                 }
                 <button type="button" id="@ThumbId(index)" class="th @(active ? "on" : null)" aria-label="@ThumbLabel(index, changed)" aria-pressed="@(active ? "true" : "false")" tabindex="@(active ? 0 : -1)" @onclick="() => SelectSlide(index)" @onkeydown="e => HandleKey(e, index)">
                     <span class="num" aria-hidden="true">@(index + 1)</span>
-                    <span class="mini @MiniClass(slide)" aria-hidden="true">
-                        @if (HasText(title))
-                        {
-                            <span class="ln head @LitClass(title)" style="@BoxWidthStyle(title, TitleCapacity(slide))"></span>
-                        }
-                        @if (slide.Layout == SlideLayout.Cover && HasText(subtitle))
-                        {
-                            <span class="ln sub @LitClass(subtitle)" style="@BoxWidthStyle(subtitle, SubtitleCapacity)"></span>
-                        }
-                        @if (content && HasText(body) && chart != null)
-                        {
-                            <span class="split">
-                                <span class="split-col">
-                                    @foreach (var line in TextLines(body, 5))
-                                    {
-                                        <span class="ln @LitClass(body)" style="@LineWidthStyle(line, SplitCapacity)"></span>
-                                    }
-                                </span>
-                                <span class="split-col tight">
-                                    @foreach (var item in chart.Bars.Take(4))
-                                    {
-                                        <span class="ln @TopClass(chart, item)" style="@BarWidthStyle(chart, item)"></span>
-                                    }
-                                </span>
-                            </span>
-                        }
-                        else if (content && HasText(body))
-                        {
-                            foreach (var line in TextLines(body, 6))
-                            {
-                                <span class="ln @LitClass(body)" style="@LineWidthStyle(line, BodyCapacity)"></span>
-                            }
-                        }
-                        else if (content && chart != null && chart.Kind == SlideChartKind.Column)
-                        {
-                            <span class="cols">
-                                @foreach (var item in chart.Bars.Take(6))
-                                {
-                                    <span class="col @TopClass(chart, item)" style="@HeightStyle(chart, item)"></span>
-                                }
-                            </span>
-                        }
-                        else if (content && chart != null)
-                        {
-                            foreach (var item in chart.Bars.Take(5))
-                            {
-                                <span class="ln wide @TopClass(chart, item)" style="@BarWidthStyle(chart, item)"></span>
-                            }
-                        }
+                    <span class="mini" aria-hidden="true">
+                        <SlideCanvas Slide="slide" AspectRatio="AspectRatio" Locked="true" ShowFit="false" />
                     </span>
                 </button>
             </li>
@@ -79,10 +27,6 @@
 </nav>
 
 @code {
-    private const double SubtitleCapacity = 12.5;
-    private const double BodyCapacity = 17;
-    private const double SplitCapacity = 14;
-
     private readonly string _uid = "slide-thumb-" + Guid.NewGuid().ToString("N").Substring(0, 8);
     private int _focusIndex = -1;
     private int _shownIndex = -1;
@@ -94,13 +38,19 @@
     public int ActiveIndex { get; set; }
 
     [Parameter]
-    public string HighlightId { get; set; }
+    public double AspectRatio { get; set; } = 16.0 / 9.0;
 
     [Parameter]
     public HashSet<string> LiveChanges { get; set; }
 
     [Parameter]
     public EventCallback<int> OnSelect { get; set; }
+
+    [Parameter]
+    public bool Sorter { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggleSorter { get; set; }
 
     private int Count => Slides?.Count ?? 0;
 
@@ -142,49 +92,5 @@
 
         _focusIndex = target;
         return OnSelect.InvokeAsync(target);
-    }
-
-    private static string MiniClass(SlideModel slide) => slide.Layout switch
-    {
-        SlideLayout.Cover => "cover",
-        SlideLayout.Closing => "closing",
-        _ => null,
-    };
-
-    private static double TitleCapacity(SlideModel slide) => slide.Layout switch
-    {
-        SlideLayout.Cover => 11,
-        SlideLayout.Closing => 10,
-        _ => 14,
-    };
-
-    private string LitClass(SlideBoxModel box) =>
-        box.HasChange(HighlightId) && !box.MarkCleared ? "lit" : null;
-
-    private static bool HasText(SlideBoxModel box) => box != null && !box.IsEmpty;
-
-    private static IEnumerable<string> TextLines(SlideBoxModel box, int max) =>
-        box.Lines.Where(line => !string.IsNullOrWhiteSpace(line)).Take(max);
-
-    private static string BoxWidthStyle(SlideBoxModel box, double capacity) =>
-        $"width: {TextLines(box, int.MaxValue).Select(line => Percent(line, capacity)).DefaultIfEmpty(0).Max()}%";
-
-    private static string LineWidthStyle(string line, double capacity) => $"width: {Percent(line, capacity)}%";
-
-    private static string TopClass(SlideChartModel chart, SlideChartBar bar) => chart.IsTop(bar) ? "top" : null;
-
-    private static string BarWidthStyle(SlideChartModel chart, SlideChartBar bar) =>
-        string.Format(CultureInfo.InvariantCulture, "width: {0:0.#}%", chart.RatioOf(bar) * 100);
-
-    private static string HeightStyle(SlideChartModel chart, SlideChartBar bar) =>
-        string.Format(CultureInfo.InvariantCulture, "height: {0:0.#}%", chart.RatioOf(bar) * 100);
-
-    private static int Percent(string text, double capacity)
-    {
-        double units = 0;
-        foreach (var ch in text ?? string.Empty)
-            units += ch == ' ' ? 0.35 : ch >= (char)0x1100 ? 1.0 : 0.55;
-
-        return Math.Clamp((int)Math.Round(units / capacity * 100), 12, 100);
     }
 }

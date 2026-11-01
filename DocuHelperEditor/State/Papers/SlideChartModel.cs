@@ -12,6 +12,14 @@ namespace DocuHelperEditor.State.Papers
 
         public List<SlideChartBar> Bars { get; set; } = new();
 
+        public string Type { get; set; } = "column";
+
+        public List<string> Categories { get; set; } = new();
+
+        public List<SlideChartSeries> Series { get; set; } = new();
+
+        public string Legend { get; set; } = "none";
+
         public bool HasBars => Bars != null && Bars.Count > 0;
 
         public double MaxValue => HasBars ? Bars.Max(b => b.Value) : 0;

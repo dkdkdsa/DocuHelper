@@ -43,10 +43,12 @@ namespace DocuHelper.Tools.Ppt
             public long Y(long value) => OffsetY + (long)Math.Round((value - ChY) * ScaleY);
         }
 
-        public static List<PptSceneShape> ReadTree(OpenXmlElement tree, PptSceneContext context, Map map)
+        private const int MaxTreeDepth = 20;
+
+        public static List<PptSceneShape> ReadTree(OpenXmlElement tree, PptSceneContext context, Map map, int depth = 0)
         {
             var result = new List<PptSceneShape>();
-            if (tree == null)
+            if (tree == null || depth > MaxTreeDepth)
                 return result;
 
             foreach (var child in tree.ChildElements)
@@ -59,9 +61,9 @@ namespace DocuHelper.Tools.Ppt
                         P.Shape s => ReadShape(s, context, map),
                         P.Picture p => ReadPicture(p, context, map),
                         P.GraphicFrame f => ReadFrame(f, context, map),
-                        P.GroupShape g => ReadGroup(g, context, map),
+                        P.GroupShape g => ReadGroup(g, context, map, depth),
                         P.ConnectionShape c => ReadConnection(c, context, map),
-                        AlternateContent a => AlternateChoice(a, context, map, result),
+                        AlternateContent a => AlternateChoice(a, context, map, result, depth),
                         _ => null,
                     };
                 }
@@ -77,11 +79,11 @@ namespace DocuHelper.Tools.Ppt
             return result;
         }
 
-        private static PptSceneShape AlternateChoice(AlternateContent alternate, PptSceneContext context, Map map, List<PptSceneShape> result)
+        private static PptSceneShape AlternateChoice(AlternateContent alternate, PptSceneContext context, Map map, List<PptSceneShape> result, int depth)
         {
             var choice = alternate.GetFirstChild<AlternateContentChoice>();
             if (choice != null)
-                result.AddRange(ReadTree(choice, context, map));
+                result.AddRange(ReadTree(choice, context, map, depth + 1));
 
             return null;
         }
@@ -103,6 +105,7 @@ namespace DocuHelper.Tools.Ppt
             result.Geometry = Geometry(shape.ShapeProperties);
             result.Fill = Fill(shape.ShapeProperties, context.Part, context.Theme);
             result.Line = Line(shape.ShapeProperties, context.Theme);
+            ApplyStyle(result, shape, context.Theme);
             result.Shadow = Shadow(shape.ShapeProperties, context.Theme);
             result.Text = shape.TextBody == null ? null : TextOf(shape.TextBody, context);
             result.AltText = props?.Description?.Value;
@@ -120,10 +123,10 @@ namespace DocuHelper.Tools.Ppt
             result.Picture = new PptScenePicture
             {
                 ImageKey = blip?.Embed?.Value,
-                CropL = Percent(crop?.Left),
-                CropT = Percent(crop?.Top),
-                CropR = Percent(crop?.Right),
-                CropB = Percent(crop?.Bottom),
+                CropL = Percent(crop?.Left?.Value),
+                CropT = Percent(crop?.Top?.Value),
+                CropR = Percent(crop?.Right?.Value),
+                CropB = Percent(crop?.Bottom?.Value),
                 Alt = props?.Description?.Value,
             };
             result.Geometry = Geometry(picture.ShapeProperties);
@@ -159,7 +162,7 @@ namespace DocuHelper.Tools.Ppt
             return other;
         }
 
-        private static PptSceneShape ReadGroup(P.GroupShape group, PptSceneContext context, Map map)
+        private static PptSceneShape ReadGroup(P.GroupShape group, PptSceneContext context, Map map, int depth)
         {
             var props = group.NonVisualGroupShapeProperties?.NonVisualDrawingProperties;
             var result = Base(props, PptShapeKind.Group, context, group);
@@ -169,7 +172,7 @@ namespace DocuHelper.Tools.Ppt
                 var sx = transform.ChildExtents.Cx.Value == 0 ? 1 : (double)transform.Extents.Cx.Value / transform.ChildExtents.Cx.Value;
                 var sy = transform.ChildExtents.Cy.Value == 0 ? 1 : (double)transform.Extents.Cy.Value / transform.ChildExtents.Cy.Value;
                 var inner = new Map(map.X(transform.Offset.X.Value) - 0, map.Y(transform.Offset.Y.Value), sx * map.ScaleX, sy * map.ScaleY, transform.ChildOffset.X.Value, transform.ChildOffset.Y.Value);
-                result.Children = ReadTree(group, context, inner);
+                result.Children = ReadTree(group, context, inner, depth + 1);
                 result.X = map.X(transform.Offset.X.Value);
                 result.Y = map.Y(transform.Offset.Y.Value);
                 result.W = (long)Math.Round(transform.Extents.Cx.Value * map.ScaleX);
@@ -177,7 +180,7 @@ namespace DocuHelper.Tools.Ppt
             }
             else
             {
-                result.Children = ReadTree(group, context, map);
+                result.Children = ReadTree(group, context, map, depth + 1);
             }
 
             return result;
@@ -382,6 +385,54 @@ namespace DocuHelper.Tools.Ppt
                 Head = line.GetFirstChild<A.HeadEnd>()?.Type?.InnerText,
                 Tail = line.GetFirstChild<A.TailEnd>()?.Type?.InnerText,
             };
+        }
+
+        private static void ApplyStyle(PptSceneShape result, P.Shape shape, PptThemeInfo theme)
+        {
+            var properties = shape.ShapeProperties;
+            var style = shape.ShapeStyle;
+            if (properties == null || style == null)
+                return;
+
+            var fillElement = StyleColorElement(style.FillReference);
+            if (fillElement != null && !HasExplicitFill(properties))
+            {
+                var color = PptColor.Resolve(fillElement, theme, (OpenXmlElement)null);
+                if (color != null)
+                    result.Fill = new PptSceneFill { Kind = "solid", Color = color, Alpha = PptColor.AlphaOf(fillElement) };
+            }
+
+            var outline = properties.GetFirstChild<A.Outline>();
+            if (outline?.GetFirstChild<A.NoFill>() != null)
+                return;
+
+            if (outline?.GetFirstChild<A.SolidFill>() != null)
+                return;
+
+            var lineElement = StyleColorElement(style.LineReference);
+            var lineColor = lineElement == null ? null : PptColor.Resolve(lineElement, theme, (OpenXmlElement)null);
+            if (lineColor == null)
+                return;
+
+            result.Line ??= new PptSceneLine { WidthPt = 0.75 };
+            result.Line.Color = lineColor;
+            result.Line.Alpha = PptColor.AlphaOf(lineElement);
+        }
+
+        private static bool HasExplicitFill(OpenXmlElement properties) =>
+            properties.GetFirstChild<A.NoFill>() != null
+            || properties.GetFirstChild<A.SolidFill>() != null
+            || properties.GetFirstChild<A.GradientFill>() != null
+            || properties.GetFirstChild<A.BlipFill>() != null
+            || properties.GetFirstChild<A.PatternFill>() != null;
+
+        private static OpenXmlElement StyleColorElement(OpenXmlElement reference)
+        {
+            if (reference == null)
+                return null;
+
+            var index = reference.GetAttributes().FirstOrDefault(a => a.LocalName == "idx").Value;
+            return int.TryParse(index, out var value) && value > 0 ? reference.GetFirstChild<OpenXmlElement>() : null;
         }
 
         private static PptSceneShadow Shadow(OpenXmlElement properties, PptThemeInfo theme)

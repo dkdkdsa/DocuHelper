@@ -21,6 +21,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
             builder.OpenComponent<SheetCellDecorations>(0);
             builder.AddAttribute(1, nameof(SheetCellDecorations.Context), cell);
             builder.AddAttribute(2, nameof(SheetCellDecorations.OnMenu), EventCallback.Factory.Create<SheetMenuRequest>(this, OpenMenu));
+            builder.AddAttribute(3, nameof(SheetCellDecorations.FilterExpanded), _filterMenu is { } open && open.SheetName == CurrentSheet.Name && open.Row == cell.RowIndex && open.Column == cell.ColumnIndex);
             builder.CloseComponent();
         };
 
@@ -102,7 +103,25 @@ namespace DocuHelperEditor.Components.Paper.Excel
                 return false;
 
             if (link.IsExternal)
-                Shells.FirstOrDefault()?.OpenFile(link.Url);
+            {
+                switch (SheetLinkPolicy.Check(link.Url, out var target))
+                {
+                    case SheetLinkCheck.Open:
+                        var host = new Uri(target).Host;
+                        var shown = string.IsNullOrEmpty(host) ? target : host;
+                        _confirm = new Confirm("이 주소를 열까요? 연결 대상: " + shown, "열기", () => Shells.FirstOrDefault()?.OpenFile(target));
+                        break;
+                    case SheetLinkCheck.TooLong:
+                        _editError = "이 링크 주소가 너무 길어서 열 수 없어요.";
+                        break;
+                    case SheetLinkCheck.NotOpenable:
+                        _editError = "이 링크는 열 수 없는 링크예요.";
+                        break;
+                    default:
+                        _editError = "이 링크는 안전하지 않아서 열지 않았어요.";
+                        break;
+                }
+            }
             else if (link.IsInternal)
                 NavigateTo(link.Location);
 

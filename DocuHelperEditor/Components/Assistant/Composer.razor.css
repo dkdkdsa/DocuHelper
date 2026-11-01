@@ -255,3 +255,24 @@
     font-size: 13px;
     color: var(--ink-2);
 }
+
+#composer-model-pop {
+    max-height: min(620px, calc(100vh - 160px));
+    overflow: auto;
+}
+
+.group-label {
+    margin: 2px 8px 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.group-label.gpt {
+    margin-top: 6px;
+}
+
+.option.claude {
+    min-height: 52px;
+    padding: 5px 10px;
+}

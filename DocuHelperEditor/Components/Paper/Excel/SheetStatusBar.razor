@@ -28,6 +28,12 @@
     public bool Protected { get; set; }
 
     [Parameter]
+    public string FilterText { get; set; }
+
+    [Parameter]
+    public int UnreadObjects { get; set; }
+
+    [Parameter]
     public EventCallback<string> OnCommand { get; set; }
 
     [Parameter]
@@ -40,6 +46,14 @@
     private RenderFragment Left => __builder =>
     {
         <span class="st" aria-live="polite">@StateText</span>
+        @if (!string.IsNullOrEmpty(FilterText))
+        {
+            <StatusButton Icon="filter" Label="필터 결과" Tip="필터 조건으로 찾은 레코드 수">@FilterText</StatusButton>
+        }
+        @if (UnreadObjects > 0)
+        {
+            <StatusButton Icon="layout" Label="읽지 못한 개체" Tip="이 시트의 개체 중 읽지 못했거나 표시 한도를 넘은 개체 수">읽지 못한 개체 @UnreadObjects.ToString(CultureInfo.InvariantCulture)개</StatusButton>
+        }
         @if (Stats != null && Stats.Count > 0)
         {
             <RibbonDivider Gap="6" />

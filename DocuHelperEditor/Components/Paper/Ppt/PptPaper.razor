@@ -9,12 +9,19 @@
     <div class="ppt">
         <PptRibbon File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" LiveChanges="_live" OnSelect="SelectSlide" Sorter="_sorter" OnToggleSorter="ToggleSorter" />
             <div class="stage">
-                <SlideCanvas Slide="slide" Number="_model.ActiveIndex + 1" Footer="@_model.Footer" SelectedBoxId="@_model.SelectedBoxId" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnSelectBox="SelectBox" OnClearSelection="ClearSelection" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
-                @if (_ribbon.NotesOpen)
+                @if (_sorter)
                 {
-                    <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+                    <SlideSorter Slides="_model.Slides" Sections="_model.Sections" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" OnPick="PickSlide" />
+                }
+                else
+                {
+                    <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                    @if (_ribbon.NotesOpen)
+                    {
+                        <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+                    }
                 }
             </div>
         </div>
@@ -24,6 +31,7 @@
 
 @code {
     private readonly PptRibbonState _ribbon = new();
+    private bool _sorter;
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -126,7 +134,7 @@
         if (index >= 0 && index != _model.ActiveIndex)
         {
             _model.ActiveIndex = index;
-            _model.SelectedBoxId = null;
+            _model.SelectShape(null, false);
             _notesFocused = false;
         }
 
@@ -174,6 +182,18 @@
         }
     }
 
+    private void ToggleSorter()
+    {
+        CommitDraft();
+        _sorter = !_sorter;
+    }
+
+    private void PickSlide(int index)
+    {
+        _sorter = false;
+        SelectSlide(index);
+    }
+
     private void SelectSlide(int index)
     {
         CommitDraft();
@@ -181,35 +201,46 @@
             return;
 
         _model.ActiveIndex = index;
-        _model.SelectedBoxId = null;
+        _model.SelectShape(null, false);
         _notesFocused = false;
         Report();
     }
 
-    private void SelectBox(SlideBoxModel box)
+    private void Gesture(SlideGesture gesture)
     {
-        if (box != null && _draftLines != null && _draftBoxId != box.Id)
-            CommitDraft();
-
-        var slide = _model?.ActiveSlide;
-        if (slide == null || box == null || slide.FindBox(box.Id) == null)
+        if (_model == null || gesture == null)
             return;
 
-        if (_model.SelectedBoxId == box.Id && !_notesFocused)
+        if (gesture.SlideId != null && gesture.SlideId != _model.ActiveSlide?.Id)
             return;
 
-        _model.SelectedBoxId = box.Id;
-        _notesFocused = false;
-        Report();
+        if (gesture.Kind == "select")
+        {
+            SelectShape(gesture.Id, gesture.Additive);
+            return;
+        }
+
+        if (gesture.Kind == "key" && gesture.Key == "Escape")
+        {
+            SelectShape(null, false);
+            return;
+        }
+
+        if (ReadOnly || _model.ActiveSlide == null || !IsRealSlide(_model.ActiveSlide))
+            return;
+
+        CommitDraft();
+        foreach (var edit in PptCanvasEdits.Plan(gesture, _model, _model.ActiveIndex + 1))
+            Edit(File, edit.Tool, edit.Arguments);
     }
 
-    private void ClearSelection()
+    private void SelectShape(string shapeId, bool additive)
     {
         CommitDraft();
-        if (_model == null || (_model.SelectedBoxId == null && !_notesFocused))
+        if (_model == null)
             return;
 
-        _model.SelectedBoxId = null;
+        _model.SelectShape(shapeId, additive);
         _notesFocused = false;
         Report();
     }
@@ -222,7 +253,7 @@
         if (_model == null || (_model.SelectedBoxId == null && _notesFocused))
             return;
 
-        _model.SelectedBoxId = null;
+        _model.SelectShape(null, false);
         _notesFocused = true;
         Report();
     }
@@ -333,7 +364,7 @@
             return;
 
         _model.ActiveIndex = Math.Clamp(index, 0, _model.Slides.Count - 1);
-        _model.SelectedBoxId = null;
+        _model.SelectShape(null, false);
         _notesFocused = false;
         Report();
     }

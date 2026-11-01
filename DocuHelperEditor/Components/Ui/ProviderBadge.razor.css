@@ -1,0 +1,14 @@
+.provider {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: var(--radius-xs);
+    background: var(--bubble);
+    color: var(--ink-2);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 22px;
+    white-space: nowrap;
+}

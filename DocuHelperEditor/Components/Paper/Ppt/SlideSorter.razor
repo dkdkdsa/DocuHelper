@@ -1,0 +1,71 @@
+@using DocuHelperEditor.State.Papers
+
+<section class="sorter" aria-label="슬라이드 정렬 보기">
+    @foreach (var group in Groups())
+    {
+        <h3 class="sec">@group.Name</h3>
+        <div class="grid" role="list">
+            @foreach (var index in group.Indexes)
+            {
+                var slide = Slides[index];
+                var number = index;
+                <div role="listitem">
+                    <button type="button" class="cell @(number == ActiveIndex ? "on" : null)" aria-label="@(number + 1)번 슬라이드" aria-current="@(number == ActiveIndex ? "true" : "false")" @onclick="() => Pick(number)">
+                        <span class="num" aria-hidden="true">@(number + 1)</span>
+                        <span class="mini" aria-hidden="true">
+                            <SlideCanvas Slide="slide" AspectRatio="AspectRatio" Locked="true" ShowFit="false" />
+                        </span>
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public List<SlideModel> Slides { get; set; }
+
+    [Parameter]
+    public List<SlideSectionModel> Sections { get; set; }
+
+    [Parameter]
+    public int ActiveIndex { get; set; }
+
+    [Parameter]
+    public double AspectRatio { get; set; } = 16.0 / 9.0;
+
+    [Parameter]
+    public EventCallback<int> OnPick { get; set; }
+
+    private List<(string Name, List<int> Indexes)> Groups()
+    {
+        var groups = new List<(string Name, List<int> Indexes)>();
+        var slides = Slides ?? new List<SlideModel>();
+        var position = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < slides.Count; i++)
+            position.TryAdd(slides[i].Id, i);
+
+        var placed = new HashSet<int>();
+        foreach (var section in Sections ?? new List<SlideSectionModel>())
+        {
+            var indexes = section.SlideIds
+                .Where(position.ContainsKey)
+                .Select(id => position[id])
+                .Where(placed.Add)
+                .OrderBy(i => i)
+                .ToList();
+
+            if (indexes.Count > 0)
+                groups.Add((section.Name, indexes));
+        }
+
+        var rest = Enumerable.Range(0, slides.Count).Where(i => !placed.Contains(i)).ToList();
+        if (rest.Count > 0)
+            groups.Add(((Sections?.Count ?? 0) > 0 ? "구역 없음" : "슬라이드", rest));
+
+        return groups;
+    }
+
+    private Task Pick(int index) => OnPick.InvokeAsync(index);
+}

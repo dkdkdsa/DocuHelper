@@ -206,13 +206,15 @@ namespace DocuHelperEditor.State
             {
                 var request = new AgentRequest
                 {
-                    ApiKey = _settings.ApiKey,
+                    Provider = _settings.Model.Provider,
+                    ApiKey = _settings.KeyFor(_settings.Model.Provider),
                     Prompt = prompt,
                     ActiveFile = _workspace.ActiveFile?.Name,
                     Selection = _workspace.SelectionLabel,
                     Model = _settings.Model.ApiId,
                     Effort = _settings.EffortId,
                     AskBigChanges = _settings.AskBigChanges,
+                    TrackChanges = _settings.TrackChanges,
                     Attachments = attachments.Select(ToAgentAttachment).ToList(),
                 };
                 var result = await _workspace.Workspace.AskAsync(request, this, run.Token);

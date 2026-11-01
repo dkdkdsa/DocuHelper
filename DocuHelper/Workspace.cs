@@ -9,6 +9,7 @@ using DocuHelper.Agents;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools;
+using DocuHelper.Tools.Word;
 
 namespace DocuHelper
 {
@@ -306,6 +307,7 @@ namespace DocuHelper
                 throw new InvalidOperationException("도우미가 이미 일하는 중이에요.");
 
             var notes = TakeNotes();
+            var authors = request.TrackChanges ? MarkAssistantEdits() : new List<(WordDocu Docu, string Author)>();
             var toolbox = new AgentToolbox(this, request, notes);
             IsAgentRunning = true;
             try
@@ -324,7 +326,21 @@ namespace DocuHelper
             {
                 toolbox.Release();
                 IsAgentRunning = false;
+                foreach (var (docu, author) in authors)
+                    docu.AssistantRevisionAuthor = author;
             }
+        }
+
+        private List<(WordDocu Docu, string Author)> MarkAssistantEdits()
+        {
+            var marked = new List<(WordDocu, string)>();
+            foreach (var docu in _docus.OfType<WordDocu>().Where(d => d is not HwpDocu))
+            {
+                marked.Add((docu, docu.AssistantRevisionAuthor));
+                docu.AssistantRevisionAuthor = WordComments.DefaultAuthor;
+            }
+
+            return marked;
         }
 
         public bool Undo()

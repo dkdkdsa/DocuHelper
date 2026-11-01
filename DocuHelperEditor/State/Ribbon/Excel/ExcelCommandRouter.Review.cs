@@ -40,7 +40,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             AddFile("excel.review.protectsheet", _ => ProtectSheet())
                 .Needs("protect")
                 .PressedWhen(() => State.Sheet.IsProtected)
-                .EnabledWhen(() => State.Sheet.IsProtected || State.HasDialog("excel.review.protectsheet"), PendingReason);
+                .EnabledWhen(() => State.Sheet.IsProtected || State.HasDialog(ExcelDialogIds.ProtectSheet), PendingReason);
             AddFile("excel.review.protectbook", _ => ProtectBook())
                 .Needs("protect")
                 .PressedWhen(() => State.Model.StructureLocked)
@@ -92,7 +92,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             if (State.Sheet.IsProtected)
                 Apply(EditCommand.Create("protect", Workbook(("scope", "sheet"), ("sheet", State.SheetName), ("action", "unprotect"))));
             else
-                State.OpenDialog("excel.review.protectsheet");
+                State.OpenDialog(ExcelDialogIds.ProtectSheet);
 
             return Task.CompletedTask;
         }

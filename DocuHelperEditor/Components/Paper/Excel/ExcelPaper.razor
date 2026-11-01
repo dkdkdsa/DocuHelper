@@ -3,6 +3,8 @@
 @using DocuHelper.Tools.Excel
 @using DocuHelperEditor.State.Papers
 @using DocuHelperEditor.Components.Paper
+@using DocuHelperEditor.Components.Paper.Excel.Dialogs
+@using DocuHelperEditor.State.Ribbon.Excel
 @using Microsoft.Maui.ApplicationModel.DataTransfer
 @inject IJSRuntime JS
 
@@ -69,6 +71,9 @@
                Locked="@IsLocked"
                Zoom="@ZoomValue"
                CellDecorations="@CellDecorations"
+               RowDecorations="@RowDecorations"
+               CornerDecorations="@CornerDecorations"
+               Overlay="@ObjectOverlay"
                CellClassHook="@CellClassHook"
                CellStyleHook="@CellStyleHook"
                EditingInCell="@_editInCell"
@@ -106,9 +111,38 @@
                     ViewMode="@ViewModeValue"
                     PageModesReady="@PageModesReady"
                     Protected="@CurrentSheet.IsProtected"
+                    FilterText="@FilterStatus"
+                    UnreadObjects="@CurrentSheet.UnreadObjects"
                     Zoom="@ZoomValue"
                     OnCommand="RunStatusCommandAsync"
                     OnZoom="SetZoomAsync" />
+    @if (_filterMenu is { } filterMenu)
+    {
+        <FilterMenu Header="@filterMenu.Header"
+                    X="@filterMenu.X"
+                    Y="@filterMenu.Y"
+                    AnchorId="@filterMenu.AnchorId"
+                    Values="@filterMenu.Values"
+                    Checked="@filterMenu.Checked"
+                    Active="@filterMenu.Active"
+                    Truncated="@filterMenu.Truncated"
+                    OnSort="SortFilterMenu"
+                    OnClear="ClearFilterMenu"
+                    OnApply="ApplyFilterMenu"
+                    OnClose="CloseFilterMenu" />
+    }
+    @switch (_router.State.ActiveDialog)
+    {
+        case ExcelDialogIds.ConditionalFormat:
+            <ConditionalRuleDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
+        case ExcelDialogIds.Validation:
+            <ValidationDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
+        case ExcelDialogIds.ProtectSheet:
+            <ProtectSheetDialog SheetName="@CurrentSheet.Name" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
+    }
     @if (_menu != null)
     {
         <SheetMenu Label="@MenuLabel" X="@_menu.X" Y="@_menu.Y" Items="@_menuItems" OnPick="PickMenuAsync" OnClose="CloseMenu" />

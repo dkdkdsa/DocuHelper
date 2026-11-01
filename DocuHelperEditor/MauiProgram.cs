@@ -64,6 +64,12 @@ namespace DocuHelperEditor
             else
 #endif
             builder.Services.AddSingleton<IClipboardService, WindowsClipboardService>();
+#if DEBUG
+            if (System.Environment.GetEnvironmentVariable("DOCUHELPER_SPEECH") is "fake" or "none")
+                builder.Services.AddSingleton<ISpeechService, FakeSpeechService>();
+            else
+#endif
+            builder.Services.AddSingleton<ISpeechService, WindowsSpeechService>();
             builder.Services.AddSingleton<IPrintService, WindowsPrintService>();
 #if DEBUG
             if (System.Environment.GetEnvironmentVariable(FakeUpdateService.ScenarioVariable) is { Length: > 0 })
@@ -91,7 +97,7 @@ namespace DocuHelperEditor
 
         private static Workspace CreateWorkspace()
         {
-            var workspace = new Workspace { Agent = new ClaudeAgent() };
+            var workspace = new Workspace { Agent = new AgentRouter(new ClaudeAgent(), new ChatGptAgent()) };
             workspace.RegisterEditor(new WordEditor());
             workspace.RegisterEditor(new ExcelEditor());
             workspace.RegisterEditor(new PptEditor());
