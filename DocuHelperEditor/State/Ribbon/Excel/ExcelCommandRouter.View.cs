@@ -17,6 +17,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         {
             State.RegisterFeature(ExcelRibbonState.ZoomFeature);
             State.RegisterFeature(ExcelRibbonState.RulerFeature);
+            State.RegisterFeature(ExcelRibbonState.ViewModesFeature);
             ViewMode("excel.view.normal", ExcelRibbonState.NormalView);
             ViewMode("excel.view.pagebreak", ExcelRibbonState.PageBreakView);
             ViewMode("excel.view.pagelayout", ExcelRibbonState.PageLayoutView);
