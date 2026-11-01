@@ -59,7 +59,7 @@
                 else
                 {
                     <label class="field-label" for="@id">@field.Label</label>
-                    <input id="@id" class="field-input" type="@(field.Type == "number" ? "number" : "text")" step="any" inputmode="@(field.Type == "number" ? "decimal" : "text")" maxlength="@(field.Type == "char" ? "2" : null)" value="@Value(field)" @oninput="e => SetValue(field, e.Value?.ToString())" />
+                    <input id="@id" class="field-input" type="@InputType(field)" autocomplete="@(field.Type == "password" ? "new-password" : "off")" step="any" inputmode="@(field.Type == "number" ? "decimal" : "text")" maxlength="@(field.Type == "char" ? "2" : null)" value="@Value(field)" @oninput="e => SetValue(field, e.Value?.ToString())" />
                 }
             }
             <p id="wd-error" class="error" role="alert" hidden="@(_error == null)">@_error</p>
@@ -76,6 +76,7 @@
     private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
     private bool _focusPending = true;
     private string _error;
+    private bool _submitting;
 
     [Parameter]
     public WordDialogRequest Request { get; set; }
@@ -179,26 +180,64 @@
         return Closed.InvokeAsync();
     }
 
-    private Task SubmitAsync()
+    private async Task SubmitAsync()
     {
-        var values = Collect();
-        if (values == null)
-            return Task.CompletedTask;
+        if (_submitting)
+            return;
 
-        Request.Completion.TrySetResult(values);
-        return Closed.InvokeAsync();
+        _submitting = true;
+        try
+        {
+            var values = Collect();
+            if (values == null)
+                return;
+
+            Request.Completion.TrySetResult(values);
+            await Closed.InvokeAsync();
+        }
+        finally
+        {
+            _submitting = false;
+        }
     }
 
-    private Task OnKeyDown(KeyboardEventArgs e)
+    private async Task OnKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Escape")
-            return CancelAsync();
+        {
+            await CancelAsync();
+            return;
+        }
 
-        if (e.Key == "Enter")
-            return SubmitAsync();
-
-        return Task.CompletedTask;
+        if (e.Key == "Enter" && await IsTextFieldAsync())
+            await SubmitAsync();
     }
+
+    private async Task<bool> IsTextFieldAsync()
+    {
+        try
+        {
+            return await JS.InvokeAsync<bool>("docuHelperDialog.isTextField");
+        }
+        catch (JSException)
+        {
+            return false;
+        }
+        catch (JSDisconnectedException)
+        {
+            return false;
+        }
+    }
+
+    private static string InputType(WordDialogField field) => field.Type switch
+    {
+        "number" => "number",
+        "password" => "password",
+        _ => "text",
+    };
+
+    private static bool IsFiniteNumber(string raw) =>
+        double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number);
 
     private IReadOnlyDictionary<string, JsonNode> Collect()
     {
@@ -208,7 +247,7 @@
             if (field.Type == "number" && raw.Length == 0)
                 continue;
 
-            if (field.Type == "number" && !double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+            if (field.Type == "number" && !IsFiniteNumber(raw))
             {
                 _error = $"“{field.Label}”에는 숫자를 넣어 주세요.";
                 return null;

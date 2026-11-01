@@ -9,20 +9,24 @@
     else
     {
         <p class="hint">@ClipRef 범위를 @Target 칸에 붙여넣어요.</p>
+        @if (ClipIsCut)
+        {
+            <p class="hint">잘라낸 칸은 옮기기만 할 수 있어요. 다른 선택은 쓸 수 없어요.</p>
+        }
     }
     <fieldset class="group">
         <legend>붙여넣을 내용</legend>
         @foreach (var (value, label) in Modes)
         {
             <label class="check">
-                <input type="radio" name="paste-mode" value="@value" checked="@(_paste == value)" @onchange="() => _paste = value" />
+                <input type="radio" name="paste-mode" value="@value" checked="@(_paste == value)" disabled="@(ClipIsCut && value != "all")" @onchange="() => _paste = value" />
                 <span>@label</span>
             </label>
         }
     </fieldset>
     <div class="field">
         <label class="field-label" for="ps-operation">연산</label>
-        <select id="ps-operation" class="field-input" @bind="_operation">
+        <select id="ps-operation" class="field-input" disabled="@ClipIsCut" @bind="_operation">
             @foreach (var (value, label) in Operations)
             {
                 <option value="@value">@label</option>
@@ -30,11 +34,11 @@
         </select>
     </div>
     <label class="check">
-        <input type="checkbox" @bind="_skipBlanks" />
+        <input type="checkbox" disabled="@ClipIsCut" @bind="_skipBlanks" />
         <span>빈 칸은 건너뛰기</span>
     </label>
     <label class="check">
-        <input type="checkbox" @bind="_transpose" />
+        <input type="checkbox" disabled="@ClipIsCut" @bind="_transpose" />
         <span>행과 열 바꿈</span>
     </label>
 </ExcelDialogFrame>
@@ -104,17 +108,18 @@
             ["source"] = ClipRef,
             ["target"] = Target,
             ["target_sheet"] = TargetSheet,
-            ["paste"] = _paste,
+            ["paste"] = ClipIsCut ? "all" : _paste,
             ["move"] = ClipIsCut,
         };
 
-        if (_operation != "none")
-            args["operation"] = _operation;
+        var operation = ClipIsCut ? "none" : _operation;
+        if (operation != "none")
+            args["operation"] = operation;
 
-        if (_skipBlanks)
+        if (_skipBlanks && !ClipIsCut)
             args["skip_blanks"] = true;
 
-        if (_transpose)
+        if (_transpose && !ClipIsCut)
             args["transpose"] = true;
 
         _error = Apply(EditCommand.Create("copy_range", args));
