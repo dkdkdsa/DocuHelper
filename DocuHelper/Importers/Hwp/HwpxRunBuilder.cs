@@ -30,12 +30,9 @@ namespace DocuHelper.Importers.Hwp
             _locked = false;
         }
 
-        public void AppendMark(string text, HwpxCharShape shape)
+        public void AppendNote(HwpNote note)
         {
-            var run = shape.ToRun(text);
-            run.Superscript = true;
-            run.Subscript = false;
-            Runs.Add(run);
+            Runs.Add(new HwpRun { Note = note });
             _locked = true;
         }
 

@@ -39,7 +39,7 @@ namespace DocuHelper.Importers.Hwp
 
             HwpFeature.Pictures => true,
 
-            HwpFeature.Notes => false,
+            HwpFeature.Notes => true,
 
             HwpFeature.Hyperlinks => true,
             HwpFeature.Bookmarks => true,

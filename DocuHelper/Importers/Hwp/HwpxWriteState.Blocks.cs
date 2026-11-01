@@ -83,6 +83,20 @@ namespace DocuHelper.Importers.Hwp
                 if (scope.Placeholder)
                     continue;
 
+                foreach (var reference in run.Descendants<FootnoteReference>())
+                {
+                    var note = NoteRunOf(reference, false);
+                    if (note != null)
+                        runs.Add(note);
+                }
+
+                foreach (var reference in run.Descendants<EndnoteReference>())
+                {
+                    var note = NoteRunOf(reference, true);
+                    if (note != null)
+                        runs.Add(note);
+                }
+
                 foreach (var drawing in run.Descendants<Drawing>())
                 {
                     var picture = PictureOf(drawing);

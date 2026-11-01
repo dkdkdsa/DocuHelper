@@ -31,8 +31,6 @@ namespace DocuHelper.Importers.Hwp
         private readonly Dictionary<int, HwpRun> _formats = new();
         private int _outlineId;
         private int _sections;
-        private int _footnotes;
-        private int _endnotes;
         private bool _pendingBreak;
         private bool _dropNumber;
         private bool _droppedNumber;
@@ -424,15 +422,9 @@ namespace DocuHelper.Importers.Hwp
 
         private void ReadNote(HwpRecord control, bool endnote, HwpRunBuilder runs, HwpRun format, int depth)
         {
-            var number = endnote ? ++_endnotes : ++_footnotes;
-            var mark = (endnote ? "미주" : string.Empty) + number.ToString(CultureInfo.InvariantCulture) + ")";
-            var markFormat = HwpRunBuilder.Copy(format, null);
-            markFormat.Superscript = true;
-            markFormat.Subscript = false;
-            runs.Append(mark, markFormat);
-
-            var note = new HwpNote { Mark = mark };
+            var note = new HwpNote { Id = _document.Notes.Count + 1, Endnote = endnote };
             _document.Notes.Add(note);
+            runs.AppendNote(note);
             var drop = _dropNumber;
             var dropped = _droppedNumber;
             _dropNumber = true;

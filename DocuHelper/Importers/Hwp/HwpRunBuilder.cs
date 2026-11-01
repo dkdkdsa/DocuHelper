@@ -24,6 +24,13 @@ namespace DocuHelper.Importers.Hwp
             _text.Append(value);
         }
 
+        public void AppendNote(HwpNote note)
+        {
+            Flush();
+            _runs.Add(new HwpRun { Note = note });
+            _format = null;
+        }
+
         public List<HwpRun> Build()
         {
             Flush();

@@ -34,13 +34,6 @@ namespace DocuHelper.Importers.Hwp
                 var ids = new HwpBookmarkIds();
                 HwpWordHeaderFooter.Apply(word, document, section, width, ids);
                 var elements = ToElements(document.Blocks, width, ids);
-                if (document.Notes.Count > 0)
-                {
-                    elements.Add(new Paragraph());
-                    foreach (var note in document.Notes)
-                        elements.AddRange(HwpWordNotes.NoteElements(note, width));
-                }
-
                 if (elements.Count == 0 || elements[^1] is Table)
                     elements.Add(new Paragraph());
 
@@ -49,6 +42,7 @@ namespace DocuHelper.Importers.Hwp
                     body.AppendChild(element);
 
                 body.AppendChild(section);
+                HwpWordNotes.Write(word, document.Notes, width);
                 HwpWordPictures.Embed(word, document.Pictures);
                 HwpWordFields.ResolveLinks(word);
 

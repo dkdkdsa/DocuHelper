@@ -6,8 +6,6 @@ namespace DocuHelper.Importers.Hwp
 {
     internal sealed partial class HwpxBody
     {
-        private int _footnotes;
-        private int _endnotes;
         private bool _dropNumber;
         private bool _droppedNumber;
 
@@ -19,12 +17,9 @@ namespace DocuHelper.Importers.Hwp
                 return;
             }
 
-            var mark = endnote
-                ? "미주" + (++_endnotes).ToString(CultureInfo.InvariantCulture) + ")"
-                : (++_footnotes).ToString(CultureInfo.InvariantCulture) + ")";
-            runs.AppendMark(mark, shape);
-            var note = new HwpNote { Mark = mark };
+            var note = new HwpNote { Id = _document.Notes.Count + 1, Endnote = endnote };
             _document.Notes.Add(note);
+            runs.AppendNote(note);
 
             var drop = _dropNumber;
             var dropped = _droppedNumber;

@@ -45,26 +45,35 @@ namespace DocuHelper.Importers.Hwp
         internal static void Embed(WordprocessingDocument word, IReadOnlyList<HwpPicture> pictures)
         {
             var main = word.MainDocumentPart;
-            var relationships = new Dictionary<int, string>();
-            foreach (var blip in main.Document.Body.Descendants<A.Blip>().ToList())
+            var stories = new List<(OpenXmlPart Part, OpenXmlElement Root)> { (main, main.Document.Body) };
+            if (main.FootnotesPart?.Footnotes != null)
+                stories.Add((main.FootnotesPart, main.FootnotesPart.Footnotes));
+            if (main.EndnotesPart?.Endnotes != null)
+                stories.Add((main.EndnotesPart, main.EndnotesPart.Endnotes));
+
+            foreach (var (part, root) in stories)
             {
-                var embed = blip.Embed?.Value;
-                if (embed == null || !embed.StartsWith(EmbedPrefix, StringComparison.Ordinal))
-                    continue;
-
-                var index = int.Parse(embed.Substring(EmbedPrefix.Length), CultureInfo.InvariantCulture);
-                if (!relationships.TryGetValue(index, out var relationship))
+                var relationships = new Dictionary<int, string>();
+                foreach (var blip in root.Descendants<A.Blip>().ToList())
                 {
-                    var picture = pictures[index];
-                    var part = main.AddNewPart<ImagePart>(picture.ContentType);
-                    using (var stream = new MemoryStream(picture.Bytes, false))
-                        part.FeedData(stream);
+                    var embed = blip.Embed?.Value;
+                    if (embed == null || !embed.StartsWith(EmbedPrefix, StringComparison.Ordinal))
+                        continue;
 
-                    relationship = main.GetIdOfPart(part);
-                    relationships[index] = relationship;
+                    var index = int.Parse(embed.Substring(EmbedPrefix.Length), CultureInfo.InvariantCulture);
+                    if (!relationships.TryGetValue(index, out var relationship))
+                    {
+                        var picture = pictures[index];
+                        var image = part.AddNewPart<ImagePart>(picture.ContentType);
+                        using (var stream = new MemoryStream(picture.Bytes, false))
+                            image.FeedData(stream);
+
+                        relationship = part.GetIdOfPart(image);
+                        relationships[index] = relationship;
+                    }
+
+                    blip.Embed = relationship;
                 }
-
-                blip.Embed = relationship;
             }
         }
     }

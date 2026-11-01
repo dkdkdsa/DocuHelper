@@ -81,6 +81,10 @@ namespace DocuHelper.Importers.Hwp
                 ResolveIn(header, header.Header);
             foreach (var footer in main.FooterParts)
                 ResolveIn(footer, footer.Footer);
+            if (main.FootnotesPart?.Footnotes != null)
+                ResolveIn(main.FootnotesPart, main.FootnotesPart.Footnotes);
+            if (main.EndnotesPart?.Endnotes != null)
+                ResolveIn(main.EndnotesPart, main.EndnotesPart.Endnotes);
         }
 
         private static void ResolveIn(OpenXmlPart part, OpenXmlElement root)
@@ -114,10 +118,25 @@ namespace DocuHelper.Importers.Hwp
                 return;
             }
 
+            if (run.Note != null)
+            {
+                holder.AppendChild(NoteRun(run.Note));
+                return;
+            }
+
             if (run.Field == "PAGE")
                 HwpWordRuns.AppendField(holder, run);
             else
                 HwpWordRuns.AppendRun(holder, run.Text, run);
+        }
+
+        private static Run NoteRun(HwpNote note)
+        {
+            var properties = new RunProperties(new VerticalTextAlignment { Val = VerticalPositionValues.Superscript });
+            if (note.Endnote)
+                return new Run(properties, new EndnoteReference { Id = note.Id });
+
+            return new Run(properties, new FootnoteReference { Id = note.Id });
         }
 
         private static Hyperlink Hyper(string target) =>
