@@ -3,6 +3,7 @@
 @inject IClipboardService Clipboard
 @inject IFileDialogService Files
 @inject ISpeechService Speech
+@inject IPrintService Prints
 
 @if (Router != null)
 {
@@ -57,7 +58,7 @@
             return;
         }
 
-        state.Router ??= new WordCommandRouter(Workspace, Assistant, JS, Clipboard, Files, Speech, state);
+        state.Router ??= new WordCommandRouter(Workspace, Assistant, JS, Clipboard, Files, Speech, Prints, state);
         state.Router.File = File;
         if (ReferenceEquals(_boundFile, File) && ReferenceEquals(_subscribed, state.Router))
             return;

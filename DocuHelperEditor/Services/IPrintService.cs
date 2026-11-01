@@ -1,11 +1,11 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 namespace DocuHelperEditor.Services
 {
     public interface IPrintService
     {
-        Task<PrintResult> PrintAsync(string html);
+        Task<PrintResult> PrintAsync();
 
-        Task<PrintResult> ExportPdfAsync(string html, string path);
+        Task<PrintResult> ExportPdfAsync(string path);
     }
 }

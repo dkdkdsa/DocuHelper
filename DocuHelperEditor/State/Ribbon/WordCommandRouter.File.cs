@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools.Word;
+using DocuHelperEditor.Services;
 
 namespace DocuHelperEditor.State.Ribbon
 {
@@ -24,6 +25,42 @@ namespace DocuHelperEditor.State.Ribbon
         private void ProvideFileCommands()
         {
             Provide("word.file.info", _ => ShowDocumentInfoAsync());
+            Provide("word.file.pdf", _ => ExportPdfAsync());
+            Provide("word.file.print", _ => PrintAsync());
+        }
+
+        private async Task ExportPdfAsync()
+        {
+            if (File?.Docu is not WordDocu)
+            {
+                Notify(NoFileReason);
+                return;
+            }
+
+            var path = await _files.PickSaveFileAsync(Path.GetFileNameWithoutExtension(File.Name) + ".pdf");
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            ShowPrintResult(await _prints.ExportPdfAsync(path));
+        }
+
+        private async Task PrintAsync()
+        {
+            if (File?.Docu is not WordDocu)
+            {
+                Notify(NoFileReason);
+                return;
+            }
+
+            ShowPrintResult(await _prints.PrintAsync());
+        }
+
+        private void ShowPrintResult(PrintResult result)
+        {
+            if (result.Status == PrintStatus.Cancelled)
+                return;
+
+            Notify(result.Message ?? (result.IsDone ? "인쇄했어요." : "끝내지 못했어요."));
         }
 
         private async Task ShowDocumentInfoAsync()

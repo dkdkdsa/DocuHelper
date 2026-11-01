@@ -257,8 +257,8 @@ namespace DocuHelperEditor.Components.Dev
             AddSave("rt.file.save");
             AddUndo("rt.file.undo");
             AddRedo("rt.file.redo");
-            AddFile("rt.file.print", async _ => Report(await _prints.PrintAsync("<p>시험</p>")));
-            AddFile("rt.file.pdf", async _ => Report(await _prints.ExportPdfAsync("<p>시험</p>", Path.Combine(Path.GetTempPath(), "router-test.pdf"))));
+            AddFile("rt.file.print", async _ => Report(await _prints.PrintAsync()));
+            AddFile("rt.file.pdf", async _ => Report(await _prints.ExportPdfAsync(Path.Combine(Path.GetTempPath(), "router-test.pdf"))));
             AddFile("rt.file.locked", _ => Task.CompletedTask).AllowWhileLocked();
 
             AddDisabled("rt.off.always", "이 단추는 일부러 꺼 두었어요. 마우스를 올리면 이유가 보여요.");
