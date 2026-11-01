@@ -11,5 +11,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string TextToColumns = "excel.data.texttocolumns";
         public const string RemoveDuplicates = "excel.data.removeduplicates";
         public const string GoalSeek = "excel.data.whatif";
+        public const string PivotSummary = "excel.insert.pivot";
     }
 }

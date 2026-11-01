@@ -25,6 +25,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.TextToColumns] = context => TextToColumns(context),
             [ExcelDialogIds.RemoveDuplicates] = context => RemoveDuplicates(context),
             [ExcelDialogIds.GoalSeek] = context => GoalSeek(context),
+            [ExcelDialogIds.PivotSummary] = context => PivotSummary(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -206,6 +207,51 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 ["target_value"] = WordNamedDialogs.Num(values, "target_value"),
                 ["changing_cell"] = WordNamedDialogs.Text(values, "changing_cell").Trim(),
                 ["tolerance"] = WordNamedDialogs.Num(values, "tolerance"),
+            });
+
+        private static ExcelNamedDialog PivotSummary(ExcelDialogContext context) => new(
+            "build_pivot_summary",
+            "요약표 만들기",
+            new[]
+            {
+                WordNamedDialogs.Text("source", "원본 범위", context.Range),
+                WordNamedDialogs.Text("rows", "행으로 쓸 열 (쉼표로 나눠 입력, 예: A)", string.Empty),
+                WordNamedDialogs.Text("columns", "열로 쓸 열 (비우면 없음)", string.Empty),
+                WordNamedDialogs.Text("field", "값으로 계산할 열 (예: C)", string.Empty),
+                WordNamedDialogs.Choice("function", "계산 방식", "sum", new[] { "sum", "count", "average", "max", "min" }, new[] { "합계", "개수", "평균", "최대", "최소" }),
+                WordNamedDialogs.Choice("destination", "위치", "new_sheet", new[] { "new_sheet", "current_sheet" }, new[] { "새 시트", "현재 시트" }),
+                WordNamedDialogs.Text("cell", "현재 시트에 놓을 시작 칸 (예: H2)", context.Cell),
+                WordNamedDialogs.Flag("row_totals", "행 합계 표시", "true"),
+                WordNamedDialogs.Flag("column_totals", "열 합계 표시", "true"),
+            },
+            values =>
+                Required(values, "rows", "행으로 쓸 열") ??
+                Required(values, "field", "값으로 계산할 열") ??
+                (WordNamedDialogs.Text(values, "destination") == "current_sheet" ? Required(values, "cell", "시작 칸") : null),
+            (values, context) =>
+            {
+                var args = new JsonObject
+                {
+                    ["sheet"] = context.Sheet,
+                    ["source"] = WordNamedDialogs.Text(values, "source").Trim(),
+                    ["rows"] = Strings(Items(WordNamedDialogs.Text(values, "rows"))),
+                    ["values"] = new JsonArray(new JsonObject
+                    {
+                        ["field"] = WordNamedDialogs.Text(values, "field").Trim(),
+                        ["function"] = WordNamedDialogs.Text(values, "function"),
+                    }),
+                    ["destination"] = WordNamedDialogs.Text(values, "destination"),
+                    ["row_totals"] = WordNamedDialogs.Flag(values, "row_totals"),
+                    ["column_totals"] = WordNamedDialogs.Flag(values, "column_totals"),
+                };
+                var columns = WordNamedDialogs.Text(values, "columns").Trim();
+                if (columns.Length > 0)
+                    args["columns"] = columns;
+
+                if (WordNamedDialogs.Text(values, "destination") == "current_sheet")
+                    args["cell"] = WordNamedDialogs.Text(values, "cell").Trim();
+
+                return args;
             });
 
         private static List<string> ActiveDelimiters(IReadOnlyDictionary<string, JsonNode> values)
