@@ -207,6 +207,12 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
+            if (_root.Id != null)
+            {
+                _wheel ??= new WheelZoom(JS, ZoomStepAsync);
+                await _wheel.AttachAsync(_root);
+            }
+
             if (_focusSink)
             {
                 _focusSink = false;

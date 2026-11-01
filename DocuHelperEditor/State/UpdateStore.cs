@@ -115,7 +115,7 @@ namespace DocuHelperEditor.State
             {
                 AppLog.Write("Could not restart for the update", e);
                 _applyOnExit = wasScheduled;
-                SetPhase(UpdatePhase.Ready);
+                SetPhase(wasScheduled ? UpdatePhase.OnClose : UpdatePhase.Ready);
             }
         }
 
