@@ -14,6 +14,8 @@ namespace DocuHelperEditor.State.Papers
 
         public List<string> SelectedShapeIds { get; set; } = new();
 
+        public List<SlideSectionModel> Sections { get; set; } = new();
+
         public double SlideWidthCm { get; set; } = 33.867;
 
         public double SlideHeightCm { get; set; } = 19.05;

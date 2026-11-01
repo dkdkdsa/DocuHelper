@@ -7,6 +7,25 @@
     border-right: 1px solid var(--hair);
 }
 
+.sorter-toggle {
+    width: 100%;
+    min-height: 44px;
+    margin-bottom: 6px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--paper);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sorter-toggle.on {
+    border-color: var(--ink);
+    color: var(--ink);
+}
+
 .list {
     margin: 0;
     padding: 0;

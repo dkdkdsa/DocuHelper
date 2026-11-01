@@ -19,6 +19,8 @@ namespace DocuHelperEditor.State.Mapping
         private const int MaxBars = 12;
         private const int MaxShapes = 300;
         private const int MaxGroupDepth = 20;
+        private const int MaxSections = 100;
+        private const int MaxSlides = 1000;
         private const int MaxPoints = 60;
         private const int MaxSeries = 6;
         private const int MaxRows = 100;
@@ -86,6 +88,15 @@ namespace DocuHelperEditor.State.Mapping
 
                 model.Slides.Add(MapSlide(deck, deck.Slides[i], sceneSlide, context, anchors, i == deck.Slides.Count - 1));
             }
+
+            model.Sections = scene.Sections
+                .Take(MaxSections)
+                .Select(section => new SlideSectionModel
+                {
+                    Name = Trim(section.Name, 80) ?? "구역",
+                    SlideIds = section.SlideIds.Take(MaxSlides).Select(PptAnchor.Slide).ToList(),
+                })
+                .ToList();
 
             CarryOver(old, model);
             return model;
