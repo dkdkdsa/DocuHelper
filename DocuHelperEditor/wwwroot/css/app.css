@@ -336,3 +336,55 @@ html[data-text-size] [data-chrome] [data-chrome] {
     margin: 0;
     overflow: visible;
 }
+
+@page {
+    size: A4;
+    margin: 0;
+}
+
+body.docu-printing {
+    background: #FFFFFF;
+}
+
+body.docu-printing html,
+body.docu-printing {
+    height: auto !important;
+    overflow: visible !important;
+}
+
+body.docu-printing .docu-print-hide {
+    display: none !important;
+}
+
+body.docu-printing .docu-print-keep {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    flex: none !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    box-shadow: none !important;
+}
+
+body.docu-printing .page {
+    display: block !important;
+    position: relative !important;
+    flex: none !important;
+    width: 210mm !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    break-after: page;
+    page-break-after: always;
+}
+
+body.docu-printing .page.docu-print-last {
+    break-after: auto;
+    page-break-after: auto;
+}
