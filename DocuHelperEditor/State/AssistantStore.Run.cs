@@ -212,6 +212,7 @@ namespace DocuHelperEditor.State
                     Model = _settings.Model.ApiId,
                     Effort = _settings.EffortId,
                     AskBigChanges = _settings.AskBigChanges,
+                    TrackChanges = _settings.TrackChanges,
                     Attachments = attachments.Select(ToAgentAttachment).ToList(),
                 };
                 var result = await _workspace.Workspace.AskAsync(request, this, run.Token);
