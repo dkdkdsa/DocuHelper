@@ -1136,8 +1136,8 @@ namespace DocuHelperEditor.State.Ribbon
             {
                 Id = "hwp.review.proof.helper",
                 Label = "맞춤법 도우미",
-                Class = RibbonCommandClass.View,
-                Action = "toggleSpellcheck",
+                Class = RibbonCommandClass.Assistant,
+                Prompt = "이 문서의 맞춤법, 띄어쓰기, 문법을 검사해서 틀린 곳을 고쳐 줘. 어디를 어떻게 고쳤는지 알려 줘.",
             },
             new HwpCommandSpec
             {
@@ -1273,8 +1273,8 @@ namespace DocuHelperEditor.State.Ribbon
                 Menu = new[]
                 {
                     new HwpMenuSpec { Label = "제목 차례 만들기", Args = """{"action":"insert","kind":"contents"}""", Detail = "개요·제목 문단으로 차례를 만들어요", Gates = new[] { "StaticToc" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
-                    new HwpMenuSpec { Label = "표 차례 만들기", Args = """{"action":"insert","kind":"figures","figures":{"label":"표"}}""", Detail = "‘표 1.’ 같은 설명 문단으로", Gates = new[] { "StaticToc" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
-                    new HwpMenuSpec { Label = "그림 차례 만들기", Args = """{"action":"insert","kind":"figures","figures":{"label":"그림"}}""", Detail = "‘그림 1.’ 같은 설명 문단으로", Gates = new[] { "StaticToc" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
+                    new HwpMenuSpec { Label = "표 차례 만들기", Args = """{"action":"insert","kind":"figures","figures":{"label":"표"}}""", Detail = "‘표 1.’ 같은 설명 문단으로", Gates = new[] { "FigureToc" }, Reason = "그림·표 차례는 캡션을 넣을 수 없어서 한글에서 만들어 주세요." },
+                    new HwpMenuSpec { Label = "그림 차례 만들기", Args = """{"action":"insert","kind":"figures","figures":{"label":"그림"}}""", Detail = "‘그림 1.’ 같은 설명 문단으로", Gates = new[] { "FigureToc" }, Reason = "그림·표 차례는 캡션을 넣을 수 없어서 한글에서 만들어 주세요." },
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
                     new HwpMenuSpec { Label = "차례 새로 고침", Args = """{"action":"update","kind":"contents"}""", Detail = "쪽 번호와 제목을 다시 맞춰요", Gates = new[] { "StaticToc" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
                     new HwpMenuSpec { Label = "차례 지우기", Args = """{"action":"remove","kind":"contents"}""", Gates = new[] { "StaticToc" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },

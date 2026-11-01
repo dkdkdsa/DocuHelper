@@ -18,10 +18,26 @@ window.docuHelperDialog = (function () {
         }
     }
 
+    var lastControl = null;
+    document.addEventListener('focusin', function (e) {
+        var t = e.target;
+        if (t && t.tagName === 'BUTTON' && !t.closest('[role=menu],[role=dialog]')) lastControl = t;
+    }, true);
+
+    function resolveFocus() {
+        var current = document.activeElement;
+        if (current && current.closest && current.closest('[role=menu]') && lastControl && lastControl.isConnected) return lastControl;
+        return current;
+    }
+
     return {
-        open: function (dialog) {
+        isTextField: function () {
+            var el = document.activeElement;
+            return !!el && el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|file)$/i.test(el.type);
+        },
+        open: function (dialog, returnSelector) {
             if (!dialog) return;
-            returnFocus = document.activeElement;
+            returnFocus = (returnSelector && document.querySelector(returnSelector)) || resolveFocus();
             active = dialog;
             dialog.addEventListener('keydown', trap);
             var first = dialog.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])') || dialog.querySelector('button:not([disabled])') || dialog;
@@ -32,7 +48,7 @@ window.docuHelperDialog = (function () {
                 active.removeEventListener('keydown', trap);
                 active = null;
             }
-            if (returnFocus && typeof returnFocus.focus === 'function') returnFocus.focus();
+            if (returnFocus && returnFocus.isConnected && typeof returnFocus.focus === 'function') returnFocus.focus();
             returnFocus = null;
         }
     };

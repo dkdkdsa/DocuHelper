@@ -55,6 +55,7 @@ namespace DocuHelperEditor.State
             _workspace.OpenFolder(folderPath);
             FolderPath = _workspace.FolderPath;
             FolderName = Path.GetFileName(FolderPath);
+            RestoreFolderPanel();
             FolderOpened?.Invoke();
 
             var failed = new List<string>();
@@ -82,6 +83,8 @@ namespace DocuHelperEditor.State
             if (first != null)
                 Open(first.Id);
 
+            RestoreSession();
+
             if (failed.Count > 0)
                 RaiseNotice($"‘{string.Join("’, ‘", failed)}’ 파일은 열지 못했어요. 파일이 망가졌거나 암호가 걸려 있을 수 있어요.");
 
@@ -91,8 +94,14 @@ namespace DocuHelperEditor.State
         public void SetAskingFile(string fileId)
         {
             AskingFileId = fileId;
+            if (fileId == null)
+                _askingCells.Clear();
+
             foreach (var file in _files.Where(f => f.Docu != null))
+            {
                 file.Activity = ActivityOf(file);
+                ApplyAskingCells(file);
+            }
 
             Notify();
         }
@@ -174,7 +183,7 @@ namespace DocuHelperEditor.State
                 return Task.CompletedTask;
             }
 
-            if (file.Docu.IsLocked || !TrySave(file))
+            if (file.Docu.IsLocked || _workspace.IsAgentRunning || !TrySave(file))
                 return Task.CompletedTask;
 
             HasSavedAll = UnsavedCount == 0;
@@ -230,11 +239,16 @@ namespace DocuHelperEditor.State
             if (file.Docu == null)
             {
                 file.Changes.Clear();
+                file.JustReverted = true;
+                file.JustSaved = false;
                 Notify();
                 return Task.CompletedTask;
             }
 
             _workspace.RevertAssistantChanges(file.Docu);
+            file.JustReverted = true;
+            file.JustSaved = false;
+            Notify();
             return Task.CompletedTask;
         }
 
@@ -414,10 +428,15 @@ namespace DocuHelperEditor.State
 
             try
             {
+                var inFolder = _workspace.IsInFolder(path);
                 var docu = await Task.Run(() => importer.Import(_workspace.CopyIntoFolder(path)));
                 _workspace.AddDocu(docu);
                 _workspace.RecordInitial(docu);
-                return _files.FirstOrDefault(f => f.Docu == docu);
+                var added = _files.FirstOrDefault(f => f.Docu == docu);
+                if (added != null)
+                    added.IsCopied = !inFolder;
+
+                return added;
             }
             catch (HwpException e)
             {
@@ -441,6 +460,8 @@ namespace DocuHelperEditor.State
             {
                 _workspace.Save(file.Docu);
                 _savedChangeIds.UnionWith(changeIds);
+                file.JustSaved = true;
+                file.JustReverted = false;
                 if (file.Docu.Name != name)
                     RaiseNotice(RenamedText(name, file.Docu.Name));
 
@@ -543,7 +564,13 @@ namespace DocuHelperEditor.State
             var docu = file.Docu;
             file.Name = docu.Name;
             file.Path = docu.FilePath;
+            var wasDirty = file.IsDirty;
             file.IsDirty = docu.IsDirty;
+            if (file.IsDirty && !wasDirty)
+            {
+                file.JustSaved = false;
+                file.JustReverted = false;
+            }
             file.Activity = ActivityOf(file);
             file.Changes = docu.Changes
                 .Select(c => new ChangeItem { Id = c.Id, FileId = file.Id, Label = c.Label, Location = c.Location, Icon = c.Icon })
@@ -564,6 +591,8 @@ namespace DocuHelperEditor.State
             {
                 AppLog.Write($"Could not show {file.Name}", e);
             }
+
+            ApplyAskingCells(file);
         }
 
         private FileActivity ActivityOf(WorkspaceFile file)

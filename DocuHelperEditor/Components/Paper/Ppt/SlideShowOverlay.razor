@@ -1,0 +1,96 @@
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+@inject IJSRuntime JS
+
+<div id="@_id" class="show @(Reading ? "reading" : "full")" role="dialog" aria-modal="true" aria-label="@(Reading ? "읽기용 보기" : "슬라이드 쇼")" tabindex="-1" @onkeydown="OnKey">
+    <div class="stage-show">
+        @if (Current != null)
+        {
+            <SlideCanvas Slide="Current" AspectRatio="AspectRatio" Locked="true" ShowFit="false" />
+        }
+    </div>
+    <div class="controls">
+        <button type="button" class="ctl" aria-label="이전 슬라이드" disabled="@(_index <= 0)" @onclick="Previous">‹</button>
+        <span class="count" aria-live="polite">@((_index + 1).ToString(CultureInfo.InvariantCulture))/@Count.ToString(CultureInfo.InvariantCulture)</span>
+        <button type="button" class="ctl" aria-label="다음 슬라이드" disabled="@(_index >= Count - 1)" @onclick="Next">›</button>
+        <button type="button" class="ctl exit" aria-label="@(Reading ? "읽기 끝내기" : "쇼 끝내기")" @onclick="Exit">✕</button>
+    </div>
+</div>
+
+@code {
+    private readonly string _id = "show-" + Guid.NewGuid().ToString("N");
+    private int _index;
+    private bool _focused;
+
+    [Parameter]
+    public List<SlideModel> Slides { get; set; }
+
+    [Parameter]
+    public int StartIndex { get; set; }
+
+    [Parameter]
+    public double AspectRatio { get; set; } = 16.0 / 9.0;
+
+    [Parameter]
+    public bool Reading { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnExit { get; set; }
+
+    private int Count => Slides?.Count ?? 0;
+
+    private SlideModel Current => Count == 0 ? null : Slides[Math.Clamp(_index, 0, Count - 1)];
+
+    protected override void OnInitialized() => _index = Math.Clamp(StartIndex, 0, Math.Max(0, Count - 1));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focused)
+            return;
+
+        _focused = true;
+        await JS.InvokeVoidAsync("docuHelper.focus", "#" + _id);
+    }
+
+    private Task Previous()
+    {
+        _index = Math.Max(0, _index - 1);
+        return Task.CompletedTask;
+    }
+
+    private Task Next()
+    {
+        _index = Math.Min(Count - 1, _index + 1);
+        return Task.CompletedTask;
+    }
+
+    private Task Exit() => OnExit.InvokeAsync(_index);
+
+    private Task OnKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowRight":
+            case "ArrowDown":
+            case "PageDown":
+            case " ":
+            case "Enter":
+                return Next();
+            case "ArrowLeft":
+            case "ArrowUp":
+            case "PageUp":
+            case "Backspace":
+                return Previous();
+            case "Home":
+                _index = 0;
+                return Task.CompletedTask;
+            case "End":
+                _index = Math.Max(0, Count - 1);
+                return Task.CompletedTask;
+            case "Escape":
+                return Exit();
+            default:
+                return Task.CompletedTask;
+        }
+    }
+}

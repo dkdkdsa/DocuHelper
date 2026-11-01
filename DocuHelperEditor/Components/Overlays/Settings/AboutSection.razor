@@ -1,0 +1,82 @@
+﻿@inject UpdateStore Updates
+@inject IEnumerable<IShellService> Shells
+
+<section aria-labelledby="settings-about-h">
+    <h2 id="settings-about-h">정보</h2>
+    <p class="lead">문제가 생겼을 때 앱을 깔아 준 분께 알려 주면 좋은 것들이에요.</p>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">버전</span>
+        </div>
+        <div class="row-body version-body">
+            <span class="text num version-text">문서 도우미 @Version</span>
+            <ActionButton Kind="ButtonKind.Secondary" id="settings-about-update" Disabled="!Updates.IsInstalled" OnClick="OpenUpdate">업데이트 확인</ActionButton>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">도우미 연결</span>
+        </div>
+        <p class="row-body text">Claude는 Anthropic, ChatGPT는 OpenAI 서버로 바로 연결해요. 문서 내용은 도우미에게 부탁할 때만 보내요.</p>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">도우미 연결</span>
+        </div>
+        <p class="row-body text">Claude는 Anthropic, ChatGPT는 OpenAI 서버로 바로 연결해요. 문서 내용은 도우미에게 부탁할 때만 보내요.</p>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">설정이 있는 곳</span>
+            <span class="row-note">열쇠, 설정, 최근 목록이 여기 있어요.</span>
+        </div>
+        <div class="row-body stack start">
+            <p class="where">@AppPaths.DataFolder</p>
+            <ActionButton Kind="ButtonKind.Secondary" OnClick="OpenDataFolder">폴더 열기</ActionButton>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">저장 기록</span>
+        </div>
+        <p class="row-body text">작업 폴더마다 안에 있는 숨김 폴더 .문서도우미에 남아요.</p>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">글꼴</span>
+        </div>
+        <p class="row-body text">함렛, Gothic A1. 둘 다 SIL 오픈 폰트 라이선스예요.</p>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public SettingsStore Settings { get; set; }
+
+    private string Version => string.IsNullOrEmpty(Updates.CurrentVersion) ? "개발용" : Updates.CurrentVersion;
+
+    private void OpenUpdate()
+    {
+        Settings.ShowSection("update");
+        _ = Updates.CheckNowAsync();
+    }
+
+    private void OpenDataFolder()
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(AppPaths.DataFolder);
+            Shells.FirstOrDefault()?.OpenFile(AppPaths.DataFolder);
+        }
+        catch (Exception e)
+        {
+            AppLog.Write("Could not open the data folder", e);
+        }
+    }
+}

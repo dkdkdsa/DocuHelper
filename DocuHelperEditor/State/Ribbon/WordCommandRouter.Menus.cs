@@ -57,6 +57,8 @@ namespace DocuHelperEditor.State.Ribbon
                     return TableMenu(spec);
                 case "word.review.track.display":
                     return Entries(spec, false).Select((item, i) => item with { Checked = MarkupOf(spec, i) == State.MarkupMode }).ToList();
+                case "word.mail.fields.insert":
+                    return FieldMenu(spec);
             }
 
             if (s_numberFields.TryGetValue(spec.Id, out var field))

@@ -1,9 +1,14 @@
 @using DocuHelperEditor.State.Papers
+@inject IJSRuntime JS
 
-<section class="sorter" aria-label="슬라이드 정렬 보기">
+<section @ref="_section" class="sorter" aria-label="슬라이드 정렬 보기">
     @foreach (var group in Groups())
     {
         <h3 class="sec">@group.Name</h3>
+        @if (group.Indexes.Count == 0)
+        {
+            <p class="empty">빈 구역이에요. 슬라이드를 이 구역으로 옮기면 여기에 보여요.</p>
+        }
         <div class="grid" role="list">
             @foreach (var index in group.Indexes)
             {
@@ -23,6 +28,14 @@
 </section>
 
 @code {
+    private ElementReference _section;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Slides != null && _section.Context != null)
+            await JS.InvokeVoidAsync("docuHelperPptSorter.bind", _section);
+    }
+
     [Parameter]
     public List<SlideModel> Slides { get; set; }
 
@@ -56,8 +69,7 @@
                 .OrderBy(i => i)
                 .ToList();
 
-            if (indexes.Count > 0)
-                groups.Add((section.Name, indexes));
+            groups.Add((section.Name, indexes));
         }
 
         var rest = Enumerable.Range(0, slides.Count).Where(i => !placed.Contains(i)).ToList();

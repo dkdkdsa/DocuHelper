@@ -121,7 +121,7 @@ namespace DocuHelperEditor.State
             if (IsPanelCollapsed)
                 HasUnseenResult = true;
 
-            _workspace.SetAskingFile(request.FileId);
+            _workspace.SetAsking(request.FileId, request.Cells);
             var answer = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             _answer = answer;
             Notify();
@@ -198,6 +198,7 @@ namespace DocuHelperEditor.State
 
             var run = new CancellationTokenSource();
             _run = run;
+            _runEnded = new TaskCompletionSource();
             Notify();
 
             var watch = Stopwatch.StartNew();
@@ -205,13 +206,15 @@ namespace DocuHelperEditor.State
             {
                 var request = new AgentRequest
                 {
-                    ApiKey = _settings.ApiKey,
+                    Provider = _settings.Model.Provider,
+                    ApiKey = _settings.KeyFor(_settings.Model.Provider),
                     Prompt = prompt,
                     ActiveFile = _workspace.ActiveFile?.Name,
                     Selection = _workspace.SelectionLabel,
                     Model = _settings.Model.ApiId,
                     Effort = _settings.EffortId,
                     AskBigChanges = _settings.AskBigChanges,
+                    TrackChanges = _settings.TrackChanges,
                     Attachments = attachments.Select(ToAgentAttachment).ToList(),
                 };
                 var result = await _workspace.Workspace.AskAsync(request, this, run.Token);
@@ -234,10 +237,12 @@ namespace DocuHelperEditor.State
             {
                 run.Dispose();
                 _run = null;
+                _runEnded.TrySetResult();
                 _answer = null;
                 _retryNow = null;
                 _working = null;
                 _workspace.SetAskingFile(null);
+                _workspace.ReportLostHandEdits();
                 Notify();
                 await SaveConversationAsync();
             }
@@ -404,6 +409,7 @@ namespace DocuHelperEditor.State
                 Legend = "어떻게 할까요?",
                 MineValue = question.UserValue,
                 AssistantValue = question.SuggestedValue,
+                Cells = question.Cells.ToList(),
             };
 
             if (request.Kind == AskKind.BigChange)

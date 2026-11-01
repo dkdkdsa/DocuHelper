@@ -17,6 +17,16 @@
     cursor: pointer;
 }
 
+.sheet tbody th {
+    position: relative;
+}
+
+.sheet tr.ol > th {
+    padding-left: 18px;
+    padding-right: 4px;
+    text-align: right;
+}
+
 .grid.nogrid .sheet td {
     border-color: transparent;
 }

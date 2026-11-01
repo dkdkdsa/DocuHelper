@@ -1,0 +1,233 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+}
+
+.backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(var(--ink-rgb), 0.32);
+}
+
+.dialog {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    border-radius: var(--radius-popover);
+    box-shadow: var(--shadow-dialog);
+    color: var(--ink);
+}
+
+.dialog:focus {
+    outline: none;
+}
+
+.head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--hit);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5);
+    border-bottom: 1px solid var(--hair);
+}
+
+.head h2 {
+    flex: 1;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-4) var(--space-5);
+}
+
+.foot {
+    flex: none;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--hair);
+}
+
+.error {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--warn-line);
+    border-radius: var(--radius-sm);
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 14px;
+}
+
+.error[hidden] {
+    display: none;
+}
+
+.body ::deep .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.body ::deep .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+}
+
+.body ::deep .field-label,
+.body ::deep .group legend {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-2);
+}
+
+.body ::deep .field-input,
+.body ::deep select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--hit);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 15px;
+}
+
+.body ::deep .field-input:focus-visible,
+.body ::deep select:focus-visible,
+.body ::deep input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--xlsx);
+    outline-offset: 2px;
+}
+
+.body ::deep .hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.body ::deep .group {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.body ::deep .group legend {
+    padding: 0;
+    margin-bottom: var(--space-1);
+}
+
+.body ::deep .checks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 var(--space-3);
+}
+
+.body ::deep .check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--hit);
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.body ::deep .names {
+    margin: 0;
+    padding: 0;
+    max-height: 160px;
+    overflow-y: auto;
+    list-style: none;
+    font-size: 14px;
+}
+
+.body ::deep .names li {
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid var(--hair);
+}
+
+.body ::deep .kinds {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: var(--space-2);
+}
+
+.body ::deep .kind {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--hit);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.body ::deep .kind.on {
+    border-color: var(--xlsx);
+    background: var(--xlsx-soft);
+}
+
+.body ::deep .kind input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--ink);
+}
+
+.body ::deep .key-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--space-2);
+    align-items: end;
+}
+
+.body ::deep .line-btn {
+    min-height: var(--hit);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.body ::deep .line-btn:disabled {
+    color: var(--ink-disabled);
+    cursor: default;
+}
+
+.body ::deep .check input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--ink);
+}

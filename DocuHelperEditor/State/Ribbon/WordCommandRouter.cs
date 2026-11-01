@@ -41,16 +41,20 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _files;
+        private readonly IPrintService _prints;
+        private readonly ISpeechService _speech;
         private readonly IJSRuntime _scriptJs;
         private Run _run;
         private HashSet<string> _tablesBefore;
 
-        public WordCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService files, WordRibbonState state)
+        public WordCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService files, ISpeechService speech, IPrintService prints, WordRibbonState state)
             : base(workspace, assistant, js)
         {
             _clipboard = clipboard;
             _scriptJs = js;
             _files = files;
+            _speech = speech;
+            _prints = prints;
             State = state;
 
             foreach (var spec in WordCommandTable.All)
@@ -58,6 +62,10 @@ namespace DocuHelperEditor.State.Ribbon
                 _specs[spec.Id] = spec;
                 Register(spec);
             }
+
+            ProvideFileCommands();
+            ProvideMailCommands();
+            ProvideSpeechCommands();
         }
 
         public WordRibbonState State { get; }

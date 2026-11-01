@@ -1,0 +1,115 @@
+@using System.Linq
+@using DocuHelper.Editors
+@using DocuHelperEditor.State.Ribbon.Excel
+@using DocuHelperEditor.State.Papers
+
+<ExcelDialogFrame Title="사용자 지정 정렬" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="Close">
+    <p class="hint">@Range 범위를 정렬해요. 빈 칸은 항상 맨 아래로 가요.</p>
+    <label class="check">
+        <input type="checkbox" @bind="_hasHeader" />
+        <span>첫 줄은 머리글</span>
+    </label>
+    @for (var i = 0; i < _keys.Count; i++)
+    {
+        var key = _keys[i];
+        var number = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        <div class="key-row">
+            <div class="field">
+                <label class="field-label" for="@("sort-col-" + number)">기준 @number</label>
+                <select id="@("sort-col-" + number)" class="field-input" @bind="key.Column">
+                    @foreach (var column in _columns)
+                    {
+                        <option value="@column">@column 열</option>
+                    }
+                </select>
+            </div>
+            <label class="check">
+                <input type="checkbox" @bind="key.Descending" />
+                <span>내림차순</span>
+            </label>
+            <button type="button" class="line-btn" disabled="@(_keys.Count == 1)" aria-label="@("기준 " + number + " 삭제")" @onclick="() => Remove(key)">삭제</button>
+        </div>
+    }
+    <button type="button" class="line-btn" disabled="@(_keys.Count >= MaxKeys)" @onclick="Add">기준 추가</button>
+</ExcelDialogFrame>
+
+@code {
+    private const int MaxKeys = 3;
+
+    [Parameter]
+    public string SheetName { get; set; }
+
+    [Parameter]
+    public string Range { get; set; }
+
+    [Parameter]
+    public Func<EditCommand, string> Apply { get; set; }
+
+    [Parameter]
+    public EventCallback Close { get; set; }
+
+    private readonly List<SortKey> _keys = new();
+    private List<string> _columns = new();
+    private bool _hasHeader = true;
+    private string _error;
+    private bool _ready;
+
+    private string ErrorText => _error;
+
+    protected override void OnParametersSet()
+    {
+        if (_ready)
+            return;
+
+        _ready = true;
+        _columns = ColumnsOf(Range);
+        Add();
+    }
+
+    private void Add()
+    {
+        if (_keys.Count < MaxKeys)
+            _keys.Add(new SortKey { Column = _columns.FirstOrDefault() ?? string.Empty });
+    }
+
+    private void Remove(SortKey key)
+    {
+        if (_keys.Count > 1)
+            _keys.Remove(key);
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error = ExcelDialogInput.Range(Range, "범위");
+        if (_error != null)
+            return;
+
+        var keys = _keys.Where(key => !string.IsNullOrEmpty(key.Column)).Select(key => new { by = key.Column, descending = key.Descending }).ToArray();
+        if (keys.Length == 0)
+        {
+            _error = "정렬 기준 열을 골라 주세요.";
+            return;
+        }
+
+        _error = Apply(EditCommand.Create("sort_range", new { sheet = SheetName, range = Range, keys, has_header = _hasHeader, case_sensitive = false }));
+        if (_error == null)
+            await Close.InvokeAsync();
+    }
+
+    private static List<string> ColumnsOf(string range)
+    {
+        var parts = (range ?? string.Empty).Split(':');
+        if (!SheetRef.TryParse(parts[0], out var first, out _))
+            return new List<string>();
+
+        var last = parts.Length > 1 && SheetRef.TryParse(parts[1], out var end, out _) ? end : first;
+        return Enumerable.Range(Math.Min(first, last), Math.Abs(last - first) + 1).Select(SheetRef.ColumnName).ToList();
+    }
+
+    private sealed class SortKey
+    {
+        public string Column { get; set; } = string.Empty;
+
+        public bool Descending { get; set; }
+    }
+}

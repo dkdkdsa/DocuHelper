@@ -19,5 +19,7 @@ namespace DocuHelper.Agents
         public string UserValue { get; set; }
 
         public string SuggestedValue { get; set; }
+
+        public List<string> Cells { get; set; } = new();
     }
 }

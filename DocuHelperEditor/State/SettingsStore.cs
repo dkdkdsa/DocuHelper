@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using DocuHelper;
+using DocuHelper.Agents;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelperEditor.Services;
@@ -16,11 +16,10 @@ namespace DocuHelperEditor.State
     {
         public const string DefaultTextSize = "m";
 
-        private const string KeyName = "key";
         private const string DefaultSection = "key";
 
         private static readonly string[] s_textSizes = { "m", "l", "xl" };
-        private static readonly string[] s_sections = { "key", "ai", "folder", "hwp", "view", "about" };
+        private static readonly string[] s_sections = { "key", "ai", "folder", "hwp", "view", "update", "about" };
 
         private static readonly string s_settingsPath = Path.Combine(AppPaths.DataFolder, "settings.json");
 
@@ -39,13 +38,7 @@ namespace DocuHelperEditor.State
 
         public event Action Changed;
 
-        public string ApiKey { get; private set; } = string.Empty;
-
-        public bool HasSavedKey { get; private set; }
-
         public bool IsKeyVisible { get; private set; }
-
-        public KeyCheckState KeyState { get; private set; }
 
         public string WorkspaceRoot { get; private set; } = @"문서\문서도우미";
 
@@ -65,11 +58,13 @@ namespace DocuHelperEditor.State
 
         public string TextSize { get; private set; } = DefaultTextSize;
 
+        public string LastRunVersion { get; private set; }
+
+        public bool UpdateCheck { get; private set; } = true;
+
+        public bool UpdateAuto { get; private set; } = true;
+
         public bool IsHancomInstalled => HwpEditor?.CanWriteHwp == true;
-
-        public DateTime? KeyCheckedAt { get; private set; }
-
-        public bool IsKeyDeleted { get; private set; }
 
         public bool IsDialogOpen { get; private set; }
 
@@ -77,21 +72,11 @@ namespace DocuHelperEditor.State
 
         public string DialogReturnFocus { get; private set; }
 
-        public bool IsChangingKey { get; private set; }
+        public ModelOption Model => ResolveModel();
 
-        public string NewKey { get; private set; } = string.Empty;
-
-        public KeyCheckState NewKeyState { get; private set; }
-
-        public bool IsConfirmingKeyDelete { get; private set; }
-
-        public ModelOption Model => AssistantModels.FindModel(ModelId);
+        public IEnumerable<ModelOption> AvailableModels => AssistantModels.Models.Where(model => HasKey(model.Provider));
 
         public EffortOption Effort => AssistantModels.FindEffort(EffortId);
-
-        public bool CanStart => !string.IsNullOrWhiteSpace(ApiKey);
-
-        public bool IsConfigured => HasSavedKey;
 
         public string RootPath => _rootPath ?? AppPaths.DefaultRoot;
 
@@ -99,8 +84,7 @@ namespace DocuHelperEditor.State
 
         public void Load(string apiKey, KeyCheckState keyState, string workspaceRoot)
         {
-            ApiKey = apiKey ?? string.Empty;
-            KeyState = keyState;
+            LoadSampleKey(apiKey, keyState);
             WorkspaceRoot = workspaceRoot;
             IsKeyVisible = false;
             Notify();
@@ -127,12 +111,12 @@ namespace DocuHelperEditor.State
             HwpAlwaysHwpx = data?.HwpAlwaysHwpx ?? false;
             HwpNewAsHwp = data?.HwpNewAsHwp ?? false;
             TextSize = Array.IndexOf(s_textSizes, data?.TextSize) >= 0 ? data.TextSize : DefaultTextSize;
+            LastRunVersion = data?.LastRunVersion;
+            UpdateCheck = data?.UpdateCheck ?? true;
+            UpdateAuto = data?.UpdateAuto ?? true;
             ApplyHwp();
-            ApiKey = _secrets?.Load(KeyName) ?? string.Empty;
-            HasSavedKey = !string.IsNullOrWhiteSpace(ApiKey);
-            KeyState = KeyCheckState.Idle;
+            LoadKeys(data);
             IsKeyVisible = false;
-            IsKeyDeleted = false;
             WorkspaceRoot = AppPaths.Display(RootPath);
             Notify();
         }
@@ -143,14 +127,14 @@ namespace DocuHelperEditor.State
             DialogReturnFocus = returnFocus;
             DialogSection = Array.IndexOf(s_sections, section) >= 0 ? section : DefaultSection;
             IsDialogOpen = true;
-            ResetKeyEditing();
+            CancelKeyInteraction();
             Notify();
         }
 
         public void CloseDialog()
         {
             IsDialogOpen = false;
-            ResetKeyEditing();
+            CancelKeyInteraction();
             Notify();
         }
 
@@ -160,7 +144,6 @@ namespace DocuHelperEditor.State
                 return;
 
             DialogSection = section;
-            IsConfirmingKeyDelete = false;
             Notify();
         }
 
@@ -194,6 +177,26 @@ namespace DocuHelperEditor.State
             Notify();
         }
 
+        public void SetUpdateCheck(bool check)
+        {
+            UpdateCheck = check;
+            WriteSettings();
+            Notify();
+        }
+
+        public void SetUpdateAuto(bool auto)
+        {
+            UpdateAuto = auto;
+            WriteSettings();
+            Notify();
+        }
+
+        public void SetLastRunVersion(string version)
+        {
+            LastRunVersion = version;
+            WriteSettings();
+        }
+
         public void SetTextSize(string size)
         {
             if (Array.IndexOf(s_textSizes, size) < 0)
@@ -201,118 +204,6 @@ namespace DocuHelperEditor.State
 
             TextSize = size;
             WriteSettings();
-            Notify();
-        }
-
-        public void BeginKeyChange()
-        {
-            IsChangingKey = true;
-            NewKey = string.Empty;
-            NewKeyState = KeyCheckState.Idle;
-            Notify();
-        }
-
-        public void SetNewKey(string key)
-        {
-            NewKey = key ?? string.Empty;
-            NewKeyState = KeyCheckState.Idle;
-            Notify();
-        }
-
-        public void CancelKeyChange()
-        {
-            ResetKeyEditing();
-            Notify();
-        }
-
-        public async Task<bool> ConfirmNewKeyAsync()
-        {
-            var key = NewKey.Trim();
-            if (key.Length == 0 || NewKeyState == KeyCheckState.Checking)
-                return false;
-
-            NewKeyState = KeyCheckState.Checking;
-            Notify();
-
-            try
-            {
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-                await _workspace.Agent.VerifyKeyAsync(key, timeout.Token);
-            }
-            catch (Exception e)
-            {
-                AppLog.Write("New key check failed", e);
-                if (NewKey.Trim() == key)
-                    NewKeyState = KeyCheckState.Failed;
-
-                Notify();
-                return false;
-            }
-
-            if (NewKey.Trim() != key)
-                return false;
-
-            var previous = ApiKey;
-            ApiKey = key;
-            if (!SaveKey())
-            {
-                ApiKey = previous;
-                NewKeyState = KeyCheckState.Failed;
-                Notify();
-                return false;
-            }
-
-            KeyState = KeyCheckState.Ok;
-            KeyCheckedAt = DateTime.Now;
-            IsKeyDeleted = false;
-            ResetKeyEditing();
-            Notify();
-            return true;
-        }
-
-        public void AskDeleteKey()
-        {
-            IsConfirmingKeyDelete = true;
-            Notify();
-        }
-
-        public void CancelDeleteKey()
-        {
-            IsConfirmingKeyDelete = false;
-            Notify();
-        }
-
-        public bool DeleteKey()
-        {
-            IsConfirmingKeyDelete = false;
-            try
-            {
-                _secrets?.Delete(KeyName);
-            }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
-            {
-                AppLog.Write("Could not delete the key", e);
-                Notify();
-                return false;
-            }
-
-            IsKeyDeleted = true;
-            KeyState = KeyCheckState.Idle;
-            KeyCheckedAt = null;
-            Notify();
-            return true;
-        }
-
-        public void SetApiKey(string apiKey)
-        {
-            ApiKey = apiKey ?? string.Empty;
-            KeyState = KeyCheckState.Idle;
-            Notify();
-        }
-
-        public void ToggleKeyVisible()
-        {
-            IsKeyVisible = !IsKeyVisible;
             Notify();
         }
 
@@ -325,7 +216,11 @@ namespace DocuHelperEditor.State
 
         public void SetModel(string modelId)
         {
-            ModelId = AssistantModels.FindModel(modelId).Id;
+            var model = AssistantModels.FindModel(modelId);
+            if (!HasKey(model.Provider))
+                return;
+
+            ModelId = model.Id;
             WriteSettings();
             Notify();
         }
@@ -337,32 +232,9 @@ namespace DocuHelperEditor.State
             Notify();
         }
 
-        public async Task VerifyKeyAsync()
+        public void ToggleKeyVisible()
         {
-            if (string.IsNullOrWhiteSpace(ApiKey) || KeyState == KeyCheckState.Checking)
-                return;
-
-            var key = ApiKey;
-            KeyState = KeyCheckState.Checking;
-            Notify();
-
-            try
-            {
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-                await _workspace.Agent.VerifyKeyAsync(key, timeout.Token);
-                if (key == ApiKey)
-                {
-                    KeyState = KeyCheckState.Ok;
-                    KeyCheckedAt = DateTime.Now;
-                }
-            }
-            catch (Exception e)
-            {
-                AppLog.Write("Key check failed", e);
-                if (key == ApiKey)
-                    KeyState = KeyCheckState.Failed;
-            }
-
+            IsKeyVisible = !IsKeyVisible;
             Notify();
         }
 
@@ -376,27 +248,6 @@ namespace DocuHelperEditor.State
             WorkspaceRoot = AppPaths.Display(path);
             WriteSettings();
             Notify();
-        }
-
-        public bool SaveKey()
-        {
-            var key = ApiKey.Trim();
-            try
-            {
-                _secrets?.Save(KeyName, key);
-            }
-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
-            {
-                AppLog.Write("Could not save the key", e);
-                return false;
-            }
-
-            ApiKey = key;
-            HasSavedKey = key.Length > 0;
-            _loaded = true;
-            WriteSettings();
-            Notify();
-            return true;
         }
 
         public void Notify() => Changed?.Invoke();
@@ -417,6 +268,11 @@ namespace DocuHelperEditor.State
                     HwpAlwaysHwpx = HwpAlwaysHwpx,
                     HwpNewAsHwp = HwpNewAsHwp,
                     TextSize = TextSize,
+                    LastRunVersion = LastRunVersion,
+                    UpdateCheck = UpdateCheck,
+                    UpdateAuto = UpdateAuto,
+                    ClaudeCheckedAt = SlotFor(AgentProvider.Claude).CheckedAt,
+                    OpenAiCheckedAt = SlotFor(AgentProvider.OpenAi).CheckedAt,
                 };
                 File.WriteAllText(s_settingsPath, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
             }
@@ -424,14 +280,6 @@ namespace DocuHelperEditor.State
             {
                 AppLog.Write("Could not save settings", e);
             }
-        }
-
-        private void ResetKeyEditing()
-        {
-            IsChangingKey = false;
-            NewKey = string.Empty;
-            NewKeyState = KeyCheckState.Idle;
-            IsConfirmingKeyDelete = false;
         }
 
         private void ApplyHwp()

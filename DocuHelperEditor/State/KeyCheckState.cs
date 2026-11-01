@@ -6,5 +6,6 @@
         Checking,
         Ok,
         Failed,
+        Unverified,
     }
 }

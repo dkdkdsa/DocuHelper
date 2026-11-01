@@ -7,7 +7,7 @@
         <li>
             <span class="order" aria-hidden="true">@((item.Order + 1).ToString(CultureInfo.InvariantCulture))</span>
             <span class="target">@item.Target</span>
-            <span class="effect">@item.Effect</span>
+            <span class="effect">@EffectLabel(item.Effect)</span>
             <span class="meta">@StartLabel(item.Start) · @item.DurationSec.ToString("0.#", CultureInfo.InvariantCulture)초@(item.DelaySec > 0 ? " · 지연 " + item.DelaySec.ToString("0.#", CultureInfo.InvariantCulture) + "초" : string.Empty)</span>
         </li>
     }
@@ -16,6 +16,16 @@
 @code {
     [Parameter]
     public List<SlideAnimationModel> Items { get; set; } = new();
+
+    private static string EffectLabel(string effect) => effect switch
+    {
+        "appear" => "나타내기",
+        "fade" => "페이드",
+        "fly_in" => "날아오기",
+        "wipe" => "닦아내기",
+        "zoom" => "확대",
+        _ => "기본 효과",
+    };
 
     private static string StartLabel(string start) => start switch
     {

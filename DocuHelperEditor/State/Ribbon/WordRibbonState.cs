@@ -62,6 +62,8 @@ namespace DocuHelperEditor.State.Ribbon
 
         public WordFormatPainter FormatPainter { get; set; }
 
+        public WordMailRecipients Recipients { get; set; }
+
         public string MarkupMode { get; set; } = "all";
 
         public bool ShowComments { get; set; } = true;

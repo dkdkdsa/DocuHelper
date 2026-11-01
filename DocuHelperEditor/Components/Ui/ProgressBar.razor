@@ -1,0 +1,13 @@
+﻿<div class="bar" role="progressbar" aria-labelledby="@LabelId" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Clamped">
+    <div class="fill" style="width: @(Clamped)%"></div>
+</div>
+
+@code {
+    [Parameter]
+    public int Value { get; set; }
+
+    [Parameter]
+    public string LabelId { get; set; }
+
+    private int Clamped => Math.Clamp(Value, 0, 100);
+}

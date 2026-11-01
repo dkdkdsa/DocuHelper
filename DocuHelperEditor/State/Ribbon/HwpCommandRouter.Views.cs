@@ -40,7 +40,6 @@ namespace DocuHelperEditor.State.Ribbon
             ["showPane"] = "panes",
             ["toggleRuler"] = "ruler",
             ["toggleVRuler"] = "vruler",
-            ["toggleSpellcheck"] = "spellcheck",
             ["togglePreview"] = "preview",
             ["toggleOverwrite"] = "overwrite",
             ["goToPage"] = "goto",
@@ -56,7 +55,6 @@ namespace DocuHelperEditor.State.Ribbon
             "codes" => "조판 부호는 아직 보여 줄 수 없어요.",
             "transparent" => "투명 선은 아직 보여 줄 수 없어요.",
             "overwrite" => "삽입과 수정 전환은 아직 쓸 수 없어요.",
-            "spellcheck" => "맞춤법 도우미는 아직 준비 중이에요.",
             "panes" => "탐색 창은 아직 준비 중이에요.",
             "preview" => "미리 보기는 아직 준비 중이에요.",
             "goto" => "쪽과 줄 찾아가기는 아직 준비 중이에요.",
@@ -171,9 +169,6 @@ namespace DocuHelperEditor.State.Ribbon
                 case "toggleVRuler":
                     State.VRuler = !State.VRuler;
                     break;
-                case "toggleSpellcheck":
-                    State.SpellHelper = !State.SpellHelper;
-                    break;
                 case "togglePreview":
                     State.Preview = !State.Preview;
                     break;
@@ -213,8 +208,6 @@ namespace DocuHelperEditor.State.Ribbon
                     return State.Ruler && State.Supports("ruler");
                 case "hwp.view.rulers.vertical":
                     return State.VRuler && State.Supports("vruler");
-                case "hwp.review.proof.helper":
-                    return State.SpellHelper && State.Supports("spellcheck");
                 case "hwp.status.insert":
                     return State.Overwrite && State.Supports("overwrite");
                 case "hwp.trailing.collapse":

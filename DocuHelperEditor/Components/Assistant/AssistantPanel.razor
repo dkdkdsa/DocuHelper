@@ -38,7 +38,7 @@
 
     private async Task CollapseAsync()
     {
-        Assistant.SetPanelCollapsed(true);
+        Assistant.RememberPanelCollapsed(true);
         await Task.Yield();
         await JS.InvokeVoidAsync("docuHelper.focus", "#assistant-rail-expand");
     }

@@ -27,6 +27,91 @@
     gap: 10px;
 }
 
+.frame {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+}
+
+.frame.rulers {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    grid-template-rows: 22px auto;
+}
+
+.corner {
+    background: var(--paper-2);
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+}
+
+.slide-wrap {
+    position: relative;
+    min-width: 0;
+}
+
+.grid-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.6;
+    background-image: linear-gradient(to right, var(--rule) 1px, transparent 1px), linear-gradient(to bottom, var(--rule) 1px, transparent 1px);
+}
+
+.guide {
+    position: absolute;
+    pointer-events: none;
+    border-color: var(--line-strong);
+    border-style: dashed;
+    border-width: 0;
+}
+
+.guide.x {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left-width: 1px;
+}
+
+.guide.y {
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top-width: 1px;
+}
+
+.slide-wrap.play-fade ::deep .slide,
+.slide-wrap.play-reveal ::deep .slide,
+.slide-wrap.play-split ::deep .slide {
+    animation: pv-fade 0.6s ease-out;
+}
+
+.slide-wrap.play-push ::deep .slide {
+    animation: pv-push 0.6s ease-out;
+}
+
+.slide-wrap.play-wipe ::deep .slide {
+    animation: pv-wipe 0.6s ease-out;
+}
+
+@keyframes pv-fade {
+    from { opacity: 0; }
+}
+
+@keyframes pv-push {
+    from { transform: translateX(12%); opacity: 0.4; }
+}
+
+@keyframes pv-wipe {
+    from { clip-path: inset(0 100% 0 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .slide-wrap ::deep .slide {
+        animation: none;
+    }
+}
+
 .pane {
     width: 100%;
     max-width: 560px;

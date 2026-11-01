@@ -1,8 +1,12 @@
-﻿namespace DocuHelperEditor.State
+﻿using DocuHelper.Agents;
+
+namespace DocuHelperEditor.State
 {
     public class ModelOption
     {
         public string Id { get; set; }
+
+        public AgentProvider Provider { get; set; } = AgentProvider.Claude;
 
         public string ApiId { get; set; }
 
