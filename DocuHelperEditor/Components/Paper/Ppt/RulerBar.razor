@@ -1,0 +1,46 @@
+@using System.Globalization
+
+<div class="ruler @(Horizontal ? "x" : "y")" aria-hidden="true">
+    @for (var i = 0; i <= Ticks; i++)
+    {
+        var n = i;
+        var major = n % 5 == 0;
+        <span class="tick @(major ? "major" : null)" style="@PositionStyle(n)"></span>
+        @if (major)
+        {
+            <span class="num" style="@PositionStyle(n)">@n.ToString(CultureInfo.InvariantCulture)</span>
+        }
+    }
+    @foreach (var mark in Marks)
+    {
+        <span class="mark" style="@MarkStyle(mark)"></span>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public bool Horizontal { get; set; }
+
+    [Parameter]
+    public double Cm { get; set; }
+
+    [Parameter]
+    public IEnumerable<(double From, double To)> Marks { get; set; } = Array.Empty<(double From, double To)>();
+
+    private int Ticks => (int)Math.Clamp(Math.Floor(Cm), 1, 200);
+
+    private string PositionStyle(int cm)
+    {
+        var percent = (cm / Math.Max(Cm, 1)) * 100;
+        var value = percent.ToString("0.###", CultureInfo.InvariantCulture) + "%";
+        return Horizontal ? $"left: {value}" : $"top: {value}";
+    }
+
+    private string MarkStyle((double From, double To) mark)
+    {
+        var scale = Math.Max(Cm, 1);
+        var from = (Math.Clamp(mark.From, 0, scale) / scale * 100).ToString("0.###", CultureInfo.InvariantCulture) + "%";
+        var size = (Math.Clamp(mark.To - mark.From, 0, scale) / scale * 100).ToString("0.###", CultureInfo.InvariantCulture) + "%";
+        return Horizontal ? $"left: {from}; width: {size}" : $"top: {from}; height: {size}";
+    }
+}

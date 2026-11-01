@@ -1,4 +1,5 @@
-﻿@using DocuHelperEditor.Components.Paper
+﻿@using System.Globalization
+@using DocuHelperEditor.Components.Paper
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
@@ -17,7 +18,26 @@
                 }
                 else
                 {
-                    <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)">
+                        @if (_ribbon.Rulers)
+                        {
+                            <span class="corner" aria-hidden="true"></span>
+                            <RulerBar Horizontal="true" Cm="_model.SlideWidthCm" Marks="SelectedMarks(true)" />
+                            <RulerBar Horizontal="false" Cm="_model.SlideHeightCm" Marks="SelectedMarks(false)" />
+                        }
+                        <div class="slide-wrap">
+                            <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                            @if (_ribbon.Gridlines)
+                            {
+                                <div class="grid-layer" style="@GridStyle()" aria-hidden="true"></div>
+                            }
+                            @if (_ribbon.Guides)
+                            {
+                                <span class="guide x" aria-hidden="true"></span>
+                                <span class="guide y" aria-hidden="true"></span>
+                            }
+                        </div>
+                    </div>
                     @if (slide != null && slide.Animations.Count > 0)
                     {
                         <details class="pane">
@@ -195,6 +215,26 @@
         {
             Workspace.Notify();
         }
+    }
+
+    private IEnumerable<(double From, double To)> SelectedMarks(bool horizontal)
+    {
+        var id = _model?.SelectedShapeIds?.FirstOrDefault();
+        var shape = _model?.ActiveSlide?.FindShape(id);
+        if (shape == null)
+            yield break;
+
+        var extent = horizontal ? _model.SlideWidthCm : _model.SlideHeightCm;
+        var start = horizontal ? shape.Left : shape.Top;
+        var size = horizontal ? shape.Width : shape.Height;
+        yield return (start / 100 * extent, (start + size) / 100 * extent);
+    }
+
+    private string GridStyle()
+    {
+        var width = 100 / Math.Max(_model.SlideWidthCm, 1);
+        var height = 100 / Math.Max(_model.SlideHeightCm, 1);
+        return string.Format(CultureInfo.InvariantCulture, "background-size: {0:0.###}% 100%, 100% {1:0.###}%", width, height);
     }
 
     private void SetNotesHeight(int height) => _notesHeight = Math.Clamp(height, SpeakerNotes.MinHeight, SpeakerNotes.MaxHeight);
