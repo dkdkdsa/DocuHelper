@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -60,6 +60,7 @@ namespace DocuHelperEditor.State.Ribbon
             }
 
             ProvideFileCommands();
+            ProvideMailCommands();
         }
 
         public WordRibbonState State { get; }

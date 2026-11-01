@@ -1253,16 +1253,27 @@ namespace DocuHelperEditor.State.Ribbon
                 RibbonCommandClass.View,
                 "chooseRecipients",
                 null,
-                """{"source":"{xlsx file id}","sheet":"{sheet}","range":"{range}","header":true}""",
+                null,
                 null,
                 null,
                 new[]
                 {
-                    new WordMenuSpec("기존 목록 사용…", """{"dialog":"recipients"}""", "작업 폴더의 엑셀 파일과 시트, 첫 줄이 필드 이름이에요"),
+                    new WordMenuSpec("기존 목록 사용…", """{"command":"word.mail.merge.recipients.existing"}""", "작업 폴더의 엑셀 파일과 시트, 첫 줄이 필드 이름이에요"),
                     new WordMenuSpec("새 목록 입력…", """{"command":"word.mail.merge.recipients.new"}""", "엑셀 파일을 새로 만들어 받는 사람을 채워 달라고 도우미에게 부탁해요"),
                     new WordMenuSpec("Outlook 연락처에서 선택…", """{"command":"word.mail.merge.recipients.outlook"}""", "Outlook 연락처는 쓸 수 없어요"),
                 },
-                new WordDialogSpec("받는 사람 목록", new[] { new WordDialogField("file", "엑셀 파일", "choice", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("sheet", "시트", "choice", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("range", "범위(비우면 쓴 부분 전체)", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("header", "첫 줄은 필드 이름", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                null),
+            new WordCommandSpec(
+                "word.mail.merge.recipients.existing",
+                "기존 목록 사용",
+                RibbonCommandClass.File,
+                "chooseRecipients",
+                null,
+                null,
+                null,
+                null,
+                Array.Empty<WordMenuSpec>(),
+                null),
             new WordCommandSpec(
                 "word.mail.merge.editlist",
                 "받는 사람 목록 편집",
@@ -1280,7 +1291,7 @@ namespace DocuHelperEditor.State.Ribbon
                 RibbonCommandClass.Tool,
                 null,
                 "insert_field",
-                """{"action":"insert","kind":"merge_field","at":"{caret}","name":"{value}"}""",
+                """{"action":"insert","kind":"merge_field","at":{"id":"{caret}","offset":"{caret offset}"},"name":"{value}"}""",
                 null,
                 null,
                 new[]
@@ -1306,15 +1317,15 @@ namespace DocuHelperEditor.State.Ribbon
                 RibbonCommandClass.File,
                 "finishMerge",
                 null,
-                """{"mode":"{value}"}""",
+                null,
                 null,
                 null,
                 new[]
                 {
-                    new WordMenuSpec("개별 문서 편집…", """{"mode":"documents"}""", "받는 사람마다 한 구역씩 이어 붙인 새 .docx 파일을 작업 폴더에 만들어요"),
+                    new WordMenuSpec("개별 문서 편집…", """{"mode":"documents"}""", "받는 사람마다 한 장씩 따로 저장한 .docx 파일을 작업 폴더에 만들어요"),
                     new WordMenuSpec("전자 메일 메시지 보내기…", """{"command":"word.mail.finish.merge.email"}""", "메일 보내기는 지원하지 않아요"),
                 },
-                new WordDialogSpec("개별 문서 편집", new[] { new WordDialogField("scope", "받는 사람", "choice", "\"all\"", new string[] { "all", "current", "range" }, new string[] { "모두", "현재 한 명", "범위" }), new WordDialogField("from", "시작", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("to", "끝", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("name", "새 파일 이름", "text", "\"{문서 이름} 병합.docx\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                null),
             new WordCommandSpec(
                 "word.review.proofing.spell",
                 "맞춤법 및 문법 검사",

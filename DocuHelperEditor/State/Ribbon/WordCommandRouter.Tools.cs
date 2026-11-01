@@ -243,6 +243,12 @@ namespace DocuHelperEditor.State.Ribbon
                 case "caret":
                     value = JsonValue.Create(block?.Id ?? "end");
                     return true;
+                case "caret offset":
+                    if (Model?.Selection?.Caret is not { } caret)
+                        return false;
+
+                    value = JsonValue.Create(caret.Offset);
+                    return true;
                 case "offset":
                     if (block == null)
                         return false;
@@ -429,6 +435,10 @@ namespace DocuHelperEditor.State.Ribbon
 
         private MenuEntry EntryOf(WordCommandSpec spec, string arg)
         {
+            var field = FieldEntryOf(arg);
+            if (field != null)
+                return field;
+
             if (arg == null || !arg.StartsWith(MenuPrefix, StringComparison.Ordinal))
                 return null;
 

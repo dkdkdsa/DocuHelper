@@ -30,6 +30,7 @@ namespace DocuHelperEditor.State.Ribbon
             [Key("word.layout.setup.size", "paperSize")] = PaperSize(),
             [Key("word.layout.setup.columns", "columns")] = Columns(),
             [Key("word.refs.toc.toc", "tocOptions")] = TocOptions(),
+            [Key("word.mail.fields.insert", "mergeFieldName")] = MergeFieldName(),
         };
 
         public static bool TryGet(string commandId, string dialogName, out WordNamedDialog dialog)
@@ -233,6 +234,12 @@ namespace DocuHelperEditor.State.Ribbon
                     ["line_between"] = Flag(v, "line_between"),
                 },
             });
+
+        private static WordNamedDialog MergeFieldName() => new(
+            "병합 필드",
+            new[] { Text("name", "필드 이름", string.Empty) },
+            v => string.IsNullOrWhiteSpace(Text(v, "name")) ? "필드 이름을 써 주세요." : null,
+            v => new JsonObject { ["name"] = Text(v, "name").Trim() });
 
         private static WordNamedDialog TocOptions() => new(
             "목차 옵션",
