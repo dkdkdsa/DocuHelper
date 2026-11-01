@@ -34,7 +34,7 @@
                             <RulerBar Horizontal="false" Cm="_model.SlideHeightCm" Marks="SelectedMarks(false)" />
                         }
                         <div class="slide-wrap @(_previewing ? "play-" + (slide?.Transition ?? "none") : null)">
-                            <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                            <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" Snap="@SnapMode()" WidthCm="_model.SlideWidthCm" HeightCm="_model.SlideHeightCm" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
                             @if (_ribbon.Gridlines)
                             {
                                 <div class="grid-layer" style="@GridStyle()" aria-hidden="true"></div>
@@ -77,6 +77,8 @@
     private bool Sorter => _ribbon.View == "sorter";
 
     private bool Outline => _ribbon.View == "outline";
+
+    private string SnapMode() => string.Join(" ", new[] { _ribbon.Gridlines ? "grid" : null, _ribbon.Guides ? "guides" : null }.Where(mode => mode != null));
 
     private bool Show => _ribbon.View is "show" or "read";
 

@@ -6,7 +6,7 @@
 
 @if (Slide != null)
 {
-    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" tabindex="@(Locked ? null : "-1")" data-slide="@Slide.Id" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount" aria-label="@SlideLabel">
+    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" tabindex="@(Locked ? null : "-1")" data-slide="@Slide.Id" data-snap="@Snap" data-wcm="@Num(WidthCm)" data-hcm="@Num(HeightCm)" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount" aria-label="@SlideLabel">
         @if (Slide.Background.Kind == "picture" && Slide.Background.ImageSrc != null)
         {
             <img class="bg" src="@Slide.Background.ImageSrc" alt="" />
@@ -47,6 +47,15 @@
 
     [Parameter]
     public bool ShowFit { get; set; } = true;
+
+    [Parameter]
+    public string Snap { get; set; }
+
+    [Parameter]
+    public double WidthCm { get; set; } = 33.867;
+
+    [Parameter]
+    public double HeightCm { get; set; } = 19.05;
 
     [Parameter]
     public EventCallback<SlideGesture> OnGesture { get; set; }

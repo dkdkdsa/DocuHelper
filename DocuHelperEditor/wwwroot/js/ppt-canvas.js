@@ -190,6 +190,46 @@ window.docuHelperPptCanvas = (function () {
         startDrag(session, slide, e, 'move', shape, null);
     }
 
+    function bestSnap(candidates, edges, tolerance) {
+        var best = null;
+        candidates.forEach(function (c) {
+            edges.forEach(function (edge) {
+                var d = c - edge;
+                if (Math.abs(d) <= tolerance && (best === null || Math.abs(d) < Math.abs(best))) best = d;
+            });
+        });
+        return best;
+    }
+
+    function snapOffset(slide, item, fx, fy, box) {
+        var mode = slide.dataset.snap || '';
+        if (!mode) return { fx: fx, fy: fy };
+
+        var xs = [];
+        var ys = [];
+        if (mode.indexOf('guides') >= 0) {
+            xs.push(50);
+            ys.push(50);
+        }
+        if (mode.indexOf('grid') >= 0) {
+            var wcm = parseFloat(slide.dataset.wcm) || 33.867;
+            var hcm = parseFloat(slide.dataset.hcm) || 19.05;
+            for (var c = 0; c <= wcm; c += 1) xs.push(c / wcm * 100);
+            for (var r = 0; r <= hcm; r += 1) ys.push(r / hcm * 100);
+        }
+
+        var tolerance = 6 / box.width * 100;
+        var toleranceY = 6 / box.height * 100;
+        var left = item.x + fx;
+        var dx = bestSnap(xs, [left, left + item.w / 2, left + item.w], tolerance);
+        if (dx !== null) fx += dx;
+
+        var top = item.y + fy;
+        var dy = bestSnap(ys, [top, top + item.h / 2, top + item.h], toleranceY);
+        if (dy !== null) fy += dy;
+        return { fx: fx, fy: fy };
+    }
+
     function onMove(session, e) {
         var drag = session.drag;
         if (!drag || e.pointerId !== drag.pointerId) return;
@@ -204,6 +244,9 @@ window.docuHelperPptCanvas = (function () {
         var first = drag.items[0];
 
         if (drag.kind === 'move') {
+            var snapped = snapOffset(session.slide, first, fx, fy, drag.box);
+            fx = snapped.fx;
+            fy = snapped.fy;
             drag.items.forEach(function (item) {
                 item.el.style.left = (item.x + fx) + '%';
                 item.el.style.top = (item.y + fy) + '%';
