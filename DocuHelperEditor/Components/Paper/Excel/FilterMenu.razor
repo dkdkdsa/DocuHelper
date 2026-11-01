@@ -1,0 +1,115 @@
+@using System
+@using System.Collections.Generic
+@using System.Globalization
+@using System.Linq
+@using Microsoft.AspNetCore.Components.Web
+@using DocuHelperEditor.State.Papers
+
+<div class="scrim" @onclick="OnClose"></div>
+<div class="fm" role="dialog" aria-label="@Header 필터" style="@Position" @onkeydown="HandleKey">
+    <button type="button" class="item" @onclick="() => OnSort.InvokeAsync(false)">오름차순 정렬</button>
+    <button type="button" class="item" @onclick="() => OnSort.InvokeAsync(true)">내림차순 정렬</button>
+    @if (Active)
+    {
+        <button type="button" class="item" @onclick="() => OnClear.InvokeAsync()">필터 지우기</button>
+    }
+    <div class="rule" role="separator"></div>
+    <input class="search" type="search" aria-label="검색" placeholder="검색" value="@_search" @oninput="OnSearch" />
+    <label class="check all">
+        <input type="checkbox" checked="@AllChecked" @onchange="ToggleAll" />
+        <span>(모두 선택)</span>
+    </label>
+    <div class="values" role="group" aria-label="값 목록">
+        @foreach (var value in Visible)
+        {
+            var text = value;
+            <label class="check">
+                <input type="checkbox" checked="@_selected.Contains(text)" @onchange="e => Toggle(text, e)" />
+                <span>@text</span>
+            </label>
+        }
+    </div>
+    @if (Truncated)
+    {
+        <p class="note">값이 많아서 앞의 @Values.Count.ToString(CultureInfo.InvariantCulture)개만 보여요.</p>
+    }
+    <div class="actions">
+        <button type="button" class="cancel" @onclick="() => OnClose.InvokeAsync()">취소</button>
+        <button type="button" class="ok" @onclick="Apply">확인</button>
+    </div>
+</div>
+
+@code {
+    private string _search = string.Empty;
+    private HashSet<string> _selected = new(StringComparer.Ordinal);
+    private IReadOnlyList<string> _loaded;
+
+    [Parameter]
+    public string Header { get; set; }
+
+    [Parameter]
+    public double X { get; set; }
+
+    [Parameter]
+    public double Y { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<string> Values { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public IReadOnlyCollection<string> Checked { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public bool Active { get; set; }
+
+    [Parameter]
+    public bool Truncated { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnSort { get; set; }
+
+    [Parameter]
+    public EventCallback OnClear { get; set; }
+
+    [Parameter]
+    public EventCallback<List<string>> OnApply { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private string Position => "left: " + X.ToString(CultureInfo.InvariantCulture) + "px; top: " + Y.ToString(CultureInfo.InvariantCulture) + "px";
+
+    private IEnumerable<string> Visible => string.IsNullOrEmpty(_search)
+        ? Values
+        : Values.Where(value => value.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    private bool AllChecked => Values.All(value => _selected.Contains(value));
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_loaded, Values))
+            return;
+
+        _loaded = Values;
+        _selected = new HashSet<string>(Checked, StringComparer.Ordinal);
+    }
+
+    private void OnSearch(ChangeEventArgs e) => _search = e.Value?.ToString() ?? string.Empty;
+
+    private void Toggle(string value, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+            _selected.Add(value);
+        else
+            _selected.Remove(value);
+    }
+
+    private void ToggleAll(ChangeEventArgs e)
+    {
+        _selected = e.Value is true ? new HashSet<string>(Values, StringComparer.Ordinal) : new HashSet<string>(StringComparer.Ordinal);
+    }
+
+    private Task Apply() => OnApply.InvokeAsync(AllChecked ? null : _selected.ToList());
+
+    private Task HandleKey(KeyboardEventArgs e) => e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
+}

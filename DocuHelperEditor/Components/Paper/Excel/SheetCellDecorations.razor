@@ -15,9 +15,9 @@
 {
     <NotePopover Note="@Context.Cell.Note" />
 }
-@if (Table is { FilterButtons: true } && Table.IsHeaderCell(Context.RowIndex, Context.ColumnIndex))
+@if (FilterRegion != null)
 {
-    <span class="flt" aria-hidden="true">▾</span>
+    <button type="button" class="flt" tabindex="-1" aria-label="필터" title="필터" @onclick="OpenFilter" @onmousedown:stopPropagation="true">▾</button>
 }
 @if (Context.Active && Validation is { HasDropDown: true })
 {
@@ -66,5 +66,9 @@
         }
     }
 
+    private SheetRegion? FilterRegion => SheetFilterRules.RegionAt(Context.Sheet, Context.RowIndex, Context.ColumnIndex);
+
     private Task OpenList(MouseEventArgs e) => OnMenu.InvokeAsync(new SheetMenuRequest("validation", Context.RowIndex, Context.ColumnIndex, e.ClientX, e.ClientY));
+
+    private Task OpenFilter(MouseEventArgs e) => OnMenu.InvokeAsync(new SheetMenuRequest("filter", Context.RowIndex, Context.ColumnIndex, e.ClientX, e.ClientY));
 }
