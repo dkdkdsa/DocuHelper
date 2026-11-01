@@ -18,6 +18,8 @@ namespace DocuHelperEditor.State
 
         private static readonly Regex s_style = new(@"style\s*=\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        private static readonly Regex s_spaces = new(@"\s+", RegexOptions.Compiled);
+
         private static readonly HashSet<string> s_breaks = new(StringComparer.OrdinalIgnoreCase) { "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "br" };
 
         public const int MaxHtmlLength = 2_000_000;
@@ -36,11 +38,19 @@ namespace DocuHelperEditor.State
             var runs = new List<WordClipRun>();
             var styles = new Stack<WordCharLook>();
             styles.Push(WordCharLook.Plain);
+            var preDepth = 0;
             foreach (Match match in s_token.Matches(source))
             {
                 if (match.Groups[4].Success)
                 {
                     var text = WebUtility.HtmlDecode(match.Groups[4].Value).Replace(' ', ' ').Replace("\r", string.Empty).Replace("\n", " ");
+                    if (preDepth == 0)
+                    {
+                        text = s_spaces.Replace(text, " ");
+                        if (runs.Count == 0 || runs[^1].Text.EndsWith(' '))
+                            text = text.TrimStart(' ');
+                    }
+
                     if (text.Length > 0)
                         runs.Add(new WordClipRun(text, styles.Peek()));
 
@@ -49,6 +59,12 @@ namespace DocuHelperEditor.State
 
                 var closing = match.Groups[1].Value == "/";
                 var name = match.Groups[2].Value.ToLowerInvariant();
+                if (name == "pre")
+                {
+                    preDepth = closing ? Math.Max(0, preDepth - 1) : preDepth + 1;
+                    continue;
+                }
+
                 if (name is "span" or "b" or "strong" or "i" or "em" or "u" or "s" or "strike" or "del" or "font")
                 {
                     if (closing)
@@ -77,18 +93,31 @@ namespace DocuHelperEditor.State
                 }
 
                 if ((!closing && s_breaks.Contains(name)) || (closing && name is "p" or "div" or "li"))
-                {
-                    paragraphs.Add(new WordClipParagraph(runs.ToList()));
-                    runs.Clear();
-                }
+                    AddParagraph(paragraphs, runs, preDepth == 0);
             }
 
             if (runs.Count > 0)
-                paragraphs.Add(new WordClipParagraph(runs.ToList()));
+                AddParagraph(paragraphs, runs, preDepth == 0);
 
-            var result = paragraphs.Where(p => p.Runs.Any(r => r.Text.Length > 0)).ToList();
+            var result = paragraphs.Where(p => p.Runs.Any(r => !string.IsNullOrWhiteSpace(r.Text))).ToList();
             var characters = result.Sum(p => p.Text.Length);
             return result.Count > MaxParagraphs || characters > MaxCharacters ? new List<WordClipParagraph>() : result;
+        }
+
+        private static void AddParagraph(List<WordClipParagraph> paragraphs, List<WordClipRun> runs, bool trim)
+        {
+            if (trim && runs.Count > 0)
+            {
+                var last = runs[^1];
+                var trimmed = last.Text.TrimEnd(' ');
+                if (trimmed.Length == 0)
+                    runs.RemoveAt(runs.Count - 1);
+                else if (trimmed.Length != last.Text.Length)
+                    runs[^1] = last with { Text = trimmed };
+            }
+
+            paragraphs.Add(new WordClipParagraph(runs.ToList()));
+            runs.Clear();
         }
 
         private static WordCharLook ApplyStyle(WordCharLook look, string attributes)

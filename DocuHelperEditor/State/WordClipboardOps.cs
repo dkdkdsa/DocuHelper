@@ -152,6 +152,9 @@ namespace DocuHelperEditor.State
             }
 
             var paragraphs = ParagraphsOf(content, mode);
+            if (paragraphs.Count == 0)
+                return Array.Empty<EditCommand>();
+
             if (paragraphs.Count > WordHtmlPaste.MaxParagraphs || paragraphs.Sum(p => p.Text.Length) > WordHtmlPaste.MaxCharacters)
             {
                 notify(TooLargeReason);
@@ -247,12 +250,17 @@ namespace DocuHelperEditor.State
             }
 
             var text = content.Text ?? string.Empty;
+            if (text.Length == 0)
+                return new List<WordClipParagraph>();
+
             if (text.Length > WordHtmlPaste.MaxCharacters)
                 return new List<WordClipParagraph> { new(new[] { new WordClipRun(text, WordCharLook.Plain) }) };
 
-            return text.Replace("\r\n", "\n").Split('\n')
-                .Select(line => new WordClipParagraph(new[] { new WordClipRun(line, WordCharLook.Plain) }))
-                .ToList();
+            var lines = text.Replace("\r\n", "\n").Split('\n').ToList();
+            if (lines.Count > 1 && lines[^1].Length == 0)
+                lines.RemoveAt(lines.Count - 1);
+
+            return lines.Select(line => new WordClipParagraph(new[] { new WordClipRun(line, WordCharLook.Plain) })).ToList();
         }
 
         private static JsonArray ParagraphsJson(IReadOnlyList<WordClipParagraph> paragraphs, string mode)
@@ -281,8 +289,7 @@ namespace DocuHelperEditor.State
                     runs.Add(json);
                 }
 
-                if (runs.Count > 0)
-                    result.Add(new JsonObject { ["runs"] = runs });
+                result.Add(new JsonObject { ["runs"] = runs });
             }
 
             return result;
