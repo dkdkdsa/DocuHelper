@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="DocuHelper/DocuHelper.csproj" />
   <Project Path="DocuHelperEditor/DocuHelperEditor.csproj" />
+  <Project Path="DocuHelper.Tests/DocuHelper.Tests.csproj" />
 </Solution>

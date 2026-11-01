@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 테스트
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Test
+        run: >
+          dotnet test DocuHelper.Tests/DocuHelper.Tests.csproj
+          -c Release
+          --logger "trx;LogFileName=results.trx"
+          --results-directory TestResults
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results
+          path: TestResults
+
+  build-editor:
+    name: 에디터 빌드 (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      PROJECT: DocuHelperEditor/DocuHelperEditor.csproj
+      TFM: net10.0-windows10.0.19041.0
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install workloads
+        run: dotnet workload restore ${{ env.PROJECT }}
+
+      - name: Build
+        run: >
+          dotnet build ${{ env.PROJECT }}
+          -f ${{ env.TFM }}
+          -c Release
+          -p:RuntimeIdentifierOverride=win-x64
+          -p:WindowsPackageType=None

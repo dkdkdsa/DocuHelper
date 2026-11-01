@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../DocuHelper/DocuHelper.csproj" />
+  </ItemGroup>
+
+  <!--
+    에디터(DocuHelperEditor)는 MAUI 앱이라 리눅스에서 빌드·참조할 수 없어요.
+    리본 배치와 커맨드 스펙은 순수 데이터 파일이라 소스를 그대로 연결해서 검사해요.
+    여기 연결한 파일이 MAUI·Blazor 타입을 쓰기 시작하면 이 프로젝트 빌드가 깨져서 바로 알 수 있어요.
+  -->
+  <ItemGroup>
+    <Compile Include="../DocuHelperEditor/State/Ribbon/RibbonBuilder.cs" Link="Linked/Ribbon/RibbonBuilder.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/RibbonItem.cs" Link="Linked/Ribbon/RibbonItem.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/RibbonItemKind.cs" Link="Linked/Ribbon/RibbonItemKind.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/RibbonGroup.cs" Link="Linked/Ribbon/RibbonGroup.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/RibbonGroupLayout.cs" Link="Linked/Ribbon/RibbonGroupLayout.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/RibbonTab.cs" Link="Linked/Ribbon/RibbonTab.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/RibbonFileItem.cs" Link="Linked/Ribbon/RibbonFileItem.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/RibbonCommandClass.cs" Link="Linked/Ribbon/RibbonCommandClass.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/WordRibbon.cs" Link="Linked/Ribbon/WordRibbon.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/WordCommandTable.cs" Link="Linked/Ribbon/WordCommandTable.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/WordCommandSpec.cs" Link="Linked/Ribbon/WordCommandSpec.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/WordMenuSpec.cs" Link="Linked/Ribbon/WordMenuSpec.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/WordDialogSpec.cs" Link="Linked/Ribbon/WordDialogSpec.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/WordDialogField.cs" Link="Linked/Ribbon/WordDialogField.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/HwpRibbon.cs" Link="Linked/Ribbon/HwpRibbon.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/HwpCommandTable.cs" Link="Linked/Ribbon/HwpCommandTable.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/HwpCommandSpec.cs" Link="Linked/Ribbon/HwpCommandSpec.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/HwpMenuSpec.cs" Link="Linked/Ribbon/HwpMenuSpec.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/HwpMenuKind.cs" Link="Linked/Ribbon/HwpMenuKind.cs" />
+    <Compile Include="../DocuHelperEditor/State/Ribbon/Excel/ExcelRibbonDefinition.cs" Link="Linked/Ribbon/ExcelRibbonDefinition.cs" />
+    <Compile Include="../DocuHelperEditor/Components/Paper/Ppt/PptRibbonData.cs" Link="Linked/Ribbon/PptRibbonData.cs" />
+    <Compile Include="../DocuHelperEditor/Components/Paper/Ppt/PptCommandData.cs" Link="Linked/Ribbon/PptCommandData.cs" />
+    <Compile Include="../DocuHelperEditor/Components/Paper/Ppt/PptCommandSpec.cs" Link="Linked/Ribbon/PptCommandSpec.cs" />
+    <Compile Include="../DocuHelperEditor/Components/Paper/Ppt/PptMenuSpec.cs" Link="Linked/Ribbon/PptMenuSpec.cs" />
+    <Compile Include="../DocuHelperEditor/Components/Paper/Ppt/PptCommandKind.cs" Link="Linked/Ribbon/PptCommandKind.cs" />
+    <Compile Include="../DocuHelperEditor/Components/Paper/Ppt/PptNeed.cs" Link="Linked/Ribbon/PptNeed.cs" />
+  </ItemGroup>
+
+</Project>
