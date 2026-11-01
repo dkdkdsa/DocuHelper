@@ -23,7 +23,7 @@ namespace DocuHelperEditor.State
             if (lost.Count == 0)
                 return;
 
-            RaiseNotice($"‘{string.Join("’, ‘", lost)}’에서 직접 고친 일부는 다시 넣지 못했어요. 파일을 확인해 주세요.");
+            RaiseNotice($"도우미 작업을 되돌렸어요. 기다리는 동안 직접 고친 {lost.Count}곳은 다시 확인해 주세요: {string.Join(", ", lost)}");
         }
 
         private void ApplyAskingCells(WorkspaceFile file)

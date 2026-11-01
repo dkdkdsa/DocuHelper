@@ -183,7 +183,7 @@ namespace DocuHelperEditor.State
                 return Task.CompletedTask;
             }
 
-            if (file.Docu.IsLocked || !TrySave(file))
+            if (file.Docu.IsLocked || _workspace.IsAgentRunning || !TrySave(file))
                 return Task.CompletedTask;
 
             HasSavedAll = UnsavedCount == 0;

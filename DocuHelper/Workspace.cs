@@ -210,12 +210,22 @@ namespace DocuHelper
                 return ToolResult.Fail("도우미가 이 파일을 고치는 중이에요. 끝나면 다시 고칠 수 있어요.");
 
             var before = docu.Capture();
-            var result = editor.Apply(docu, command);
+            var author = BeginUserAuthor(docu);
+            ToolResult result;
+            try
+            {
+                result = editor.Apply(docu, command);
+            }
+            finally
+            {
+                EndUserAuthor(docu, author);
+            }
+
             if (result.IsError)
                 return result;
 
             var where = result.Change?.Location;
-            RecordHandEdit(docu, new[] { command }, before, string.IsNullOrEmpty(where)
+            RecordHandEdit(docu, new[] { command }, before, where, string.IsNullOrEmpty(where)
                 ? $"The user edited '{docu.Name}' by hand."
                 : $"The user edited '{docu.Name}' by hand at {where}.");
             return result;
@@ -234,18 +244,26 @@ namespace DocuHelper
 
             var editor = GetEditor(docu);
             var before = docu.Capture();
+            var author = BeginUserAuthor(docu);
             ToolResult result = null;
-            foreach (var command in commands)
+            try
             {
-                result = editor.Apply(docu, command);
-                if (result.IsError)
+                foreach (var command in commands)
                 {
-                    docu.Restore(before);
-                    return result;
+                    result = editor.Apply(docu, command);
+                    if (result.IsError)
+                    {
+                        docu.Restore(before);
+                        return result;
+                    }
                 }
             }
+            finally
+            {
+                EndUserAuthor(docu, author);
+            }
 
-            RecordHandEdit(docu, commands, before, $"The user edited '{docu.Name}' by hand in {commands.Count} places at once.");
+            RecordHandEdit(docu, commands, before, null, $"The user edited '{docu.Name}' by hand in {commands.Count} places at once.");
             return result;
         }
 
@@ -259,6 +277,9 @@ namespace DocuHelper
 
         public HistoryEntry Save(Docu docu)
         {
+            if (IsAgentRunning)
+                throw new InvalidOperationException("도우미가 일하는 중에는 저장할 수 없어요.");
+
             if (docu.IsLocked)
                 throw new InvalidOperationException("도우미가 고치는 중에는 저장할 수 없어요.");
 
@@ -306,19 +327,20 @@ namespace DocuHelper
             var notes = TakeNotes();
             var authors = request.TrackChanges ? MarkAssistantEdits() : new List<(WordDocu Docu, string Author)>();
             var toolbox = new AgentToolbox(this, request, notes);
-            _runHandEdits.Clear();
+            ClearRunHandEdits();
             IsAgentRunning = true;
             try
             {
                 var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
                 CommitRun(toolbox);
-                CommitRunHandEdits(toolbox.Before.Keys);
+                CommitRunHandEdits();
                 return result;
             }
             catch
             {
+                var agentDocus = toolbox.Before.Keys.ToList();
                 toolbox.Rollback();
-                ReplayRunHandEdits();
+                ResolveFailedRunHandEdits(agentDocus);
                 _notes.InsertRange(0, notes);
                 throw;
             }
@@ -473,12 +495,15 @@ namespace DocuHelper
 
         public void AddNote(string note)
         {
-            if (string.IsNullOrWhiteSpace(note) || (_notes.Count > 0 && _notes[^1] == note))
-                return;
+            lock (_notes)
+            {
+                if (string.IsNullOrWhiteSpace(note) || (_notes.Count > 0 && _notes[^1] == note))
+                    return;
 
-            _notes.Add(note);
-            if (_notes.Count > MaxNotes)
-                _notes.RemoveAt(0);
+                _notes.Add(note);
+                if (_notes.Count > MaxNotes)
+                    _notes.RemoveAt(0);
+            }
         }
 
         private IReadOnlyList<string> TakeNotes()
