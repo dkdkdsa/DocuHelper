@@ -30,7 +30,7 @@
 .frame {
     position: relative;
     width: 100%;
-    max-width: 560px;
+    max-width: var(--slide-max, 560px);
 }
 
 .frame.rulers {
