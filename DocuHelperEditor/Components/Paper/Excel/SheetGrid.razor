@@ -143,11 +143,15 @@
     private double[] _tops = Array.Empty<double>();
     private readonly Dictionary<int, double> _measured = new();
     private int _measuredVersion = -1;
+    private bool _growPending;
     private double _viewTop;
     private double _viewHeight = DefaultViewHeight;
 
     [Parameter]
     public Sheet Sheet { get; set; }
+
+    [Parameter]
+    public EventCallback OnNeedRows { get; set; }
 
     [Parameter]
     public string SinkId { get; set; }
@@ -254,6 +258,7 @@
     protected override void OnParametersSet()
     {
         _rowCount = Sheet?.DisplayRowCount ?? 0;
+        _growPending = false;
         if (!SheetRef.TryParse(SelectedRef, out _selectedColumn, out _selectedRow))
         {
             _selectedColumn = -1;
@@ -322,7 +327,7 @@
     }
 
     [JSInvokable]
-    public void Viewport(double top, double height, int[] rows, double[] heights)
+    public async Task Viewport(double top, double height, int[] rows, double[] heights)
     {
         var before = _order.ToArray();
         var beforeSpacers = _spacers.ToArray();
@@ -352,6 +357,12 @@
         if (!before.SequenceEqual(_order) || !beforeSpacers.SequenceEqual(_spacers))
         {
             StateHasChanged();
+        }
+
+        if (!_growPending && _rowCount > 0 && _rowCount < ExcelViewState.MaxRows && OnNeedRows.HasDelegate && _tops[_rowCount] - (_viewTop + _viewHeight) < _viewHeight * 2)
+        {
+            _growPending = true;
+            await OnNeedRows.InvokeAsync();
         }
     }
 

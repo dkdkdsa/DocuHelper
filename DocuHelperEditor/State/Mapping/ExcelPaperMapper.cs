@@ -12,7 +12,7 @@ namespace DocuHelperEditor.State.Mapping
     {
         private const int MaxRows = 20000;
         private const int MaxColumns = 100;
-        private const int MinColumns = 7;
+        private const int MinColumns = 26;
         private const int DefaultWidth = 96;
         private const int MinWidth = 24;
         private const int FitRows = 300;

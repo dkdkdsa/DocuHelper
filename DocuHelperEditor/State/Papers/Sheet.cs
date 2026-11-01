@@ -78,7 +78,9 @@ namespace DocuHelperEditor.State.Papers
 
         public IEnumerable<SheetCell> NoteCells => Rows.SelectMany(r => r.Cells).Where(c => c?.Note != null);
 
-        public int DisplayRowCount => Math.Max(MinDisplayRows, Rows.Count + ExtraDisplayRows);
+        public int RowLimit { get; set; } = ExcelViewState.DefaultRowLimit;
+
+        public int DisplayRowCount => Math.Min(ExcelViewState.MaxRows, Math.Max(RowLimit, Math.Max(MinDisplayRows, Rows.Count + ExtraDisplayRows)));
 
         public SheetRow FindRow(int row) => row >= 0 && row < Rows.Count ? Rows[row] : null;
 
