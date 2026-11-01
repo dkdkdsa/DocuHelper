@@ -106,7 +106,7 @@
                     <ActionButton Kind="ButtonKind.Primary" Disabled="@IsWorking" OnClick="SaveAsync">이대로 저장하기</ActionButton>
                     <ActionButton Kind="ButtonKind.Secondary" Disabled="@IsWorking" OnClick="ReviseAsync">더 고칠래요</ActionButton>
                 </div>
-                <span class="foot-note">저장해도 전 상태가 기록에 남아요. 원래 파일은 그대로예요.</span>
+                <span class="foot-note">@(AllCopied ? "저장해도 전 상태가 기록에 남아요. 원래 파일은 그대로예요." : "저장해도 전 상태가 기록에 남아요.")</span>
             </div>
         }
     </div>
@@ -130,6 +130,8 @@
     public AssistantResult Result { get; set; }
 
     private bool IsWorking => Assistant.Status == AssistantStatus.Working;
+
+    private bool AllCopied => Result.Groups.Count > 0 && Result.Groups.All(g => Workspace.Files.FirstOrDefault(f => f.Id == g.FileId || f.Name == g.FileName)?.IsCopied == true);
 
     private IEnumerable<string> ChangeIds => Result.Groups.SelectMany(g => g.Changes).Select(c => c.Id).Where(id => id != null);
 

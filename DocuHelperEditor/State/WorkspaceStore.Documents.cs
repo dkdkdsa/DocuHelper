@@ -428,10 +428,15 @@ namespace DocuHelperEditor.State
 
             try
             {
+                var inFolder = _workspace.IsInFolder(path);
                 var docu = await Task.Run(() => importer.Import(_workspace.CopyIntoFolder(path)));
                 _workspace.AddDocu(docu);
                 _workspace.RecordInitial(docu);
-                return _files.FirstOrDefault(f => f.Docu == docu);
+                var added = _files.FirstOrDefault(f => f.Docu == docu);
+                if (added != null)
+                    added.IsCopied = !inFolder;
+
+                return added;
             }
             catch (HwpException e)
             {

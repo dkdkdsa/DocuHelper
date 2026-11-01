@@ -29,6 +29,8 @@ namespace DocuHelperEditor.State
 
         public bool JustReverted { get; set; }
 
+        public bool IsCopied { get; set; }
+
         public bool IsBlank => Paper?.IsBlank == true;
 
         public string StatusText
