@@ -31,6 +31,7 @@ namespace DocuHelper.Importers.Hwp
             _document = document;
             _styles = new WordStyles(document);
             _numbering = new WordNumbering(document, _styles);
+            _kept = HwpKeep.Read(document);
             _defaultFont = FontOf(_styles.Root?.DocDefaults?.RunPropertiesDefault?.RunPropertiesBaseStyle?.RunFonts) ?? DefaultFont;
             _defaultHeight = HeightOf(_styles.Root?.DocDefaults?.RunPropertiesDefault?.RunPropertiesBaseStyle?.FontSize) ?? DefaultHeight;
             CharId(new HwpxCharKey(_defaultFont, _defaultHeight, false, false, false, false, null, false, false));

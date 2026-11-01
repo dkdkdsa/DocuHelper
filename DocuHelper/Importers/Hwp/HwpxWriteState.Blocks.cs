@@ -50,11 +50,15 @@ namespace DocuHelper.Importers.Hwp
             runs.AddRange(ParagraphControls(paragraph));
             var fields = ScanFields(paragraph);
             var scope = new HwpxFieldScope();
+            var suppressed = new HashSet<OpenXmlElement>(ReferenceEqualityComparer.Instance);
             foreach (var element in paragraph.Descendants().Where(e => e is Run || e is BookmarkStart || e is SdtRun).ToList())
             {
                 if (element is BookmarkStart bookmark)
                 {
-                    if (Owns(paragraph, bookmark) && bookmark.Name?.Value is string name && !name.StartsWith("_", System.StringComparison.Ordinal))
+                    var kept = Owns(paragraph, bookmark) ? KeptObject(bookmark, paragraph, suppressed) : null;
+                    if (kept != null)
+                        runs.Add(kept);
+                    else if (Owns(paragraph, bookmark) && bookmark.Name?.Value is string name && !name.StartsWith("_", System.StringComparison.Ordinal))
                         runs.Add(BookmarkRun(name));
 
                     continue;
@@ -70,7 +74,7 @@ namespace DocuHelper.Importers.Hwp
                 }
 
                 var run = (Run)element;
-                if (!Owns(paragraph, run))
+                if (!Owns(paragraph, run) || suppressed.Contains(run))
                     continue;
 
                 if (fields.Anchors.Contains(run))

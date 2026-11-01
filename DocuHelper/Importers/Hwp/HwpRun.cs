@@ -40,6 +40,10 @@
 
         public string Bookmark { get; set; }
 
+        public string KeepStart { get; set; }
+
+        public string KeepEnd { get; set; }
+
         public HwpClickHere ClickHere { get; set; }
 
         public HwpNote Note { get; set; }

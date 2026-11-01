@@ -49,7 +49,7 @@ namespace DocuHelper.Importers.Hwp
 
             HwpFeature.RealNumbering => true,
 
-            HwpFeature.KeepObjects => false,
+            HwpFeature.KeepObjects => true,
 
             _ => false,
         };

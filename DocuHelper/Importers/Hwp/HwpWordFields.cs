@@ -112,6 +112,18 @@ namespace DocuHelper.Importers.Hwp
                 return;
             }
 
+            if (run.KeepStart != null || run.KeepEnd != null)
+            {
+                var keep = int.Parse(run.KeepStart ?? run.KeepEnd, System.Globalization.CultureInfo.InvariantCulture);
+                var bookmark = (HwpKeep.BookmarkBase + keep).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (run.KeepStart != null)
+                    holder.AppendChild(new BookmarkStart { Id = bookmark, Name = HwpKeep.Prefix + run.KeepStart });
+                else
+                    holder.AppendChild(new BookmarkEnd { Id = bookmark });
+
+                return;
+            }
+
             if (run.Picture != null)
             {
                 holder.AppendChild(new Run(HwpWordPictures.PictureDrawing(run.Picture)));

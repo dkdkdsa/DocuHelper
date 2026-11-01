@@ -63,6 +63,7 @@ namespace DocuHelper.Importers.Hwp
                     }
                     else if (s_shapes.Contains(name))
                     {
+                        _document.Skipped.Add(HwpSkipped.Drawing);
                         ReadCaption(element, true, anchored);
                         ReadList(HwpxXml.Child(HwpxXml.Child(element, "drawText"), "subList"), anchored);
                         ReadCaption(element, false, anchored);
@@ -127,16 +128,18 @@ namespace DocuHelper.Importers.Hwp
 
         private void ReadTextArt(XElement element, HwpxCharShape shape, List<HwpBlock> anchored)
         {
-            var text = (HwpxXml.Attribute(element, "text") ?? string.Empty)
-                .Replace(s_artBreak, "\n")
-                .Replace((char)0x240D, '\n')
-                .Replace((char)0x240A, '\n')
-                .Trim();
+            _document.Skipped.Add(HwpSkipped.Drawing);
             var runs = new HwpxRunBuilder();
-            runs.Append(text, shape);
+            runs.Append(ArtText(element), shape);
             if (runs.Runs.Count > 0)
                 anchored.Add(new HwpParagraph { Runs = runs.Runs });
         }
+
+        private static string ArtText(XElement element) => (HwpxXml.Attribute(element, "text") ?? string.Empty)
+            .Replace(s_artBreak, "\n")
+            .Replace((char)0x240D, '\n')
+            .Replace((char)0x240A, '\n')
+            .Trim();
 
         private static string Dutmal(XElement element)
         {

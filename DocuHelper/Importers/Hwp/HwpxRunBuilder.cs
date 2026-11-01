@@ -36,6 +36,18 @@ namespace DocuHelper.Importers.Hwp
             _locked = true;
         }
 
+        public void OpenKeep(string key)
+        {
+            Runs.Add(new HwpRun { KeepStart = key });
+            _locked = true;
+        }
+
+        public void CloseKeep(string key)
+        {
+            Runs.Add(new HwpRun { KeepEnd = key });
+            _locked = true;
+        }
+
         public void AppendPicture(HwpPicture picture)
         {
             Runs.Add(new HwpRun { Picture = picture });

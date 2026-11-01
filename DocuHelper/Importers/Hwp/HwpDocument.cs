@@ -20,6 +20,8 @@ namespace DocuHelper.Importers.Hwp
 
         public Dictionary<int, HwpNumberingDef> Numberings { get; set; } = new();
 
+        public Dictionary<string, HwpKeptObject> Kept { get; } = new();
+
         public HashSet<HwpSkipped> Skipped { get; set; } = new();
 
         public List<HwpHeaderFooter> HeaderFooters => Sections[0].HeaderFooters;

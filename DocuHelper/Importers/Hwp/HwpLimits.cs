@@ -8,6 +8,7 @@ namespace DocuHelper.Importers.Hwp
     {
         private const string Separator = ", ";
         private const string SkippedReason = "화면에 안 보이고, 저장하면 빠져요.";
+        private const string DrawingReason = "모양은 저장하면 빠지고, 안의 글만 남아요.";
         private const string FeatureReason = "이 앱이 아직 저장하지 못해서, 파일에 있으면 저장할 때 빠져요.";
         private const string TocReason = "차례와 그림 차례는 아직 이 앱에서 만들 수 없어요.";
         private const string PromptTail = " in a 한글 file are not shown to you and are not kept when it is saved, so don't promise to change them; the user can fix those in 한글 with [한글에서 열기].";
@@ -40,7 +41,7 @@ namespace DocuHelper.Importers.Hwp
             if (names.Count == 0)
                 return null;
 
-            return $"‘{fileName}’의 {HwpParticle.Topic(string.Join(Separator, names))} 화면에 안 보이고, 저장하면 빠져요. 원래 모습은 [기록]에 남아 있어요.";
+            return $"‘{fileName}’의 {HwpParticle.Topic(string.Join(Separator, names))} 저장하면 빠져요. 원래 모습은 [기록]에 남아 있어요.";
         }
 
         public static string PromptText()
@@ -62,7 +63,7 @@ namespace DocuHelper.Importers.Hwp
 
             foreach (var skipped in docu.Skipped.OrderBy(s => s))
             {
-                limits.Add(new HwpLimit(HwpLimitKind.Skipped, Text(skipped), SkippedReason, English(skipped)));
+                limits.Add(new HwpLimit(HwpLimitKind.Skipped, Text(skipped), skipped == HwpSkipped.Drawing ? DrawingReason : SkippedReason, English(skipped)));
                 covered.UnionWith(Covers(skipped));
             }
 
@@ -75,6 +76,7 @@ namespace DocuHelper.Importers.Hwp
             HwpSkipped.Equation => "수식",
             HwpSkipped.Chart => "차트",
             HwpSkipped.HeaderFooter => "머리말·꼬리말",
+            HwpSkipped.Drawing => "모양 있는 개체",
             _ => "개체",
         };
 
@@ -84,6 +86,7 @@ namespace DocuHelper.Importers.Hwp
             HwpSkipped.Equation => "equations",
             HwpSkipped.Chart => "charts",
             HwpSkipped.HeaderFooter => "headers and footers",
+            HwpSkipped.Drawing => "styled objects",
             _ => "other objects",
         };
 

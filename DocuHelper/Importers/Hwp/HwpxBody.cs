@@ -196,6 +196,9 @@ namespace DocuHelper.Importers.Hwp
 
         private void ReadInline(XElement element, HwpxCharShape shape, HwpxRunBuilder runs, List<HwpBlock> anchored)
         {
+            if (TryKeep(element, shape, runs))
+                return;
+
             switch (element.Name.LocalName)
             {
                 case "t":
@@ -210,9 +213,11 @@ namespace DocuHelper.Importers.Hwp
                     ReadPicture(element, runs);
                     break;
                 case "compose":
+                    _document.Skipped.Add(HwpSkipped.Drawing);
                     Emit(HwpxXml.Attribute(element, "composeText"), shape, runs);
                     break;
                 case "dutmal":
+                    _document.Skipped.Add(HwpSkipped.Drawing);
                     Emit(Dutmal(element), shape, runs);
                     break;
                 default:

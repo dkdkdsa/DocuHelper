@@ -59,6 +59,7 @@ namespace DocuHelper.Importers.Hwp
                 HwpWordNotes.Write(word, document.Notes, width);
                 HwpWordStyles.Ensure(word);
                 HwpWordNumbering.Write(word, document.Numberings);
+                HwpKeep.Write(word, document.Kept);
                 HwpWordPictures.Embed(word, document.Pictures);
                 HwpWordFields.ResolveLinks(word);
 
