@@ -325,44 +325,50 @@ namespace DocuHelper
                 throw new InvalidOperationException("도우미가 이미 일하는 중이에요.");
 
             var notes = TakeNotes();
-            var authors = request.TrackChanges ? MarkAssistantEdits() : new List<(WordDocu Docu, string Author)>();
-            var toolbox = new AgentToolbox(this, request, notes);
-            ClearRunHandEdits();
-            IsAgentRunning = true;
+            var authors = new List<(WordDocu Docu, string Author)>();
             try
             {
-                var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
-                CommitRun(toolbox);
-                CommitRunHandEdits();
-                return result;
-            }
-            catch
-            {
-                var agentDocus = toolbox.Before.Keys.ToList();
-                toolbox.Rollback();
-                ResolveFailedRunHandEdits(agentDocus);
-                _notes.InsertRange(0, notes);
-                throw;
+                if (request.TrackChanges)
+                    MarkAssistantEdits(authors);
+
+                var toolbox = new AgentToolbox(this, request, notes);
+                ClearRunHandEdits();
+                IsAgentRunning = true;
+                try
+                {
+                    var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
+                    CommitRun(toolbox);
+                    CommitRunHandEdits();
+                    return result;
+                }
+                catch
+                {
+                    var agentDocus = toolbox.Before.Keys.ToList();
+                    toolbox.Rollback();
+                    ResolveFailedRunHandEdits(agentDocus);
+                    _notes.InsertRange(0, notes);
+                    throw;
+                }
+                finally
+                {
+                    toolbox.Release();
+                    IsAgentRunning = false;
+                }
             }
             finally
             {
-                toolbox.Release();
-                IsAgentRunning = false;
                 foreach (var (docu, author) in authors)
                     docu.AssistantRevisionAuthor = author;
             }
         }
 
-        private List<(WordDocu Docu, string Author)> MarkAssistantEdits()
+        private void MarkAssistantEdits(List<(WordDocu Docu, string Author)> marked)
         {
-            var marked = new List<(WordDocu, string)>();
             foreach (var docu in _docus.OfType<WordDocu>().Where(d => d is not HwpDocu))
             {
                 marked.Add((docu, docu.AssistantRevisionAuthor));
                 docu.AssistantRevisionAuthor = WordComments.DefaultAuthor;
             }
-
-            return marked;
         }
 
         public bool Undo()
