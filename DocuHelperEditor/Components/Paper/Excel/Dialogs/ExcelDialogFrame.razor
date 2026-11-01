@@ -25,6 +25,7 @@
 @code {
     private ElementReference _dialog;
     private bool _focusPending = true;
+    private bool _submitting;
 
     [Parameter]
     public string Title { get; set; }
@@ -70,7 +71,23 @@
 
     private Task CancelAsync() => OnCancel.InvokeAsync();
 
-    private Task SubmitAsync() => OnSubmit.InvokeAsync();
+    private async Task SubmitAsync()
+    {
+        if (_submitting)
+        {
+            return;
+        }
+
+        _submitting = true;
+        try
+        {
+            await OnSubmit.InvokeAsync();
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
@@ -88,7 +105,7 @@
     {
         try
         {
-            return await JS.InvokeAsync<bool>("docuHelperDialog.isTextField");
+            return await JS.InvokeAsync<bool>("docuHelperDialog.enterAllowed");
         }
         catch (JSException)
         {

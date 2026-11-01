@@ -4,6 +4,7 @@
     min-height: 0;
     overflow: auto;
     scroll-padding-top: 28px;
+    overflow-anchor: none;
     background: var(--paper);
 }
 

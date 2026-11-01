@@ -23,5 +23,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string Chart = "excel.insert.chart.recommended";
         public const string ProtectBook = "excel.review.protectbook";
         public const string FormatCells = "excel.home.formatcells";
+        public const string HeaderFooter = "excel.insert.headerfooter";
     }
 }
