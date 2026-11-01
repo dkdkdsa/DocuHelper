@@ -61,6 +61,7 @@
     <SheetPageFrame ViewMode="@ViewModeValue" Setup="@CurrentSheet.Page" Plan="@CurrentPagePlan" Zoom="@ZoomValue" SheetName="@CurrentSheet.Name" FileName="@File?.Name">
         <SheetGrid @key="CurrentSheet.Name"
                    Sheet="@CurrentSheet"
+                   RenderAllRows="@_renderAllRows"
                    SinkId="@SinkId"
                    SelectedRef="@SelectedRef"
                    Selection="@Selection"

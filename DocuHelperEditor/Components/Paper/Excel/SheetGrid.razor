@@ -178,6 +178,9 @@
     public int Zoom { get; set; } = 100;
 
     [Parameter]
+    public bool RenderAllRows { get; set; }
+
+    [Parameter]
     public bool EditingInCell { get; set; }
 
     [Parameter]
@@ -461,6 +464,16 @@
         for (var r = 0; r < frozen; r++)
         {
             _order.Add(r);
+        }
+
+        if (RenderAllRows)
+        {
+            for (var r = frozen; r < _rowCount; r++)
+            {
+                _order.Add(r);
+            }
+
+            return;
         }
 
         var ranges = new List<(int First, int Last)>();

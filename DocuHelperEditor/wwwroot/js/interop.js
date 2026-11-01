@@ -10,7 +10,7 @@ window.docuHelper = (function () {
     function fitPage(sheet, piece, scale) {
         var factor = scale;
         for (var attempt = 0; attempt < 60; attempt++) {
-            if (sheet.scrollHeight <= sheet.clientHeight + 1 && sheet.scrollWidth <= sheet.clientWidth + 1)
+            if (sheet.scrollHeight <= sheet.clientHeight - 8 && sheet.scrollWidth <= sheet.clientWidth + 1)
                 return;
 
             factor *= 0.97;
@@ -222,6 +222,13 @@ window.docuHelper = (function () {
         focus: function (selector) {
             var el = document.querySelector(selector);
             if (el) el.focus();
+        },
+        nextFrame: function () {
+            return new Promise(function (resolve) {
+                requestAnimationFrame(function () {
+                    setTimeout(resolve, 30);
+                });
+            });
         },
         scrollToTop: function (selector) {
             var el = document.querySelector(selector);
