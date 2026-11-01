@@ -1,7 +1,8 @@
 @using System.Globalization
 @using DocuHelper.Editors
+@using DocuHelperEditor.State.Ribbon.Excel
 
-<ExcelDialogFrame Title="데이터 유효성 검사" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
+<ExcelDialogFrame Title="데이터 유효성 검사" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="Close">
     <div class="field">
         <label class="field-label" for="dv-range">적용할 범위</label>
         <input id="dv-range" class="field-input" type="text" autocomplete="off" @bind="_range" @bind:event="oninput" />
@@ -130,13 +131,10 @@
     public string Range { get; set; }
 
     [Parameter]
-    public string Error { get; set; }
+    public Func<EditCommand, string> Apply { get; set; }
 
     [Parameter]
-    public EventCallback<EditCommand> OnApply { get; set; }
-
-    [Parameter]
-    public EventCallback OnCancel { get; set; }
+    public EventCallback Close { get; set; }
 
     private string _range = string.Empty;
     private string _kind = "whole";
@@ -159,7 +157,7 @@
 
     private bool IsBetween => _operator is "between" or "not_between";
 
-    private string ErrorText => _error ?? Error;
+    private string ErrorText => _error;
 
     protected override void OnParametersSet()
     {
@@ -174,15 +172,21 @@
     {
         _error = null;
         var command = Build();
-        if (command != null)
-            await OnApply.InvokeAsync(command);
+        if (command == null)
+            return;
+
+        _error = Apply(command);
+        if (_error == null)
+            await Close.InvokeAsync();
     }
 
     private EditCommand Build()
     {
+        var rangeProblem = ExcelDialogInput.Range(_range, "적용할 범위");
+        if (rangeProblem != null)
+            return Fail(rangeProblem);
+
         var range = _range.Trim();
-        if (range.Length == 0)
-            return Fail("적용할 범위를 넣어 주세요.");
 
         var args = new Dictionary<string, object>(StringComparer.Ordinal)
         {
@@ -217,19 +221,25 @@
                 args["in_cell_dropdown"] = _dropdown;
                 break;
             case "custom":
-                if (!_formula.Trim().StartsWith("=", StringComparison.Ordinal))
-                    return Fail("수식은 =로 시작해야 해요.");
+                var formula = ExcelDialogInput.Formula(_formula, "수식");
+                if (formula != null)
+                    return Fail(formula);
 
                 args["formula"] = _formula.Trim();
                 break;
             case "any":
                 break;
             default:
-                if (_value1.Trim().Length == 0)
-                    return Fail("값을 넣어 주세요.");
+                var first = CheckOperand(_value1, IsBetween ? "최소값" : "값");
+                if (first != null)
+                    return Fail(first);
 
-                if (IsBetween && _value2.Trim().Length == 0)
-                    return Fail("최대값을 넣어 주세요.");
+                if (IsBetween)
+                {
+                    var last = CheckOperand(_value2, "최대값") ?? ExcelDialogInput.Between(_value1, _value2, "조건");
+                    if (last != null)
+                        return Fail(last);
+                }
 
                 args["operator"] = _operator;
                 args["value1"] = _value1.Trim();
@@ -259,6 +269,13 @@
 
         return null;
     }
+
+    private string CheckOperand(string text, string label) => _kind switch
+    {
+        "date" => ExcelDialogInput.Date(text, label),
+        "whole" or "decimal" or "text_length" => ExcelDialogInput.Number(text, label),
+        _ => ExcelDialogInput.Operand(text, label),
+    };
 
     private EditCommand Fail(string message)
     {

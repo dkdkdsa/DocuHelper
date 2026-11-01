@@ -131,34 +131,36 @@
                     OnApply="ApplyFilterMenu"
                     OnClose="CloseFilterMenu" />
     }
+    <CascadingValue Name="DialogReturnFocus" Value="@DialogReturn">
     @switch (_router.State.ActiveDialog)
     {
         case ExcelDialogIds.ConditionalFormat:
-            <ConditionalRuleDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            <ConditionalRuleDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Apply="ApplyDialog" Close="CloseDialog" />
             break;
         case ExcelDialogIds.Validation:
-            <ValidationDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            <ValidationDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Apply="ApplyDialog" Close="CloseDialog" />
             break;
         case ExcelDialogIds.ProtectSheet:
-            <ProtectSheetDialog SheetName="@CurrentSheet.Name" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            <ProtectSheetDialog SheetName="@CurrentSheet.Name" Apply="ApplyDialog" Close="CloseDialog" />
             break;
         case ExcelDialogIds.Sort:
-            <SortDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            <SortDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Apply="ApplyDialog" Close="CloseDialog" />
             break;
         case ExcelDialogIds.Chart:
-            <ChartDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            <ChartDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Apply="ApplyDialog" Close="CloseDialog" />
             break;
         case ExcelDialogIds.Paste:
-            <PasteSpecialDialog ClipSheet="@_clip?.Sheet" ClipRef="@_clip?.Region.ToRef()" ClipIsCut="@(_clip?.IsCut == true)" TargetSheet="@CurrentSheet.Name" Target="@SheetRef.Make(Selection.Left, Selection.Top)" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            <PasteSpecialDialog ClipSheet="@_clip?.Sheet" ClipRef="@_clip?.Region.ToRef()" ClipIsCut="@(_clip?.IsCut == true)" TargetSheet="@CurrentSheet.Name" Target="@SheetRef.Make(Selection.Left, Selection.Top)" Apply="ApplyDialog" Close="CloseDialog" />
             break;
         case ExcelDialogIds.NameManager:
-            <NameManagerDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Names="@Model.Names" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            <NameManagerDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Names="@Model.Names" Apply="ApplyDialog" Close="CloseDialog" />
             break;
     }
     @if (_router.State.ActiveDialog is { } namedDialog && ExcelNamedDialogs.Has(namedDialog))
     {
-        <ExcelFormDialog @key="namedDialog" Id="@namedDialog" Context="@DialogContext" Commit="CommitForm" Done="CloseDialog" />
+        <ExcelFormDialog @key="namedDialog" Id="@namedDialog" Context="@DialogContext" Commit="ApplyDialog" Done="CloseDialog" />
     }
+    </CascadingValue>
     @if (_menu != null)
     {
         <SheetMenu Label="@MenuLabel" X="@_menu.X" Y="@_menu.Y" Items="@_menuItems" OnPick="PickMenuAsync" OnClose="CloseMenu" />

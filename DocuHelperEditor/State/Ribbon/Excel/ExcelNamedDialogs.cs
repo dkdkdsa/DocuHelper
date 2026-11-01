@@ -119,7 +119,9 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Flag("grand_total", "총합계 추가", "false"),
                 WordNamedDialogs.Flag("page_break", "그룹마다 페이지 나누기", "false"),
             },
-            values => Required(values, "group_by", "그룹 기준 열") ?? Required(values, "columns", "계산할 열"),
+            values => ExcelDialogInput.Range(WordNamedDialogs.Text(values, "range"), "범위")
+                ?? Required(values, "group_by", "그룹 기준 열")
+                ?? Required(values, "columns", "계산할 열"),
             (values, context) => new JsonObject
             {
                 ["sheet"] = context.Sheet,
@@ -149,7 +151,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Text("destination", "결과 시작 칸 (비우면 범위 오른쪽)", string.Empty),
                 WordNamedDialogs.Flag("overwrite", "데이터가 있는 칸 덮어쓰기", "false"),
             },
-            values => ActiveDelimiters(values).Count > 0 ? null : "구분 기호를 하나 이상 골라 주세요.",
+            values => ExcelDialogInput.Range(WordNamedDialogs.Text(values, "range"), "범위")
+                ?? (ActiveDelimiters(values).Count > 0 ? null : "구분 기호를 하나 이상 골라 주세요."),
             (values, context) =>
             {
                 var args = new JsonObject
@@ -180,7 +183,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Flag("has_header", "첫 줄은 머리글", "true"),
                 WordNamedDialogs.Text("columns", "중복을 확인할 열 (쉼표로 나눠 입력, 비우면 모든 열)", string.Empty),
             },
-            null,
+            values => ExcelDialogInput.Range(WordNamedDialogs.Text(values, "range"), "범위"),
             (values, context) =>
             {
                 var args = new JsonObject
@@ -206,7 +209,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Text("changing_cell", "값을 바꿀 칸 (예: B2)", string.Empty),
                 WordNamedDialogs.Number("tolerance", "허용 오차", "0.001"),
             },
-            values => Required(values, "target_cell", "수식이 들어 있는 칸") ?? Required(values, "changing_cell", "값을 바꿀 칸"),
+            values => ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "target_cell"), "수식이 들어 있는 칸")
+                ?? ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "changing_cell"), "값을 바꿀 칸"),
             (values, context) => new JsonObject
             {
                 ["sheet"] = context.Sheet,
@@ -305,7 +309,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Text("text", "메모 내용", string.Empty),
                 WordNamedDialogs.Text("author", "작성자 (선택)", string.Empty),
             },
-            values => Required(values, "text", "메모 내용"),
+            values => ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "cell"), "메모를 붙일 칸")
+                ?? Required(values, "text", "메모 내용"),
             (values, context) =>
             {
                 var args = new JsonObject
@@ -328,7 +333,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Text("range", "범위", context.Range),
                 WordNamedDialogs.Text("password", "암호 (선택)", string.Empty),
             },
-            values => Required(values, "title", "범위 이름") ?? Required(values, "range", "범위"),
+            values => Required(values, "title", "범위 이름") ?? ExcelDialogInput.Range(WordNamedDialogs.Text(values, "range"), "범위"),
             (values, context) =>
             {
                 var range = new JsonObject
@@ -354,7 +359,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 WordNamedDialogs.Text("cell", "기호를 넣을 칸", context.Cell),
                 WordNamedDialogs.Text("symbol", "넣을 기호 또는 글자", string.Empty),
             },
-            values => Required(values, "symbol", "넣을 기호 또는 글자"),
+            values => ExcelDialogInput.Cell(WordNamedDialogs.Text(values, "cell"), "기호를 넣을 칸")
+                ?? Required(values, "symbol", "넣을 기호 또는 글자"),
             (values, context) => new JsonObject
             {
                 ["sheet"] = context.Sheet,

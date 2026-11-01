@@ -108,7 +108,7 @@
             }
             catch (JSException e)
             {
-                AppLog.Write("개체 레이어 스크립트를 불러오지 못했어요", e);
+                AppLog.Write("Failed to load the object layer script", e);
                 _jsFailed = true;
                 StateHasChanged();
             }
@@ -125,7 +125,7 @@
             }
             catch (JSException e)
             {
-                AppLog.Write("개체 위치를 정하지 못했어요", e);
+                AppLog.Write("Failed to position sheet objects", e);
                 _jsFailed = true;
                 StateHasChanged();
             }
@@ -162,7 +162,7 @@
         }
         catch (Exception e)
         {
-            AppLog.Write("개체 변경을 적용하지 못했어요", e);
+            AppLog.Write("Failed to apply a sheet object change", e);
         }
     }
 

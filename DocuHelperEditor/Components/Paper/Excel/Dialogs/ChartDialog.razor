@@ -1,6 +1,7 @@
 @using DocuHelper.Editors
+@using DocuHelperEditor.State.Ribbon.Excel
 
-<ExcelDialogFrame Title="차트 삽입" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
+<ExcelDialogFrame Title="차트 삽입" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="Close">
     <div class="field">
         <label class="field-label" for="ch-range">데이터 범위 (첫 줄은 항목 이름, 첫 열은 가로축)</label>
         <input id="ch-range" class="field-input" type="text" autocomplete="off" @bind="_range" @bind:event="oninput" />
@@ -66,13 +67,10 @@
     public string Range { get; set; }
 
     [Parameter]
-    public string Error { get; set; }
+    public Func<EditCommand, string> Apply { get; set; }
 
     [Parameter]
-    public EventCallback<EditCommand> OnApply { get; set; }
-
-    [Parameter]
-    public EventCallback OnCancel { get; set; }
+    public EventCallback Close { get; set; }
 
     private string _range = string.Empty;
     private string _type = "column";
@@ -82,7 +80,7 @@
     private string _error;
     private bool _ready;
 
-    private string ErrorText => _error ?? Error;
+    private string ErrorText => _error;
 
     protected override void OnParametersSet()
     {
@@ -96,12 +94,11 @@
     private async Task SubmitAsync()
     {
         _error = null;
-        var range = _range.Trim();
-        if (range.Length == 0)
-        {
-            _error = "데이터 범위를 넣어 주세요.";
+        _error = ExcelDialogInput.Range(_range, "데이터 범위");
+        if (_error != null)
             return;
-        }
+
+        var range = _range.Trim();
 
         var args = new Dictionary<string, object>(StringComparer.Ordinal)
         {
@@ -115,6 +112,8 @@
         if (_title.Trim().Length > 0)
             args["title"] = _title.Trim();
 
-        await OnApply.InvokeAsync(EditCommand.Create("create_chart", args));
+        _error = Apply(EditCommand.Create("create_chart", args));
+        if (_error == null)
+            await Close.InvokeAsync();
     }
 }

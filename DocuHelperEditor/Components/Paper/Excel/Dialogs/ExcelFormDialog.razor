@@ -6,7 +6,7 @@
 
 @if (_request != null)
 {
-    <WordFormDialog Request="_request" Closed="Done" />
+    <WordFormDialog Request="_request" Closed="Done" ReturnFocus="@ReturnFocus" />
 }
 
 @code {
@@ -23,6 +23,9 @@
 
     [Parameter]
     public EventCallback Done { get; set; }
+
+    [CascadingParameter(Name = "DialogReturnFocus")]
+    public string ReturnFocus { get; set; }
 
     protected override void OnParametersSet()
     {

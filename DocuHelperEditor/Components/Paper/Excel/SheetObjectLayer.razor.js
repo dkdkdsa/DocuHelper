@@ -91,7 +91,7 @@ function cancelDrag(root) {
 }
 
 function invoke(session, method, ...args) {
-    session.dotnet.invokeMethodAsync(method, ...args).catch(() => { });
+    return session.dotnet.invokeMethodAsync(method, ...args).catch(() => { });
 }
 
 function onDown(root, e) {
@@ -166,20 +166,24 @@ function onUp(root, e) {
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
     const grid = gridOf(root);
+    let sent = null;
     if (drag.mode === 'move') {
         const target = hitCell(grid, drag.rect.left + dx, drag.rect.top + dy);
         if (target && (target.row !== drag.row || target.column !== drag.column))
-            invoke(session, 'Drop', drag.id, 'move', target.row, target.column, 0, 0);
+            sent = invoke(session, 'Drop', drag.id, 'move', target.row, target.column, 0, 0);
     } else {
         const end = hitCell(grid, drag.rect.right + dx, drag.rect.bottom + dy);
         if (end) {
             const columns = Math.max(1, end.column - drag.column + 1);
             const rows = Math.max(1, end.row - drag.row + 1);
-            invoke(session, 'Drop', drag.id, 'resize', drag.row, drag.column, columns, rows);
+            sent = invoke(session, 'Drop', drag.id, 'resize', drag.row, drag.column, columns, rows);
         }
     }
 
-    layout(root);
+    if (sent)
+        sent.finally(() => layout(root));
+    else
+        layout(root);
 }
 
 function onKeyDown(root, e) {
@@ -243,7 +247,7 @@ function onDocumentDown(root, e) {
     if (e.target.closest && e.target.closest('.obj') && root.contains(e.target))
         return;
 
-    if (session.drag)
+    if (session.drag || !root.querySelector('.obj.sel'))
         return;
 
     invoke(session, 'Select', '');

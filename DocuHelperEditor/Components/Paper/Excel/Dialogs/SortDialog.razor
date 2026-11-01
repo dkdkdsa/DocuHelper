@@ -1,8 +1,9 @@
 @using System.Linq
 @using DocuHelper.Editors
+@using DocuHelperEditor.State.Ribbon.Excel
 @using DocuHelperEditor.State.Papers
 
-<ExcelDialogFrame Title="사용자 지정 정렬" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
+<ExcelDialogFrame Title="사용자 지정 정렬" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="Close">
     <p class="hint">@Range 범위를 정렬해요. 빈 칸은 항상 맨 아래로 가요.</p>
     <label class="check">
         <input type="checkbox" @bind="_hasHeader" />
@@ -42,13 +43,10 @@
     public string Range { get; set; }
 
     [Parameter]
-    public string Error { get; set; }
+    public Func<EditCommand, string> Apply { get; set; }
 
     [Parameter]
-    public EventCallback<EditCommand> OnApply { get; set; }
-
-    [Parameter]
-    public EventCallback OnCancel { get; set; }
+    public EventCallback Close { get; set; }
 
     private readonly List<SortKey> _keys = new();
     private List<string> _columns = new();
@@ -56,7 +54,7 @@
     private string _error;
     private bool _ready;
 
-    private string ErrorText => _error ?? Error;
+    private string ErrorText => _error;
 
     protected override void OnParametersSet()
     {
@@ -82,7 +80,10 @@
 
     private async Task SubmitAsync()
     {
-        _error = null;
+        _error = ExcelDialogInput.Range(Range, "범위");
+        if (_error != null)
+            return;
+
         var keys = _keys.Where(key => !string.IsNullOrEmpty(key.Column)).Select(key => new { by = key.Column, descending = key.Descending }).ToArray();
         if (keys.Length == 0)
         {
@@ -90,7 +91,9 @@
             return;
         }
 
-        await OnApply.InvokeAsync(EditCommand.Create("sort_range", new { sheet = SheetName, range = Range, keys, has_header = _hasHeader, case_sensitive = false }));
+        _error = Apply(EditCommand.Create("sort_range", new { sheet = SheetName, range = Range, keys, has_header = _hasHeader, case_sensitive = false }));
+        if (_error == null)
+            await Close.InvokeAsync();
     }
 
     private static List<string> ColumnsOf(string range)
