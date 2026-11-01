@@ -36,7 +36,7 @@ namespace DocuHelperEditor.State.Papers
 
         public List<SheetColumn> Columns { get; set; } = new();
 
-        public List<SheetRow> Rows { get; set; } = new();
+        public SheetRowList Rows { get; } = new();
 
         public Dictionary<string, string> ChangeAnchors { get; set; } = new();
 
@@ -147,10 +147,7 @@ namespace DocuHelperEditor.State.Papers
 
         public SheetCell EnsureCell(int row, int column)
         {
-            while (Rows.Count <= row)
-                Rows.Add(new SheetRow());
-
-            var cells = Rows[row].Cells;
+            var cells = Rows.Ensure(row).Cells;
             while (cells.Count <= column)
                 cells.Add(new SheetCell { Ref = SheetRef.Make(cells.Count, row) });
 

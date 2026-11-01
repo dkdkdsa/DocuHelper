@@ -62,9 +62,9 @@ namespace DocuHelperEditor.Components.Paper.Excel
                 return;
 
             var sheet = CurrentSheet;
-            for (var r = 0; r < sheet.Rows.Count; r++)
+            foreach (var (r, row) in sheet.Rows.Entries)
             {
-                var cells = sheet.Rows[r].Cells;
+                var cells = row.Cells;
                 for (var c = 0; c < cells.Count; c++)
                 {
                     var text = cells[c] is { IsPending: false } cell ? cell.Text : null;
