@@ -27,7 +27,19 @@ namespace DocuHelper.Tools.Ppt
 
         public uint SlideId { get; }
 
-        public string Anchor(uint shapeId) => PptAnchor.Shape(SlideId, shapeId);
+        public PptSlideStyles Styles => _styles ??= new PptSlideStyles(Part, (Part.OpenXmlPackage as PresentationDocument)?.PresentationPart?.Presentation?.DefaultTextStyle);
+
+        private PptSlideStyles _styles;
+
+        public OpenXmlPart Source { get; init; }
+
+        public string AnchorPrefix { get; init; }
+
+        public bool IsDecor => AnchorPrefix != null;
+
+        public OpenXmlPart Owner => Source ?? Part;
+
+        public string Anchor(uint shapeId) => AnchorPrefix == null ? PptAnchor.Shape(SlideId, shapeId) : AnchorPrefix + shapeId.ToString(CultureInfo.InvariantCulture);
 
         public OpenXmlElement LayoutPlaceholder(string type, uint index)
         {
@@ -153,10 +165,27 @@ namespace DocuHelper.Tools.Ppt
                 LayoutName = layout?.CommonSlideData?.Name?.Value,
                 LayoutType = layout?.Type != null && layout.Type.HasValue ? layout.Type.InnerText : null,
                 HideMasterShapes = Attribute(root, "showMasterSp") == "0",
-                Background = BackgroundOf(root, part, theme, PptTheme.ColorMapOf(part)),
+                Background = BackgroundOf(root?.CommonSlideData, part, theme, PptTheme.ColorMapOf(part)),
             };
+            var colorMap = PptTheme.ColorMapOf(part);
+            var layoutPart = part.SlideLayoutPart;
+            var masterPart = layoutPart?.SlideMasterPart;
+            if (scene.Background.Kind == "none")
+                scene.Background = BackgroundOf(layout?.CommonSlideData, layoutPart, theme, colorMap);
+
+            if (scene.Background.Kind == "none")
+                scene.Background = BackgroundOf(masterPart?.SlideMaster?.CommonSlideData, masterPart, theme, colorMap);
+
             var context = new PptSceneContext(part, theme, slide.SlideId);
             scene.Shapes = PptSceneShapes.ReadTree(slide.Tree, context, PptSceneShapes.Map.Identity);
+            if (!scene.HideMasterShapes)
+            {
+                if (Attribute(layout, "showMasterSp") != "0")
+                    scene.Decor.AddRange(Guarded(() => DecorOf(part, masterPart, masterPart?.SlideMaster?.CommonSlideData?.ShapeTree, "master:", theme, slide.SlideId), new List<PptSceneShape>()));
+
+                scene.Decor.AddRange(Guarded(() => DecorOf(part, layoutPart, layoutPart?.SlideLayout?.CommonSlideData?.ShapeTree, "layout:", theme, slide.SlideId), new List<PptSceneShape>()));
+            }
+
             scene.Transition = Guarded(() => PptTransitionWriter.Read(root), new PptTransitionInfo());
             scene.Animations = Guarded(() => PptAnimationWriter.Read(root).Select(e => e.Info).ToList(), new List<PptAnimationInfo>());
             scene.Comments = Guarded(() => Comments(part, presentation), new List<PptCommentInfo>());
@@ -165,10 +194,21 @@ namespace DocuHelper.Tools.Ppt
             return scene;
         }
 
-        private static PptBackgroundInfo BackgroundOf(P.Slide root, SlidePart part, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
+        private static List<PptSceneShape> DecorOf(SlidePart slidePart, OpenXmlPart source, OpenXmlElement tree, string prefix, PptThemeInfo theme, uint slideId)
         {
-            var info = new PptBackgroundInfo { Kind = "none" };
-            var background = root?.CommonSlideData?.Background;
+            if (source == null || tree == null)
+                return new List<PptSceneShape>();
+
+            var context = new PptSceneContext(slidePart, theme, slideId) { Source = source, AnchorPrefix = prefix };
+            return PptSceneShapes.ReadTree(tree, context, PptSceneShapes.Map.Identity)
+                .Where(s => !s.IsPlaceholder && s.Kind != PptShapeKind.Chart && s.Kind != PptShapeKind.Other)
+                .ToList();
+        }
+
+        private static PptBackgroundInfo BackgroundOf(P.CommonSlideData data, OpenXmlPart part, PptThemeInfo theme, IReadOnlyDictionary<string, string> colorMap)
+        {
+            var info = new PptBackgroundInfo { Kind = "none", Owner = part };
+            var background = data?.Background;
             if (background == null)
                 return info;
 

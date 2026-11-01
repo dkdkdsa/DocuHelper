@@ -13,11 +13,8 @@ namespace DocuHelperEditor.State.Mapping
         private const int MaxRows = ExcelViewState.MaxRows;
         private const int MaxColumns = 100;
         private const int MinColumns = 26;
-        private const int DefaultWidth = 96;
+        private const int DefaultWidth = 64;
         private const int MinWidth = 24;
-        private const int FitRows = 300;
-        private const int MaxFitWidth = 360;
-        private const int FitPadding = 20;
         private const int CellPadding = 16;
         private const int OpenColumnWidth = 120;
         private const double PixelsPerPoint = 20.0 / 11.0;
@@ -194,36 +191,9 @@ namespace DocuHelperEditor.State.Mapping
 
             ApplyBorders(view, borders, lastRow, columnCount);
             InferKinds(view.Rows);
-            FitColumns(view, model.DefaultFontSize);
             Overflow(view, model.DefaultFontSize);
             MapFeatures(new ExcelFeatureContext(book, sheet, view, model, changes, lastRow, columnCount, MaxRows));
             return view;
-        }
-
-        private static void FitColumns(Sheet view, double defaultSize)
-        {
-            for (var c = 0; c < view.Columns.Count - 1; c++)
-            {
-                var column = view.Columns[c];
-                if (column.IsCustom || column.Hidden)
-                    continue;
-
-                var needed = 0;
-                for (var r = 0; r < Math.Min(view.Rows.Count, FitRows); r++)
-                {
-                    var row = view.Rows[r];
-                    if (c >= row.Cells.Count || row.Hidden)
-                        continue;
-
-                    var cell = row.Cells[c];
-                    if (string.IsNullOrEmpty(cell.Text) || cell.IsPending || cell.Wrap || view.MergeAt(r, c) is { ColumnCount: > 1 })
-                        continue;
-
-                    needed = Math.Max(needed, TextWidth(cell.Text, cell.IsBoldIn(row.Kind), Scale(cell, defaultSize)) + FitPadding);
-                }
-
-                column.Width = Math.Max(column.Width ?? DefaultWidth, Math.Min(needed, MaxFitWidth));
-            }
         }
 
         private static void Overflow(Sheet view, double defaultSize)

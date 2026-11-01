@@ -1,4 +1,5 @@
-﻿@inject IJSRuntime JS
+﻿@using DocuHelperEditor.State.Papers
+@inject IJSRuntime JS
 
 @switch (Tag)
 {
@@ -7,7 +8,7 @@
             @for (var i = 0; i < ShownLines.Count; i++)
             {
                 var index = i;
-                <li>
+                <li style="@LineCss(index, true)">
                     @if (ShownLit)
                     {
                         <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
@@ -31,7 +32,11 @@
                 }
                 if (ShownLit)
                 {
-                    <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
+                    <span class="mk on" data-change="@ShownChangeId" style="@MarkStyle(index)">@ShownLines[index]</span>
+                }
+                else if (LineCss(index, false) != null)
+                {
+                    <span style="@LineCss(index, false)">@ShownLines[index]</span>
                 }
                 else
                 {
@@ -51,7 +56,11 @@
                 }
                 if (ShownLit)
                 {
-                    <span class="mk on" data-change="@ShownChangeId" style="@DelayStyle(index)">@ShownLines[index]</span>
+                    <span class="mk on" data-change="@ShownChangeId" style="@MarkStyle(index)">@ShownLines[index]</span>
+                }
+                else if (LineCss(index, false) != null)
+                {
+                    <span style="@LineCss(index, false)">@ShownLines[index]</span>
                 }
                 else
                 {
@@ -77,6 +86,9 @@
 
     [Parameter]
     public List<string> Lines { get; set; }
+
+    [Parameter]
+    public List<SlideLineStyle> LineStyles { get; set; }
 
     [Parameter]
     public bool Highlighted { get; set; }
@@ -153,7 +165,41 @@
         }
     }
 
-    private static string DelayStyle(int index) => $"--i: {index}";
+    private static string DelayStyle(int index) => $"--i: {index}; ";
+
+    private string MarkStyle(int index) => DelayStyle(index) + LineCss(index, false);
+
+    private string LineCss(int index, bool block)
+    {
+        if (_dirty || LineStyles == null || Lines == null || LineStyles.Count != Lines.Count || index >= LineStyles.Count)
+            return null;
+
+        var style = LineStyles[index];
+        var css = new List<string>();
+        if (style.FontCqw > 0)
+            css.Add("font-size: " + Num(style.FontCqw) + "cqw");
+
+        css.Add("font-weight: " + (style.Bold ? 700 : 400));
+        if (style.Italic)
+            css.Add("font-style: italic");
+
+        if (style.Color != null)
+            css.Add("color: " + style.Color);
+
+        if (block)
+        {
+            if (style.IndentCqw > 0)
+                css.Add("margin-left: " + Num(style.IndentCqw) + "cqw");
+
+            css.Add("list-style-type: " + (style.Bullet == "number" ? "decimal" : style.Bullet == "bullet" ? "disc" : "none"));
+            if (style.Align == SlideTextAlign.Center)
+                css.Add("text-align: center");
+        }
+
+        return string.Join("; ", css);
+    }
+
+    private static string Num(double value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
 
     private Task HandleFocus() => OnFocus.InvokeAsync();
 

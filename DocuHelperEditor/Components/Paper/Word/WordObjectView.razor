@@ -26,7 +26,7 @@
             </div>
             break;
         case "chart":
-            <WordChartSvg Chart="Item.Chart" />
+            <WordChartSvg Chart="Item.Chart" Aspect="@(Item.HeightPt > 0 ? Item.WidthPt / Item.HeightPt : 0)" />
             break;
         default:
             <span class="other">@Item.Name</span>

@@ -34,7 +34,8 @@
     cursor: move;
 }
 
-.shape.inherited {
+.shape.inherited,
+.shape.deco {
     pointer-events: none;
 }
 

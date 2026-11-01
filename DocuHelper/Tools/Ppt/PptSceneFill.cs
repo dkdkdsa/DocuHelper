@@ -17,5 +17,7 @@ namespace DocuHelper.Tools.Ppt
         public List<PptSceneStop> Stops { get; set; } = new();
 
         public string ImageKey { get; set; }
+
+        public DocumentFormat.OpenXml.Packaging.OpenXmlPart Owner { get; set; }
     }
 }

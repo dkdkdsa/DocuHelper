@@ -88,6 +88,7 @@ namespace DocuHelperEditor.State.Mapping
                     WidthEmu = scene.SlideWidthEmu,
                     HeightEmu = scene.SlideHeightEmu,
                     HideMasterShapes = sceneSlide?.HideMasterShapes ?? false,
+                    Theme = scene.Theme,
                 };
 
                 model.Slides.Add(MapSlide(deck, deck.Slides[i], sceneSlide, context, anchors, i == deck.Slides.Count - 1));
@@ -128,6 +129,21 @@ namespace DocuHelperEditor.State.Mapping
             {
                 slide.Background = MapBackground(sceneSlide.Background, context);
                 AddShapes(slide.Shapes, sceneSlide.Shapes, context, false, 0);
+                var decorContext = new SlideContext
+                {
+                    Slide = context.Slide,
+                    Document = context.Document,
+                    Images = context.Images,
+                    WidthEmu = context.WidthEmu,
+                    HeightEmu = context.HeightEmu,
+                    Theme = context.Theme,
+                };
+                AddShapes(slide.Decor, sceneSlide.Decor, decorContext, false, 0);
+                foreach (var decor in slide.Decor)
+                {
+                    decor.IsDecor = true;
+                    decor.IsInherited = true;
+                }
                 slide.Animations = sceneSlide.Animations
                     .Take(MaxAnimations)
                     .Select(animation => new SlideAnimationModel
@@ -220,9 +236,6 @@ namespace DocuHelperEditor.State.Mapping
                 }
 
                 var inherited = shape.Inherited != PptInheritedFrom.None;
-                if (inherited && (shape.IsPlaceholder || context.HideMasterShapes))
-                    continue;
-
                 var model = new SlideShapeModel
                 {
                     Id = shape.Anchor,
@@ -247,7 +260,7 @@ namespace DocuHelperEditor.State.Mapping
 
                 if (shape.Picture != null)
                 {
-                    model.ImageSrc = LoadImage(context, shape.Picture.ImageKey);
+                    model.ImageSrc = LoadImage(context, shape.Picture.ImageKey, shape.Picture.Owner);
                     model.CropLeft = Math.Clamp(shape.Picture.CropL, 0, 100);
                     model.CropTop = Math.Clamp(shape.Picture.CropT, 0, 100);
                     model.CropRight = Math.Clamp(shape.Picture.CropR, 0, 100);
@@ -258,14 +271,14 @@ namespace DocuHelperEditor.State.Mapping
                     model.Table = MapTable(shape.Table, context);
 
                 if (shape.Chart != null)
-                    model.Chart = MapSceneChart(shape.Chart);
+                    model.Chart = MapSceneChart(shape.Chart, context.Theme);
 
                 if (shape.Text != null)
                 {
                     if (context.Boxes.TryGetValue(model.Id, out var box))
                     {
                         model.Text = box;
-                        model.TextEditable = model.Movable;
+                        model.TextEditable = !model.IsGrouped && !string.IsNullOrEmpty(model.ShapeKey);
                     }
                     else
                     {
@@ -300,7 +313,7 @@ namespace DocuHelperEditor.State.Mapping
                     model.FillAlpha = Math.Clamp(fill.Alpha, 0, 100);
                     return;
                 case "picture":
-                    var image = LoadImage(context, fill.ImageKey);
+                    var image = LoadImage(context, fill.ImageKey, fill.Owner);
                     if (image == null)
                         return;
 
@@ -343,6 +356,7 @@ namespace DocuHelperEditor.State.Mapping
                 foreach (var cell in row.Cells.Take(columns.Count))
                 {
                     var mapped = MapCell(cell, context);
+                    ApplyTableStyle(mapped, table, rowIndex, rows.Count, column, columns.Count, context);
                     mapped.GridSpan = Math.Clamp(Math.Min(mapped.GridSpan, columns.Count - column), 1, columns.Count);
                     mapped.RowSpan = Math.Clamp(Math.Min(mapped.RowSpan, rows.Count - rowIndex), 1, rows.Count);
                     item.Cells.Add(mapped);
@@ -353,6 +367,26 @@ namespace DocuHelperEditor.State.Mapping
             }
 
             return model;
+        }
+
+        private static void ApplyTableStyle(SlideTableCellModel cell, PptSceneTable table, int row, int rowCount, int column, int columnCount, SlideContext context)
+        {
+            if (string.IsNullOrEmpty(table.StyleKey))
+                return;
+
+            var look = PptTableStyles.Resolve(table.StyleKey, context.Theme, row, rowCount, column, columnCount, table.FirstRow, table.BandRow, table.FirstCol, table.LastRow);
+            cell.FillColor ??= HexOf(look.Fill);
+            cell.TextColor ??= HexOf(look.TextColor);
+            cell.Bold |= look.Bold;
+            var border = HexOf(look.BorderColor);
+            if (border == null || look.BorderWidth <= 0)
+                return;
+
+            var line = string.Format(CultureInfo.InvariantCulture, "{0:0.##}px solid {1}", Math.Clamp(look.BorderWidth / 12700.0, 0.25, 6), border);
+            cell.BorderTop ??= line;
+            cell.BorderRight ??= line;
+            cell.BorderBottom ??= line;
+            cell.BorderLeft ??= line;
         }
 
         private static SlideTableCellModel MapCell(PptSceneTableCell cell, SlideContext context)
@@ -378,15 +412,15 @@ namespace DocuHelperEditor.State.Mapping
             };
         }
 
-        private static SlideChartModel MapSceneChart(PptSceneChart chart)
+        private static SlideChartModel MapSceneChart(PptSceneChart chart, PptThemeInfo theme)
         {
             var series = chart.Series
                 .Where(s => s.Values.Any(v => v.HasValue))
                 .Take(MaxSeries)
-                .Select(s => new SlideChartSeries
+                .Select((s, index) => new SlideChartSeries
                 {
                     Name = Trim(s.Name, 60),
-                    Color = HexOf(s.Color),
+                    Color = HexOf(s.Color) ?? HexOf(theme?.ColorOf(s.Color ?? string.Empty)) ?? HexOf(theme?.ColorOf("accent" + (index % 6 + 1).ToString(CultureInfo.InvariantCulture))),
                     Values = s.Values.Take(MaxPoints).Select(FiniteOrNull).ToList(),
                 })
                 .ToList();
@@ -441,7 +475,7 @@ namespace DocuHelperEditor.State.Mapping
                     model.Kind = model.Color == null ? "none" : "gradient";
                     break;
                 case "picture":
-                    model.ImageSrc = LoadImage(context, background.ImageKey);
+                    model.ImageSrc = LoadImage(context, background.ImageKey, background.Owner);
                     model.Kind = model.ImageSrc == null ? "none" : "picture";
                     break;
             }
@@ -505,21 +539,54 @@ namespace DocuHelperEditor.State.Mapping
             box.Strike = run?.Strike ?? false;
             box.Bullet = paragraph?.Bullet?.Kind switch { "char" => "bullet", "number" => "number", _ => "none" };
             box.Color = HexOf(run?.Color);
-            box.FontFamily = FontOf(run?.FontLatin);
+            box.FontFamily = PptText.HasHangul(run?.Text ?? string.Empty)
+                ? FontOf(run?.FontEa) ?? FontOf(run?.FontLatin)
+                : FontOf(run?.FontLatin) ?? FontOf(run?.FontEa);
             box.Align = paragraph?.Align == "ctr" ? SlideTextAlign.Center : SlideTextAlign.Left;
             box.VerticalAlign = VerticalOf(text.Anchor);
             box.InsetLeft = Pct(text.InsetL, widthEmu);
             box.InsetTop = Pct(text.InsetT, widthEmu);
             box.InsetRight = Pct(text.InsetR, widthEmu);
             box.InsetBottom = Pct(text.InsetB, widthEmu);
+            box.LineStyles = LineStylesOf(text, box, widthEmu);
         }
 
-        private static string LoadImage(SlideContext context, string relationshipId)
+        private static List<SlideLineStyle> LineStylesOf(PptSceneText text, SlideBoxModel box, long widthEmu)
         {
-            if (context.Slide == null || string.IsNullOrEmpty(relationshipId))
+            var result = new List<SlideLineStyle>();
+            var baseMargin = text.Paragraphs.FirstOrDefault()?.MarginLeftEmu ?? 0;
+            foreach (var paragraph in text.Paragraphs)
+            {
+                var run = FirstRun(new[] { paragraph });
+                var style = new SlideLineStyle
+                {
+                    FontCqw = run?.SizePt is double size ? FontCqw(size, widthEmu) : box.FontCqw,
+                    Bold = run?.Bold ?? box.Bold,
+                    Italic = run?.Italic ?? box.Italic,
+                    Color = HexOf(run?.Color) ?? box.Color,
+                    Bullet = paragraph.Bullet?.Kind switch { "char" => "bullet", "number" => "number", _ => "none" },
+                    IndentCqw = Math.Max(0, Pct(paragraph.MarginLeftEmu - baseMargin, widthEmu)),
+                    Align = paragraph.Align == "ctr" ? SlideTextAlign.Center : SlideTextAlign.Left,
+                };
+
+                var count = ParagraphText(paragraph).Split((char)10).Length;
+                for (var i = 0; i < count; i++)
+                    result.Add(style);
+            }
+
+            while (result.Count > box.Lines.Count)
+                result.RemoveAt(result.Count - 1);
+
+            return result.Count == box.Lines.Count && result.Count > 0 ? result : null;
+        }
+
+        private static string LoadImage(SlideContext context, string relationshipId, OpenXmlPart owner)
+        {
+            var holder = owner ?? context.Slide?.Part;
+            if (holder == null || string.IsNullOrEmpty(relationshipId))
                 return null;
 
-            var part = context.Slide.Part.Parts
+            var part = holder.Parts
                 .Where(p => p.RelationshipId == relationshipId)
                 .Select(p => p.OpenXmlPart)
                 .OfType<ImagePart>()
@@ -688,6 +755,8 @@ namespace DocuHelperEditor.State.Mapping
             public long HeightEmu { get; init; }
 
             public bool HideMasterShapes { get; init; }
+
+            public PptThemeInfo Theme { get; init; }
 
             public Dictionary<string, SlideBoxModel> Boxes { get; } = new(StringComparer.Ordinal);
 

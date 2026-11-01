@@ -11,6 +11,10 @@
         {
             <img class="bg" src="@Slide.Background.ImageSrc" alt="" />
         }
+        @foreach (var shape in Slide.Decor)
+        {
+            @Shape(shape)
+        }
         @foreach (var shape in Slide.Shapes)
         {
             @Shape(shape)
@@ -142,7 +146,7 @@
     [JSInvokable]
     public Task Receive(SlideGesture gesture) => OnGesture.InvokeAsync(gesture);
 
-    private RenderFragment Shape(SlideShapeModel shape) => @<div @key="shape.Id" class="@ShapeClass(shape)" role="@(Locked ? null : "button")" tabindex="@(Locked ? null : (shape.Id == TabStopId ? "0" : "-1"))" aria-pressed="@(Locked ? null : (IsSelected(shape) ? "true" : "false"))" data-shape="@shape.Id" data-movable="@(shape.Movable && !Locked ? "true" : null)" data-x="@Num(shape.Left)" data-y="@Num(shape.Top)" data-w="@Num(shape.Width)" data-h="@Num(shape.Height)" data-rot="@Num(shape.Rotation)" data-change="@LiveChangeOf(shape)" aria-label="@ShapeLabel(shape)" style="@ShapeStyle(shape)">
+    private RenderFragment Shape(SlideShapeModel shape) => @<div @key="shape.Id" class="@ShapeClass(shape)" role="@(Locked || shape.IsDecor ? null : "button")" tabindex="@(Locked || shape.IsDecor ? null : (shape.Id == TabStopId ? "0" : "-1"))" aria-pressed="@(Locked || shape.IsDecor ? null : (IsSelected(shape) ? "true" : "false"))" data-shape="@(shape.IsDecor ? null : shape.Id)" data-movable="@(shape.Movable && !Locked ? "true" : null)" data-x="@Num(shape.Left)" data-y="@Num(shape.Top)" data-w="@Num(shape.Width)" data-h="@Num(shape.Height)" data-rot="@Num(shape.Rotation)" data-change="@LiveChangeOf(shape)" aria-label="@ShapeLabel(shape)" style="@ShapeStyle(shape)">
         @if (shape.Kind == SlideShapeKind.Picture && shape.ImageSrc != null)
         {
             <img class="pic flip" src="@shape.ImageSrc" alt="@shape.AltText" style="@CropStyle(shape)" />
@@ -177,7 +181,7 @@
         @if (shape.Text != null)
         {
             <div class="tbox v-@shape.Text.VerticalAlign" style="@InsetStyle(shape.Text)">
-                <SlideTextBox Tag="@TagOf(shape.Text)" Class="@TextClass(shape.Text)" Style="@TextStyle(shape.Text)" Lines="shape.Text.Lines" Highlighted="IsLit(shape.Text)" ChangeId="@ShownChangeOf(shape.Text)" Framed="true" Editable="shape.TextEditable && !Locked" data-placeholder="@PlaceholderOf(shape.Text)" OnFocus="() => Select(shape.Id)" OnEdit="lines => EditBox(shape.Text, lines)" OnCommit="lines => CommitBox(shape.Text, lines)" />
+                <SlideTextBox Tag="@TagOf(shape.Text)" Class="@TextClass(shape.Text)" Style="@TextStyle(shape.Text)" Lines="shape.Text.Lines" LineStyles="shape.Text.LineStyles" Highlighted="IsLit(shape.Text)" ChangeId="@ShownChangeOf(shape.Text)" Framed="true" Editable="shape.TextEditable && !Locked" data-placeholder="@PlaceholderOf(shape.Text)" OnFocus="() => Select(shape.Id)" OnEdit="lines => EditBox(shape.Text, lines)" OnCommit="lines => CommitBox(shape.Text, lines)" />
             </div>
         }
         @if (IsSelected(shape) && shape.Movable && !Locked)
@@ -198,7 +202,9 @@
         if (IsSelected(shape))
             css += " on";
 
-        if (shape.IsInherited)
+        if (shape.IsDecor)
+            css += " deco";
+        else if (shape.IsInherited && shape.Text == null)
             css += " inherited";
 
         if (shape.IsGrouped)

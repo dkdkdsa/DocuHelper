@@ -16,6 +16,8 @@ namespace DocuHelperEditor.State.Papers
 
         public List<SlideShapeModel> Shapes { get; set; } = new();
 
+        public List<SlideShapeModel> Decor { get; set; } = new();
+
         public SlideBackgroundModel Background { get; set; } = new();
 
         public string Transition { get; set; } = "none";
