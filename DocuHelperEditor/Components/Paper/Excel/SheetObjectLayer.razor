@@ -1,0 +1,124 @@
+@implements IAsyncDisposable
+@using System
+@using System.Collections.Generic
+@using System.Globalization
+@using System.Threading.Tasks
+@using Microsoft.JSInterop
+@using DocuHelperEditor.State.Papers
+@inject IJSRuntime JS
+
+<div class="layer" @ref="_root">
+    @if (Objects != null)
+    {
+        foreach (var item in Objects)
+        {
+            var current = item;
+            var selected = current.Name == Selected;
+            <div class="obj @KindClass(current) @(selected ? "sel" : null)" role="button" tabindex="0"
+                 aria-label="@Label(current)" aria-pressed="@(selected ? "true" : "false")"
+                 data-name="@current.Name" data-kind="@KindName(current)"
+                 data-from-row="@current.Anchor.FromRow" data-from-column="@current.Anchor.FromColumn"
+                 data-from-row-offset="@Px(current.Anchor.FromRowOffset)" data-from-column-offset="@Px(current.Anchor.FromColumnOffset)"
+                 data-to-row="@current.Anchor.ToRow" data-to-column="@current.Anchor.ToColumn"
+                 data-to-row-offset="@Px(current.Anchor.ToRowOffset)" data-to-column-offset="@Px(current.Anchor.ToColumnOffset)"
+                 style="visibility: hidden;@FillStyle(current)">
+                @if (current.Kind == SheetObjectKind.Picture && !string.IsNullOrEmpty(current.ImageUrl))
+                {
+                    <img src="@current.ImageUrl" alt="@(current.Alt ?? current.Name)" draggable="false" />
+                }
+                else if (current.Kind == SheetObjectKind.Chart)
+                {
+                    <span class="ph">차트 · @current.Name</span>
+                }
+                else if (current.Kind == SheetObjectKind.Picture)
+                {
+                    <span class="ph">그림 · @current.Name</span>
+                }
+                else
+                {
+                    <span class="txt">@current.Text</span>
+                }
+                @if (selected)
+                {
+                    <span class="rz" data-handle="resize" aria-hidden="true"></span>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private const string ModulePath = "./Components/Paper/Excel/SheetObjectLayer.razor.js";
+
+    private ElementReference _root;
+    private IJSObjectReference _module;
+    private DotNetObjectReference<SheetObjectLayer> _self;
+
+    [Parameter]
+    public IReadOnlyList<SheetObject> Objects { get; set; }
+
+    [Parameter]
+    public string Selected { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback<SheetObjectChange> OnChange { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await _module.InvokeVoidAsync("attach", _root, _self);
+        }
+
+        if (_module != null)
+            await _module.InvokeVoidAsync("layout", _root);
+    }
+
+    [JSInvokable]
+    public Task Select(string name) => OnSelect.InvokeAsync(name);
+
+    [JSInvokable]
+    public Task Drop(string name, string action, int row, int column, int columns, int rows) =>
+        OnChange.InvokeAsync(new SheetObjectChange(name, action, row, column, columns, rows));
+
+    [JSInvokable]
+    public Task Remove(string name) => OnChange.InvokeAsync(new SheetObjectChange(name, "delete", 0, 0, 0, 0));
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module != null)
+        {
+            await _module.InvokeVoidAsync("detach", _root);
+            await _module.DisposeAsync();
+        }
+
+        _self?.Dispose();
+    }
+
+    private static string KindName(SheetObject item) => item.Kind switch
+    {
+        SheetObjectKind.Chart => "chart",
+        SheetObjectKind.Picture => "picture",
+        SheetObjectKind.TextBox => "textbox",
+        _ => "shape",
+    };
+
+    private static string KindClass(SheetObject item) => "k-" + KindName(item);
+
+    private static string Label(SheetObject item) => item.Kind switch
+    {
+        SheetObjectKind.Chart => "차트 " + item.Name,
+        SheetObjectKind.Picture => "그림 " + item.Name,
+        SheetObjectKind.TextBox => "글상자 " + item.Name,
+        _ => "도형 " + item.Name,
+    };
+
+    private static string FillStyle(SheetObject item) => string.IsNullOrEmpty(item.FillColor) ? null : " background-color: #" + item.FillColor + ";";
+
+    private static string Px(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+}

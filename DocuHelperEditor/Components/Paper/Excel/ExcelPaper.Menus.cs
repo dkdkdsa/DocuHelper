@@ -45,6 +45,9 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
                     _menuItems = TabMenu(request.Row);
                     break;
+                case "filter":
+                    OpenFilterMenu(request);
+                    return;
                 case "validation":
                     if (!selection.Contains(request.Row, request.Column))
                         SelectCell(SheetRef.Make(request.Column, request.Row), true);

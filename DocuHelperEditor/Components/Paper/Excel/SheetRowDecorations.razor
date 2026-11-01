@@ -1,0 +1,39 @@
+@using System.Collections.Generic
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+
+@if (Context.Row?.OutlineLevel > 0)
+{
+    <span class="line" aria-hidden="true"></span>
+}
+@if (Toggle is { } toggle)
+{
+    <button type="button" class="tog" aria-label="@toggle.Label" aria-expanded="@(toggle.Expanded ? "true" : "false")" title="@toggle.Label" @onclick="() => OnOutline.InvokeAsync(toggle.Command)" @onmousedown:stopPropagation="true">@toggle.Glyph</button>
+}
+
+@code {
+    [Parameter]
+    public SheetRowContext Context { get; set; }
+
+    [Parameter]
+    public IReadOnlyDictionary<int, OutlineGroup> Summaries { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnOutline { get; set; }
+
+    private (string Glyph, string Label, string Command, bool Expanded)? Toggle
+    {
+        get
+        {
+            if (Summaries == null || !Summaries.TryGetValue(Context.RowIndex, out var group))
+                return null;
+
+            var expanded = SheetOutline.IsExpanded(Context.Sheet, group);
+            var command = (expanded ? "collapse:" : "expand:") + group.First + ":" + group.Last;
+            var row = (Context.RowIndex + 1).ToString(CultureInfo.InvariantCulture);
+            return expanded
+                ? ("−", "행 " + row + " 그룹 접기", command, true)
+                : ("+", "행 " + row + " 그룹 펼치기", command, false);
+        }
+    }
+}

@@ -28,6 +28,9 @@
     public bool Protected { get; set; }
 
     [Parameter]
+    public string FilterText { get; set; }
+
+    [Parameter]
     public EventCallback<string> OnCommand { get; set; }
 
     [Parameter]
@@ -40,6 +43,10 @@
     private RenderFragment Left => __builder =>
     {
         <span class="st" aria-live="polite">@StateText</span>
+        @if (!string.IsNullOrEmpty(FilterText))
+        {
+            <StatusButton Icon="filter" Label="필터 결과" Tip="필터로 보이는 레코드 수">@FilterText</StatusButton>
+        }
         @if (Stats != null && Stats.Count > 0)
         {
             <RibbonDivider Gap="6" />
