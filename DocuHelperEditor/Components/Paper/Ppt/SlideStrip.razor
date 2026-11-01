@@ -1,4 +1,7 @@
-﻿@using DocuHelperEditor.State.Papers
+﻿@using DocuHelperEditor.Components.Ribbon
+@using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.State.Ribbon
+@using Microsoft.AspNetCore.Components.Web
 @inject IJSRuntime JS
 
 <nav class="strip" aria-label="슬라이드">
@@ -15,7 +18,7 @@
                 {
                     <span class="bar" aria-hidden="true"></span>
                 }
-                <button type="button" id="@ThumbId(index)" class="th @(active ? "on" : null)" aria-label="@ThumbLabel(index, changed)" aria-pressed="@(active ? "true" : "false")" tabindex="@(active ? 0 : -1)" @onclick="() => SelectSlide(index)" @onkeydown="e => HandleKey(e, index)">
+                <button type="button" id="@ThumbId(index)" class="th @(active ? "on" : null)" aria-label="@ThumbLabel(index, changed)" aria-pressed="@(active ? "true" : "false")" tabindex="@(active ? 0 : -1)" @onclick="() => SelectSlide(index)" @onkeydown="e => HandleKey(e, index)" style="@(_menuIndex == index ? "anchor-name: --ribbon-anchor" : null)" @oncontextmenu="e => OpenMenu(e, index)" @oncontextmenu:preventDefault="true">
                     <span class="num" aria-hidden="true">@(index + 1)</span>
                     <span class="mini" aria-hidden="true">
                         <SlideCanvas Slide="slide" AspectRatio="AspectRatio" Locked="true" ShowFit="false" HighlightId="@HighlightId" LiveChanges="LiveChanges" />
@@ -24,6 +27,10 @@
             </li>
         }
     </ol>
+    @if (_menuIndex >= 0 && _menuIndex < Count)
+    {
+        <RibbonMenu Items="MenuItems(_menuIndex)" Label="@($"{_menuIndex + 1}번 슬라이드 메뉴")" OnPick="PickMenuAsync" OnClose="CloseMenu" />
+    }
 </nav>
 
 @code {
@@ -57,6 +64,41 @@
 
     private int Count => Slides?.Count ?? 0;
 
+    private int _menuIndex = -1;
+
+    [Parameter]
+    public EventCallback<(string Action, int Index)> OnSlideAction { get; set; }
+
+    private IReadOnlyList<RibbonMenuItem> MenuItems(int index) => new[]
+    {
+        RibbonMenus.Item("new", "새 슬라이드"),
+        RibbonMenus.Separator(),
+        RibbonMenus.Item("duplicate", "복제"),
+        RibbonMenus.Item("up", "위로 이동", disabled: index == 0, reason: "맨 위 슬라이드예요."),
+        RibbonMenus.Item("down", "아래로 이동", disabled: index >= Count - 1, reason: "맨 아래 슬라이드예요."),
+        RibbonMenus.Separator(),
+        RibbonMenus.Item("delete", "삭제", disabled: Count <= 1, reason: "슬라이드를 하나는 남겨 두어야 해요."),
+    };
+
+    private void OpenMenu(MouseEventArgs e, int index)
+    {
+        _menuIndex = index;
+    }
+
+    private Task CloseMenu(bool _)
+    {
+        _menuIndex = -1;
+        return Task.CompletedTask;
+    }
+
+    private async Task PickMenuAsync(string action)
+    {
+        var index = _menuIndex;
+        _menuIndex = -1;
+        if (index >= 0 && index < Count && action != null)
+            await OnSlideAction.InvokeAsync((action, index));
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         var focus = _focusIndex;
@@ -81,6 +123,15 @@
 
     private Task HandleKey(KeyboardEventArgs e, int index)
     {
+        if (e.Key == "Delete" && Count > 1)
+            return OnSlideAction.InvokeAsync(("delete", index));
+
+        if (e.AltKey && e.Key == "ArrowUp" && index > 0)
+            return OnSlideAction.InvokeAsync(("up", index));
+
+        if (e.AltKey && e.Key == "ArrowDown" && index < Count - 1)
+            return OnSlideAction.InvokeAsync(("down", index));
+
         var target = e.Key switch
         {
             "ArrowUp" => index - 1,
