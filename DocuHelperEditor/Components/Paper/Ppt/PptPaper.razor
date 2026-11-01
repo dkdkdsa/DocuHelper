@@ -8,7 +8,7 @@
 {
     var slide = _model.ActiveSlide;
     <div class="ppt">
-        <PptRibbon File="File" State="_ribbon" OnChanged="Redraw" />
+        <PptRibbon @ref="_ribbonHost" File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
             <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
             <div class="stage">
@@ -67,7 +67,8 @@
         {
             <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
         }
-        <PptStatusBar Active="_model.ActiveIndex" Count="_model.Slides.Count" NotesOpen="_ribbon.NotesOpen" Sorter="Sorter" Zoom="_ribbon.Zoom" OnToggleNotes="ToggleNotes" OnSetSorter="SetSorter" OnZoom="SetZoom" />
+        <PptStatusBar Model="_model" State="_ribbon" Commands="_ribbonHost?.Commands" SorterOpen="Sorter" OnToggleSorter="ToggleSorter" />
+        <PptDialogHost Presenter="_presenter" />
         <ChangeNavigator File="File" />
     </div>
 }
@@ -87,6 +88,11 @@
         _ribbon.View = "normal";
         SelectSlide(index);
     }
+
+    private void ToggleSorter() => SetSorter(!Sorter);
+
+    private PptRibbon _ribbonHost;
+    private readonly PptDialogPresenter _presenter = new();
     private int _notesHeight = 92;
     private bool _previewing;
     private const int TransitionPreviewMs = 900;
@@ -119,6 +125,7 @@
         _ribbon.ModelSource = () => File?.Paper as PptPaperModel ?? _model;
         _ribbon.CommitDraft = CommitDraft;
         _ribbon.ActivateSlide = ActivateSlide;
+        _ribbon.Dialogs = _presenter;
     }
 
     protected override void OnParametersSet() => Sync();
@@ -131,6 +138,9 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && _ribbonHost != null)
+            StateHasChanged();
+
         if (_model == null)
             return;
 
@@ -325,6 +335,7 @@
             return;
 
         _model.SelectShape(shapeId, additive);
+        _ribbonHost?.Commands?.SelectionChanged();
         _notesFocused = false;
         Report();
     }
