@@ -150,7 +150,7 @@ html[data-text-size] [data-chrome] [data-chrome] {
 }
 
 .lnk {
-    color: var(--docx, #2F5FA8);
+    color: var(--docx);
     text-decoration: underline;
 }
 
@@ -215,7 +215,7 @@ html[data-text-size] [data-chrome] [data-chrome] {
     height: 20px;
     border-radius: 50%;
     background: var(--rev, var(--ink));
-    color: #fff;
+    color: var(--paper-white);
     font-size: 11px;
     font-weight: 700;
 }
@@ -273,7 +273,7 @@ html[data-text-size] [data-chrome] [data-chrome] {
 }
 
 .bal .act.danger {
-    color: #A3311E;
+    color: var(--danger);
 }
 
 .bal .act:focus-visible {
@@ -343,7 +343,7 @@ html[data-text-size] [data-chrome] [data-chrome] {
 }
 
 body.docu-printing {
-    background: #FFFFFF;
+    background: var(--paper-white);
     margin: 0 !important;
     padding: 0 !important;
 }
@@ -376,7 +376,7 @@ body.docu-printing .docu-print-keep {
     transform: none !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #FFFFFF !important;
+    background: var(--paper-white) !important;
     box-shadow: none !important;
 }
 
