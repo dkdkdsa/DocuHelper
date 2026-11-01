@@ -10,5 +10,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string Subtotal = "excel.data.subtotal";
         public const string TextToColumns = "excel.data.texttocolumns";
         public const string RemoveDuplicates = "excel.data.removeduplicates";
+        public const string GoalSeek = "excel.data.whatif";
     }
 }

@@ -24,6 +24,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.Subtotal] = context => Subtotal(context),
             [ExcelDialogIds.TextToColumns] = context => TextToColumns(context),
             [ExcelDialogIds.RemoveDuplicates] = context => RemoveDuplicates(context),
+            [ExcelDialogIds.GoalSeek] = context => GoalSeek(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -185,6 +186,26 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                     args["columns"] = Strings(columns);
 
                 return args;
+            });
+
+        private static ExcelNamedDialog GoalSeek(ExcelDialogContext context) => new(
+            "goal_seek",
+            "목표값 찾기",
+            new[]
+            {
+                WordNamedDialogs.Text("target_cell", "수식이 들어 있는 칸 (예: B5)", context.Cell),
+                WordNamedDialogs.Number("target_value", "원하는 결과값", "0"),
+                WordNamedDialogs.Text("changing_cell", "값을 바꿀 칸 (예: B2)", string.Empty),
+                WordNamedDialogs.Number("tolerance", "허용 오차", "0.001"),
+            },
+            values => Required(values, "target_cell", "수식이 들어 있는 칸") ?? Required(values, "changing_cell", "값을 바꿀 칸"),
+            (values, context) => new JsonObject
+            {
+                ["sheet"] = context.Sheet,
+                ["target_cell"] = WordNamedDialogs.Text(values, "target_cell").Trim(),
+                ["target_value"] = WordNamedDialogs.Num(values, "target_value"),
+                ["changing_cell"] = WordNamedDialogs.Text(values, "changing_cell").Trim(),
+                ["tolerance"] = WordNamedDialogs.Num(values, "tolerance"),
             });
 
         private static List<string> ActiveDelimiters(IReadOnlyDictionary<string, JsonNode> values)
