@@ -1,0 +1,23 @@
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+
+<ul class="comment-list" aria-label="메모 목록">
+    @foreach (var item in Items)
+    {
+        <li>
+            <div class="head">
+                <span class="author">@item.Author</span>
+                @if (item.Time is DateTime time)
+                {
+                    <time datetime="@time.ToString("o", CultureInfo.InvariantCulture)">@time.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)</time>
+                }
+            </div>
+            <p class="text">@item.Text</p>
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter]
+    public List<SlideCommentModel> Items { get; set; } = new();
+}

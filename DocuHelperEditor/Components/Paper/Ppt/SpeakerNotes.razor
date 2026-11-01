@@ -1,24 +1,50 @@
 ﻿@using DocuHelperEditor.State.Papers
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 @if (Slide != null)
 {
     var slide = Slide;
-    <div class="notes" data-change="@LiveChange" @onclick="FocusText">
+    <section class="notes" data-change="@LiveChange" style="height: @(Height)px" aria-labelledby="@_labelId">
+        <div @ref="_grip" class="grip" role="separator" aria-orientation="horizontal" aria-label="노트 높이 조절" aria-valuemin="@MinHeight" aria-valuemax="@MaxHeight" aria-valuenow="@Height" tabindex="0" @onpointerdown="StartGrip" @onkeydown="GripKey">
+            <span class="grip-line" aria-hidden="true"></span>
+        </div>
         @if (LiveChange != null)
         {
             <span class="change-bar" aria-hidden="true"></span>
         }
-        <span class="label" id="@_labelId">발표 메모</span>
-        <SlideTextBox @ref="_text" @key="slide.Id" Tag="p" Class="note" data-placeholder="발표할 때 볼 메모를 적어 주세요" Lines="slide.Notes" Highlighted="IsLit" ChangeId="@ShownChangeId" Editable="!Locked" OnFocus="OnFocus" OnEdit="lines => EditNotes(slide, lines)" OnCommit="lines => CommitNotes(slide, lines)" role="textbox" aria-multiline="true" aria-readonly="@(Locked ? "true" : null)" aria-labelledby="@_labelId" />
-    </div>
+        <div class="body-note" @onclick="FocusText">
+            <span class="label" id="@_labelId">노트</span>
+            <SlideTextBox @ref="_text" @key="slide.Id" Tag="p" Class="note" data-placeholder="클릭하여 노트 추가" Lines="slide.Notes" Highlighted="IsLit" ChangeId="@ShownChangeId" Editable="!Locked" OnFocus="OnFocus" OnEdit="lines => EditNotes(slide, lines)" OnCommit="lines => CommitNotes(slide, lines)" role="textbox" aria-multiline="true" aria-readonly="@(Locked ? "true" : null)" aria-labelledby="@_labelId" />
+        </div>
+    </section>
 }
 
 @code {
+    public const int MinHeight = 48;
+    public const int MaxHeight = 600;
+    private const int KeyStep = 16;
+
     private readonly string _labelId = "slide-notes-" + Guid.NewGuid().ToString("N");
+    private readonly DotNetObjectReference<SpeakerNotes> _reference;
     private SlideTextBox _text;
+    private ElementReference _grip;
+    private bool _attached;
+
+    public SpeakerNotes()
+    {
+        _reference = DotNetObjectReference.Create(this);
+    }
 
     [Parameter]
     public SlideModel Slide { get; set; }
+
+    [Parameter]
+    public int Height { get; set; } = 92;
+
+    [Parameter]
+    public EventCallback<int> OnResize { get; set; }
 
     [Parameter]
     public string HighlightId { get; set; }
@@ -56,6 +82,54 @@
     private bool IsLit => Slide != null && Slide.HasNotesChange(HighlightId) && !Slide.NotesMarkCleared;
 
     private string ShownChangeId => IsLit ? HighlightId : Slide?.NotesChangeId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Slide == null || _attached || _grip.Context == null)
+            return;
+
+        _attached = true;
+        await JS.InvokeVoidAsync("docuHelperPptGrip.register", _grip, _reference);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_attached)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperPptGrip.unregister", _grip);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        _reference.Dispose();
+    }
+
+    [JSInvokable]
+    public Task Resized(int height) => OnResize.InvokeAsync(Clamp(height));
+
+    private Task StartGrip(Microsoft.AspNetCore.Components.Web.PointerEventArgs e) =>
+        JS.InvokeVoidAsync("docuHelperPptGrip.start", _grip, e.ClientY, Height).AsTask();
+
+    private Task GripKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        var delta = e.Key switch
+        {
+            "ArrowUp" => KeyStep,
+            "ArrowDown" => -KeyStep,
+            _ => 0,
+        };
+
+        return delta == 0 ? Task.CompletedTask : OnResize.InvokeAsync(Clamp(Height + delta));
+    }
+
+    private static int Clamp(int height) => Math.Clamp(height, MinHeight, MaxHeight);
 
     private Task FocusText() => _text == null || Locked ? Task.CompletedTask : _text.FocusAsync();
 

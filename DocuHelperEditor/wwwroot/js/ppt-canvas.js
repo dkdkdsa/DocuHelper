@@ -101,6 +101,22 @@ window.docuHelperPptCanvas = (function () {
         slide.focus({ preventScroll: true });
     }
 
+    function startEditing(shape) {
+        if (!shape || !shape.classList.contains('on')) return false;
+
+        var text = shape.querySelector('[contenteditable="plaintext-only"]');
+        if (!text) return false;
+
+        text.focus();
+        var range = document.createRange();
+        range.selectNodeContents(text);
+        range.collapse(false);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return true;
+    }
+
     function onDown(slide, session, e) {
         if (session.drag || e.button !== 0 || slide.dataset.locked === 'true') return;
 
@@ -125,9 +141,18 @@ window.docuHelperPptCanvas = (function () {
         }
 
         if (target.isContentEditable === true) {
-            if (!shape.classList.contains('on')) {
-                send(session, { kind: 'select', id: shape.dataset.shape, additive: e.shiftKey });
+            var selected = shape.classList.contains('on');
+            if (selected || shape.dataset.movable !== 'true') {
+                if (!selected) {
+                    send(session, { kind: 'select', id: shape.dataset.shape, additive: e.shiftKey });
+                }
+                return;
             }
+
+            e.preventDefault();
+            send(session, { kind: 'select', id: shape.dataset.shape, additive: e.shiftKey });
+            focusSlide(slide);
+            startDrag(session, slide, e, 'move', shape, null);
             return;
         }
 
@@ -247,6 +272,14 @@ window.docuHelperPptCanvas = (function () {
             return;
         }
 
+        if (e.key === 'F2' || e.key === 'Enter') {
+            var current = active.dataset && active.dataset.shape ? active : slide.querySelector('.shape.on');
+            if (startEditing(current)) {
+                e.preventDefault();
+                return;
+            }
+        }
+
         if ((e.key === 'Enter' || e.key === ' ') && active.dataset && active.dataset.shape) {
             e.preventDefault();
             send(session, { kind: 'select', id: active.dataset.shape, additive: e.shiftKey });
@@ -269,6 +302,7 @@ window.docuHelperPptCanvas = (function () {
         window.removeEventListener('pointerup', session.onUp);
         window.removeEventListener('pointercancel', session.onCancel);
         document.removeEventListener('keydown', session.onKey);
+        slide.removeEventListener('dblclick', session.onDblClick);
         sessions.delete(slide);
     }
 
@@ -292,8 +326,22 @@ window.docuHelperPptCanvas = (function () {
             session.onUp = function (e) { onUp(session, e); };
             session.onCancel = function (e) { onCancel(session, e); };
             session.onKey = function (e) { onKey(slide, session, e); };
+            session.onDblClick = function (e) {
+                var shape = e.target.closest ? e.target.closest('[data-shape]') : null;
+                if (!shape || !slide.contains(shape) || slide.dataset.locked === 'true') return;
+                if (shape.classList.contains('on')) {
+                    startEditing(shape);
+                    return;
+                }
+
+                send(session, { kind: 'select', id: shape.dataset.shape, additive: false });
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(function () { startEditing(shape); });
+                });
+            };
 
             sessions.set(slide, session);
+            slide.addEventListener('dblclick', session.onDblClick);
             slide.addEventListener('pointerdown', session.onDown);
             window.addEventListener('pointermove', session.onMove);
             window.addEventListener('pointerup', session.onUp);
@@ -302,6 +350,46 @@ window.docuHelperPptCanvas = (function () {
         },
         detach: function (slide) {
             dispose(slide);
+        }
+    };
+})();
+
+window.docuHelperPptGrip = (function () {
+    var grips = new Map();
+    var MIN = 48;
+    var MAX = 600;
+
+    return {
+        register: function (grip, reference) {
+            if (grip) grips.set(grip, reference);
+        },
+        unregister: function (grip) {
+            grips.delete(grip);
+        },
+        start: function (grip, clientY, startHeight) {
+            var reference = grips.get(grip);
+            var notes = grip ? grip.closest('.notes') : null;
+            if (!reference || !notes) return;
+
+            var host = notes.parentElement;
+            var max = Math.min(MAX, Math.max(MIN, host.clientHeight * 0.4));
+            var height = startHeight;
+
+            function move(e) {
+                height = Math.round(Math.min(max, Math.max(MIN, startHeight - (e.clientY - clientY))));
+                notes.style.height = height + 'px';
+            }
+
+            function up() {
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', up);
+                window.removeEventListener('pointercancel', up);
+                reference.invokeMethodAsync('Resized', height).catch(function () { });
+            }
+
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', up);
+            window.addEventListener('pointercancel', up);
         }
     };
 })();

@@ -1,0 +1,73 @@
+.ruler {
+    position: relative;
+    overflow: hidden;
+    background: var(--paper-2);
+    color: var(--ink-2);
+    font-size: 11px;
+    user-select: none;
+}
+
+.ruler.x {
+    height: 22px;
+    border-bottom: 1px solid var(--rule);
+}
+
+.ruler.y {
+    width: 22px;
+    border-right: 1px solid var(--rule);
+}
+
+.tick {
+    position: absolute;
+    background: var(--line-strong);
+}
+
+.ruler.x .tick {
+    bottom: 0;
+    width: 1px;
+    height: 5px;
+}
+
+.ruler.x .tick.major {
+    height: 10px;
+}
+
+.ruler.y .tick {
+    right: 0;
+    height: 1px;
+    width: 5px;
+}
+
+.ruler.y .tick.major {
+    width: 10px;
+}
+
+.num {
+    position: absolute;
+    line-height: 1;
+}
+
+.ruler.x .num {
+    top: 2px;
+    transform: translateX(2px);
+}
+
+.ruler.y .num {
+    left: 2px;
+    transform: translateY(-50%);
+}
+
+.mark {
+    position: absolute;
+    background: var(--ink);
+}
+
+.ruler.x .mark {
+    bottom: 0;
+    height: 3px;
+}
+
+.ruler.y .mark {
+    right: 0;
+    width: 3px;
+}

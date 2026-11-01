@@ -20,6 +20,8 @@ namespace DocuHelperEditor.State.Mapping
         private const int MaxShapes = 300;
         private const int MaxGroupDepth = 20;
         private const int MaxSections = 100;
+        private const int MaxAnimations = 200;
+        private const int MaxComments = 100;
         private const int MaxSlides = 1000;
         private const int MaxPoints = 60;
         private const int MaxSeries = 6;
@@ -124,6 +126,27 @@ namespace DocuHelperEditor.State.Mapping
             {
                 slide.Background = MapBackground(sceneSlide.Background, context);
                 AddShapes(slide.Shapes, sceneSlide.Shapes, context, false, 0);
+                slide.Animations = sceneSlide.Animations
+                    .Take(MaxAnimations)
+                    .Select(animation => new SlideAnimationModel
+                    {
+                        Order = animation.Order,
+                        Target = sceneById.TryGetValue(animation.ShapeId, out var target) ? Trim(target.Name, 80) ?? "도형" : "도형",
+                        Effect = Trim(animation.Effect, 40) ?? "효과",
+                        Start = Trim(animation.Start, 40) ?? "on_click",
+                        DurationSec = Math.Clamp(animation.DurationMs / 1000.0, 0, 600),
+                        DelaySec = Math.Clamp(animation.DelayMs / 1000.0, 0, 600),
+                    })
+                    .ToList();
+                slide.Comments = sceneSlide.Comments
+                    .Take(MaxComments)
+                    .Select(comment => new SlideCommentModel
+                    {
+                        Author = Trim(comment.Author, 60) ?? "작성자",
+                        Text = Trim(comment.Text, 500) ?? string.Empty,
+                        Time = comment.Time,
+                    })
+                    .ToList();
             }
 
             slide.Chart = slide.Shapes.Select(s => s.Chart).FirstOrDefault(c => c != null && c.HasBars);

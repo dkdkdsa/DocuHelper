@@ -1,0 +1,27 @@
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+
+<ol class="anim-list" aria-label="애니메이션 순서">
+    @foreach (var item in Items)
+    {
+        <li>
+            <span class="order" aria-hidden="true">@((item.Order + 1).ToString(CultureInfo.InvariantCulture))</span>
+            <span class="target">@item.Target</span>
+            <span class="effect">@item.Effect</span>
+            <span class="meta">@StartLabel(item.Start) · @item.DurationSec.ToString("0.#", CultureInfo.InvariantCulture)초@(item.DelaySec > 0 ? " · 지연 " + item.DelaySec.ToString("0.#", CultureInfo.InvariantCulture) + "초" : string.Empty)</span>
+        </li>
+    }
+</ol>
+
+@code {
+    [Parameter]
+    public List<SlideAnimationModel> Items { get; set; } = new();
+
+    private static string StartLabel(string start) => start switch
+    {
+        "with_previous" => "이전과 함께",
+        "after_previous" => "이전 다음에",
+        "on_click" => "클릭할 때",
+        _ => start,
+    };
+}

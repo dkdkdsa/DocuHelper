@@ -18,6 +18,10 @@ namespace DocuHelperEditor.State.Papers
 
         public SlideBackgroundModel Background { get; set; } = new();
 
+        public List<SlideAnimationModel> Animations { get; set; } = new();
+
+        public List<SlideCommentModel> Comments { get; set; } = new();
+
         public SlideShapeModel FindShape(string shapeId) => string.IsNullOrEmpty(shapeId) ? null : Shapes?.FirstOrDefault(s => s.Id == shapeId);
 
         public List<string> Notes { get; set; } = new();

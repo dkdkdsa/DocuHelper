@@ -1,4 +1,5 @@
-﻿@using DocuHelperEditor.Components.Paper
+﻿@using System.Globalization
+@using DocuHelperEditor.Components.Paper
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
@@ -17,14 +18,47 @@
                 }
                 else
                 {
-                    <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
-                    @if (_ribbon.NotesOpen)
+                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)">
+                        @if (_ribbon.Rulers)
+                        {
+                            <span class="corner" aria-hidden="true"></span>
+                            <RulerBar Horizontal="true" Cm="_model.SlideWidthCm" Marks="SelectedMarks(true)" />
+                            <RulerBar Horizontal="false" Cm="_model.SlideHeightCm" Marks="SelectedMarks(false)" />
+                        }
+                        <div class="slide-wrap">
+                            <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                            @if (_ribbon.Gridlines)
+                            {
+                                <div class="grid-layer" style="@GridStyle()" aria-hidden="true"></div>
+                            }
+                            @if (_ribbon.Guides)
+                            {
+                                <span class="guide x" aria-hidden="true"></span>
+                                <span class="guide y" aria-hidden="true"></span>
+                            }
+                        </div>
+                    </div>
+                    @if (slide != null && slide.Animations.Count > 0)
                     {
-                        <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+                        <details class="pane">
+                            <summary>애니메이션 @slide.Animations.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)개</summary>
+                            <AnimationPane Items="slide.Animations" />
+                        </details>
+                    }
+                    @if (slide != null && slide.Comments.Count > 0)
+                    {
+                        <details class="pane">
+                            <summary>메모 @slide.Comments.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)개</summary>
+                            <CommentsPane Items="slide.Comments" />
+                        </details>
                     }
                 }
             </div>
         </div>
+        @if (!_sorter && _ribbon.NotesOpen)
+        {
+            <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+        }
         <ChangeNavigator File="File" />
     </div>
 }
@@ -32,6 +66,7 @@
 @code {
     private readonly PptRibbonState _ribbon = new();
     private bool _sorter;
+    private int _notesHeight = 92;
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -166,7 +201,7 @@
         if (_model.SelectedBox != null)
             return $"{number}번 슬라이드 글상자";
 
-        return _notesFocused && _ribbon.NotesOpen ? $"{number}번 슬라이드 발표 메모" : $"{number}번 슬라이드";
+        return _notesFocused && _ribbon.NotesOpen ? $"{number}번 슬라이드 노트" : $"{number}번 슬라이드";
     }
 
     private void Report()
@@ -181,6 +216,28 @@
             Workspace.Notify();
         }
     }
+
+    private IEnumerable<(double From, double To)> SelectedMarks(bool horizontal)
+    {
+        var id = _model?.SelectedShapeIds?.FirstOrDefault();
+        var shape = _model?.ActiveSlide?.FindShape(id);
+        if (shape == null)
+            yield break;
+
+        var extent = horizontal ? _model.SlideWidthCm : _model.SlideHeightCm;
+        var start = horizontal ? shape.Left : shape.Top;
+        var size = horizontal ? shape.Width : shape.Height;
+        yield return (start / 100 * extent, (start + size) / 100 * extent);
+    }
+
+    private string GridStyle()
+    {
+        var width = 100 / Math.Max(_model.SlideWidthCm, 1);
+        var height = 100 / Math.Max(_model.SlideHeightCm, 1);
+        return string.Format(CultureInfo.InvariantCulture, "background-size: {0:0.###}% 100%, 100% {1:0.###}%", width, height);
+    }
+
+    private void SetNotesHeight(int height) => _notesHeight = Math.Clamp(height, SpeakerNotes.MinHeight, SpeakerNotes.MaxHeight);
 
     private void ToggleSorter()
     {
