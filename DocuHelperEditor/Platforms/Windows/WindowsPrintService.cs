@@ -85,6 +85,48 @@ namespace DocuHelperEditor.WinUI
             }
         }
 
+        public async Task<PrintResult> ExportSheetPdfAsync(string path, SheetPrintJob job)
+        {
+            var web = WebViewHost.Current;
+            if (web == null)
+                return PrintResult.Unsupported("PDF를 만들 수 없어요. 앱을 다시 켜 주세요.");
+
+            if (string.IsNullOrWhiteSpace(path) || job == null)
+                return PrintResult.Cancelled();
+
+            try
+            {
+                var pages = await web.ExecuteScriptAsync($"docuHelper.sheetPrintEnter({job.LayoutJson})");
+                if (!int.TryParse(pages, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) || count <= 0)
+                    return PrintResult.Failed("PDF로 만들 쪽이 없어요.");
+
+                await Task.Delay(SettleMilliseconds);
+                var settings = web.Environment.CreatePrintSettings();
+                settings.PageWidth = job.WidthInches;
+                settings.PageHeight = job.HeightInches;
+                settings.MarginTop = 0;
+                settings.MarginBottom = 0;
+                settings.MarginLeft = 0;
+                settings.MarginRight = 0;
+                settings.ScaleFactor = 1;
+                settings.ShouldPrintBackgrounds = true;
+                settings.ShouldPrintHeaderAndFooter = false;
+                if (!await web.PrintToPdfAsync(path, settings))
+                    return PrintResult.Failed("PDF로 저장하지 못했어요. 한 번 더 해 보세요.");
+
+                return PrintResult.Done($"PDF로 저장했어요. 쪽 {count.ToString(CultureInfo.InvariantCulture)}개예요.");
+            }
+            catch (Exception e) when (e is InvalidOperationException || e is IOException || e is UnauthorizedAccessException || e is COMException)
+            {
+                AppLog.Write("Sheet PDF export failed", e);
+                return PrintResult.Failed("PDF로 저장하지 못했어요. 저장 위치에 쓸 수 있는지 봐 주세요.");
+            }
+            finally
+            {
+                await ExitPrintModeAsync(web);
+            }
+        }
+
         private static async Task<int> EnterPrintModeAsync(CoreWebView2 web)
         {
             var result = await web.ExecuteScriptAsync(EnterScript);

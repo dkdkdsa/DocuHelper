@@ -7,5 +7,7 @@ namespace DocuHelperEditor.Services
         Task<PrintResult> PrintAsync();
 
         Task<PrintResult> ExportPdfAsync(string path);
+
+        Task<PrintResult> ExportSheetPdfAsync(string path, SheetPrintJob job);
     }
 }
