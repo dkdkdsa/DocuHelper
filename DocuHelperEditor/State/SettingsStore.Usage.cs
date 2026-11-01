@@ -4,7 +4,7 @@ namespace DocuHelperEditor.State
 {
     public partial class SettingsStore
     {
-        public const int DefaultUsageCap = 5000;
+        public const int DefaultUsageCap = 0;
         public const int DefaultUsageAlert = 80;
         public const int DefaultUsdRate = 1330;
         public const string CapStop = "stop";
