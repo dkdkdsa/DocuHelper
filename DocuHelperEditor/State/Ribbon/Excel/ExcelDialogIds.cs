@@ -20,5 +20,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string Sort = "excel.data.sort";
         public const string NameManager = "excel.formula.namemanager";
         public const string Paste = "excel.home.paste";
+        public const string Chart = "excel.insert.chart.recommended";
     }
 }

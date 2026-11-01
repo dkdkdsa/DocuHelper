@@ -145,6 +145,9 @@
         case ExcelDialogIds.Sort:
             <SortDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
             break;
+        case ExcelDialogIds.Chart:
+            <ChartDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
         case ExcelDialogIds.Paste:
             <PasteSpecialDialog ClipSheet="@_clip?.Sheet" ClipRef="@_clip?.Region.ToRef()" ClipIsCut="@(_clip?.IsCut == true)" TargetSheet="@CurrentSheet.Name" Target="@SheetRef.Make(Selection.Left, Selection.Top)" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
             break;
