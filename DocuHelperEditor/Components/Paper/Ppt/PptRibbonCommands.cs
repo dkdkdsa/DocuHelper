@@ -17,7 +17,7 @@ using static DocuHelperEditor.State.Ribbon.RibbonMenus;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
 {
-    public sealed class PptRibbonCommands : RibbonRouter
+    public sealed partial class PptRibbonCommands : RibbonRouter
     {
         public const string UndoId = "ppt.trailing.undo";
         public const string RedoId = "ppt.trailing.redo";
@@ -52,7 +52,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         private static readonly string[] s_pending =
         {
-            "ppt.home.paste", "ppt.home.cut", "ppt.home.copy", "ppt.home.formatPainter", "ppt.insert.symbol",
+            "ppt.insert.symbol",
         };
 
         private static readonly string[] s_external =
@@ -68,6 +68,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private static readonly Regex s_hex = new("^[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
 
         private readonly PptRibbonState _state;
+        private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _dialogs;
         private readonly Dictionary<string, PptCommandSpec> _specs = new(StringComparer.Ordinal);
         private readonly Dictionary<string, (Tool Instance, PptToolSchema Schema)> _schemas = new(StringComparer.Ordinal);
@@ -75,11 +76,12 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private string _pickedName;
         private int _activate = -1;
 
-        public PptRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IFileDialogService dialogs, PptRibbonState state)
+        public PptRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IFileDialogService dialogs, PptRibbonState state, IClipboardService clipboard)
             : base(workspace, assistant, js)
         {
             _dialogs = dialogs;
             _state = state;
+            _clipboard = clipboard;
             foreach (var spec in PptCommandData.All)
             {
                 _specs[spec.Id] = spec;
@@ -239,6 +241,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             foreach (var id in s_external)
                 AddExternal(id);
 
+            RegisterClipboard();
             foreach (var id in s_pending)
                 AddDisabled(id, PendingReason);
         }

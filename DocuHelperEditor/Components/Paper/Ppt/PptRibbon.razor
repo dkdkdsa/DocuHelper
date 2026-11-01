@@ -1,6 +1,7 @@
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 @inject IFileDialogService Dialogs
+@inject IClipboardService Clipboard
 
 <Ribbon Tabs="PptRibbonData.Tabs" @bind-ActiveTab="State.Tab" @bind-IsOpen="State.RibbonOpen" FileItems="PptRibbonData.FileItems" Host="_commands" Format="DocuType.Ppt" Disabled="_commands.IsLocked">
     <Trailing>
@@ -25,7 +26,7 @@
 
     protected override void OnInitialized()
     {
-        _commands = new PptRibbonCommands(Workspace, Assistant, JS, Dialogs, State);
+        _commands = new PptRibbonCommands(Workspace, Assistant, JS, Dialogs, State, Clipboard);
         _commands.Changed += OnCommandsChanged;
     }
 

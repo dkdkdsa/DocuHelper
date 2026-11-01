@@ -263,6 +263,7 @@
             return;
 
         _model.SelectShape(shapeId, additive);
+        _ribbonHost?.Commands?.SelectionChanged();
         _notesFocused = false;
         Report();
     }
