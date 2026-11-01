@@ -23,8 +23,16 @@ namespace DocuHelperEditor
                 MinimumHeight = 640
             };
 
-            var updates = activationState.Context.Services.GetService<UpdateStore>();
+            var services = activationState.Context.Services;
+            var updates = services.GetService<UpdateStore>();
             window.Destroying += (_, _) => updates?.ApplyPendingOnExit();
+#if WINDOWS
+            window.HandlerChanged += (_, _) =>
+            {
+                if (window.Handler?.PlatformView is Microsoft.UI.Xaml.Window native)
+                    DocuHelperEditor.WinUI.CloseGuard.Attach(native, services);
+            };
+#endif
             return window;
         }
     }

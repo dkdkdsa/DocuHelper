@@ -52,7 +52,7 @@
     [SupplyParameterFromQuery(Name = "bare")]
     public string Bare { get; set; }
 
-    private bool IsBlocked => Workspace.PendingClose != null || Workspace.IsNewFileOpen || Settings.IsDialogOpen;
+    private bool IsBlocked => Workspace.PendingClose != null || Workspace.IsNewFileOpen || Workspace.IsClosingApp || Settings.IsDialogOpen;
 
     protected override void OnParametersSet()
     {
