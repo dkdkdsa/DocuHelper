@@ -43,13 +43,24 @@ namespace DocuHelperEditor.State.Samples
             "drop",
             "conversations",
             "setup",
+            "settings-update",
+            "update-avail",
+            "update-downloading",
+            "update-ready",
+            "update-unsaved",
+            "update-onclose",
         };
 
-        public static void Leave() => Current = null;
+        public static void Leave(UpdateStore updates)
+        {
+            Current = null;
+            updates.ShowSample(UpdatePhase.Idle);
+        }
 
-        public static void Apply(string name, WorkspaceStore workspace, AssistantStore assistant, SettingsStore settings)
+        public static void Apply(string name, WorkspaceStore workspace, AssistantStore assistant, SettingsStore settings, UpdateStore updates)
         {
             Current = name;
+            updates.ShowSample(UpdatePhase.Idle);
             settings.Load("sk-ant-0000000000000000", KeyCheckState.Ok, @"문서\문서도우미");
             workspace.SetFolderCollapsed(false);
             workspace.SetSavedAll(false);
@@ -147,6 +158,31 @@ namespace DocuHelperEditor.State.Samples
                 case "conversations":
                     ExcelResult(workspace, assistant);
                     assistant.ToggleConversationList();
+                    break;
+                case "settings-update":
+                    ExcelResult(workspace, assistant);
+                    updates.ShowSample(UpdatePhase.Latest);
+                    settings.OpenDialog("#header-settings", "update");
+                    break;
+                case "update-avail":
+                    ExcelResult(workspace, assistant);
+                    updates.ShowSample(UpdatePhase.Available);
+                    break;
+                case "update-downloading":
+                    ExcelResult(workspace, assistant);
+                    updates.ShowSample(UpdatePhase.Downloading, 40);
+                    break;
+                case "update-ready":
+                    ExcelResult(workspace, assistant);
+                    updates.ShowSample(UpdatePhase.Ready);
+                    break;
+                case "update-unsaved":
+                    Word(workspace, assistant);
+                    updates.ShowSample(UpdatePhase.Ready);
+                    break;
+                case "update-onclose":
+                    ExcelResult(workspace, assistant);
+                    updates.ShowSample(UpdatePhase.OnClose);
                     break;
                 default:
                     ExcelResult(workspace, assistant);

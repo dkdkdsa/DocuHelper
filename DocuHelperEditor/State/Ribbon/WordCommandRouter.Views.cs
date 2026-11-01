@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -25,6 +25,12 @@ namespace DocuHelperEditor.State.Ribbon
             "openNavigation",
             "setMarkup",
             "toggleComments",
+            "fitPage",
+            "fitMulti",
+            "fitWidth",
+            "goToPage",
+            "goToBlock",
+            "goToRevision",
         };
 
         private static readonly Dictionary<string, string> s_features = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -51,6 +57,9 @@ namespace DocuHelperEditor.State.Ribbon
 
         private string ViewBlocker(WordCommandSpec spec)
         {
+            if (spec.Id == "word.review.speech.readaloud")
+                return ReadAloudBlocker();
+
             if (IsProvided(spec.Id))
                 return null;
 
@@ -119,15 +128,32 @@ namespace DocuHelperEditor.State.Ribbon
                 case "openNavigation":
                     State.NavOpen = true;
                     State.NavPane = Text(args, "pane") ?? "res";
+                    State.SearchFocus = Text(args, "focus") == "search";
                     break;
                 case "search":
                     State.SearchText = Text(args, "query") ?? arg ?? string.Empty;
+                    State.SearchIndex = -1;
+                    break;
+                case "goToBlock":
+                    GoToBlock(Text(args, "id"));
+                    break;
+                case "goToRevision":
+                    GoToRevision(Text(args, "direction") == "prev" ? -1 : 1);
                     break;
                 case "setMarkup":
                     State.MarkupMode = Text(args, "markup") ?? State.MarkupMode;
                     break;
                 case "toggleComments":
                     State.ShowComments = !State.ShowComments;
+                    break;
+                case "fitPage":
+                case "fitMulti":
+                case "fitWidth":
+                    SetView(args);
+                    FitZoom(spec.Action);
+                    break;
+                case "goToPage":
+                    GoToPage(Int(args, "page", 0));
                     break;
             }
 
@@ -174,6 +200,48 @@ namespace DocuHelperEditor.State.Ribbon
 
             if (args["rib"] is JsonValue rib && rib.TryGetValue<bool>(out var open))
                 State.RibbonOpen = open;
+        }
+
+        private void FitZoom(string action)
+        {
+            var zoom = WordZoomFit.Compute(action, State.Canvas, Model?.FrameOf(State.CurrentPage)?.Layout ?? Model?.Layout);
+            if (zoom is int percent)
+                State.Zoom = percent;
+        }
+
+        private void GoToPage(int page)
+        {
+            var last = Model?.Pages.Count ?? 1;
+            if (page < 1 || page > last)
+                return;
+
+            State.CurrentPage = page;
+            State.PageTarget = page;
+        }
+
+        private void GoToBlock(string id)
+        {
+            var block = Model?.FindBlock(id);
+            if (block == null)
+                return;
+
+            State.CurrentPage = block.Page;
+            State.BlockTarget = block.Id;
+        }
+
+        private void GoToRevision(int step)
+        {
+            var blocks = Model?.Blocks.Where(b => b.HasRevisions).ToList();
+            if (blocks == null || blocks.Count == 0)
+                return;
+
+            var current = Model.Blocks.FindIndex(b => b.Id == Model.SelectedBlockId);
+            var target = step > 0
+                ? blocks.FirstOrDefault(b => Model.Blocks.IndexOf(b) > current) ?? blocks[0]
+                : blocks.LastOrDefault(b => Model.Blocks.IndexOf(b) < current) ?? blocks[^1];
+            Model.SelectedBlockId = target.Id;
+            State.CurrentPage = target.Page;
+            State.BlockTarget = target.Id;
         }
 
         private void SetPageMovement(JsonObject args)
@@ -264,23 +332,14 @@ namespace DocuHelperEditor.State.Ribbon
             if (IsProvided(spec.Id))
                 return null;
 
-            switch (spec.Action)
+            return spec.Action switch
             {
-                case "copy":
-                    return Block == null ? SelectParagraphReason : null;
-                case "cut":
-                    return HasTool("edit_text") ? SelectTextReason : PendingReason;
-                case "paste":
-                    if (!HasTool("edit_text"))
-                        return PendingReason;
-
-                    if (Block == null)
-                        return "붙여넣을 자리를 먼저 눌러 골라 주세요.";
-
-                    return (_clipboard.Kinds & ClipboardKinds.Text) == 0 ? "클립보드에 붙여넣을 글이 없어요." : null;
-                default:
-                    return PendingReason;
-            }
+                "copy" => CopyBlocker(),
+                "cut" => CopyBlocker(),
+                "paste" => PasteBlocker(),
+                "formatPainter" => PainterBlocker(),
+                _ => PendingReason,
+            };
         }
 
         private async Task RunClipboardAsync(WordCommandSpec spec, string arg)
@@ -291,25 +350,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return;
             }
 
-            if (spec.Action == "copy")
-            {
-                var block = Block;
-                if (block != null)
-                    await _clipboard.SetTextAsync(TextOf(block));
-
-                return;
-            }
-
-            if (spec.Action == "paste")
-                Apply(BuildEdits(spec, arg));
-        }
-
-        private static string TextOf(WordBlockModel block)
-        {
-            if (!block.IsTable || block.Table == null)
-                return block.Text ?? string.Empty;
-
-            return string.Join("\n", block.Table.Rows.Select(row => string.Join("\t", row ?? new List<string>())));
+            await RunClipboardOperationAsync(spec, arg);
         }
     }
 }

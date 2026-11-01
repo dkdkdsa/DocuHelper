@@ -14,6 +14,8 @@ namespace DocuHelper.Importers.Hwp
             [HwpFeature.ParaDivide] = ("나눔 정렬", "distributed (나눔) alignment"),
             [HwpFeature.ParaBorder] = ("문단 테두리·음영", "paragraph borders and shading"),
             [HwpFeature.TabStops] = ("탭 정지", "tab stops and leaders"),
+            [HwpFeature.StaticToc] = ("차례·목차 만들기", "making contents and figure lists"),
+            [HwpFeature.FigureToc] = ("그림·표 차례 만들기", "making figure and table lists"),
             [HwpFeature.TableCellFormat] = ("표 칸 모양", "table cell shading, borders and row heights"),
             [HwpFeature.HeaderFooter] = ("머리말·꼬리말", "headers and footers"),
             [HwpFeature.PageNumber] = ("쪽 번호", "page numbers"),

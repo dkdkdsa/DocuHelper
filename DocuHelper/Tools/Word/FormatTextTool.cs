@@ -60,9 +60,7 @@ namespace DocuHelper.Tools.Word
             if (format.IsEmpty)
                 throw new ToolInputException("바꿀 모양을 하나 이상 넣어 주세요. font, size, bold, italic, underline, strike, color, highlight, vertical_align, caps, spacing_pt, size_step, case, clear_formatting 중에서 골라 주세요.");
 
-            RefuseInHwp(docu, "형광펜", format.Highlight != null);
-            RefuseInHwp(docu, "대문자 효과", format.Caps != null);
-            RefuseInHwp(docu, "글자 간격", format.SpacingPt != null);
+            RefuseFormatInHwp(docu, format);
 
             var targets = input.Get("targets");
             if (targets.ValueKind == JsonValueKind.Array && targets.GetArrayLength() > MaxTargets)

@@ -14,6 +14,9 @@ namespace DocuHelper.Importers.Hwp
         private readonly Dictionary<int, HwpxParaShape> _paraShapes = new();
         private readonly Dictionary<int, HwpxNumberingLevel[]> _numberings = new();
         private readonly Dictionary<int, (string Normal, string Checked)> _bullets = new();
+        private readonly Dictionary<int, HwpxBorderFill> _borderFills = new();
+        private readonly Dictionary<int, List<HwpTabStop>> _tabStops = new();
+        private readonly Dictionary<int, HwpxStyle> _styleDefs = new();
         private readonly HwpxCharShape _defaultChar = new();
         private readonly HwpxParaShape _defaultPara = new();
 
@@ -37,9 +40,61 @@ namespace DocuHelper.Importers.Hwp
                     case "bullet" when parent == "bullets":
                         _bullets[HwpxXml.Int(element, "id", -1)] = Bullet(element);
                         break;
+                    case "borderFill" when parent == "borderFills":
+                        _borderFills[HwpxXml.Int(element, "id", -1)] = HwpxBorderFill.Read(element);
+                        break;
+                    case "style" when parent == "styles":
+                        _styleDefs[HwpxXml.Int(element, "id", -1)] = StyleOf(element);
+                        break;
+                    case "tabPr" when parent == "tabProperties":
+                        _tabStops[HwpxXml.Int(element, "id", -1)] = TabStopsOf(element);
+                        break;
                 }
             }
         }
+
+        public HwpxBorderFill BorderFill(int id) => _borderFills.TryGetValue(id, out var fill) ? fill : null;
+
+        public const int BulletKey = 100000;
+
+        public void FillNumberings(HwpDocument document)
+        {
+            foreach (var pair in _numberings)
+            {
+                document.Numberings[pair.Key] = new HwpNumberingDef
+                {
+                    Levels = pair.Value.Select(level => new HwpNumberingLevelDef { Start = level.Start, Format = level.Format, Text = level.Text }).ToList(),
+                };
+            }
+
+            foreach (var pair in _bullets)
+            {
+                document.Numberings[BulletKey + pair.Key] = new HwpNumberingDef
+                {
+                    Bullet = true,
+                    Levels = new List<HwpNumberingLevelDef> { new HwpNumberingLevelDef { Format = "BULLET", Text = pair.Value.Normal ?? "•" } },
+                };
+            }
+        }
+
+        public HwpxStyle Style(int id) => _styleDefs.TryGetValue(id, out var style) ? style : null;
+
+        private static HwpxStyle StyleOf(XElement element) => new(
+            HwpxXml.Int(element, "id", 0),
+            HwpxXml.Attribute(element, "name") ?? string.Empty,
+            HwpxXml.Attribute(element, "engName") ?? string.Empty,
+            HwpxXml.Int(element, "paraPrIDRef", 0),
+            HwpxXml.Int(element, "charPrIDRef", 0));
+
+        public IReadOnlyList<HwpTabStop> TabStops(int id) => _tabStops.TryGetValue(id, out var stops) ? stops : new List<HwpTabStop>();
+
+        private static List<HwpTabStop> TabStopsOf(XElement element) =>
+            HwpxXml.Children(element, "tabItem").Select(item => new HwpTabStop
+            {
+                Position = HwpxXml.Int(item, "pos", 0),
+                Type = HwpxXml.Attribute(item, "type") ?? "LEFT",
+                Leader = HwpxXml.Attribute(item, "leader") ?? "NONE",
+            }).ToList();
 
         public HwpxCharShape CharShape(int id) => _charShapes.TryGetValue(id, out var shape) ? shape : _defaultChar;
 
@@ -75,6 +130,7 @@ namespace DocuHelper.Importers.Hwp
             {
                 Size = height > 0 ? height : 1000,
                 Color = Color(HwpxXml.Attribute(element, "textColor")),
+                Shade = ShadeOf(HwpxXml.Attribute(element, "shadeColor")),
             };
             foreach (var child in HwpxXml.Children(element))
             {
@@ -89,12 +145,20 @@ namespace DocuHelper.Importers.Hwp
                     case "italic":
                         shape.Italic = true;
                         break;
+                    case "ratio":
+                        shape.Scale = ScaleOf(HwpxXml.Int(child, "hangul", 100));
+                        break;
+                    case "spacing":
+                        shape.Spacing = HwpxXml.Int(child, "hangul", 0);
+                        break;
                     case "underline":
                         shape.Underline = IsLine(HwpxXml.Attribute(child, "type"));
+                        shape.UnderlineShape = HwpxXml.Attribute(child, "shape") ?? "SOLID";
                         break;
                     case "strikeout":
                         var line = HwpxXml.Attribute(child, "shape");
                         shape.Strike = IsLine(line) && line != "3D";
+                        shape.DoubleStrike = line?.StartsWith("DOUBLE", StringComparison.Ordinal) == true;
                         break;
                     case "supscript":
                         shape.Superscript = true;
@@ -114,7 +178,8 @@ namespace DocuHelper.Importers.Hwp
             var exact = Find(element, "margin", true);
             var legacy = Find(element, "margin", false);
             var spacing = Find(element, "lineSpacing", true) ?? Find(element, "lineSpacing", false);
-            var percent = spacing != null && (HwpxXml.Attribute(spacing, "type") ?? "PERCENT") == "PERCENT";
+            var spacingType = HwpxXml.Attribute(spacing, "type") ?? "PERCENT";
+            var kind = spacingType is "FIXED" or "AT_LEAST" ? spacingType : "PERCENT";
             return new HwpxParaShape
             {
                 Alignment = Alignment(HwpxXml.Attribute(HwpxXml.Child(element, "align"), "horizontal")),
@@ -122,8 +187,15 @@ namespace DocuHelper.Importers.Hwp
                 FirstLineIndent = Length(exact, legacy, "intent"),
                 SpaceBefore = Length(exact, legacy, "prev"),
                 SpaceAfter = Length(exact, legacy, "next"),
-                LineSpacing = percent ? Math.Max(0, HwpxXml.Int(spacing, "value", 0)) : 0,
+                LineSpacing = spacing != null && spacingType is "PERCENT" or "FIXED" or "AT_LEAST" ? Math.Max(0, HwpxXml.Int(spacing, "value", 0)) : 0,
+                LineSpacingKind = kind,
                 PageBreakBefore = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "pageBreakBefore"),
+                KeepWithNext = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "keepWithNext"),
+                KeepLines = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "keepLines"),
+                WidowControl = HwpxXml.Flag(HwpxXml.Child(element, "breakSetting"), "widowOrphan"),
+                RightIndent = Length(exact, legacy, "right"),
+                BorderFillId = HwpxXml.Int(HwpxXml.Child(element, "border"), "borderFillIDRef", 1),
+                TabPrId = HwpxXml.Int(element, "tabPrIDRef", 0),
                 HeadingType = HwpxXml.Attribute(heading, "type") ?? "NONE",
                 HeadingId = HwpxXml.Int(heading, "idRef", 0),
                 HeadingLevel = HwpxXml.Int(heading, "level", 0),
@@ -211,9 +283,18 @@ namespace DocuHelper.Importers.Hwp
             "LEFT" => HwpAlignment.Left,
             "RIGHT" => HwpAlignment.Right,
             "CENTER" => HwpAlignment.Center,
-            "DISTRIBUTE" or "DISTRIBUTE_SPACE" => HwpAlignment.Distribute,
+            "DISTRIBUTE" => HwpAlignment.Distribute,
+            "DISTRIBUTE_SPACE" => HwpAlignment.Divide,
             _ => HwpAlignment.Justify,
         };
+
+        private static string ShadeOf(string value)
+        {
+            var hex = value?.Trim().TrimStart('#');
+            return hex != null && hex.Length == 6 && hex.All(Uri.IsHexDigit) ? hex.ToUpperInvariant() : null;
+        }
+
+        private static int ScaleOf(int value) => value > 0 ? value : 100;
 
         private static bool IsLine(string type) => !string.IsNullOrEmpty(type) && type != "NONE";
 

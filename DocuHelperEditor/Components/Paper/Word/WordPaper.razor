@@ -1,36 +1,57 @@
 ﻿@using DocuHelperEditor.Components.Paper
 @using DocuHelperEditor.Components.Paper.Hwp
+@using DocuHelperEditor.Components.Paper.Word.Dialogs
 @using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.State.Ribbon
+@using System.Globalization
 @inherits StoreComponentBase
+@inject IJSRuntime JS
 
-<div class="word" style="@ZoomVariable">
+<div class="word" @ref="_root">
     @if (File?.Type == DocuType.Hwp)
     {
-        <HwpRibbonHost File="File" />
+        @if (HwpRibbonState.Of(File)?.FullScreen != true)
+        {
+            <HwpRibbonHost File="File" />
+        }
     }
     else
     {
         <WordRibbonHost File="File" />
     }
 
-    <WordPage File="File" />
-    <ChangeNavigator File="File" />
+    @if (File?.Type == DocuType.Hwp)
+    {
+        <div class="stage">
+            <HwpTaskPane File="File" />
+            <WordPage File="File" />
+        </div>
+    }
+    else
+    {
+        <div class="stage">
+            <WordNavPane File="File" />
+            <WordPage File="File" />
+        </div>
+    }
+    <WordDialogHost File="File" />
+    @if (File?.Type == DocuType.Hwp)
+    {
+        <HwpStatusBar File="File" />
+    }
+    else
+    {
+        <WordStatusBar File="File" />
+    }
 </div>
 
 @code {
     private WorkspaceFile _boundFile;
+    private ElementReference _root;
+    private WheelZoom _wheel;
 
     [Parameter]
     public WorkspaceFile File { get; set; }
-
-    private string ZoomVariable
-    {
-        get
-        {
-            var zoom = File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File)?.Zoom ?? 100 : WordRibbonState.Of(File)?.Zoom ?? 100;
-            return zoom == 100 ? null : "--word-zoom: " + (zoom / 100.0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-        }
-    }
 
     protected override void OnParametersSet()
     {
@@ -40,5 +61,37 @@
         _boundFile = File;
         if (File?.Paper is WordPaperModel model && string.IsNullOrEmpty(Workspace.SelectionLabel))
             model.SelectedBlockId = null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_root.Id != null)
+        {
+            _wheel ??= new WheelZoom(JS, ZoomStepAsync);
+            await _wheel.AttachAsync(_root);
+        }
+    }
+
+    protected override void OnDispose() => _ = _wheel?.Detach();
+
+    private Task ZoomStepAsync(int direction)
+    {
+        if (File == null)
+            return Task.CompletedTask;
+
+        if (File.Type == DocuType.Hwp)
+        {
+            var hwp = HwpRibbonState.Of(File);
+            if (hwp == null)
+                return Task.CompletedTask;
+
+            hwp.Zoom += direction * 10;
+            hwp.Touch();
+            Workspace.Notify();
+            return Task.CompletedTask;
+        }
+
+        var word = WordRibbonState.Of(File);
+        return word?.Router?.InvokeAsync("word.status.zoomslider", (word.Zoom + direction * 10).ToString(CultureInfo.InvariantCulture)) ?? Task.CompletedTask;
     }
 }

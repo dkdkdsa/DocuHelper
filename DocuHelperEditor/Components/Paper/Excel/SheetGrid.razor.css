@@ -4,11 +4,51 @@
     min-height: 0;
     overflow: auto;
     scroll-padding-top: 28px;
+    overflow-anchor: none;
     background: var(--paper);
 }
 
 .grid.locked {
     opacity: 0.55;
+}
+
+.sheet td.lnk {
+    color: var(--link);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.sheet tbody th {
+    position: relative;
+}
+
+.sheet tr.ol > th {
+    padding-left: 18px;
+    padding-right: 4px;
+    text-align: right;
+}
+
+.grid.nogrid .sheet td {
+    border-color: transparent;
+}
+
+.grid.nogrid .sheet tr.fz-end > td {
+    border-bottom: 2px solid var(--ink-2);
+}
+
+.grid.nohead thead {
+    display: none;
+}
+
+.grid.nohead .rh {
+    width: 0;
+}
+
+.grid.nohead .sheet tbody th {
+    width: 0;
+    padding: 0;
+    border: 0;
+    font-size: 0;
 }
 
 .overlay {
@@ -113,6 +153,12 @@
 
 .sheet td.al-r {
     text-align: right;
+}
+
+.sheet tr.spacer td {
+    height: 0;
+    padding: 0;
+    border: 0;
 }
 
 .sheet tr.hx > th,

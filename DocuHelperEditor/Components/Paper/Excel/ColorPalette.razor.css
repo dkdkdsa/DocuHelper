@@ -50,7 +50,7 @@
     height: 16px;
     border: 1px solid var(--line-strong);
     border-radius: 3px;
-    background: linear-gradient(to top right, transparent calc(50% - 1px), #C00000 50%, transparent calc(50% + 1px)), var(--paper);
+    background: linear-gradient(to top right, transparent calc(50% - 1px), var(--nocolor) 50%, transparent calc(50% + 1px)), var(--paper);
 }
 
 .swatches {

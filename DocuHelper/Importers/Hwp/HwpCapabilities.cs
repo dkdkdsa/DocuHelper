@@ -14,41 +14,43 @@ namespace DocuHelper.Importers.Hwp
 
         public static bool Has(HwpFeature feature) => feature switch
         {
-            HwpFeature.CharShade => false,
-            HwpFeature.CharSpacing => false,
+            HwpFeature.CharShade => true,
+            HwpFeature.CharSpacing => true,
 
-            HwpFeature.ParaRightIndent => false,
-            HwpFeature.ParaKeep => false,
-            HwpFeature.ParaFixedLine => false,
-            HwpFeature.ParaDivide => false,
-            HwpFeature.ParaBorder => false,
+            HwpFeature.ParaRightIndent => true,
+            HwpFeature.ParaKeep => true,
+            HwpFeature.ParaFixedLine => true,
+            HwpFeature.ParaDivide => true,
+            HwpFeature.ParaBorder => true,
 
-            HwpFeature.TabStops => false,
+            HwpFeature.TabStops => true,
+            HwpFeature.StaticToc => true,
+            HwpFeature.FigureToc => false,
 
-            HwpFeature.TableCellFormat => false,
+            HwpFeature.TableCellFormat => true,
 
-            HwpFeature.HeaderFooter => false,
-            HwpFeature.PageNumber => false,
-            HwpFeature.PageControl => false,
+            HwpFeature.HeaderFooter => true,
+            HwpFeature.PageNumber => true,
+            HwpFeature.PageControl => true,
 
-            HwpFeature.Columns => false,
-            HwpFeature.PageBorder => false,
+            HwpFeature.Columns => true,
+            HwpFeature.PageBorder => true,
 
-            HwpFeature.Sections => false,
+            HwpFeature.Sections => true,
 
-            HwpFeature.Pictures => false,
+            HwpFeature.Pictures => true,
 
-            HwpFeature.Notes => false,
+            HwpFeature.Notes => true,
 
-            HwpFeature.Hyperlinks => false,
-            HwpFeature.Bookmarks => false,
-            HwpFeature.ClickHere => false,
+            HwpFeature.Hyperlinks => true,
+            HwpFeature.Bookmarks => true,
+            HwpFeature.ClickHere => true,
 
-            HwpFeature.NamedStyles => false,
+            HwpFeature.NamedStyles => true,
 
-            HwpFeature.RealNumbering => false,
+            HwpFeature.RealNumbering => true,
 
-            HwpFeature.KeepObjects => false,
+            HwpFeature.KeepObjects => true,
 
             _ => false,
         };

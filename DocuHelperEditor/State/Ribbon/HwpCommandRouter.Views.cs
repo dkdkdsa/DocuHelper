@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -40,12 +40,25 @@ namespace DocuHelperEditor.State.Ribbon
             ["showPane"] = "panes",
             ["toggleRuler"] = "ruler",
             ["toggleVRuler"] = "vruler",
-            ["toggleSpellcheck"] = "spellcheck",
             ["togglePreview"] = "preview",
             ["toggleOverwrite"] = "overwrite",
             ["goToPage"] = "goto",
             ["goToLine"] = "goto",
             ["goToHeading"] = "goto",
+        };
+
+        private int FitZoomOr(string action, int fallback) =>
+            WordZoomFit.Compute(action, State.Canvas, Model?.FrameOf(State.CurrentPage)?.Layout ?? Model?.Layout) ?? fallback;
+
+        private static string FeatureReason(string feature) => feature switch
+        {
+            "codes" => "조판 부호는 아직 보여 줄 수 없어요.",
+            "transparent" => "투명 선은 아직 보여 줄 수 없어요.",
+            "overwrite" => "삽입과 수정 전환은 아직 쓸 수 없어요.",
+            "panes" => "탐색 창은 아직 준비 중이에요.",
+            "preview" => "미리 보기는 아직 준비 중이에요.",
+            "goto" => "쪽과 줄 찾아가기는 아직 준비 중이에요.",
+            _ => PendingReason,
         };
 
         private string ViewBlocker(HwpCommandSpec spec)
@@ -55,7 +68,7 @@ namespace DocuHelperEditor.State.Ribbon
 
             var action = spec.Action ?? string.Empty;
             if (s_features.TryGetValue(action, out var feature))
-                return State.Supports(feature) ? null : PendingReason;
+                return State.Supports(feature) ? null : FeatureReason(feature);
 
             if (!s_internal.Contains(action))
                 return PendingReason;
@@ -94,12 +107,12 @@ namespace DocuHelperEditor.State.Ribbon
                     State.Zoom = int.TryParse(arg, NumberStyles.Integer, CultureInfo.InvariantCulture, out var percent) ? percent : Int(args, "zoom", State.Zoom);
                     break;
                 case "fitPage":
-                    State.Zoom = FitPageZoom;
+                    State.Zoom = FitZoomOr("fitPage", FitPageZoom);
                     State.Multi = false;
                     State.PageOutline = true;
                     break;
                 case "fitWidth":
-                    State.Zoom = FitWidthZoom;
+                    State.Zoom = FitZoomOr("fitWidth", FitWidthZoom);
                     State.Multi = false;
                     break;
                 case "zoomBy":
@@ -134,7 +147,7 @@ namespace DocuHelperEditor.State.Ribbon
                 case "toggleMulti":
                     State.Multi = !State.Multi;
                     State.PageOutline = State.PageOutline || State.Multi;
-                    State.Zoom = State.Multi ? MultiPageZoom : 100;
+                    State.Zoom = State.Multi ? FitZoomOr("fitMulti", MultiPageZoom) : 100;
                     break;
                 case "toggleCodes":
                     State.ShowCodes = !State.ShowCodes;
@@ -155,9 +168,6 @@ namespace DocuHelperEditor.State.Ribbon
                     break;
                 case "toggleVRuler":
                     State.VRuler = !State.VRuler;
-                    break;
-                case "toggleSpellcheck":
-                    State.SpellHelper = !State.SpellHelper;
                     break;
                 case "togglePreview":
                     State.Preview = !State.Preview;
@@ -198,8 +208,6 @@ namespace DocuHelperEditor.State.Ribbon
                     return State.Ruler && State.Supports("ruler");
                 case "hwp.view.rulers.vertical":
                     return State.VRuler && State.Supports("vruler");
-                case "hwp.review.proof.helper":
-                    return State.SpellHelper && State.Supports("spellcheck");
                 case "hwp.status.insert":
                     return State.Overwrite && State.Supports("overwrite");
                 case "hwp.trailing.collapse":
@@ -214,23 +222,14 @@ namespace DocuHelperEditor.State.Ribbon
             if (IsProvided(spec.Id))
                 return null;
 
-            switch (spec.Action)
+            return spec.Action switch
             {
-                case "copy":
-                    return Block == null ? SelectParagraphReason : null;
-                case "cut":
-                    return HasTool("edit_text") ? SelectTextReason : PendingReason;
-                case "paste":
-                    if (!HasTool("edit_text"))
-                        return PendingReason;
-
-                    if (Block == null)
-                        return "붙여넣을 자리를 먼저 눌러 골라 주세요.";
-
-                    return (_clipboard.Kinds & ClipboardKinds.Text) == 0 ? "클립보드에 붙여넣을 글이 없어요." : null;
-                default:
-                    return PendingReason;
-            }
+                "copy" => CopyBlocker(),
+                "cut" => CopyBlocker(),
+                "paste" => PasteBlocker(),
+                "formatPainter" => PainterBlocker(),
+                _ => PendingReason,
+            };
         }
 
         private async Task RunClipboardAsync(HwpCommandSpec spec, string arg)
@@ -241,17 +240,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return;
             }
 
-            if (spec.Action == "copy")
-            {
-                var block = Block;
-                if (block != null)
-                    await _clipboard.SetTextAsync(TextOf(block));
-
-                return;
-            }
-
-            if (spec.Action == "paste")
-                Apply(BuildEdits(spec, arg));
+            await RunClipboardOperationAsync(spec, arg);
         }
 
         private static string TextOf(WordBlockModel block)

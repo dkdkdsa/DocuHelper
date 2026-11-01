@@ -1,0 +1,249 @@
+section {
+    display: flex;
+    flex-direction: column;
+}
+
+h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.lead {
+    margin: 2px 0 14px;
+    font-size: 14px;
+    color: var(--ink-2);
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px 24px;
+    padding: var(--space-4) 0;
+    border-top: 1px solid var(--hair);
+}
+
+.row-head {
+    flex: 1 1 200px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.45;
+}
+
+.row-title-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.row-title {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.row-note {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.row-body {
+    flex: 1.4 1 320px;
+    min-width: 0;
+    margin: 0;
+}
+
+.inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) 10px;
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.stack.start {
+    align-items: flex-start;
+}
+
+.text {
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.icon-text {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.icon-text ::deep svg {
+    flex: none;
+    margin-top: 1px;
+}
+
+.state {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.check {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xs);
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.check.off {
+    background: var(--warn);
+}
+
+.none {
+    margin: 0;
+    font-size: 15px;
+    color: var(--ink-2);
+}
+
+.masked {
+    flex: 1 1 200px;
+    min-width: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    min-height: var(--hit);
+    padding: 0 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper-2);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+}
+
+.field-label {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.fld {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--paper);
+}
+
+.fld:focus-within {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+.fld input {
+    flex: 1;
+    min-width: 0;
+    height: var(--hit);
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 15px;
+}
+
+.fld input:focus-visible {
+    outline: none;
+}
+
+.fld input::placeholder {
+    color: var(--ink-3);
+}
+
+.tip {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.tip.warn {
+    font-weight: 700;
+    color: var(--warn);
+}
+
+.key-msg {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.key-msg.warn {
+    font-weight: 700;
+    color: var(--warn);
+}
+
+.buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.danger {
+    height: var(--hit);
+    padding: 0 14px;
+    border: 1.5px solid var(--warn);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--warn);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.danger:not(:disabled):hover {
+    background: var(--warn-soft);
+}
+
+.danger:focus-visible {
+    outline: 2px solid var(--warn);
+    outline-offset: 2px;
+}
+
+.danger:disabled {
+    border-color: var(--rule);
+    color: var(--ink-disabled);
+    cursor: not-allowed;
+}
+
+.confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--warn-line);
+    border-radius: var(--radius);
+    background: var(--warn-soft);
+}
+
+.confirm-q {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+}

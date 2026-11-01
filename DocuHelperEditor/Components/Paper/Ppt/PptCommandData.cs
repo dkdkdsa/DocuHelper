@@ -179,7 +179,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_font",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","range":"{range}","color":"{color}"}""",
                 Need = PptNeed.Text,
-                Dialog = """{"title":"글꼴 색","fields":[{"name":"color","label":"색","type":"color","default":"#B5462A","options":["theme palette of the deck (10 columns x 6 brightness rows, from catalogs.colorPalette.theme)","standard colors (catalogs.colorPalette.standard)","자동 (auto)","다른 색 (hex input)"]}],"kind":"popover"}""",
+                Dialog = """{"title":"글꼴 색","fields":[{"name":"color","label":"색","type":"color","default":"#B5462A","options":["theme:테마 색 (10열 × 6행)","standard:표준 색","auto:자동","hex:다른 색 직접 고르기"]}],"kind":"popover"}""",
             },
             new PptCommandSpec
             {
@@ -476,8 +476,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Need = PptNeed.Shape,
                 Menu = new[]
                 {
-                    new PptMenuSpec { Label = "웹 주소…", Detail = "링크", Args = """{"target":{"type":"url","url":"{url}"}}""", Dialog = """{"title":"웹 주소 연결","fields":[{"name":"url","label":"웹 주소","type":"text","default":"https://","options":[]},{"name":"tooltip","label":"설명 말풍선","type":"text","default":"","options":[]}]}""" },
-                    new PptMenuSpec { Label = "이 문서의 슬라이드…", Detail = "링크", Args = """{"target":{"type":"slide","slide":"{slideNumber}"}}""", Dialog = """{"title":"슬라이드 연결","fields":[{"name":"slideNumber","label":"슬라이드","type":"choice","default":"1","options":["deck slide list: \"1. 제목\", \"2. 제목\" ..."]}]}""" },
+                    new PptMenuSpec { Label = "웹 주소…", Detail = "링크", Args = """{"target":{"type":"url","url":"{url}","tooltip":"{tooltip}"}}""", Dialog = """{"title":"웹 주소 연결","fields":[{"name":"url","label":"웹 주소","type":"text","default":"https://","options":[]},{"name":"tooltip","label":"설명 말풍선","type":"text","default":"","options":[]}]}""" },
+                    new PptMenuSpec { Label = "이 문서의 슬라이드…", Detail = "링크", Args = """{"target":{"type":"slide","slide":"{slideNumber}"}}""", Dialog = """{"title":"슬라이드 연결","fields":[{"name":"slideNumber","label":"슬라이드 번호","type":"number","default":"1","options":[]}]}""" },
                     new PptMenuSpec { Label = "이전 슬라이드", Detail = "링크", Args = """{"target":{"type":"previous_slide"}}""" },
                     new PptMenuSpec { Label = "다음 슬라이드", Detail = "링크", Args = """{"target":{"type":"next_slide"}}""" },
                     new PptMenuSpec { Label = "처음 슬라이드", Detail = "링크", Args = """{"target":{"type":"first_slide"}}""" },
@@ -519,7 +519,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_slide_footer",
                 Args = """{"slides":"{scopeSlides}","footer":{"show":"{footer_show}","text":"{footer_text}"},"slide_number":"{slide_number}","date":{"show":"{date_show}","mode":"{date_mode}","format":"{date_format}","text":"{date_text}"},"skip_title_slide":"{skip_title_slide}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"머리글/바닥글","fields":[{"name":"date_show","label":"날짜 및 시간","type":"bool","default":false,"options":[]},{"name":"date_mode","label":"날짜 방식","type":"choice","default":"auto","options":["auto:자동으로 오늘 날짜","fixed:직접 쓰기"]},{"name":"date_format","label":"날짜 모양","type":"choice","default":"short","options":["short:2026-10-31","long:2026년 10월 31일 토요일","time:오후 4:30"]},{"name":"date_text","label":"직접 쓸 날짜","type":"text","default":"","options":[]},{"name":"slide_number","label":"슬라이드 번호","type":"bool","default":false,"options":[]},{"name":"footer_show","label":"바닥글","type":"bool","default":false,"options":[]},{"name":"footer_text","label":"바닥글 글","type":"text","default":"","options":[]},{"name":"skip_title_slide","label":"제목 슬라이드에는 보이지 않기","type":"bool","default":false,"options":[]},{"name":"scope","label":"적용 범위","type":"choice","default":"slide","options":["slide:이 슬라이드만","all:모든 슬라이드"]}],"preset":{"slide_number":true},"buttons":["적용","모두 적용"]}""",
+                Dialog = """{"title":"머리글/바닥글","fields":[{"name":"date_show","label":"날짜 및 시간","type":"bool","default":false,"options":[]},{"name":"date_mode","label":"날짜 방식","type":"choice","default":"auto","options":["auto:자동으로 오늘 날짜","fixed:직접 쓰기"]},{"name":"date_format","label":"날짜 모양","type":"choice","default":"short","options":["short:2026-10-31","long:2026년 10월 31일 토요일","time:오후 4:30"]},{"name":"date_text","label":"직접 쓸 날짜","type":"text","default":"","options":[]},{"name":"slide_number","label":"슬라이드 번호","type":"bool","default":true,"options":[]},{"name":"footer_show","label":"바닥글","type":"bool","default":false,"options":[]},{"name":"footer_text","label":"바닥글 글","type":"text","default":"","options":[]},{"name":"skip_title_slide","label":"제목 슬라이드에는 보이지 않기","type":"bool","default":false,"options":[]},{"name":"scope","label":"적용 범위","type":"choice","default":"slide","options":["slide:이 슬라이드만","all:모든 슬라이드"]}],"buttons":["적용","모두 적용"]}""",
             },
             new PptCommandSpec
             {
@@ -528,7 +528,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_slide_footer",
                 Args = """{"slides":"{scopeSlides}","footer":{"show":"{footer_show}","text":"{footer_text}"},"slide_number":"{slide_number}","date":{"show":"{date_show}","mode":"{date_mode}","format":"{date_format}","text":"{date_text}"},"skip_title_slide":"{skip_title_slide}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"머리글/바닥글","fields":[{"name":"date_show","label":"날짜 및 시간","type":"bool","default":false,"options":[]},{"name":"date_mode","label":"날짜 방식","type":"choice","default":"auto","options":["auto:자동으로 오늘 날짜","fixed:직접 쓰기"]},{"name":"date_format","label":"날짜 모양","type":"choice","default":"short","options":["short:2026-10-31","long:2026년 10월 31일 토요일","time:오후 4:30"]},{"name":"date_text","label":"직접 쓸 날짜","type":"text","default":"","options":[]},{"name":"slide_number","label":"슬라이드 번호","type":"bool","default":false,"options":[]},{"name":"footer_show","label":"바닥글","type":"bool","default":false,"options":[]},{"name":"footer_text","label":"바닥글 글","type":"text","default":"","options":[]},{"name":"skip_title_slide","label":"제목 슬라이드에는 보이지 않기","type":"bool","default":false,"options":[]},{"name":"scope","label":"적용 범위","type":"choice","default":"slide","options":["slide:이 슬라이드만","all:모든 슬라이드"]}],"preset":{"date_show":true,"date_mode":"auto"},"buttons":["적용","모두 적용"]}""",
+                Dialog = """{"title":"머리글/바닥글","fields":[{"name":"date_show","label":"날짜 및 시간","type":"bool","default":true,"options":[]},{"name":"date_mode","label":"날짜 방식","type":"choice","default":"auto","options":["auto:자동으로 오늘 날짜","fixed:직접 쓰기"]},{"name":"date_format","label":"날짜 모양","type":"choice","default":"short","options":["short:2026-10-31","long:2026년 10월 31일 토요일","time:오후 4:30"]},{"name":"date_text","label":"직접 쓸 날짜","type":"text","default":"","options":[]},{"name":"slide_number","label":"슬라이드 번호","type":"bool","default":false,"options":[]},{"name":"footer_show","label":"바닥글","type":"bool","default":false,"options":[]},{"name":"footer_text","label":"바닥글 글","type":"text","default":"","options":[]},{"name":"skip_title_slide","label":"제목 슬라이드에는 보이지 않기","type":"bool","default":false,"options":[]},{"name":"scope","label":"적용 범위","type":"choice","default":"slide","options":["slide:이 슬라이드만","all:모든 슬라이드"]}],"buttons":["적용","모두 적용"]}""",
             },
             new PptCommandSpec
             {
@@ -599,7 +599,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                     new PptMenuSpec { Label = "와이드스크린 (16:9)", Detail = "33.87 x 19.05 cm", Args = """{"preset":"widescreen_16_9"}""" },
                     new PptMenuSpec { Label = "와이드스크린 (16:10)", Detail = "30.48 x 19.05 cm", Args = """{"preset":"widescreen_16_10"}""" },
                     new PptMenuSpec { Label = "A4 용지", Detail = "29.7 x 21 cm", Args = """{"preset":"a4"}""" },
-                    new PptMenuSpec { Label = "Letter 용지", Detail = "27.94 x 21.59 cm", Args = """{"preset":"letter"}""" },
+                    new PptMenuSpec { Label = "레터 용지", Detail = "27.94 x 21.59 cm", Args = """{"preset":"letter"}""" },
                     new PptMenuSpec { Label = "사용자 지정…", Detail = "창", Args = """{"preset":"custom"}""", Dialog = """{"title":"슬라이드 크기","fields":[{"name":"width_cm","label":"너비(cm)","type":"number","default":33.87,"options":[]},{"name":"height_cm","label":"높이(cm)","type":"number","default":19.05,"options":[]},{"name":"scaling","label":"크기가 바뀔 때","type":"choice","default":"ensure_fit","options":["ensure_fit:맞춤 확인(내용이 안 잘려요)","maximize:최대화(내용이 커져요)"]}]}""" },
                 },
             },
@@ -914,7 +914,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Need = PptNeed.Slide,
                 Menu = new[]
                 {
-                    new PptMenuSpec { Label = "사용자 지정 쇼…", Detail = "창", Dialog = """{"title":"사용자 지정 쇼","fields":[{"name":"name","label":"쇼 이름","type":"text","default":"","options":[]},{"name":"pickedSlides","label":"넣을 슬라이드","type":"choice","default":[],"options":["multi-select list of the deck slides with checkboxes: \"1. 제목\" ..."],"multiple":true}],"buttons":["저장","지우기"]}""" },
+                    new PptMenuSpec { Label = "사용자 지정 쇼…", Detail = "창", Dialog = """{"title":"사용자 지정 쇼","fields":[{"name":"name","label":"쇼 이름","type":"text","default":"","options":[]},{"name":"pickedSlides","label":"넣을 슬라이드 번호 (쉼표로 구분, 예: 1,3)","type":"text","default":"","options":[]}],"buttons":["저장","지우기"]}""" },
                 },
             },
             new PptCommandSpec
@@ -1033,8 +1033,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             {
                 Id = "ppt.review.compare",
                 Kind = PptCommandKind.Assistant,
-                Prompt = "지금 파일과 ‘{file}’을(를) 비교해서 달라진 슬라이드와 달라진 내용을 알려 줘. 내용을 바꾸지는 마.",
-                Dialog = """{"title":"비교","fields":[{"name":"file","label":"비교할 파일","type":"choice","default":"","options":["workspace .pptx files except this one"]}]}""",
+                Prompt = "지금 파일과 작업 폴더의 다른 .pptx 파일을 비교해서 달라진 슬라이드와 달라진 내용을 알려 줘. 비교할 파일이 정해지지 않았으면 먼저 물어봐 줘. 내용을 바꾸지는 마.",
             },
             new PptCommandSpec
             {

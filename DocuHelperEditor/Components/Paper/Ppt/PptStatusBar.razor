@@ -1,0 +1,91 @@
+@using System.Globalization
+@using DocuHelper.Docus
+@using DocuHelperEditor.Components.Ribbon
+@using DocuHelperEditor.State.Papers
+
+<StatusBar Format="DocuType.Ppt" Label="상태 표시줄" Left="Left" Right="Right" />
+
+@code {
+    private PptRibbonSelection _selection;
+
+    [Parameter]
+    public PptPaperModel Model { get; set; }
+
+    [Parameter]
+    public PptRibbonState State { get; set; }
+
+    [Parameter]
+    public PptRibbonCommands Commands { get; set; }
+
+    [Parameter]
+    public bool SorterOpen { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggleSorter { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnZoom { get; set; }
+
+    protected override void OnParametersSet() => _selection = PptRibbonSelection.From(Model);
+
+    private PptRibbonSelection Selection => _selection ?? new PptRibbonSelection();
+
+    private string View => State?.View ?? "normal";
+
+    private int Zoom => State?.Zoom ?? 100;
+
+    private int ShapeCount => Model?.SelectedShapeIds?.Count ?? 0;
+
+    private bool IsOff(string id) => Commands == null || Commands.IsDisabled(id);
+
+    private string ReasonOf(string id) => Commands?.DisabledReasonOf(id) ?? PendingText;
+
+    private string TipOf(string id, string tip) => IsOff(id) ? ReasonOf(id) : tip;
+
+    private static string Text(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private const string PendingText = "아직 준비 중이에요.";
+
+    private Task Command(string id) => Commands?.InvokeAsync(id, null) ?? Task.CompletedTask;
+
+    private async Task NormalAsync()
+    {
+        if (SorterOpen)
+            await OnToggleSorter.InvokeAsync();
+
+        await Command("ppt.view.normal");
+    }
+
+    private Task SetZoomAsync(int value) => OnZoom.InvokeAsync(value);
+
+    private RenderFragment Left => __builder =>
+    {
+        <StatusButton Tip="지금 슬라이드 번호">슬라이드 @Text(Selection.SlideNumber)/@Text(Selection.SlideCount)</StatusButton>
+        @if (ShapeCount > 0)
+        {
+            <StatusButton Tip="고른 도형 수">도형 @Text(ShapeCount)개 선택</StatusButton>
+        }
+        <RibbonDivider Gap="6" />
+        <StatusButton Tip='@TipOf("ppt.view.notesCheck", "발표 노트 칸 열기와 닫기")' Pressed="@(State?.NotesOpen ?? false)" disabled="@IsOff("ppt.view.notesCheck")" OnClick='() => Command("ppt.view.notesCheck")'>노트</StatusButton>
+    };
+
+    private RenderFragment Right => __builder =>
+    {
+        <span class="views" role="group" aria-label="보기">
+            <StatusButton Icon="normal" Label="기본" Tip="기본 보기" Pressed="@(View == "normal" && !SorterOpen)" OnClick='() => NormalAsync()' />
+            <StatusButton Icon="grid" Label="여러 슬라이드" Tip="여러 슬라이드 보기" Pressed="@SorterOpen" OnClick='() => OnToggleSorter.InvokeAsync()' />
+            <StatusButton Icon="read" Label="읽기용 보기" Tip='@TipOf("ppt.view.read", "읽기용 보기")' Pressed="@(View == "read")" disabled="@IsOff("ppt.view.read")" OnClick='() => Command("ppt.view.read")' />
+            <StatusButton Icon="slide-show" Label="슬라이드 쇼" Tip='@TipOf("ppt.show.fromCurrent", "현재 슬라이드부터 쇼")' Pressed="@(View == "show")" disabled="@IsOff("ppt.show.fromCurrent")" OnClick='() => Command("ppt.show.fromCurrent")' />
+        </span>
+        <RibbonDivider Gap="4" />
+        @if (IsOff("ppt.view.zoom"))
+        {
+            <StatusButton Class="percent" Tip="@ReasonOf("ppt.view.zoom")">@Text(Zoom)%</StatusButton>
+        }
+        else
+        {
+            <ZoomControl Value="Zoom" ValueChanged="SetZoomAsync" SliderWidth="92" />
+        }
+        <StatusButton Icon="fit" Label="창에 맞춤" Tip='@TipOf("ppt.view.fit", "창에 맞춤")' disabled="@IsOff("ppt.view.fit")" OnClick='() => Command("ppt.view.fit")' />
+    };
+}

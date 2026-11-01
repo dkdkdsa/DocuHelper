@@ -1,0 +1,8 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<button type="button" class="dd" tabindex="-1" aria-label="목록 열기" title="목록 열기" @onclick="OnOpen" @onmousedown:stopPropagation="true">▾</button>
+
+@code {
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnOpen { get; set; }
+}

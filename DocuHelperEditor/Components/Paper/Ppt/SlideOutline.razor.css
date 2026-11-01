@@ -1,0 +1,64 @@
+.outline {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: auto;
+    padding: 16px;
+    background: var(--paper-2);
+}
+
+.rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.row {
+    width: 100%;
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.row:hover {
+    background: var(--head-hover);
+}
+
+.row.on {
+    border: 2px solid var(--ink);
+}
+
+.num {
+    flex: none;
+    width: 24px;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.title {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.line {
+    font-size: 13px;
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+}

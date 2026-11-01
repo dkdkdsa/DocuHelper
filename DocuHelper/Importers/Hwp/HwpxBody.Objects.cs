@@ -63,6 +63,7 @@ namespace DocuHelper.Importers.Hwp
                     }
                     else if (s_shapes.Contains(name))
                     {
+                        _document.Skipped.Add(HwpSkipped.Drawing);
                         ReadCaption(element, true, anchored);
                         ReadList(HwpxXml.Child(HwpxXml.Child(element, "drawText"), "subList"), anchored);
                         ReadCaption(element, false, anchored);
@@ -71,6 +72,44 @@ namespace DocuHelper.Importers.Hwp
                     break;
             }
         }
+
+        private void ReadPicture(XElement element, HwpxRunBuilder runs)
+        {
+            if (_deleting > 0)
+                return;
+
+            var id = HwpxXml.Attribute(HwpxXml.Child(element, "img"), "binaryItemIDRef");
+            var binary = Binaries?.Invoke(id);
+            var contentType = binary == null ? null : ContentTypeOf(binary.Value.Extension);
+            if (contentType == null)
+            {
+                _document.Skipped.Add(HwpSkipped.Picture);
+                return;
+            }
+
+            var size = HwpxXml.Child(element, "sz") ?? HwpxXml.Child(element, "curSz");
+            var picture = new HwpPicture
+            {
+                Index = _document.Pictures.Count,
+                Bytes = binary.Value.Bytes,
+                Extension = binary.Value.Extension,
+                ContentType = contentType,
+                Width = Math.Max(0, HwpxXml.Int(size, "width", 0)),
+                Height = Math.Max(0, HwpxXml.Int(size, "height", 0)),
+                AltText = HwpxXml.Child(element, "shapeComment")?.Value,
+            };
+            _document.Pictures.Add(picture);
+            runs.AppendPicture(picture);
+        }
+
+        private static string ContentTypeOf(string extension) => extension switch
+        {
+            "png" => "image/png",
+            "jpg" or "jpeg" => "image/jpeg",
+            "gif" => "image/gif",
+            "bmp" => "image/bmp",
+            _ => null,
+        };
 
         private void Skip(HwpSkipped kind, XElement element, List<HwpBlock> anchored)
         {
@@ -92,16 +131,18 @@ namespace DocuHelper.Importers.Hwp
 
         private void ReadTextArt(XElement element, HwpxCharShape shape, List<HwpBlock> anchored)
         {
-            var text = (HwpxXml.Attribute(element, "text") ?? string.Empty)
-                .Replace(s_artBreak, "\n")
-                .Replace((char)0x240D, '\n')
-                .Replace((char)0x240A, '\n')
-                .Trim();
+            _document.Skipped.Add(HwpSkipped.Drawing);
             var runs = new HwpxRunBuilder();
-            runs.Append(text, shape);
+            runs.Append(ArtText(element), shape);
             if (runs.Runs.Count > 0)
                 anchored.Add(new HwpParagraph { Runs = runs.Runs });
         }
+
+        private static string ArtText(XElement element) => (HwpxXml.Attribute(element, "text") ?? string.Empty)
+            .Replace(s_artBreak, "\n")
+            .Replace((char)0x240D, '\n')
+            .Replace((char)0x240A, '\n')
+            .Trim();
 
         private static string Dutmal(XElement element)
         {

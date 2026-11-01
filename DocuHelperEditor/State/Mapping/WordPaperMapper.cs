@@ -27,7 +27,12 @@ namespace DocuHelperEditor.State.Mapping
                 return old ?? new WordPaperModel();
 
             var scan = WordScan.Read(word.Document);
+            var labels = WordNumberingLabels.Compute(scan);
+            var notes = NoteNumbers(scan);
             var changes = ChangeIds(docu);
+            var comments = WordInventory.Comments(word, scan);
+            var revisions = WordInventory.Revisions(word, scan);
+            var authors = revisions.Where(r => r.Author != null).Select(r => r.Author).Distinct().ToList();
             var earlier = old?.Blocks.Where(b => b?.Id != null).GroupBy(b => b.Id).ToDictionary(g => g.Key, g => g.First()) ?? new Dictionary<string, WordBlockModel>();
             var blocks = new List<WordBlockModel>(scan.Blocks.Count);
             var looks = new List<WordLook>(scan.Blocks.Count);
@@ -36,7 +41,19 @@ namespace DocuHelperEditor.State.Mapping
                 var look = WordLook.Of(scan, block);
                 var model = block.IsTable ? MapTable(scan, block) : MapParagraph(block, look);
                 model.Id = block.Id == null ? $"b:{block.Index}" : block.Anchor;
+                model.ParagraphIds = block.IsTable ? block.Table.Descendants<Paragraph>().Select(WordIds.Of).Where(id => id != null).ToList() : Array.Empty<string>();
                 model.Page = block.Page;
+                model.Fragments = block.Fragments.ToList();
+                model.SpaceBefore = block.SpaceBefore;
+                model.LineHeight = block.LineHeight;
+                model.FontSize = block.FontSize;
+                model.RowHeights = block.RowHeights.ToList();
+                model.Segments = block.IsTable || block.Paragraph == null ? Array.Empty<WordCharSegment>() : SegmentsOf(block, notes);
+                model.ViewSegments = WordReviewRuns.Of(block, model, comments, author => ToneIn(authors, author));
+                model.HasRevisions = !block.IsTable && WordReviewRuns.HasRevisions(block.Paragraph);
+                model.Objects = WordObjectMapper.Of(block, model.Id, block.Page, word, scan.Layout);
+                model.Look = block.IsTable || block.Paragraph == null ? null : WordLooks.ParagraphOf(scan.Styles, block.Paragraph);
+                model.ListLabel = !block.IsTable && block.Paragraph != null && model.ListKind != WordListKind.None ? labels.LabelOf(block.Paragraph) : null;
                 model.IsBold = look.Bold;
                 model.IsItalic = look.Italic;
                 model.IsUnderline = look.Underline;
@@ -49,11 +66,55 @@ namespace DocuHelperEditor.State.Mapping
             MarkBylines(scan, blocks, looks);
 
             var selected = old?.SelectedBlockId;
-            return new WordPaperModel
+            var paper = new WordPaperModel
             {
                 Blocks = blocks,
+                Layout = scan.Layout,
+                Frames = scan.Frames,
+                Comments = comments,
+                Revisions = revisions,
+                Authors = authors,
                 SelectedBlockId = selected != null && blocks.Any(b => b.Id == selected) ? selected : null,
             };
+            var selection = old?.Selection ?? WordSelection.None;
+            if (selection.BlockIds.All(id => blocks.Any(b => b.Id == id)))
+                paper.Selection = selection;
+
+            return paper;
+        }
+
+        private static int ToneIn(IReadOnlyList<string> authors, string author)
+        {
+            var index = authors.ToList().IndexOf(author ?? string.Empty);
+            return index < 0 ? 1 : index % 4 + 1;
+        }
+
+        private static IReadOnlyList<WordCharSegment> SegmentsOf(WordBlock block, IReadOnlyDictionary<string, string> notes)
+        {
+            var segments = WordCharFormat.Segments(block.Paragraph)
+                .Select(s => s.Look.IsMark ? s with { Look = s.Look with { MarkText = NoteText(s.Look, notes) } } : s)
+                .ToList();
+            return string.Concat(segments.Select(s => s.Text)) == block.Text ? segments : Array.Empty<WordCharSegment>();
+        }
+
+        private static string NoteText(WordCharLook look, IReadOnlyDictionary<string, string> notes) =>
+            look.Mark == "bm" ? look.MarkText : notes.TryGetValue(look.Mark + ":" + look.MarkText, out var number) ? number : string.Empty;
+
+        private static IReadOnlyDictionary<string, string> NoteNumbers(WordScan scan)
+        {
+            var numbers = new Dictionary<string, string>(StringComparer.Ordinal);
+            var footnotes = 0;
+            var endnotes = 0;
+            foreach (var element in scan.Body.Descendants())
+            {
+                if (element is DocumentFormat.OpenXml.Wordprocessing.FootnoteReference note)
+                    numbers["fn:" + note.Id?.Value.ToString(CultureInfo.InvariantCulture)] = (++footnotes).ToString(CultureInfo.InvariantCulture);
+
+                if (element is DocumentFormat.OpenXml.Wordprocessing.EndnoteReference endnote)
+                    numbers["en:" + endnote.Id?.Value.ToString(CultureInfo.InvariantCulture)] = (++endnotes).ToString(CultureInfo.InvariantCulture);
+            }
+
+            return numbers;
         }
 
         private static Dictionary<string, string> ChangeIds(Docu docu)
@@ -95,6 +156,7 @@ namespace DocuHelperEditor.State.Mapping
             var rows = WordTables.Texts(grid);
             var spans = new Dictionary<(int Row, int Column), (int Rows, int Columns)>();
             var covered = new HashSet<(int Row, int Column)>();
+            var looks = new Dictionary<(int Row, int Column), WordCellLook>();
             for (var r = 0; r < grid.Count; r++)
             {
                 for (var c = 0; c < grid[r].Count; c++)
@@ -103,6 +165,7 @@ namespace DocuHelperEditor.State.Mapping
                     if (!cell.IsOrigin || cell.Owner == null)
                         continue;
 
+                    looks[(r, c)] = WordLooks.CellOf(cell.Owner);
                     var columns = 1;
                     while (c + columns < grid[r].Count && !grid[r][c + columns].IsOrigin && grid[r][c + columns].Owner == cell.Owner)
                         columns++;
@@ -142,6 +205,7 @@ namespace DocuHelperEditor.State.Mapping
                     Spans = spans,
                     Covered = covered,
                     ColumnWidths = ColumnWidths(block.Table),
+                    CellLooks = looks,
                 },
             };
         }

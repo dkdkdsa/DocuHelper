@@ -2,178 +2,152 @@
     position: relative;
     flex: none;
     width: 100%;
-    max-width: 560px;
-    min-height: min-content;
-    aspect-ratio: 16 / 9;
-    display: flex;
-    flex-direction: column;
-    padding: 26px 30px 16px;
-    background: var(--paper);
+    max-width: var(--slide-max, 560px);
+    overflow: hidden;
+    container-type: inline-size;
     box-shadow: var(--shadow-slide);
 }
 
-.slide.cover {
-    justify-content: center;
-    gap: 12px;
+.slide:not([data-locked="true"]) {
+    overflow: clip;
+    overflow-clip-margin: 36px;
 }
 
-.slide.closing {
-    justify-content: center;
+.bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
 }
 
-.rule {
-    flex: none;
-    width: 40px;
-    height: 3px;
-    margin: 10px 0 16px;
-    background: var(--ink);
+.shape {
+    position: absolute;
+    box-sizing: border-box;
+    touch-action: none;
+    transform: rotate(var(--rot, 0deg));
+    transform-origin: 50% 50%;
 }
 
-.row {
-    flex: 1;
-    min-height: 0;
+.shape[data-movable="true"] {
+    cursor: move;
+}
+
+.shape.inherited {
+    pointer-events: none;
+}
+
+.shape.on {
+    outline: 1.5px dashed var(--ink);
+    outline-offset: 4px;
+}
+
+.shape.empty:not(.on) {
+    outline: 1px dashed var(--rule);
+    outline-offset: 4px;
+}
+
+.geo,
+.pic {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    transform: scale(var(--fx, 1), var(--fy, 1));
+    pointer-events: none;
+}
+
+.geo {
+    overflow: visible;
+}
+
+.geo * {
+    vector-effect: non-scaling-stroke;
+}
+
+.pic {
+    object-fit: fill;
+}
+
+.tbox {
+    position: absolute;
+    inset: 0;
     display: flex;
-    gap: 22px;
-}
-
-.box {
-    position: relative;
+    flex-direction: column;
     min-width: 0;
 }
 
-.row > .box {
-    flex: 1;
-    align-self: flex-start;
+.tbox.v-ctr {
+    justify-content: center;
 }
 
-.row > .box.beside {
-    flex: 1.1;
+.tbox.v-b {
+    justify-content: flex-end;
 }
 
-.box.on {
-    outline: 1.5px dashed var(--ink);
-    outline-offset: 6px;
-}
-
-.box.empty:not(.on) {
-    outline: 1px dashed var(--rule);
-    outline-offset: 6px;
+.tbox :deep(.text) {
+    width: 100%;
 }
 
 .handle {
     position: absolute;
-    width: 8px;
-    height: 8px;
+    z-index: 2;
+    width: 9px;
+    height: 9px;
+    box-sizing: border-box;
     border: 1.5px solid var(--ink);
     background: var(--paper);
+    transform: translate(-50%, -50%);
 }
 
-.tl {
-    left: -10px;
-    top: -10px;
+.handle::before {
+    content: "";
+    position: absolute;
+    inset: -18px;
 }
 
-.tr {
-    right: -10px;
-    top: -10px;
+.handle.nw,
+.handle.se {
+    cursor: nwse-resize;
 }
 
-.bl {
-    left: -10px;
-    bottom: -10px;
+.handle.ne,
+.handle.sw {
+    cursor: nesw-resize;
 }
 
-.br {
-    right: -10px;
-    bottom: -10px;
+.handle.n,
+.handle.s {
+    cursor: ns-resize;
 }
 
-.chart {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    display: flex;
-    font-size: 11px;
-    color: var(--ink-2);
+.handle.e,
+.handle.w {
+    cursor: ew-resize;
 }
 
-.chart.bars {
-    flex-direction: column;
-    justify-content: center;
-    gap: 5px;
-}
+.handle.nw { left: 0; top: 0; }
+.handle.n { left: 50%; top: 0; }
+.handle.ne { left: 100%; top: 0; }
+.handle.e { left: 100%; top: 50%; }
+.handle.se { left: 100%; top: 100%; }
+.handle.s { left: 50%; top: 100%; }
+.handle.sw { left: 0; top: 100%; }
+.handle.w { left: 0; top: 50%; }
 
-.bar-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.bar-label {
-    flex: none;
-    width: 58px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.bar {
-    height: 9px;
-    background: var(--line-strong);
-}
-
-.bar.top {
-    background: var(--ink);
-}
-
-.chart.cols {
-    justify-content: center;
-    gap: 14px;
-}
-
-.col {
-    flex: 1;
-    min-width: 0;
-    max-width: 44px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-
-.col-track {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-}
-
-.col-bar {
-    width: 26px;
-    background: var(--line-strong);
-}
-
-.col-bar.top {
-    background: var(--ink);
-}
-
-.col-label {
-    white-space: nowrap;
-}
-
-.foot {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--ink-2);
+.handle.rot {
+    left: 50%;
+    top: -28px;
+    border-radius: 50%;
+    cursor: grab;
 }
 
 .fit {
     flex: none;
     width: 100%;
-    max-width: 560px;
+    max-width: var(--slide-max, 560px);
     margin: 0;
     display: flex;
     align-items: center;

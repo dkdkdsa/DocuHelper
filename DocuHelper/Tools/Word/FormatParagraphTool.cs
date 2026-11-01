@@ -28,7 +28,7 @@ namespace DocuHelper.Tools.Word
                 "italic": {"type": "boolean"},
                 "underline": {"type": "boolean"},
                 "reset": {"type": "boolean", "description": "Remove direct paragraph formatting first (keeps list numbering)."},
-                "align": {"type": "string", "enum": ["left", "center", "right", "justify", "distribute"]},
+                "align": {"type": "string", "enum": ["left", "center", "right", "justify", "distribute", "divide"]},
                 "indent_left_cm": {"type": "number", "minimum": -10, "maximum": 30},
                 "indent_right_cm": {"type": "number", "minimum": -10, "maximum": 30},
                 "first_line_cm": {"type": "number", "minimum": 0, "maximum": 30, "description": "Extra indent of the first line."},
@@ -136,7 +136,7 @@ namespace DocuHelper.Tools.Word
             if (spec.KeepNext != null || spec.KeepLines != null)
                 HwpGuard.Require(docu, HwpFeature.ParaKeep);
 
-            if (spec.Align == JustificationValues.Distribute)
+            if (spec.Align == JustificationValues.ThaiDistribute)
                 HwpGuard.Require(docu, HwpFeature.ParaDivide);
 
             if (spec.Line != null && spec.LineRule != LineSpacingRuleValues.Auto)
@@ -145,7 +145,6 @@ namespace DocuHelper.Tools.Word
             if (spec.Shading != null || spec.Borders != null)
                 HwpGuard.Require(docu, HwpFeature.ParaBorder);
 
-            RefuseInHwp(docu, "외톨이 줄 방지", spec.WidowControl != null);
             RefuseInHwp(docu, "문단 앞 쪽 나눔", spec.PageBreakBefore != null);
             RefuseInHwp(docu, "줄 번호 제외", spec.SuppressLineNumbers != null);
             RefuseInHwp(docu, "개요 수준", spec.OutlineLevel != null);

@@ -7,5 +7,6 @@
         Chart,
         HeaderFooter,
         Object,
+        Drawing,
     }
 }

@@ -1,0 +1,49 @@
+.note {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+}
+
+.mark {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-top: 6px solid var(--warn);
+    border-left: 6px solid transparent;
+}
+
+.pop {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 20;
+    width: max-content;
+    max-width: 240px;
+    padding: 8px 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: left;
+    white-space: pre-wrap;
+    box-shadow: 0 12px 24px -16px rgba(var(--ink-rgb), 0.5);
+}
+
+.note:hover .pop {
+    display: block;
+}
+
+.who {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--ink-2);
+    font-weight: 700;
+}

@@ -1,0 +1,290 @@
+@using System.Globalization
+@using System.Text.Json.Nodes
+@using DocuHelperEditor.State.Ribbon
+@using DocuHelperEditor.Components.Ui
+@implements IDisposable
+@inject IJSRuntime JS
+
+<div class="overlay">
+    <div class="backdrop" aria-hidden="true"></div>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="wd-title" aria-describedby="wd-error" tabindex="-1" @ref="_dialog" @onkeydown="OnKeyDown">
+        <div class="head">
+            <h2 id="wd-title">@Request.Title</h2>
+            <IconButton Icon="x" IconSize="20" Label="대화상자 닫기" Title="닫기 (Esc)" OnClick="CancelAsync" />
+        </div>
+        <div class="body">
+            @for (var i = 0; i < Request.Fields.Count; i++)
+            {
+                var field = Request.Fields[i];
+                var index = i;
+                var id = $"wd-f{index}";
+                if (field.Type == "bool")
+                {
+                    <label class="check" for="@id">
+                        <input id="@id" type="checkbox" checked="@(Value(field) == "true")" @onchange='e => SetValue(field, (e.Value is bool on && on) ? "true" : "false")' />
+                        <span>@field.Label</span>
+                    </label>
+                }
+                else if (field.Type == "choice" && field.Options.Count <= 4)
+                {
+                    <fieldset class="choices">
+                        <legend>@field.Label</legend>
+                        @for (var o = 0; o < field.Options.Count; o++)
+                        {
+                            var option = field.Options[o];
+                            var label = OptionLabel(field, o);
+                            <label class="radio">
+                                <input type="radio" name="@id" value="@option" checked="@(Value(field) == option)" @onchange="() => SetValue(field, option)" />
+                                <span>@label</span>
+                            </label>
+                        }
+                    </fieldset>
+                }
+                else if (field.Type == "choice")
+                {
+                    <label class="field-label" for="@id">@field.Label</label>
+                    <select id="@id" class="field-input" @onchange="e => SetValue(field, e.Value?.ToString())">
+                        @for (var o = 0; o < field.Options.Count; o++)
+                        {
+                            var option = field.Options[o];
+                            <option value="@option" selected="@(Value(field) == option)">@OptionLabel(field, o)</option>
+                        }
+                    </select>
+                }
+                else if (field.Type == "color")
+                {
+                    <label class="field-label" for="@id">@field.Label</label>
+                    <input id="@id" class="field-color" type="color" value="@ColorValue(field)" @oninput="e => SetValue(field, e.Value?.ToString()?.TrimStart('#'))" />
+                }
+                else
+                {
+                    <label class="field-label" for="@id">@field.Label</label>
+                    <input id="@id" class="field-input" type="@InputType(field)" autocomplete="@(field.Type == "password" ? "new-password" : "off")" step="any" inputmode="@(field.Type == "number" ? "decimal" : "text")" maxlength="@(field.Type == "char" ? "2" : null)" value="@Value(field)" @oninput="e => SetValue(field, e.Value?.ToString())" />
+                }
+            }
+            <p id="wd-error" class="error" role="alert" hidden="@(_error == null)">@_error</p>
+        </div>
+        <div class="foot">
+            <ActionButton Kind="ButtonKind.Secondary" OnClick="CancelAsync">취소</ActionButton>
+            <ActionButton Kind="ButtonKind.Primary" OnClick="SubmitAsync">확인</ActionButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ElementReference _dialog;
+    private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
+    private bool _focusPending = true;
+    private string _error;
+    private bool _submitting;
+    private bool _submitted;
+
+    [Parameter]
+    public WordDialogRequest Request { get; set; }
+
+    [Parameter]
+    public EventCallback Closed { get; set; }
+
+    [Parameter]
+    public string ReturnFocus { get; set; }
+
+    private WordDialogRequest _shown;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_shown, Request))
+            return;
+
+        _shown = Request;
+        _values.Clear();
+        foreach (var field in Request.Fields)
+            _values[field.Name] = InitialValue(field);
+
+        _error = null;
+        _focusPending = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusPending)
+            return;
+
+        _focusPending = false;
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelperDialog.open", _dialog, ReturnFocus);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        _ = JS.InvokeVoidAsync("docuHelperDialog.close").AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
+    }
+
+    private string Value(WordDialogField field) => _values.TryGetValue(field.Name, out var value) ? value : string.Empty;
+
+    private void SetValue(WordDialogField field, string value)
+    {
+        _values[field.Name] = value ?? string.Empty;
+        _error = null;
+    }
+
+    private string ColorValue(WordDialogField field)
+    {
+        var value = Value(field).TrimStart('#');
+        return value.Length == 6 ? "#" + value : "#000000";
+    }
+
+    private static string OptionLabel(WordDialogField field, int index) =>
+        index < field.Labels.Count ? field.Labels[index] : field.Options[index];
+
+    private string InitialValue(WordDialogField field)
+    {
+        if (Request.Defaults.TryGetValue(field.Name, out var node) && Text(node) is string given)
+            return given;
+
+        if (!string.IsNullOrEmpty(field.Default) && !field.Default.Contains('{') && Text(JsonNode.Parse(field.Default)) is string parsed)
+            return parsed;
+
+        if (field.Type == "bool")
+            return "false";
+
+        if (field.Type == "choice" && field.Options.Count > 0)
+            return field.Options[0];
+
+        return string.Empty;
+    }
+
+    private static string Text(JsonNode node)
+    {
+        if (node is not JsonValue value)
+            return null;
+
+        if (value.TryGetValue<string>(out var text))
+            return text;
+
+        if (value.TryGetValue<bool>(out var flag))
+            return flag ? "true" : "false";
+
+        return value.TryGetValue<double>(out var number) ? number.ToString("R", CultureInfo.InvariantCulture) : null;
+    }
+
+    private Task CancelAsync()
+    {
+        Request.Completion.TrySetResult(null);
+        return Closed.InvokeAsync();
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_submitting || _submitted)
+            return;
+
+        _submitting = true;
+        try
+        {
+            var values = Collect();
+            if (values == null)
+                return;
+
+            _submitted = true;
+            Request.Completion.TrySetResult(values);
+            await Closed.InvokeAsync();
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await CancelAsync();
+            return;
+        }
+
+        if (e.Key == "Enter" && await IsTextFieldAsync())
+            await SubmitAsync();
+    }
+
+    private async Task<bool> IsTextFieldAsync()
+    {
+        try
+        {
+            return await JS.InvokeAsync<bool>("docuHelperDialog.enterAllowed");
+        }
+        catch (JSException)
+        {
+            return false;
+        }
+        catch (JSDisconnectedException)
+        {
+            return false;
+        }
+    }
+
+    private static string InputType(WordDialogField field) => field.Type switch
+    {
+        "number" => "number",
+        "password" => "password",
+        _ => "text",
+    };
+
+    private static bool IsFiniteNumber(string raw) =>
+        double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number);
+
+    private IReadOnlyDictionary<string, JsonNode> Collect()
+    {
+        foreach (var field in Request.Fields)
+        {
+            var raw = Value(field);
+            if (field.Type == "number" && raw.Length == 0)
+                continue;
+
+            if (field.Type == "number" && !IsFiniteNumber(raw))
+            {
+                _error = $"“{field.Label}”에는 숫자를 넣어 주세요.";
+                return null;
+            }
+
+            if (field.Type == "choice" && field.Options.Count > 0 && !field.Options.Contains(raw))
+            {
+                _error = $"“{field.Label}”에서 하나를 골라 주세요.";
+                return null;
+            }
+
+            if (field.Type == "char" && raw.Length == 0)
+            {
+                _error = $"“{field.Label}”에 글자를 넣어 주세요.";
+                return null;
+            }
+        }
+
+        var values = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
+        foreach (var field in Request.Fields)
+        {
+            var raw = Value(field);
+            if (field.Type == "number" && raw.Length == 0)
+                continue;
+
+            values[field.Name] = field.Type switch
+            {
+                "number" => JsonValue.Create(double.Parse(raw, NumberStyles.Float, CultureInfo.InvariantCulture)),
+                "bool" => JsonValue.Create(raw == "true"),
+                "color" => JsonValue.Create(raw.TrimStart('#').ToUpperInvariant()),
+                _ => JsonValue.Create(raw),
+            };
+        }
+
+        _error = Request.Validate?.Invoke(values);
+        return _error == null ? values : null;
+    }
+}

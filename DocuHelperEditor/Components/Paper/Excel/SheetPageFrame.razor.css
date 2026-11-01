@@ -1,0 +1,109 @@
+.pf {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.pf-layout {
+    align-items: center;
+    padding: 20px 0;
+    background: var(--desk);
+}
+
+.pf-sheet {
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+}
+
+.pf-tag {
+    padding: 8px;
+    border: 1px dashed var(--thumb-line);
+    font-size: 12px;
+    text-align: center;
+    color: var(--ink-2);
+}
+
+.pf-head {
+    margin: 0 0 14px;
+}
+
+.pf-foot {
+    margin: 14px 0 0;
+}
+
+.pf-paper {
+    box-sizing: border-box;
+    margin: 0 auto;
+    background: var(--paper);
+    box-shadow: 0 0 0 1px rgba(28, 42, 72, 0.08), 0 8px 24px -14px rgba(28, 42, 72, 0.4);
+}
+
+.pf-break {
+    position: relative;
+}
+
+.pf-break::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border: 3px solid var(--docx);
+    pointer-events: none;
+}
+
+.pf-watermark {
+    position: absolute;
+    top: 120px;
+    left: 50%;
+    z-index: 1;
+    transform: translateX(-50%);
+    font-size: 56px;
+    font-weight: 700;
+    color: rgba(47, 95, 168, 0.18);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.pf-break ::deep .pf-page {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dashed var(--docx);
+}
+
+.pf-break ::deep .pf-page.manual {
+    border: 2px solid var(--docx);
+}
+
+.pf-break ::deep .pf-page-mark {
+    position: absolute;
+    top: 120px;
+    left: 50%;
+    z-index: 1;
+    transform: translateX(-50%);
+    font-size: 56px;
+    font-weight: 700;
+    color: rgba(47, 95, 168, 0.18);
+    white-space: nowrap;
+}
+
+.pf-layout ::deep .pf-page {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dashed var(--thumb-line);
+}
+
+.pf-layout ::deep .pf-page.manual {
+    border: 2px solid var(--ink-2);
+}
+
+.pf ::deep .pf-notice {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--paper);
+    font-size: 12px;
+    color: var(--ink-2);
+}

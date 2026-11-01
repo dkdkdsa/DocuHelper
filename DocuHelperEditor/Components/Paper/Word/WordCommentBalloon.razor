@@ -1,0 +1,66 @@
+@using DocuHelper.Editors
+@using DocuHelper.Tools.Word
+@using DocuHelperEditor.State.Ribbon
+@using DocuHelperEditor.State.Papers
+@using System.Text.Json.Nodes
+
+<aside class="bal @(Comment.Done ? "done" : null)" aria-label="@($"{Comment.Author}의 메모")" data-comment="@Comment.Ref">
+    <header>
+        <span class="badge" aria-hidden="true">@Initials</span>
+        <span class="who">@Comment.Author</span>
+        @if (Comment.Done)
+        {
+            <span class="tag">해결됨</span>
+        }
+        <time datetime="@Comment.Date?.ToString("o")">@DateText</time>
+    </header>
+    <p class="body">@Comment.Text</p>
+    @foreach (var reply in Replies)
+    {
+        <div class="reply">
+            <strong>@reply.Author</strong>
+            <p class="body">@reply.Text</p>
+        </div>
+    }
+    <div class="actions">
+        <button type="button" class="act" aria-label="@($"{Comment.Author}의 메모에 답글 달기")" @onclick="ReplyAsync">답글</button>
+        <button type="button" class="act" @onclick="ToggleDone">@(Comment.Done ? "다시 열기" : "해결")</button>
+        <button type="button" class="act danger" aria-label="@($"{Comment.Author}의 메모 삭제")" @onclick="Delete">삭제</button>
+    </div>
+</aside>
+
+@code {
+    [Parameter]
+    public WordCommentInfo Comment { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<WordCommentInfo> Replies { get; set; } = Array.Empty<WordCommentInfo>();
+
+    [Parameter]
+    public WordRibbonState Ribbon { get; set; }
+
+    private string Initials => string.IsNullOrWhiteSpace(Comment.Initials) ? (string.IsNullOrWhiteSpace(Comment.Author) ? "?" : Comment.Author.Substring(0, 1)) : Comment.Initials;
+
+    private string DateText => Comment.Date?.ToLocalTime().ToString("yyyy. M. d. HH:mm") ?? string.Empty;
+
+    private async Task ReplyAsync()
+    {
+        var fields = new[] { new WordDialogField("text", "답글 내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()) };
+        var values = await Ribbon.Dialogs.AskFieldsAsync("word.review.comments.reply", new WordDialogSpec("답글 달기", fields), null);
+        var text = values?["text"]?.GetValue<string>()?.Trim();
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        Ribbon.Router.Apply(EditCommand.Create("manage_comments", new { action = "reply", comment_id = Comment.Ref, text, author = Environment.UserName }));
+    }
+
+    private void ToggleDone()
+    {
+        Ribbon.Router.Apply(EditCommand.Create("manage_comments", new { action = Comment.Done ? "unresolve" : "resolve", comment_id = Comment.Ref }));
+    }
+
+    private void Delete()
+    {
+        Ribbon.Router.Apply(EditCommand.Create("manage_comments", new { action = "delete", comment_id = Comment.Ref }));
+    }
+}

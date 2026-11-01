@@ -1,13 +1,14 @@
 ﻿@using System.Globalization
+@using System.Linq
 @using Microsoft.AspNetCore.Components.Rendering
 @using DocuHelperEditor.State.Papers
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div class="grid @(Locked ? "locked" : null)" @ref="_grid">
+<div class="grid @(Locked ? "locked" : null) @(Sheet?.ShowGridlines == false ? "nogrid" : null) @(Sheet?.ShowHeadings == false ? "nohead" : null)" @ref="_grid">
     @if (Sheet != null)
     {
-        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" aria-label="@TableLabel">
+        <table class="sheet @(Sheet.FreezeColumns > 0 ? "fzcols" : null)" style="@ZoomStyle" aria-label="@TableLabel" aria-rowcount="@(_rowCount + 1)">
             <colgroup>
                 <col class="rh" />
                 @foreach (var column in Sheet.Columns)
@@ -22,7 +23,7 @@
             </colgroup>
             <thead>
                 <tr>
-                    <th scope="col" title="모두 고르기"><span class="sr-only">행</span></th>
+                    <th scope="col" title="모두 고르기"><span class="sr-only">행</span>@CornerDecorations</th>
                     @for (var c = 0; c < Sheet.Columns.Count; c++)
                     {
                         var columnIndex = c;
@@ -36,9 +37,15 @@
                 </tr>
             </thead>
             <tbody>
-                @for (var r = 0; r < _rowCount; r++)
+                @for (var i = 0; i < _order.Count; i++)
                 {
-                    var rowIndex = r;
+                    var rowIndex = _order[i];
+                    if (rowIndex < 0)
+                    {
+                        <tr @key="rowIndex" class="spacer" role="presentation" style="height: @Px(_spacers[-rowIndex - 1])px"><td colspan="@(Sheet.Columns.Count + 1)"></td></tr>
+                        continue;
+                    }
+
                     var row = Sheet.FindRow(rowIndex);
                     if (row?.Hidden == true)
                     {
@@ -46,7 +53,7 @@
                     }
 
                     var barId = BarChangeId(row);
-                    <tr class="@RowClass(rowIndex, row)" style="@HeightStyle(row)" data-r="@rowIndex" data-change="@barId">
+                    <tr @key="rowIndex" class="@RowClass(rowIndex, row)" style="@HeightStyle(row)" data-r="@rowIndex" aria-rowindex="@(rowIndex + 2)" data-change="@barId">
                         <th scope="row" class="@RowHeadClass(rowIndex, barId)">
                             @(rowIndex + 1)
                             @if (RowDecorations != null)
@@ -118,6 +125,11 @@
 @code {
     private const string ModulePath = "./Components/Paper/Excel/SheetGrid.razor.js";
     private const double PixelsPerPoint = 14.0 / 11.0;
+    private const double DefaultRowPx = 30;
+    private const double DefaultViewHeight = 900;
+    private const int Overscan = 20;
+    private const int MaxMergeRows = 500;
+    private const double MaxGridHeightPx = 32000000;
 
     private ElementReference _grid;
     private IJSObjectReference _module;
@@ -127,9 +139,25 @@
     private int _selectedColumn = -1;
     private int _firstMarkedRow;
     private int _lastFrozenRow = -1;
+    private readonly List<int> _order = new();
+    private readonly List<double> _spacers = new();
+    private double[] _tops = Array.Empty<double>();
+    private readonly Dictionary<int, double> _measured = new();
+    private int _measuredVersion = -1;
+    private bool _growPending;
+    private bool _topsValid;
+    private Sheet _topsSheet;
+    private int _topsVersion;
+    private int _topsRows = -1;
+    private int _topsLayout;
+    private double _viewTop;
+    private double _viewHeight = DefaultViewHeight;
 
     [Parameter]
     public Sheet Sheet { get; set; }
+
+    [Parameter]
+    public EventCallback OnNeedRows { get; set; }
 
     [Parameter]
     public string SinkId { get; set; }
@@ -157,6 +185,12 @@
 
     [Parameter]
     public bool Locked { get; set; }
+
+    [Parameter]
+    public int Zoom { get; set; } = 100;
+
+    [Parameter]
+    public bool RenderAllRows { get; set; }
 
     [Parameter]
     public bool EditingInCell { get; set; }
@@ -187,6 +221,9 @@
 
     [Parameter]
     public RenderFragment<SheetRowContext> RowDecorations { get; set; }
+
+    [Parameter]
+    public RenderFragment CornerDecorations { get; set; }
 
     [Parameter]
     public RenderFragment<Sheet> Overlay { get; set; }
@@ -223,11 +260,14 @@
 
     private string TableLabel => Sheet.Name + " 시트";
 
+    private string ZoomStyle => Zoom == 100 ? null : "zoom: " + (Zoom / 100.0).ToString("0.##", CultureInfo.InvariantCulture);
+
     private bool IsMulti => !Selection.IsSingle;
 
     protected override void OnParametersSet()
     {
-        _rowCount = Sheet?.DisplayRowCount ?? 0;
+        _rowCount = Math.Min(Sheet?.DisplayRowCount ?? 0, RenderAllRows ? ExcelViewState.MaxRows : MaxRowsForZoom());
+        _growPending = false;
         if (!SheetRef.TryParse(SelectedRef, out _selectedColumn, out _selectedRow))
         {
             _selectedColumn = -1;
@@ -244,6 +284,8 @@
                 break;
             }
         }
+
+        RebuildLayout();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -255,6 +297,20 @@
                 _self = DotNetObjectReference.Create(this);
                 _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
                 await _module.InvokeVoidAsync("attach", _grid, _self);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        if (_module != null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("refresh", _grid, Version);
             }
             catch (JSException)
             {
@@ -280,7 +336,47 @@
     }
 
     [JSInvokable]
-    public Task Pointer(string phase, int row, int column, bool shift) => OnPointer.InvokeAsync(new SheetPointer(phase, row, column, shift));
+    public async Task Viewport(double top, double height, int[] rows, double[] heights)
+    {
+        var before = _order.ToArray();
+        var beforeSpacers = _spacers.ToArray();
+        var remeasured = false;
+        for (var i = 0; i < rows.Length && i < heights.Length; i++)
+        {
+            if (rows[i] < 0 || rows[i] >= _rowCount || heights[i] <= 0)
+            {
+                continue;
+            }
+
+            if (!_measured.TryGetValue(rows[i], out var known) || Math.Abs(known - heights[i]) > 0.5)
+            {
+                _measured[rows[i]] = heights[i];
+                remeasured = true;
+            }
+        }
+
+        if (remeasured)
+        {
+            RebuildTops(true);
+        }
+
+        _viewTop = top;
+        _viewHeight = height > 0 ? height : DefaultViewHeight;
+        BuildOrder();
+        if (!before.SequenceEqual(_order) || !beforeSpacers.SequenceEqual(_spacers))
+        {
+            StateHasChanged();
+        }
+
+        if (!_growPending && _rowCount > 0 && _rowCount == Sheet.DisplayRowCount && _rowCount < ExcelViewState.MaxRows && OnNeedRows.HasDelegate && _tops[_rowCount] - (_viewTop + _viewHeight) < _viewHeight * 2)
+        {
+            _growPending = true;
+            await OnNeedRows.InvokeAsync();
+        }
+    }
+
+    [JSInvokable]
+    public Task Pointer(string phase, int row, int column, bool shift, bool ctrl) => OnPointer.InvokeAsync(new SheetPointer(phase, row, column, shift, ctrl));
 
     [JSInvokable]
     public Task Paste(string text) => OnPaste.InvokeAsync(text);
@@ -364,6 +460,194 @@
 
     private static string WidthStyle(SheetColumn column) => column.Width.HasValue ? "width: " + column.Width.Value + "px" : null;
 
+    private void RebuildLayout()
+    {
+        if (_measuredVersion != Version)
+        {
+            _measured.Clear();
+            _measuredVersion = Version;
+        }
+
+        RebuildTops();
+        BuildOrder();
+    }
+
+    private void RebuildTops(bool force = false)
+    {
+        var layout = LayoutHash();
+        if (!force && _topsValid && ReferenceEquals(_topsSheet, Sheet) && _topsVersion == Version && _topsRows == _rowCount && _topsLayout == layout)
+            return;
+
+        _topsValid = true;
+        _topsSheet = Sheet;
+        _topsVersion = Version;
+        _topsRows = _rowCount;
+        _topsLayout = layout;
+        _tops = new double[_rowCount + 1];
+        for (var r = 0; r < _rowCount; r++)
+        {
+            _tops[r + 1] = _tops[r] + RowHeight(r);
+        }
+    }
+
+    private int LayoutHash()
+    {
+        var hash = new HashCode();
+        var count = Math.Min(_rowCount, Sheet?.Rows.Count ?? 0);
+        for (var r = 0; r < count; r++)
+        {
+            var row = Sheet.FindRow(r);
+            hash.Add(row?.Height);
+            hash.Add(row?.Hidden);
+        }
+
+        return hash.ToHashCode();
+    }
+
+    private double RowHeight(int rowIndex)
+    {
+        var row = Sheet.FindRow(rowIndex);
+        if (row?.Hidden == true)
+        {
+            return 0;
+        }
+
+        if (_measured.TryGetValue(rowIndex, out var measured))
+        {
+            return measured;
+        }
+
+        return row?.Height ?? DefaultRowPx;
+    }
+
+    private void BuildOrder()
+    {
+        _order.Clear();
+        _spacers.Clear();
+        if (_rowCount == 0)
+        {
+            return;
+        }
+
+        var frozen = Math.Min(Sheet?.FreezeRows ?? 0, _rowCount);
+        var overscan = Math.Max(Overscan, (int)(_viewHeight / DefaultRowPx));
+        var ranges = new List<(int First, int Last)>();
+        if (frozen > 0)
+        {
+            ranges.Add((0, frozen - 1));
+        }
+
+        var start = RenderAllRows ? 0 : Math.Max(0, RowAt(_viewTop) - overscan);
+        var end = RenderAllRows ? _rowCount - 1 : Math.Min(_rowCount - 1, RowAt(_viewTop + _viewHeight) + overscan);
+        if (start <= end)
+        {
+            ranges.Add((start, end));
+        }
+
+        if (_selectedRow >= 0 && _selectedRow < _rowCount)
+        {
+            ranges.Add((_selectedRow, _selectedRow));
+        }
+
+        foreach (var item in Sheet.Objects)
+        {
+            ranges.Add((Math.Clamp(item.Anchor.FromRow, 0, _rowCount - 1), Math.Clamp(item.Anchor.FromRow, 0, _rowCount - 1)));
+            ranges.Add((Math.Clamp(item.Anchor.ToRow, 0, _rowCount - 1), Math.Clamp(item.Anchor.ToRow, 0, _rowCount - 1)));
+        }
+
+        var rendered = JoinRanges(ranges);
+        var grew = true;
+        while (grew)
+        {
+            grew = false;
+            foreach (var merge in Sheet.Merges)
+            {
+                var first = merge.Top;
+                var last = Math.Min(merge.Bottom, _rowCount - 1);
+                if (first >= _rowCount || last - first > MaxMergeRows || !Overlaps(rendered, first, last) || Covers(rendered, first, last))
+                {
+                    continue;
+                }
+
+                rendered = JoinRanges(rendered.Append((first, last)));
+                grew = true;
+            }
+        }
+
+        var cursor = 0;
+        foreach (var range in rendered)
+        {
+            AddSpacer(_tops[range.First] - _tops[cursor]);
+            for (var r = range.First; r <= range.Last; r++)
+            {
+                _order.Add(r);
+            }
+
+            cursor = range.Last + 1;
+        }
+
+        AddSpacer(_tops[_rowCount] - _tops[cursor]);
+    }
+
+    private static List<(int First, int Last)> JoinRanges(IEnumerable<(int First, int Last)> ranges)
+    {
+        var joined = new List<(int First, int Last)>();
+        foreach (var range in ranges.OrderBy(range => range.First))
+        {
+            if (joined.Count > 0 && range.First <= joined[^1].Last + 1)
+            {
+                joined[^1] = (joined[^1].First, Math.Max(joined[^1].Last, range.Last));
+            }
+            else
+            {
+                joined.Add(range);
+            }
+        }
+
+        return joined;
+    }
+
+    private static bool Overlaps(List<(int First, int Last)> ranges, int first, int last) =>
+        ranges.Any(range => range.First <= last && first <= range.Last);
+
+    private static bool Covers(List<(int First, int Last)> ranges, int first, int last) =>
+        ranges.Any(range => range.First <= first && last <= range.Last);
+
+    private void AddSpacer(double height)
+    {
+        if (height <= 0)
+        {
+            return;
+        }
+
+        _spacers.Add(height);
+        _order.Add(-_spacers.Count);
+    }
+
+    private int RowAt(double y)
+    {
+        var low = 0;
+        var high = _rowCount - 1;
+        while (low < high)
+        {
+            var middle = (low + high + 1) / 2;
+            if (_tops[middle] <= y)
+            {
+                low = middle;
+            }
+            else
+            {
+                high = middle - 1;
+            }
+        }
+
+        return low;
+    }
+
+    private int MaxRowsForZoom() => (int)(MaxGridHeightPx / (DefaultRowPx * Zoom / 100.0));
+
+    private static string Px(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
     private static string HeightStyle(SheetRow row) => row?.Height is int height ? "--rh: " + height + "px" : null;
 
     private bool IsAnchor(SheetRegion merge, int rowIndex, int columnIndex)
@@ -420,6 +704,9 @@
 
         if (row?.Height != null)
             classes.Add("hx");
+
+        if (row?.OutlineLevel > 0)
+            classes.Add("ol");
 
         if (rowIndex < Sheet.FreezeRows)
             classes.Add(rowIndex == _lastFrozenRow ? "fz fz-end" : "fz");

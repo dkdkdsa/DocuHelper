@@ -1,0 +1,71 @@
+﻿.task {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    width: calc(232px);
+    min-height: 0;
+    border-right: 1px solid var(--hair);
+    background: var(--paper-2);
+}
+
+.head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--hit);
+    padding: 0 var(--space-2) 0 var(--space-3);
+    border-bottom: 1px solid var(--hair);
+}
+
+.head h2 {
+    flex: 1;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.outline {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: var(--space-3);
+    overflow-y: auto;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    min-height: var(--hit);
+    padding: var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.link:hover {
+    background: var(--bubble);
+}
+
+.link:focus-visible {
+    outline: 2px solid var(--docx);
+    outline-offset: 2px;
+}
+
+.empty {
+    margin: var(--space-3);
+    font-size: 13px;
+    color: var(--ink-3);
+}

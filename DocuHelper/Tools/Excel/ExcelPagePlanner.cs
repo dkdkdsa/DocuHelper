@@ -54,7 +54,19 @@ namespace DocuHelper.Tools.Excel
                 }
             }
 
+            if (setup.PrintAreas.Count == 0)
+                pages = WithContent(sheet, pages);
+
             return new PagePlan(setup, paperWidth, paperHeight, contentWidth / PointsPerCm, contentHeight / PointsPerCm, scale, pages);
+        }
+
+        private static List<PlannedPage> WithContent(ExcelSheet sheet, List<PlannedPage> pages)
+        {
+            var content = sheet.Entries.Where(entry => ExcelSheet.HasContent(entry.Cell)).Select(entry => entry.Address).ToList();
+            var kept = pages.Where(page => content.Any(address => page.Cells.Contains(address.Column, address.Row))).ToList();
+            return kept
+                .Select((page, index) => new PlannedPage(index + 1, page.Cells, page.WidthCm, page.HeightCm, page.RepeatsTitleRows, page.RepeatsTitleColumns))
+                .ToList();
         }
 
         public static double ColumnPoints(ExcelSheet sheet, int column)

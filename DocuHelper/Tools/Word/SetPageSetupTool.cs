@@ -82,11 +82,7 @@ namespace DocuHelper.Tools.Word
             if (setup.IsEmpty)
                 throw new ToolInputException("바꿀 쪽 설정을 하나 이상 넣어 주세요. 예: size, orientation, margins, columns.");
 
-            RefuseInHwp(docu, "구역별 쪽 설정", scope != "document");
-            RefuseInHwp(docu, "단 나누기", setup.Columns != null);
             RefuseInHwp(docu, "줄 번호", setup.LineNumbers != null);
-            RefuseInHwp(docu, "쪽 테두리", setup.PageBorders != null);
-            RefuseInHwp(docu, "쪽 색", setup.PageColor != null);
             RefuseInHwp(docu, "위아래 맞춤", setup.VerticalAlignment != null);
             RefuseInHwp(docu, "마주 보는 여백", setup.Mirror == true || setup.MarginPreset == "mirrored");
 

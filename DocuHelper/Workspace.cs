@@ -9,10 +9,11 @@ using DocuHelper.Agents;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools;
+using DocuHelper.Tools.Word;
 
 namespace DocuHelper
 {
-    public class Workspace
+    public partial class Workspace
     {
         private const int MaxUndo = 30;
         private const int MaxNotes = 20;
@@ -25,6 +26,7 @@ namespace DocuHelper
         private readonly List<WorkspaceEdit> _redo = new();
         private readonly Dictionary<Docu, DocuState> _assistantBaselines = new();
         private readonly List<string> _notes = new();
+        private AgentToolbox _runToolbox;
 
         public event Action DocusChanged;
 
@@ -41,6 +43,8 @@ namespace DocuHelper
         public Agent Agent { get; set; }
 
         public bool IsAgentRunning { get; private set; }
+
+        public bool IsRunTouchingFiles => _runToolbox?.Before.Count > 0;
 
         public bool CanUndo => _undo.Count > 0 && !IsAgentRunning;
 
@@ -161,6 +165,9 @@ namespace DocuHelper
 
         public void Rename(Docu docu, string name)
         {
+            if (IsAgentRunning)
+                throw new InvalidOperationException("도우미가 일하는 중에는 이름을 바꿀 수 없어요.");
+
             if (docu.IsLocked)
                 throw new InvalidOperationException("도우미가 이 파일을 고치는 중이에요. 끝나면 이름을 바꿀 수 있어요.");
 
@@ -209,14 +216,22 @@ namespace DocuHelper
                 return ToolResult.Fail("도우미가 이 파일을 고치는 중이에요. 끝나면 다시 고칠 수 있어요.");
 
             var before = docu.Capture();
-            var result = editor.Apply(docu, command);
+            var author = BeginUserAuthor(docu);
+            ToolResult result;
+            try
+            {
+                result = editor.Apply(docu, command);
+            }
+            finally
+            {
+                EndUserAuthor(docu, author);
+            }
+
             if (result.IsError)
                 return result;
 
-            PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [docu] = before }));
-
             var where = result.Change?.Location;
-            AddNote(string.IsNullOrEmpty(where)
+            RecordHandEdit(docu, new[] { command }, before, where, string.IsNullOrEmpty(where)
                 ? $"The user edited '{docu.Name}' by hand."
                 : $"The user edited '{docu.Name}' by hand at {where}.");
             return result;
@@ -235,19 +250,26 @@ namespace DocuHelper
 
             var editor = GetEditor(docu);
             var before = docu.Capture();
+            var author = BeginUserAuthor(docu);
             ToolResult result = null;
-            foreach (var command in commands)
+            try
             {
-                result = editor.Apply(docu, command);
-                if (result.IsError)
+                foreach (var command in commands)
                 {
-                    docu.Restore(before);
-                    return result;
+                    result = editor.Apply(docu, command);
+                    if (result.IsError)
+                    {
+                        docu.Restore(before);
+                        return result;
+                    }
                 }
             }
+            finally
+            {
+                EndUserAuthor(docu, author);
+            }
 
-            PushUndo(new WorkspaceEdit("직접 고침", false, new Dictionary<Docu, DocuState> { [docu] = before }));
-            AddNote($"The user edited '{docu.Name}' by hand in {commands.Count} places at once.");
+            RecordHandEdit(docu, commands, before, null, $"The user edited '{docu.Name}' by hand in {commands.Count} places at once.");
             return result;
         }
 
@@ -261,10 +283,13 @@ namespace DocuHelper
 
         public HistoryEntry Save(Docu docu)
         {
+            if (IsAgentRunning)
+                throw new InvalidOperationException("도우미가 일하는 중에는 저장할 수 없어요.");
+
             if (docu.IsLocked)
                 throw new InvalidOperationException("도우미가 고치는 중에는 저장할 수 없어요.");
 
-            var what = docu.Changes.Count > 0 ? $"도우미가 {docu.Changes.Count}곳 고친 걸 저장함" : "고친 걸 저장함";
+            var what = docu.Changes.Count > 0 ? $"저장함, 도우미가 {docu.Changes.Count}곳 고침" : "저장함, 직접 고침";
             var editor = GetEditor(docu);
             var target = editor.SavePath(docu);
             if (!string.Equals(target, docu.FilePath, StringComparison.OrdinalIgnoreCase))
@@ -283,6 +308,9 @@ namespace DocuHelper
 
         public HistoryEntry Restore(Docu docu, HistoryEntry entry)
         {
+            if (IsAgentRunning)
+                throw new InvalidOperationException("도우미가 일하는 중에는 되돌릴 수 없어요.");
+
             if (docu.IsLocked)
                 throw new InvalidOperationException("도우미가 고치는 중에는 되돌릴 수 없어요.");
 
@@ -306,24 +334,79 @@ namespace DocuHelper
                 throw new InvalidOperationException("도우미가 이미 일하는 중이에요.");
 
             var notes = TakeNotes();
-            var toolbox = new AgentToolbox(this, request, notes);
-            IsAgentRunning = true;
+            var authors = new List<(WordDocu Docu, string Author)>();
             try
             {
-                var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
-                CommitRun(toolbox);
-                return result;
-            }
-            catch
-            {
-                toolbox.Rollback();
-                _notes.InsertRange(0, notes);
-                throw;
+                if (request.TrackChanges)
+                    MarkAssistantEdits(authors);
+
+                var toolbox = new AgentToolbox(this, request, notes);
+                ClearRunHandEdits();
+                IsAgentRunning = true;
+                _runToolbox = toolbox;
+                try
+                {
+                    var result = await Agent.RunAsync(request, toolbox, host, cancellationToken);
+                    lock (_notes)
+                    {
+                        CommitRunHandEdits(true);
+                        CommitRun(toolbox);
+                        CommitRunHandEdits(false);
+                        IsAgentRunning = false;
+                    }
+
+                    return result;
+                }
+                catch
+                {
+                    var agentDocus = toolbox.Before.Keys.ToList();
+                    var attempted = agentDocus.Where(d => _docus.Contains(d) && toolbox.Before[d] != null).ToDictionary(d => d, d => toolbox.Before[d]);
+                    var partial = new Dictionary<Docu, DocuState>();
+                    foreach (var docu in attempted.Keys)
+                    {
+                        try
+                        {
+                            partial[docu] = docu.Capture();
+                        }
+                        catch (Exception)
+                        {
+                            continue;
+                        }
+                    }
+
+                    toolbox.Rollback();
+                    lock (_notes)
+                    {
+                        ResolveFailedRunHandEdits(agentDocus);
+                        KeepFailedRunForRedo(attempted, partial);
+                        IsAgentRunning = false;
+                    }
+
+                    lock (_notes)
+                        _notes.InsertRange(0, notes);
+
+                    throw;
+                }
+                finally
+                {
+                    toolbox.Release();
+                    IsAgentRunning = false;
+                    _runToolbox = null;
+                }
             }
             finally
             {
-                toolbox.Release();
-                IsAgentRunning = false;
+                foreach (var (docu, author) in authors)
+                    docu.AssistantRevisionAuthor = author;
+            }
+        }
+
+        private void MarkAssistantEdits(List<(WordDocu Docu, string Author)> marked)
+        {
+            foreach (var docu in _docus.OfType<WordDocu>().Where(d => d is not HwpDocu))
+            {
+                marked.Add((docu, docu.AssistantRevisionAuthor));
+                docu.AssistantRevisionAuthor = WordComments.DefaultAuthor;
             }
         }
 
@@ -399,7 +482,7 @@ namespace DocuHelper
 
         public void Discard(Docu docu)
         {
-            if (docu.IsLocked)
+            if (IsAgentRunning || docu.IsLocked)
                 return;
 
             if (!File.Exists(docu.FilePath))
@@ -457,19 +540,25 @@ namespace DocuHelper
 
         public void AddNote(string note)
         {
-            if (string.IsNullOrWhiteSpace(note) || (_notes.Count > 0 && _notes[^1] == note))
-                return;
+            lock (_notes)
+            {
+                if (string.IsNullOrWhiteSpace(note) || (_notes.Count > 0 && _notes[^1] == note))
+                    return;
 
-            _notes.Add(note);
-            if (_notes.Count > MaxNotes)
-                _notes.RemoveAt(0);
+                _notes.Add(note);
+                if (_notes.Count > MaxNotes)
+                    _notes.RemoveAt(0);
+            }
         }
 
         private IReadOnlyList<string> TakeNotes()
         {
-            var notes = _notes.ToList();
-            _notes.Clear();
-            return notes;
+            lock (_notes)
+            {
+                var notes = _notes.ToList();
+                _notes.Clear();
+                return notes;
+            }
         }
 
         private void CommitRun(AgentToolbox toolbox)

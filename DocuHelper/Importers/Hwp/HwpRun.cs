@@ -10,7 +10,11 @@
 
         public bool Underline { get; set; }
 
+        public string UnderlineShape { get; set; } = "SOLID";
+
         public bool Strike { get; set; }
+
+        public bool DoubleStrike { get; set; }
 
         public bool Superscript { get; set; }
 
@@ -20,6 +24,28 @@
 
         public string Color { get; set; }
 
+        public string Shade { get; set; }
+
+        public int Spacing { get; set; }
+
+        public int Scale { get; set; } = 100;
+
         public string Font { get; set; }
+
+        public string Field { get; set; }
+
+        public HwpPicture Picture { get; set; }
+
+        public string Link { get; set; }
+
+        public string Bookmark { get; set; }
+
+        public string KeepStart { get; set; }
+
+        public string KeepEnd { get; set; }
+
+        public HwpClickHere ClickHere { get; set; }
+
+        public HwpNote Note { get; set; }
     }
 }

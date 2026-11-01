@@ -141,6 +141,8 @@ namespace DocuHelper.Tools.Word
                     parts.Add(("justified", "양쪽 맞춤"));
                 else if (value == JustificationValues.Distribute)
                     parts.Add(("distributed", "나눔 맞춤"));
+                else if (value == JustificationValues.ThaiDistribute)
+                    parts.Add(("divided", "나눔 정렬"));
                 else
                     parts.Add(("left aligned", "왼쪽"));
             }
@@ -232,8 +234,10 @@ namespace DocuHelper.Tools.Word
                 case "distribute":
                 case "distributed":
                     return JustificationValues.Distribute;
+                case "divide":
+                    return JustificationValues.ThaiDistribute;
                 default:
-                    throw new ToolInputException("'align' 값은 left, center, right, justify, distribute 중 하나여야 해요.");
+                    throw new ToolInputException("'align' 값은 left, center, right, justify, distribute, divide 중 하나여야 해요.");
             }
         }
 
@@ -247,6 +251,9 @@ namespace DocuHelper.Tools.Word
 
             if (value == JustificationValues.Right || value == JustificationValues.End)
                 return "right";
+
+            if (value == JustificationValues.ThaiDistribute)
+                return "divide";
 
             return value == JustificationValues.Distribute ? "distribute" : "justify";
         }

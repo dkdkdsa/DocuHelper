@@ -83,9 +83,7 @@ namespace DocuHelper.Tools.Word
 
             if (format != null)
             {
-                RefuseInHwp(docu, "형광펜", format.Highlight != null);
-                RefuseInHwp(docu, "대문자 효과", format.Caps != null);
-                RefuseInHwp(docu, "글자 간격", format.SpacingPt != null);
+                RefuseFormatInHwp(docu, format);
             }
 
             var options = Options(input);

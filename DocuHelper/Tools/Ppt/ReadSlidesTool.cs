@@ -21,6 +21,8 @@ namespace DocuHelper.Tools.Ppt
             "Read the slides of a PowerPoint file. For each slide: its number, layout, the text shapes with their shape id in brackets, "
             + "role (title, subtitle, body, text box), font size and paragraphs (indentation shows the bullet level), the speaker notes, "
             + "and chart data. Pass the shape id or title/subtitle/body as `shape` to the editing tools. "
+            + "detail adds layout (each shape's position, fill and line on its own line, whole tables), effects (transitions, animations, links, comments) "
+            + "or design (theme, layouts, show settings). "
             + "Returns up to 10 slides per call; use start and count to read more.";
 
         public override string InputSchema => """
@@ -28,7 +30,8 @@ namespace DocuHelper.Tools.Ppt
               "type": "object",
               "properties": {
                 "start": {"type": "integer", "minimum": 1, "description": "First slide number to read (1-based). Default 1."},
-                "count": {"type": "integer", "minimum": 1, "maximum": 30, "description": "How many slides to read. Default 10."}
+                "count": {"type": "integer", "minimum": 1, "maximum": 30, "description": "How many slides to read. Default 10."},
+                "detail": {"type": "string", "enum": ["text", "layout", "effects", "design"], "description": "text (default), layout (positions in cm, fills, lines, whole tables), effects (transitions, animations, links, comments, footer), or design (the deck as a whole: size, theme, layouts, show settings, custom shows, sections; ignores start and count)."}
               }
             }
             """;
@@ -37,7 +40,17 @@ namespace DocuHelper.Tools.Ppt
 
         public override ToolResult Execute(Docu docu, ToolInput input)
         {
-            var deck = PptReader.Read(PptSlides.DocumentOf(docu));
+            var detail = (input.GetOptionalString("detail") ?? "text").Trim().ToLowerInvariant();
+            if (detail is not ("text" or "layout" or "effects" or "design"))
+                throw new ToolInputException("detail은 text, layout, effects, design 중 하나로 알려 주세요.");
+            var document = PptSlides.DocumentOf(docu);
+            if (detail == "design")
+            {
+                var scene = PptSceneBuilder.Build(document);
+                return ToolResult.Ok($"\"{docu.Name}\": {scene.Slides.Count} slide(s).\n" + PptSceneDescribe.Design(scene, docu.Name), "디자인");
+            }
+            var deck = PptReader.Read(document);
+            var scenes = detail == "text" ? null : PptSceneBuilder.Build(document).Slides;
             var total = deck.Slides.Count;
             if (total == 0)
                 return ToolResult.Ok($"\"{docu.Name}\" has no slides yet. Use add_slide to add one.", "슬라이드 0장");
@@ -55,7 +68,11 @@ namespace DocuHelper.Tools.Ppt
             var length = 0;
             for (var number = start; number <= end; number++)
             {
-                var block = Describe(deck.Slides[number - 1]);
+                var scene = scenes != null && number - 1 < scenes.Count ? scenes[number - 1] : null;
+                var block = Describe(deck.Slides[number - 1], detail == "layout" ? scene : null);
+                if (detail == "effects" && scene != null)
+                    block += PptSceneDescribe.Effects(scene);
+
                 if (blocks.Count > 0 && length + block.Length > MaxLength)
                     break;
 
@@ -79,7 +96,7 @@ namespace DocuHelper.Tools.Ppt
             return ToolResult.Ok(text.ToString().TrimEnd(), $"슬라이드 {blocks.Count}장");
         }
 
-        private static string Describe(PptSlideInfo slide)
+        private static string Describe(PptSlideInfo slide, PptSceneSlide scene)
         {
             var text = new StringBuilder();
             text.Append($"## Slide {slide.Number}");
@@ -90,31 +107,47 @@ namespace DocuHelper.Tools.Ppt
                 text.Append($" · layout \"{slide.LayoutName}\"");
 
             text.AppendLine();
+            var unprinted = scene == null ? null : PptSceneDescribe.All(scene).ToList();
             foreach (var shape in slide.Shapes)
-                AppendShape(text, shape);
+            {
+                var layout = unprinted?.FirstOrDefault(s => s.Id == shape.ShapeId);
+                if (AppendShape(text, shape, layout) && layout != null)
+                    unprinted.Remove(layout);
+            }
+
+            if (unprinted != null)
+                foreach (var shape in unprinted)
+                    text.Append(PptSceneDescribe.Standalone(shape));
 
             AppendNotes(text, slide);
             return text.ToString();
         }
 
-        private static void AppendShape(StringBuilder text, PptShapeInfo shape)
+        private static bool AppendShape(StringBuilder text, PptShapeInfo shape, PptSceneShape layout)
         {
             var id = shape.ShapeId.ToString(CultureInfo.InvariantCulture);
+            var where = layout == null ? string.Empty : ", " + PptSceneDescribe.Position(layout);
             switch (shape.Role)
             {
                 case PptShapeRole.Other:
-                    return;
+                    return false;
                 case PptShapeRole.Picture:
-                    text.AppendLine(string.IsNullOrWhiteSpace(shape.Detail) ? $"[{id}] picture" : $"[{id}] picture \"{PptOutput.Shorten(shape.Detail, 80)}\"");
-                    return;
-                case PptShapeRole.Table:
+                    text.AppendLine(string.IsNullOrWhiteSpace(shape.Detail) ? $"[{id}] picture{where}" : $"[{id}] picture \"{PptOutput.Shorten(shape.Detail, 80)}\"{where}");
+                    return true;
+                case PptShapeRole.Table when layout == null:
                     text.AppendLine($"[{id}] table {shape.Detail} (read only)");
-                    return;
+                    return true;
+                case PptShapeRole.Table:
+                    text.AppendLine($"[{id}] table{where} (read only)");
+                    foreach (var row in PptSceneDescribe.TableRows(layout))
+                        text.AppendLine("  " + row);
+
+                    return true;
                 case PptShapeRole.Chart:
-                    AppendChart(text, id, shape.Chart);
-                    return;
+                    AppendChart(text, id, shape.Chart, where);
+                    return true;
                 case PptShapeRole.Footer when !shape.HasText:
-                    return;
+                    return false;
             }
 
             var label = PptOutput.ShapeLabel(shape);
@@ -126,22 +159,24 @@ namespace DocuHelper.Tools.Ppt
 
             if (paragraphs.Count == 0)
             {
-                text.AppendLine($"{label}{style}: (empty)");
-                return;
+                text.AppendLine($"{label}{where}{style}: (empty)");
+                return true;
             }
 
             if (paragraphs.Count == 1 && paragraphs[0].Level == 0)
             {
-                text.AppendLine($"{label}{style}: {PptOutput.Inline(paragraphs[0].Text)}{SizeNote(paragraphs[0], first)}");
-                return;
+                text.AppendLine($"{label}{where}{style}: {PptOutput.Inline(paragraphs[0].Text)}{SizeNote(paragraphs[0], first)}");
+                return true;
             }
 
-            text.AppendLine($"{label}{style}:");
+            text.AppendLine($"{label}{where}{style}:");
             foreach (var paragraph in paragraphs)
             {
                 var line = paragraph.IsEmpty ? "(blank line)" : PptOutput.Inline(paragraph.Text);
                 text.AppendLine($"{new string(' ', 2 + paragraph.Level * 2)}- {line}{SizeNote(paragraph, first)}");
             }
+
+            return true;
         }
 
         private static string Style(PptParagraphInfo paragraph)
@@ -169,16 +204,16 @@ namespace DocuHelper.Tools.Ppt
                 ? $" ({PptOutput.Points(paragraph.FontSize)})"
                 : string.Empty;
 
-        private static void AppendChart(StringBuilder text, string id, PptChartInfo chart)
+        private static void AppendChart(StringBuilder text, string id, PptChartInfo chart, string where)
         {
             if (chart == null || chart.Series.Count == 0)
             {
-                text.AppendLine($"[{id}] chart (data could not be read, read only)");
+                text.AppendLine($"[{id}] chart{where} (data could not be read, read only)");
                 return;
             }
 
             var title = string.IsNullOrWhiteSpace(chart.Title) ? string.Empty : $" \"{PptOutput.Shorten(chart.Title, 60)}\"";
-            var header = $"[{id}] chart ({chart.Type}){title}, read only.";
+            var header = $"[{id}] chart ({chart.Type}){title}{where}, read only.";
             var categories = chart.Categories.Take(MaxPoints).Select(c => PptOutput.Shorten(c, 20)).ToList();
             var more = chart.Categories.Count > MaxPoints ? " | …" : string.Empty;
 

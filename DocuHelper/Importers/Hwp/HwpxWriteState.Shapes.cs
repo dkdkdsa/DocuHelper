@@ -11,11 +11,32 @@ namespace DocuHelper.Importers.Hwp
 {
     internal sealed partial class HwpxWriteState
     {
+        private static readonly (HighlightColorValues Name, string Hex)[] s_highlightHex =
+        {
+            (HighlightColorValues.Yellow, "FFFF00"),
+            (HighlightColorValues.Green, "00FF00"),
+            (HighlightColorValues.Cyan, "00FFFF"),
+            (HighlightColorValues.Magenta, "FF00FF"),
+            (HighlightColorValues.Blue, "0000FF"),
+            (HighlightColorValues.Red, "FF0000"),
+            (HighlightColorValues.DarkBlue, "000080"),
+            (HighlightColorValues.DarkCyan, "008080"),
+            (HighlightColorValues.DarkGreen, "008000"),
+            (HighlightColorValues.DarkMagenta, "800080"),
+            (HighlightColorValues.DarkRed, "800000"),
+            (HighlightColorValues.DarkYellow, "808000"),
+            (HighlightColorValues.DarkGray, "808080"),
+            (HighlightColorValues.LightGray, "C0C0C0"),
+            (HighlightColorValues.Black, "000000"),
+            (HighlightColorValues.White, "FFFFFF"),
+        };
+
         private readonly List<string> _fonts = new();
         private readonly Dictionary<HwpxCharKey, int> _chars = new();
         private readonly Dictionary<HwpxParaKey, int> _paras = new();
+        private readonly Dictionary<string, (int Id, List<HwpTabStop> Stops)> _tabs = new();
 
-        private HwpxParaKey ParaKeyOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, Indentation listIndent)
+        private HwpxParaKey ParaKeyOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, Indentation listIndent, (string Heading, int Id, int Level)? list)
         {
             var justification = _styles.ParagraphValue<Justification>(paragraph)?.Val;
             var align = "JUSTIFY";
@@ -30,6 +51,8 @@ namespace DocuHelper.Importers.Hwp
                     align = "CENTER";
                 else if (value == JustificationValues.Distribute)
                     align = "DISTRIBUTE";
+                else if (value == JustificationValues.ThaiDistribute)
+                    align = "DISTRIBUTE_SPACE";
             }
 
             var indentation = paragraph.ParagraphProperties?.Indentation ?? listIndent ?? _styles.ParagraphValue<Indentation>(paragraph);
@@ -44,12 +67,45 @@ namespace DocuHelper.Importers.Hwp
             var before = ParseInt(spacing?.Before?.Value, 0);
             var after = ParseInt(spacing?.After?.Value, 0);
             var line = DefaultLineSpacing;
+            var kind = "PERCENT";
             var rule = spacing?.LineRule?.Value;
             if (spacing?.Line != null && (rule == null || rule == LineSpacingRuleValues.Auto))
-                line = Math.Clamp(ParseInt(spacing.Line.Value, 240) * 160 / 240, 50, 500);
+                line = Math.Clamp(ParseInt(spacing.Line.Value, 240) * 160 / 240, 1, 500);
+            else if (spacing?.Line != null && rule == LineSpacingRuleValues.Exact)
+            {
+                kind = "FIXED";
+                line = Units(ParseInt(spacing.Line.Value, 240));
+            }
+            else if (spacing?.Line != null && rule == LineSpacingRuleValues.AtLeast)
+            {
+                kind = "AT_LEAST";
+                line = Units(ParseInt(spacing.Line.Value, 240));
+            }
 
             var keep = WordStyles.IsOn(_styles.ParagraphValue<KeepNext>(paragraph));
-            return new HwpxParaKey(align, Units(Math.Max(0, left)), Units(Math.Max(0, right)), Units(indent), Units(Math.Max(0, before)), Units(Math.Max(0, after)), line, keep);
+            var keepLines = WordStyles.IsOn(_styles.ParagraphValue<KeepLines>(paragraph));
+            var widow = WordStyles.IsOn(_styles.ParagraphValue<WidowControl>(paragraph));
+            return new HwpxParaKey(align, Units(Math.Max(0, left)), Units(Math.Max(0, right)), Units(indent), Units(Math.Max(0, before)), Units(Math.Max(0, after)), line, keep, kind, keepLines, widow, BorderIdOf(paragraph), TabId(StopsOf(paragraph)), list?.Heading ?? "NONE", list?.Id ?? 0, list?.Level ?? 0);
+        }
+
+        private int BorderIdOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
+        {
+            var borders = _styles.ParagraphValue<ParagraphBorders>(paragraph);
+            var lines = new[]
+            {
+                BorderLine(borders?.GetFirstChild<TopBorder>()),
+                BorderLine(borders?.GetFirstChild<LeftBorder>()),
+                BorderLine(borders?.GetFirstChild<BottomBorder>()),
+                BorderLine(borders?.GetFirstChild<RightBorder>()),
+            };
+            var fill = FillOf(_styles.ParagraphValue<Shading>(paragraph));
+            return lines.All(l => l == null) && fill == null ? PlainBorder : BorderFillId(lines, fill);
+        }
+
+        private static string FillOf(Shading shading)
+        {
+            var fill = shading?.Fill?.Value;
+            return fill != null && fill.Length == 6 && fill.All(Uri.IsHexDigit) ? fill.ToUpperInvariant() : null;
         }
 
         private HwpxCharKey CharKeyOf(Run run, DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
@@ -63,16 +119,23 @@ namespace DocuHelper.Importers.Hwp
                 color = null;
 
             var vertical = Value<VerticalTextAlignment>()?.Val?.Value;
+            var underline = Value<Underline>();
+            var underlined = WordStyles.IsUnderlined(underline);
             return new HwpxCharKey(
                 font,
                 height,
                 WordStyles.IsOn(Value<Bold>()),
                 WordStyles.IsOn(Value<Italic>()),
-                WordStyles.IsUnderlined(Value<Underline>()),
+                underlined,
                 WordStyles.IsOn(Value<Strike>()) || WordStyles.IsOn(Value<DoubleStrike>()),
                 color?.ToUpperInvariant(),
                 vertical == VerticalPositionValues.Superscript,
-                vertical == VerticalPositionValues.Subscript);
+                vertical == VerticalPositionValues.Subscript,
+                ShadeOf(Value<Shading>(), Value<DocumentFormat.OpenXml.Wordprocessing.Highlight>()),
+                SpacingOf(Value<Spacing>()?.Val?.Value ?? 0, height),
+                ScaleOf(Value<CharacterScale>()),
+                underlined ? UnderlineShapeOf(underline?.Val?.Value) : "SOLID",
+                WordStyles.IsOn(Value<DoubleStrike>()));
         }
 
         private static string FontOf(RunFonts fonts)
@@ -80,6 +143,29 @@ namespace DocuHelper.Importers.Hwp
             var name = fonts?.EastAsia?.Value ?? fonts?.Ascii?.Value ?? fonts?.HighAnsi?.Value;
             return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
         }
+
+        private static string ShadeOf(Shading shading, DocumentFormat.OpenXml.Wordprocessing.Highlight highlight)
+        {
+            var fill = shading?.Fill?.Value;
+            if (fill != null && fill.Length == 6 && fill.All(Uri.IsHexDigit))
+                return fill.ToUpperInvariant();
+
+            var name = highlight?.Val?.Value;
+            return name == null || name == HighlightColorValues.None ? null : HighlightHex(name);
+        }
+
+        private static string HighlightHex(HighlightColorValues? value) => s_highlightHex.FirstOrDefault(e => e.Name == value).Hex;
+
+        private static int SpacingOf(int twips, int height) => height > 0 ? (int)Math.Round(twips * 500.0 / height) : 0;
+
+        private static int ScaleOf(CharacterScale scale) => scale?.Val != null && scale.Val.Value > 0 ? (int)scale.Val.Value : 100;
+
+        private static string UnderlineShapeOf(UnderlineValues? value) =>
+            value == UnderlineValues.Double ? "DOUBLE_SLIM"
+            : value == UnderlineValues.Dotted ? "DOT"
+            : value == UnderlineValues.Dash ? "DASH"
+            : value == UnderlineValues.Wave ? "WAVE"
+            : "SOLID";
 
         private static int? HeightOf(FontSize size)
         {
@@ -110,6 +196,53 @@ namespace DocuHelper.Importers.Hwp
             return id;
         }
 
+        private int TabId(List<HwpTabStop> stops)
+        {
+            if (stops.Count == 0)
+                return 0;
+
+            var key = string.Join("|", stops.Select(s => s.Position + "/" + s.Type + "/" + s.Leader));
+            if (_tabs.TryGetValue(key, out var found))
+                return found.Id;
+
+            var id = 1 + _tabs.Count;
+            _tabs[key] = (id, stops);
+            return id;
+        }
+
+        private List<HwpTabStop> StopsOf(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
+        {
+            var tabs = _styles.ParagraphValue<DocumentFormat.OpenXml.Wordprocessing.Tabs>(paragraph);
+            return (tabs?.Elements<TabStop>() ?? Enumerable.Empty<TabStop>())
+                .Where(t => t.Val?.Value != null && t.Position?.Value != null)
+                .Select(Stop)
+                .Where(s => s != null)
+                .ToList();
+        }
+
+        private static HwpTabStop Stop(TabStop tab)
+        {
+            var value = tab.Val.Value;
+            var type = value == TabStopValues.Center ? "CENTER"
+                : value == TabStopValues.Right || value == TabStopValues.End ? "RIGHT"
+                : value == TabStopValues.Decimal ? "DECIMAL"
+                : value == TabStopValues.Left || value == TabStopValues.Start ? "LEFT"
+                : null;
+            if (type == null)
+                return null;
+
+            var leader = tab.Leader?.Value;
+            return new HwpTabStop
+            {
+                Position = Units(tab.Position.Value),
+                Type = type,
+                Leader = leader == TabStopLeaderCharValues.Dot ? "DOT"
+                    : leader == TabStopLeaderCharValues.Hyphen ? "DASH"
+                    : leader == TabStopLeaderCharValues.Underscore ? "SOLID"
+                    : "NONE",
+            };
+        }
+
         private XElement CharProperty(int id, HwpxCharKey key)
         {
             var font = Number(_fonts.IndexOf(key.Font));
@@ -117,14 +250,14 @@ namespace DocuHelper.Importers.Hwp
                 new XAttribute("id", Number(id)),
                 new XAttribute("height", Number(key.Height)),
                 new XAttribute("textColor", "#" + (key.Color ?? "000000")),
-                new XAttribute("shadeColor", "none"),
+                new XAttribute("shadeColor", key.Shade == null ? "none" : "#" + key.Shade),
                 new XAttribute("useFontSpace", "0"),
                 new XAttribute("useKerning", "0"),
                 new XAttribute("symMark", "NONE"),
                 new XAttribute("borderFillIDRef", Number(PlainBorder)),
                 LanguageValues("fontRef", font),
-                LanguageValues("ratio", "100"),
-                LanguageValues("spacing", "0"),
+                LanguageValues("ratio", Number(key.Scale)),
+                LanguageValues("spacing", Number(key.Spacing)),
                 LanguageValues("relSz", "100"),
                 LanguageValues("offset", "0"));
             if (key.Italic)
@@ -133,8 +266,8 @@ namespace DocuHelper.Importers.Hwp
             if (key.Bold)
                 element.Add(new XElement(Hh + "bold"));
 
-            element.Add(new XElement(Hh + "underline", new XAttribute("type", key.Underline ? "BOTTOM" : "NONE"), new XAttribute("shape", "SOLID"), new XAttribute("color", "#000000")));
-            element.Add(new XElement(Hh + "strikeout", new XAttribute("shape", key.Strike ? "SOLID" : "NONE"), new XAttribute("color", "#000000")));
+            element.Add(new XElement(Hh + "underline", new XAttribute("type", key.Underline ? "BOTTOM" : "NONE"), new XAttribute("shape", key.UnderlineShape), new XAttribute("color", "#000000")));
+            element.Add(new XElement(Hh + "strikeout", new XAttribute("shape", key.DoubleStrike ? "DOUBLE_SLIM" : key.Strike ? "SOLID" : "NONE"), new XAttribute("color", "#000000")));
             element.Add(new XElement(Hh + "outline", new XAttribute("type", "NONE")));
             element.Add(new XElement(Hh + "shadow", new XAttribute("type", "NONE"), new XAttribute("color", "#C0C0C0"), new XAttribute("offsetX", "10"), new XAttribute("offsetY", "10")));
             if (key.Superscript)
@@ -158,28 +291,28 @@ namespace DocuHelper.Importers.Hwp
                 Length("prev", key.Before * scale),
                 Length("next", key.After * scale));
 
-            XElement Spacing() => new(Hh + "lineSpacing", new XAttribute("type", "PERCENT"), new XAttribute("value", Number(key.LineSpacing)), new XAttribute("unit", "HWPUNIT"));
+            XElement Spacing() => new(Hh + "lineSpacing", new XAttribute("type", key.LineKind), new XAttribute("value", Number(key.LineSpacing)), new XAttribute("unit", "HWPUNIT"));
 
             return new XElement(Hh + "paraPr",
                 new XAttribute("id", Number(id)),
-                new XAttribute("tabPrIDRef", "0"),
+                new XAttribute("tabPrIDRef", Number(key.Tab)),
                 new XAttribute("condense", "0"),
                 new XAttribute("fontLineHeight", "0"),
                 new XAttribute("snapToGrid", "1"),
                 new XAttribute("suppressLineNumbers", "0"),
                 new XAttribute("checked", "0"),
                 new XElement(Hh + "align", new XAttribute("horizontal", key.Align), new XAttribute("vertical", "BASELINE")),
-                new XElement(Hh + "heading", new XAttribute("type", "NONE"), new XAttribute("idRef", "0"), new XAttribute("level", "0")),
+                new XElement(Hh + "heading", new XAttribute("type", key.Heading), new XAttribute("idRef", Number(key.HeadingId)), new XAttribute("level", Number(key.HeadingLevel))),
                 new XElement(Hh + "breakSetting",
                     new XAttribute("breakLatinWord", "KEEP_WORD"), new XAttribute("breakNonLatinWord", "KEEP_WORD"),
-                    new XAttribute("widowOrphan", "0"), new XAttribute("keepWithNext", key.KeepWithNext ? "1" : "0"),
-                    new XAttribute("keepLines", "0"), new XAttribute("pageBreakBefore", "0"), new XAttribute("lineWrap", "BREAK")),
+                    new XAttribute("widowOrphan", key.WidowControl ? "1" : "0"), new XAttribute("keepWithNext", key.KeepWithNext ? "1" : "0"),
+                    new XAttribute("keepLines", key.KeepLines ? "1" : "0"), new XAttribute("pageBreakBefore", "0"), new XAttribute("lineWrap", "BREAK")),
                 new XElement(Hh + "autoSpacing", new XAttribute("eAsianEng", "0"), new XAttribute("eAsianNum", "0")),
                 new XElement(Hp + "switch",
                     new XElement(Hp + "case", new XAttribute(Hp + "required-namespace", UnitChar.NamespaceName), Margins(1), Spacing()),
                     new XElement(Hp + "default", Margins(2), Spacing())),
                 new XElement(Hh + "border",
-                    new XAttribute("borderFillIDRef", Number(PlainBorder)), new XAttribute("offsetLeft", "0"), new XAttribute("offsetRight", "0"),
+                    new XAttribute("borderFillIDRef", Number(key.Border)), new XAttribute("offsetLeft", "0"), new XAttribute("offsetRight", "0"),
                     new XAttribute("offsetTop", "0"), new XAttribute("offsetBottom", "0"), new XAttribute("connect", "0"), new XAttribute("ignoreMargin", "0")));
         }
 

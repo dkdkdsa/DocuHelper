@@ -42,40 +42,96 @@ namespace DocuHelper.Importers.Hwp
 
         private XElement Paragraph(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph)
         {
-            var label = Label(paragraph, out var listIndent);
-            var para = ParaId(ParaKeyOf(paragraph, listIndent));
+            var list = ListOf(paragraph, out var listIndent);
+            var para = ParaId(ParaKeyOf(paragraph, listIndent, list));
             var pageBreak = WordStyles.IsOn(_styles.ParagraphValue<PageBreakBefore>(paragraph));
+            var columnBreak = false;
             var runs = new List<XElement>();
-            if (label != null)
+            runs.AddRange(ParagraphControls(paragraph));
+            var fields = ScanFields(paragraph);
+            var scope = new HwpxFieldScope();
+            var suppressed = new HashSet<OpenXmlElement>(ReferenceEqualityComparer.Instance);
+            foreach (var element in paragraph.Descendants().Where(e => e is Run || e is BookmarkStart || e is SdtRun).ToList())
             {
-                var first = paragraph.Descendants<Run>().FirstOrDefault(r => Owns(paragraph, r));
-                runs.Add(TextRun(CharId(CharKeyOf(first, paragraph)), label));
-            }
+                if (element is BookmarkStart bookmark)
+                {
+                    var kept = Owns(paragraph, bookmark) ? KeptObject(bookmark, paragraph, suppressed) : null;
+                    if (kept != null)
+                        runs.Add(kept);
+                    else if (Owns(paragraph, bookmark) && bookmark.Name?.Value is string name && (!name.StartsWith("_", System.StringComparison.Ordinal) || name.StartsWith(HwpTocMarks.Prefix, System.StringComparison.Ordinal)))
+                        runs.Add(BookmarkRun(name));
 
-            foreach (var run in paragraph.Descendants<Run>())
-            {
-                if (!Owns(paragraph, run))
+                    continue;
+                }
+
+                if (element is SdtRun field)
+                {
+                    if (field.Descendants<Run>().Any() || !Owns(paragraph, field))
+                        continue;
+
+                    MoveScope(scope, runs, null, field);
+                    continue;
+                }
+
+                var run = (Run)element;
+                if (!Owns(paragraph, run) || suppressed.Contains(run))
                     continue;
 
-                var content = RunContent(run, ref pageBreak, runs.Count == 0);
+                if (fields.Anchors.Contains(run))
+                {
+                    runs.Add(PageFieldRun(run, paragraph));
+                    continue;
+                }
+
+                if (fields.Skip.Contains(run))
+                    continue;
+
+                MoveScope(scope, runs, LinkTargetOf(run), ControlOf(run));
+                if (scope.Placeholder)
+                    continue;
+
+                foreach (var reference in run.Descendants<FootnoteReference>())
+                {
+                    var note = NoteRunOf(reference, false);
+                    if (note != null)
+                        runs.Add(note);
+                }
+
+                foreach (var reference in run.Descendants<EndnoteReference>())
+                {
+                    var note = NoteRunOf(reference, true);
+                    if (note != null)
+                        runs.Add(note);
+                }
+
+                foreach (var drawing in run.Descendants<Drawing>())
+                {
+                    var picture = PictureOf(drawing);
+                    if (picture != null)
+                        runs.Add(new XElement(Hp + "run", new XAttribute("charPrIDRef", Number(CharId(CharKeyOf(run, paragraph)))), picture));
+                }
+
+                var content = RunContent(run, ref pageBreak, ref columnBreak, runs.Count == 0);
                 if (content.Count == 0)
                     continue;
 
-                var element = new XElement(Hp + "run", new XAttribute("charPrIDRef", Number(CharId(CharKeyOf(run, paragraph)))));
-                element.Add(new XElement(Hp + "t", content));
-                runs.Add(element);
+                var element2 = new XElement(Hp + "run", new XAttribute("charPrIDRef", Number(CharId(CharKeyOf(run, paragraph)))));
+                element2.Add(new XElement(Hp + "t", content));
+                runs.Add(element2);
             }
+
+            CloseScope(scope, runs);
 
             if (runs.Count == 0)
                 runs.Add(TextRun(CharId(CharKeyOf(null, paragraph)), string.Empty));
 
-            return Paragraph(para, 0, pageBreak, runs);
+            return Paragraph(para, StyleIdOf(paragraph, para, CharId(CharKeyOf(null, paragraph))), pageBreak, runs, columnBreak);
         }
 
-        private static bool Owns(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, Run run) =>
-            ReferenceEquals(run.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Paragraph>().FirstOrDefault(), paragraph);
+        private static bool Owns(DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph, OpenXmlElement element) =>
+            ReferenceEquals(element.Ancestors<DocumentFormat.OpenXml.Wordprocessing.Paragraph>().FirstOrDefault(), paragraph);
 
-        private static List<object> RunContent(Run run, ref bool pageBreak, bool atStart)
+        private static List<object> RunContent(Run run, ref bool pageBreak, ref bool columnBreak, bool atStart)
         {
             var content = new List<object>();
             var text = new StringBuilder();
@@ -98,6 +154,16 @@ namespace DocuHelper.Importers.Hwp
                     case TabChar:
                         Flush();
                         content.Add(new XElement(Hp + "tab", new XAttribute("width", "4000"), new XAttribute("leader", "NONE"), new XAttribute("type", "LEFT")));
+                        break;
+                    case Break column when column.Type?.Value == BreakValues.Column:
+                        if (atStart && content.Count == 0 && text.Length == 0)
+                            columnBreak = true;
+                        else
+                        {
+                            Flush();
+                            content.Add(new XElement(Hp + "lineBreak"));
+                        }
+
                         break;
                     case Break line when line.Type?.Value == BreakValues.Page:
                         if (atStart && content.Count == 0 && text.Length == 0)
@@ -143,12 +209,12 @@ namespace DocuHelper.Importers.Hwp
             return builder.ToString();
         }
 
-        private static XElement Paragraph(int para, int style, bool pageBreak, IEnumerable<XElement> runs) => new(Hp + "p",
+        private static XElement Paragraph(int para, int style, bool pageBreak, IEnumerable<XElement> runs, bool columnBreak = false) => new(Hp + "p",
             new XAttribute("id", "0"),
             new XAttribute("paraPrIDRef", Number(para)),
             new XAttribute("styleIDRef", Number(style)),
             new XAttribute("pageBreak", pageBreak ? "1" : "0"),
-            new XAttribute("columnBreak", "0"),
+            new XAttribute("columnBreak", columnBreak ? "1" : "0"),
             new XAttribute("merged", "0"),
             runs);
 

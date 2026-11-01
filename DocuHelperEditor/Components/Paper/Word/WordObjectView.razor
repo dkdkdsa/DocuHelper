@@ -1,0 +1,209 @@
+@using System.Globalization
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using DocuHelper.Editors
+@using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.State.Ribbon
+
+<div class="obj @Item.Kind @(Item.Inline ? "inline" : "float") @(Selected ? "sel" : null)" style="@Style"
+     role="group" tabindex="0" aria-label="@Label" aria-selected="@(Selected ? "true" : "false")" data-object="@Item.Ref"
+     @onclick="SelectAsync" @onclick:stopPropagation="true" @onkeydown="OnKeyAsync">
+    @switch (Item.Kind)
+    {
+        case "picture":
+            <img class="media" src="@Item.ImageUrl" alt="@(Item.Alt ?? string.Empty)" draggable="false" />
+            break;
+        case "shape":
+            <WordShapeSvg Item="Item" />
+            break;
+        case "textbox":
+            <WordShapeSvg Item="Item" />
+            <div class="text">
+                @foreach (var line in Item.Paragraphs)
+                {
+                    <p>@line</p>
+                }
+            </div>
+            break;
+        case "chart":
+            <WordChartSvg Chart="Item.Chart" />
+            break;
+        default:
+            <span class="other">@Item.Name</span>
+            break;
+    }
+    @if (Selected)
+    {
+        <span class="h nw" aria-hidden="true"></span>
+        <span class="h n" aria-hidden="true"></span>
+        <span class="h ne" aria-hidden="true"></span>
+        <span class="h w" aria-hidden="true"></span>
+        <span class="h e" aria-hidden="true"></span>
+        <span class="h sw" aria-hidden="true"></span>
+        <span class="h s" aria-hidden="true"></span>
+        <span class="h se" aria-hidden="true"></span>
+        <div class="toolbar" role="toolbar" aria-label="@($"{Item.Label} 서식")">
+            <button type="button" class="tool" @onclick="SizeAsync" @onclick:stopPropagation="true">크기</button>
+            <button type="button" class="tool" @onclick="AltAsync" @onclick:stopPropagation="true">대체 텍스트</button>
+            <button type="button" class="tool" @onclick="WrapAsync" @onclick:stopPropagation="true">배치</button>
+            <button type="button" class="tool" @onclick="RotateAsync" @onclick:stopPropagation="true">회전</button>
+            @if (!Item.Inline)
+            {
+                <button type="button" class="tool" @onclick="FrontAsync" @onclick:stopPropagation="true">앞으로</button>
+                <button type="button" class="tool" @onclick="BackAsync" @onclick:stopPropagation="true">뒤로</button>
+            }
+            <button type="button" class="tool danger" @onclick="DeleteAsync" @onclick:stopPropagation="true">삭제</button>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] s_wraps = { "inline", "square", "tight", "through", "top_bottom", "behind", "in_front" };
+
+    private static readonly string[] s_wrapLabels = { "글자처럼", "주변 글 따라", "촘촘히 감싸기", "글 관통", "위아래", "글 뒤로", "글 앞으로" };
+
+    private const double MinCm = 0.1;
+
+    private const double MaxCm = 100;
+
+    private const double CmStep = 0.01;
+
+    [Parameter]
+    public WordObjectModel Item { get; set; }
+
+    [Parameter]
+    public bool Selected { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> OnSelect { get; set; }
+
+    [Parameter]
+    public RibbonRouter Router { get; set; }
+
+    [Parameter]
+    public IWordDialogPresenter Dialogs { get; set; }
+
+    private string Label => $"{Item.Label}, 가로 {Cm(Item.WidthPt)}cm, 세로 {Cm(Item.HeightPt)}cm";
+
+    private string Style
+    {
+        get
+        {
+            var size = $"width: {Length(Item.WidthPt)}; height: {Length(Item.HeightPt)};";
+            if (Item.Inline)
+                return size;
+
+            var z = Item.Behind ? -1 : Item.Wrap == "in_front" ? 2 : 1;
+            var turn = Item.RotationDeg == 0 ? string.Empty : $" transform: rotate({Item.RotationDeg.ToString("0.##", CultureInfo.InvariantCulture)}deg);";
+            return $"position: absolute; left: {Length(Item.LeftPt)}; top: {Length(Item.TopPt)}; {size} z-index: {z};{turn}";
+        }
+    }
+
+    private static string Length(double points) => $"calc({(points * 4.0 / 3.0).ToString("0.###", CultureInfo.InvariantCulture)} * var(--u))";
+
+    private static string Cm(double points) => (points / 28.3465).ToString("0.##", CultureInfo.InvariantCulture);
+
+    private Task SelectAsync() => OnSelect.InvokeAsync(Item.Id);
+
+    private Task OnKeyAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Delete":
+                return DeleteAsync();
+            case "Escape":
+                return OnSelect.InvokeAsync(null);
+            case "Enter":
+            case " ":
+                return SelectAsync();
+            default:
+                return Task.CompletedTask;
+        }
+    }
+
+    private async Task SizeAsync()
+    {
+        var fields = new[]
+        {
+            new WordDialogField("width", "가로 (cm)", "number", Json(Cm(Item.WidthPt)), Array.Empty<string>(), Array.Empty<string>()),
+            new WordDialogField("height", "세로 (cm)", "number", Json(Cm(Item.HeightPt)), Array.Empty<string>(), Array.Empty<string>()),
+        };
+        var values = await Dialogs.AskFieldsAsync("word.object.size", new WordDialogSpec("크기", fields, ValidateSize), null);
+        if (values == null)
+            return;
+
+        var width = NumberOf(values, "width");
+        var height = NumberOf(values, "height");
+        var changes = new JsonObject();
+        if (Changed(width, Item.WidthPt))
+            changes["width_cm"] = JsonValue.Create(width.Value);
+
+        if (Changed(height, Item.HeightPt))
+            changes["height_cm"] = JsonValue.Create(height.Value);
+
+        if (changes.Count == 0)
+            return;
+
+        Format(changes);
+    }
+
+    private static string ValidateSize(IReadOnlyDictionary<string, JsonNode> values)
+    {
+        foreach (var (name, label) in new[] { ("width", "가로"), ("height", "세로") })
+        {
+            var value = NumberOf(values, name);
+            if (value is double number && (number < MinCm || number > MaxCm))
+                return $"{label}은 {MinCm}~{MaxCm}cm 사이로 넣어 주세요.";
+        }
+
+        return null;
+    }
+
+    private static double? NumberOf(IReadOnlyDictionary<string, JsonNode> values, string name) =>
+        values.TryGetValue(name, out var node) && node != null ? node.GetValue<double>() : null;
+
+    private static bool Changed(double? value, double points) => value is double number && Math.Abs(number - points / 28.3465) >= CmStep / 2;
+
+    private async Task AltAsync()
+    {
+        var fields = new[] { new WordDialogField("alt", "대체 텍스트 (글을 읽어 줄 때 쓰여요)", "text", Json(Item.Alt ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()) };
+        var values = await Dialogs.AskFieldsAsync("word.object.alt", new WordDialogSpec("대체 텍스트", fields), null);
+        if (values == null)
+            return;
+
+        Format(new JsonObject { ["alt"] = JsonValue.Create(values["alt"]?.GetValue<string>() ?? string.Empty) });
+    }
+
+    private async Task WrapAsync()
+    {
+        var current = Item.Inline ? "inline" : Item.Wrap;
+        var fields = new[] { new WordDialogField("wrap", "글과의 배치", "choice", Json(current), s_wraps, s_wrapLabels) };
+        var values = await Dialogs.AskFieldsAsync("word.object.wrap", new WordDialogSpec("배치", fields), null);
+        var wrap = values?["wrap"]?.GetValue<string>();
+        if (wrap == null)
+            return;
+
+        Format(new JsonObject { ["layout"] = new JsonObject { ["wrap"] = JsonValue.Create(wrap) } });
+    }
+
+    private void RotateAsync() => Format(new JsonObject { ["rotation_deg"] = JsonValue.Create((Item.RotationDeg + 90) % 360) });
+
+    private void FrontAsync() => Format(new JsonObject { ["z_order"] = JsonValue.Create("bring_forward") });
+
+    private void BackAsync() => Format(new JsonObject { ["z_order"] = JsonValue.Create("send_backward") });
+
+    private async Task DeleteAsync()
+    {
+        Router.Apply(EditCommand.Create("edit_object", new JsonObject { ["action"] = JsonValue.Create("delete"), ["id"] = JsonValue.Create(Item.Ref) }));
+        await OnSelect.InvokeAsync(null);
+    }
+
+    private void Format(JsonObject changes)
+    {
+        changes["action"] = JsonValue.Create("format");
+        changes["id"] = JsonValue.Create(Item.Ref);
+        Router.Apply(EditCommand.Create("edit_object", changes));
+    }
+
+    private static string Json(string value) => JsonSerializer.Serialize(value);
+}

@@ -6,8 +6,6 @@ namespace DocuHelper.Importers.Hwp
 {
     internal sealed partial class HwpxBody
     {
-        private int _footnotes;
-        private int _endnotes;
         private bool _dropNumber;
         private bool _droppedNumber;
 
@@ -19,21 +17,22 @@ namespace DocuHelper.Importers.Hwp
                 return;
             }
 
-            var mark = endnote
-                ? "미주" + (++_endnotes).ToString(CultureInfo.InvariantCulture) + ")"
-                : (++_footnotes).ToString(CultureInfo.InvariantCulture) + ")";
-            runs.AppendMark(mark, shape);
-            var note = new HwpNote { Mark = mark };
+            var note = new HwpNote { Id = _document.Notes.Count + 1, Endnote = endnote };
             _document.Notes.Add(note);
+            runs.AppendNote(note);
 
             var drop = _dropNumber;
             var dropped = _droppedNumber;
+            var saved = (_pendingHiding, _pendingNewNumber);
+            _pendingHiding = null;
+            _pendingNewNumber = null;
             _dropNumber = true;
             _droppedNumber = false;
             ReadList(HwpxXml.Child(element, "subList"), note.Blocks);
             if (_droppedNumber)
                 TrimStart(note.Blocks);
 
+            (_pendingHiding, _pendingNewNumber) = saved;
             _dropNumber = drop;
             _droppedNumber = dropped;
         }
@@ -45,6 +44,12 @@ namespace DocuHelper.Importers.Hwp
             {
                 _dropNumber = false;
                 _droppedNumber = true;
+                return;
+            }
+
+            if (type == "PAGE")
+            {
+                runs.AppendField("PAGE", "1", shape);
                 return;
             }
 

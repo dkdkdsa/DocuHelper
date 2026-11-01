@@ -61,13 +61,17 @@ namespace DocuHelper.Importers.Hwp
             for (var r = 0; r < rows; r++)
             {
                 var row = new TableRow();
+                var rowProperties = RowProperties(cells, r);
+                if (rowProperties != null)
+                    row.AppendChild(rowProperties);
+
                 var c = 0;
                 while (c < columns)
                 {
                     var owner = owners[r, c];
                     if (owner == null)
                     {
-                        row.AppendChild(NewCell(widths[c], 1, null, Array.Empty<HwpBlock>()));
+                        row.AppendChild(NewCell(widths[c], 1, null, Array.Empty<HwpBlock>(), null));
                         c++;
                         continue;
                     }
@@ -81,9 +85,9 @@ namespace DocuHelper.Importers.Hwp
                     var span = spans[owner];
                     var width = widths.Skip(c).Take(span.Columns).Sum();
                     if (owner.Row == r)
-                        row.AppendChild(NewCell(width, span.Columns, span.Rows > 1 ? MergedCellValues.Restart : null, owner.Blocks));
+                        row.AppendChild(NewCell(width, span.Columns, span.Rows > 1 ? MergedCellValues.Restart : null, owner.Blocks, owner));
                     else
-                        row.AppendChild(NewCell(width, span.Columns, MergedCellValues.Continue, Array.Empty<HwpBlock>()));
+                        row.AppendChild(NewCell(width, span.Columns, MergedCellValues.Continue, Array.Empty<HwpBlock>(), owner));
 
                     c += span.Columns;
                 }
@@ -94,7 +98,22 @@ namespace DocuHelper.Importers.Hwp
             return table;
         }
 
-        private static TableCell NewCell(int width, int columnSpan, MergedCellValues? merge, IEnumerable<HwpBlock> blocks)
+        private static TableRowProperties RowProperties(List<HwpCell> cells, int row)
+        {
+            var own = cells.Where(c => c.Row == row).ToList();
+            var height = own.Where(c => c.RowSpan == 1).Select(c => c.Height).DefaultIfEmpty(0).Max();
+            var header = own.Count > 0 && own.All(c => c.IsHeader);
+            var properties = new TableRowProperties();
+            if (height > 0)
+                properties.AppendChild(new TableRowHeight { Val = (uint)Twips(height), HeightType = HeightRuleValues.AtLeast });
+
+            if (header)
+                properties.AppendChild(new TableHeader());
+
+            return properties.HasChildren ? properties : null;
+        }
+
+        private static TableCell NewCell(int width, int columnSpan, MergedCellValues? merge, IEnumerable<HwpBlock> blocks, HwpCell source)
         {
             var properties = new TableCellProperties(new TableCellWidth { Width = Number(width), Type = TableWidthUnitValues.Dxa });
             if (columnSpan > 1)
@@ -105,6 +124,15 @@ namespace DocuHelper.Importers.Hwp
             else if (merge == MergedCellValues.Continue)
                 properties.AppendChild(new VerticalMerge());
 
+            if (source != null)
+            {
+                properties.AppendChild(CellBorders(source.Border));
+                if (source.Border?.FaceColor != null)
+                    properties.AppendChild(new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = source.Border.FaceColor });
+
+                properties.AppendChild(new TableCellVerticalAlignment { Val = VerticalAlign(source.VerticalAlign) });
+            }
+
             var cell = new TableCell(properties);
             foreach (var element in ToElements(blocks, Math.Max(MinColumnWidth, width - 200)))
                 cell.AppendChild(element);
@@ -114,6 +142,33 @@ namespace DocuHelper.Importers.Hwp
 
             return cell;
         }
+
+        private static TableCellBorders CellBorders(HwpxBorderFill border) => new(
+            LineOf<TopBorder>(border?.Top),
+            LineOf<LeftBorder>(border?.Left),
+            LineOf<BottomBorder>(border?.Bottom),
+            LineOf<RightBorder>(border?.Right));
+
+        private static T LineOf<T>(HwpBorderLine line) where T : BorderType, new()
+        {
+            if (line == null)
+                return new T { Val = BorderValues.None };
+
+            return new T
+            {
+                Val = line.Type == "DOUBLE_SLIM" ? BorderValues.Double : line.Type == "DASH" ? BorderValues.Dashed : line.Type == "DOT" ? BorderValues.Dotted : BorderValues.Single,
+                Size = (uint)Math.Clamp(Math.Round(line.WidthMm * 72 / 25.4 * 8), 2, 96),
+                Space = 0U,
+                Color = line.Color.TrimStart('#'),
+            };
+        }
+
+        private static TableVerticalAlignmentValues VerticalAlign(string value) => value switch
+        {
+            "CENTER" => TableVerticalAlignmentValues.Center,
+            "BOTTOM" => TableVerticalAlignmentValues.Bottom,
+            _ => TableVerticalAlignmentValues.Top,
+        };
 
         private static int[] ColumnWidths(List<HwpCell> cells, Dictionary<HwpCell, (int Rows, int Columns)> spans, int columns, int availableWidth)
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using DocuHelper.Agents;
 using DocuHelper.Docus;
@@ -10,6 +11,8 @@ namespace DocuHelperEditor.State
 {
     public partial class AssistantStore
     {
+        private readonly SemaphoreSlim _conversationSaves = new(1, 1);
+
         private const int TitleLength = 40;
 
         private string _conversationId;
@@ -78,33 +81,43 @@ namespace DocuHelperEditor.State
             if (_conversationId == null || !_workspace.IsReady)
                 return;
 
-            var entries = _entries.Select(ToSaved).Where(e => e != null).ToList();
-            if (!entries.Any(e => e.Kind == ChatEntryKind.User))
-                return;
-
-            var conversation = new SavedConversation
-            {
-                Id = _conversationId,
-                Title = TitleOf(entries),
-                FileName = _conversationFileName,
-                FileType = _conversationFileType,
-                CreatedAt = _conversationStarted,
-                UpdatedAt = DateTime.Now,
-                Entries = entries,
-            };
-
+            await _conversationSaves.WaitAsync();
             try
             {
-                await _conversations.SaveAsync(_workspace.FolderPath, conversation);
+                var entries = _entries.Select(ToSaved).Where(e => e != null).ToList();
+                if (!entries.Any(e => e.Kind == ChatEntryKind.User))
+                    return;
+
+                var conversation = new SavedConversation
+                {
+                    Id = _conversationId,
+                    Title = TitleOf(entries),
+                    FileName = _conversationFileName,
+                    FileType = _conversationFileType,
+                    CreatedAt = _conversationStarted,
+                    UpdatedAt = DateTime.Now,
+                    Entries = entries,
+                };
+
+                try
+                {
+                    await _conversations.SaveAsync(_workspace.FolderPath, conversation);
+                }
+                catch (Exception e)
+                {
+                    AppLog.Write("Could not save the conversation", e);
+                    OnNotice("대화 기록을 저장하지 못했어요. 이 폴더의 .문서도우미\\대화 파일이 다른 프로그램에서 열려 있는지 확인해 주세요.");
+                }
             }
-            catch (Exception e)
+            finally
             {
-                AppLog.Write("Could not save the conversation", e);
+                _conversationSaves.Release();
             }
         }
 
         private void OnFolderOpened()
         {
+            RestorePanelCollapsed();
             if (!IsRunning)
                 NewConversation();
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using DocuHelper.Tools.Word;
 
 namespace DocuHelperEditor.State.Papers
 {
@@ -15,9 +16,33 @@ namespace DocuHelperEditor.State.Papers
 
         public WordTableModel Table { get; set; }
 
+        public IReadOnlyList<string> ParagraphIds { get; set; } = Array.Empty<string>();
+
         public int Page { get; set; } = 1;
 
+        public IReadOnlyList<WordFragment> Fragments { get; set; } = Array.Empty<WordFragment>();
+
+        public double SpaceBefore { get; set; }
+
+        public double LineHeight { get; set; }
+
+        public double FontSize { get; set; }
+
+        public IReadOnlyList<double> RowHeights { get; set; } = Array.Empty<double>();
+
         public WordListKind ListStyle { get; set; }
+
+        public IReadOnlyList<WordCharSegment> Segments { get; set; } = Array.Empty<WordCharSegment>();
+
+        public IReadOnlyList<WordViewSegment> ViewSegments { get; set; } = Array.Empty<WordViewSegment>();
+
+        public bool HasRevisions { get; set; }
+
+        public IReadOnlyList<WordObjectModel> Objects { get; set; } = Array.Empty<WordObjectModel>();
+
+        public WordParagraphLook Look { get; set; }
+
+        public string ListLabel { get; set; }
 
         public bool IsBold { get; set; }
 

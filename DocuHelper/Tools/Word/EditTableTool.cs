@@ -18,7 +18,7 @@ namespace DocuHelper.Tools.Word
             "Change the structure and look of an existing table: insert or delete rows and columns, merge or split cells, set column widths or make them equal, "
             + "shade or border cells, align cell content, and set table options (header row, banded rows, automatic fit). "
             + "Rows and columns are 1-based and count the header row; a merged cell covers all the rows and columns it spans. "
-            + "Hangul files keep structure, widths, shading and alignment but not borders, row heights or table options.";
+            + "Hangul files keep structure, widths, shading, borders, row heights, vertical alignment and the header row, but not presets, banded or total rows, table alignment, width or automatic fit.";
 
         public override string InputSchema => """
             {
@@ -382,7 +382,8 @@ namespace DocuHelper.Tools.Word
                 throw new ToolInputException("'style'에 바꿀 표 옵션(preset, header_row, banded_rows, total_row, alignment, width_percent, autofit)을 넣어 주세요.");
 
             var style = WordTableStyle.Read(s.Input.Get("style"));
-            HwpGuard.Refuse(s.Docu, "표 스타일");
+            if (style.Preset != null || style.BandedRows != null || style.TotalRow != null || style.Alignment != null || style.WidthPercent != null || style.Autofit != null)
+                HwpGuard.Refuse(s.Docu, "표 스타일");
             if (style.TotalRow != null && s.Rows < 2)
                 throw new ToolInputException("줄이 하나뿐인 표에는 합계 줄을 만들 수 없어요.");
 

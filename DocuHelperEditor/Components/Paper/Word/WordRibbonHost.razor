@@ -1,13 +1,15 @@
-@inherits StoreComponentBase
+﻿@inherits StoreComponentBase
 @inject IJSRuntime JS
 @inject IClipboardService Clipboard
 @inject IFileDialogService Files
+@inject ISpeechService Speech
+@inject IPrintService Prints
 
 @if (Router != null)
 {
     <div class="host">
-        <Ribbon Tabs="WordRibbon.Tabs"
-                ActiveTab="@State.Tab"
+        <Ribbon Tabs="TabsOf"
+                ActiveTab="@ActiveTabOf"
                 ActiveTabChanged="OnTabChanged"
                 IsOpen="@State.RibbonOpen"
                 IsOpenChanged="OnOpenChanged"
@@ -26,6 +28,12 @@
 @code {
     private const string UndoId = "word.trailing.undo";
     private const string RedoId = "word.trailing.redo";
+
+    private bool TableOpen => File?.Paper is WordPaperModel model && model.Selection?.Kind == WordSelectionKind.Cells;
+
+    private IReadOnlyList<RibbonTab> TabsOf => TableOpen ? WordRibbon.WithTable : WordRibbon.Tabs;
+
+    private string ActiveTabOf => State.Tab == "table" && !TableOpen ? "home" : State.Tab;
 
     private WorkspaceFile _boundFile;
     private WordCommandRouter _subscribed;
@@ -50,7 +58,7 @@
             return;
         }
 
-        state.Router ??= new WordCommandRouter(Workspace, Assistant, JS, Clipboard, Files, state);
+        state.Router ??= new WordCommandRouter(Workspace, Assistant, JS, Clipboard, Files, Speech, Prints, state);
         state.Router.File = File;
         if (ReferenceEquals(_boundFile, File) && ReferenceEquals(_subscribed, state.Router))
             return;

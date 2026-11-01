@@ -29,23 +29,39 @@ namespace DocuHelper.Importers.Hwp
                 foreach (var paragraph in body.Elements<Paragraph>().ToList())
                     paragraph.Remove();
 
-                var width = HwpWordPage.ApplyPage(section, document.Page);
-                var elements = ToElements(document.Blocks, width);
-                if (document.Notes.Count > 0)
+                var ids = new HwpBookmarkIds();
+                var chunks = Sections(document);
+                var parts = new List<List<OpenXmlElement>>();
+                var width = 0;
+                for (var i = 0; i < chunks.Count; i++)
                 {
-                    elements.Add(new Paragraph());
-                    foreach (var note in document.Notes)
-                        elements.AddRange(HwpWordNotes.NoteElements(note, width));
+                    var properties = i == chunks.Count - 1 ? section : new SectionProperties();
+                    width = HwpWordPage.ApplyPage(properties, chunks[i].Section.Page);
+                    if (i == 0)
+                        HwpWordPage.ApplyBackground(word, document.Page);
+
+                    HwpWordHeaderFooter.Apply(word, chunks[i].Section, properties, width, ids);
+                    var elements = ToElements(chunks[i].Blocks, width, ids);
+                    if (elements.Count == 0 || elements[^1] is Table)
+                        elements.Add(new Paragraph());
+
+                    if (i < chunks.Count - 1)
+                        EndSection((Paragraph)elements[^1], properties);
+
+                    parts.Add(elements);
                 }
 
-                if (elements.Count == 0 || elements[^1] is Table)
-                    elements.Add(new Paragraph());
-
                 section.Remove();
-                foreach (var element in elements)
+                foreach (var element in parts.SelectMany(part => part))
                     body.AppendChild(element);
 
                 body.AppendChild(section);
+                HwpWordNotes.Write(word, document.Notes, width);
+                HwpWordStyles.Ensure(word);
+                HwpWordNumbering.Write(word, document.Numberings);
+                HwpKeep.Write(word, document.Kept);
+                HwpWordPictures.Embed(word, document.Pictures);
+                HwpWordFields.ResolveLinks(word);
 
                 word.MainDocumentPart.Document.Save();
             }
@@ -53,14 +69,38 @@ namespace DocuHelper.Importers.Hwp
             return stream.ToArray();
         }
 
-        internal static List<OpenXmlElement> ToElements(IEnumerable<HwpBlock> blocks, int width)
+        private static List<(HwpSection Section, List<HwpBlock> Blocks)> Sections(HwpDocument document)
+        {
+            var chunks = new List<(HwpSection Section, List<HwpBlock> Blocks)> { (document.Sections[0], new List<HwpBlock>()) };
+            foreach (var block in document.Blocks)
+            {
+                if (block is HwpParagraph paragraph && paragraph.Section != null)
+                    chunks.Add((paragraph.Section, new List<HwpBlock>()));
+
+                chunks[^1].Blocks.Add(block);
+            }
+
+            return chunks;
+        }
+
+        private static void EndSection(Paragraph last, SectionProperties properties)
+        {
+            last.ParagraphProperties ??= new ParagraphProperties();
+            last.ParagraphProperties.AppendChild(properties);
+        }
+
+        internal static List<OpenXmlElement> ToElements(IEnumerable<HwpBlock> blocks, int width) => ToElements(blocks, width, new HwpBookmarkIds());
+
+        internal static List<OpenXmlElement> ToElements(IEnumerable<HwpBlock> blocks, int width, HwpBookmarkIds ids)
         {
             var elements = new List<OpenXmlElement>();
             foreach (var block in blocks)
             {
                 if (block is HwpParagraph paragraph)
                 {
-                    elements.Add(HwpWordParagraphs.ToParagraph(paragraph));
+                    var element = HwpWordParagraphs.ToParagraph(paragraph);
+                    HwpWordHeaderFooter.Mark(element, paragraph, ids);
+                    elements.Add(element);
                 }
                 else if (block is HwpTable table && table.Cells.Count > 0)
                 {

@@ -20,7 +20,7 @@
             <span class="rail-vertical rail-state-text" aria-hidden="true">물어볼 게 있어요</span>
         </button>
     }
-    else if (Assistant.Status == AssistantStatus.Done || Assistant.HasUnseenResult)
+    else if ((Assistant.Status == AssistantStatus.Done && HasLiveChanges) || Assistant.HasUnseenResult)
     {
         <button type="button" class="rail-state rail-done" aria-label="다 했어요, 펼쳐서 보기" @onclick="ShowResultAsync">
             <span class="rail-done-check" aria-hidden="true">
@@ -37,11 +37,17 @@
     private const string ComposerSelector = "#composer-input";
     private const string PanelCloseSelector = "#assistant-panel-close";
 
-    private Task ExpandAsync() => ExpandAndFocusAsync(PanelCloseSelector);
+    private Task ExpandAsync()
+    {
+        Assistant.RememberPanelCollapsed(false);
+        return ExpandAndFocusAsync(PanelCloseSelector);
+    }
 
     private Task ShowResultAsync() => ExpandAndFocusAsync(ComposerTargetSelector);
 
     private Task RequestAsync() => ExpandAndFocusAsync(ComposerTargetSelector);
+
+    private bool HasLiveChanges => Workspace.Files.Any(f => f.Changes.Count > 0);
 
     private string ComposerTargetSelector => Assistant.Status == AssistantStatus.Working ? PanelCloseSelector : ComposerSelector;
 

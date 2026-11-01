@@ -1,6 +1,7 @@
 .canvas {
     container: word-canvas / inline-size;
     flex: 1;
+    min-width: 0;
     min-height: 0;
     overflow: auto;
     padding: 22px 16px 28px;
@@ -8,9 +9,8 @@
 }
 
 .spread {
-    zoom: var(--word-zoom, 1);
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: flex-start;
     gap: 28px;
 }
@@ -20,55 +20,232 @@
 }
 
 .page {
+    --u: calc(100cqi / var(--paper-width, 793.7));
     position: relative;
-    flex: 0 1 540px;
+    flex: 0 1 calc(var(--paper-width, 793.7) * var(--zoom, 1) * 1px);
+    margin: 0 auto;
     min-width: 0;
-    padding: 52px 56px 64px;
+    min-height: 0;
+    aspect-ratio: var(--paper-ratio, 0.70711);
+    overflow-y: clip;
+    container-type: inline-size;
     background: var(--paper);
     box-shadow: var(--shadow-page);
-    font-size: 14px;
-    line-height: 1.75;
 }
 
 .page.hwp {
     font-family: var(--font-display);
-    line-height: 1.8;
 }
 
-.page.blank {
-    aspect-ratio: 210 / 297;
+.sheet {
+    position: relative;
+    box-sizing: border-box;
+    padding: calc(var(--paper-top, 113.4) * var(--u)) calc(var(--paper-right, 96) * var(--u)) calc(var(--paper-bottom, 96) * var(--u)) calc(var(--paper-left, 96) * var(--u));
+    font-size: calc(var(--body-px, 14) * var(--u));
+    line-height: calc(var(--pitch, 24.2) * var(--u));
 }
 
 .margin {
     flex: 0 0 176px;
 }
 
+.pane {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.row {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+}
+
+.row > .canvas {
+    flex: 1;
+    min-width: 0;
+}
+
+.canvas.zoomed .page {
+    flex: none;
+    width: calc(var(--paper-width, 793.7) * var(--zoom, 1) * 1px);
+}
+
+.canvas.multi {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+    justify-content: center;
+    gap: 24px;
+}
+
+.canvas.multi > .spread + .spread {
+    margin-top: 0;
+}
+
+.canvas.multi .spread {
+    flex: none;
+}
+
+.canvas.multi .page {
+    flex: none;
+    width: calc(var(--paper-width, 793.7) * var(--zoom, 1) * 1px);
+}
+
+.canvas.multi .margin {
+    display: none;
+}
+
+.canvas.read .bar {
+    display: none;
+}
+
+.canvas.grid .page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(to right, color-mix(in srgb, var(--thumb-line) 22%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--thumb-line) 22%, transparent) 1px, transparent 1px);
+    background-size: calc(37.8 * var(--u)) calc(37.8 * var(--u));
+}
+
+.canvas.flow .page {
+    --u: calc(1px * var(--zoom, 1));
+    flex: 0 1 calc(760px * var(--zoom, 1));
+    aspect-ratio: auto;
+    box-shadow: none;
+}
+
+.canvas.flow .sheet {
+    padding: calc(28 * var(--u)) calc(40 * var(--u));
+}
+
+.canvas.outline .blk.k-body .txt {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.canvas.outline .k-h2 {
+    padding-left: calc(14 * var(--u));
+}
+
+.canvas.outline .k-table {
+    display: none;
+}
+
+.canvas.draft .page {
+    flex: 0 1 calc(900px * var(--zoom, 1));
+}
+
+.canvas.marks .blk > .txt::after {
+    content: "¶";
+    margin-left: calc(2 * var(--u));
+    color: var(--ink-3);
+}
+
+.canvas.draft .sheet {
+    padding: calc(16 * var(--u)) calc(24 * var(--u));
+}
+
+.wm {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.wm span {
+    transform: rotate(-45deg);
+    font-size: calc(147 * var(--u));
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--ink-3);
+    opacity: 0.16;
+}
+
+.hf {
+    position: absolute;
+    left: calc(var(--paper-left, 96) * var(--u));
+    right: calc(var(--paper-right, 96) * var(--u));
+    font-size: calc(12 * var(--u));
+    line-height: 1.4;
+    color: var(--ink-3);
+    pointer-events: none;
+    user-select: none;
+}
+
+.hf-row.center {
+    text-align: center;
+}
+
+.hf-row.right {
+    text-align: right;
+}
+
+.hf-row.justify {
+    text-align: justify;
+}
+
+.hf-row.tabs {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0 calc(8 * var(--u));
+}
+
+.hf-row.tabs > span:nth-child(2) {
+    text-align: center;
+}
+
+.hf-row.tabs > span:nth-child(3) {
+    text-align: right;
+}
+
+.notes {
+    position: absolute;
+    left: calc(var(--paper-left, 96) * var(--u));
+    right: calc(var(--paper-right, 96) * var(--u));
+    bottom: calc(var(--paper-bottom, 96) * var(--u));
+    font-size: calc(12 * var(--u));
+    line-height: 1.4;
+    color: var(--ink-2);
+}
+
+.notes::before {
+    content: "";
+    display: block;
+    width: 33%;
+    margin-bottom: calc(4 * var(--u));
+    border-top: calc(1 * var(--u)) solid var(--ink-3);
+}
+
+.notes p {
+    margin: 0 0 calc(2 * var(--u));
+}
+
+.nno {
+    font-size: 0.7em;
+    vertical-align: super;
+    margin-right: calc(2 * var(--u));
+}
+
 .blk {
     position: relative;
 }
 
-.k-h1 {
-    margin: 0 0 4px;
-}
-
-.k-byline {
-    margin: 0 0 18px;
-}
-
-.k-h2 {
-    margin: 18px 0 6px;
-}
-
-.k-table {
-    margin: 10px 0 18px;
-}
-
 .bar {
     position: absolute;
-    left: -30px;
-    top: 3px;
-    bottom: 3px;
-    width: 3px;
+    left: calc(-30 * var(--u));
+    top: calc(3 * var(--u));
+    bottom: calc(3 * var(--u));
+    width: calc(3 * var(--u));
     border-radius: 2px;
     background: var(--ink);
 }
@@ -80,16 +257,26 @@
 
 .list {
     margin: 0;
-    padding-left: 20px;
+    padding-left: calc(20 * var(--u));
 }
 
 .list .bar {
-    left: -50px;
+    left: calc(-50 * var(--u));
 }
 
 .txt {
     margin: 0;
+    min-height: calc(var(--pitch, 24.2) * var(--u));
     white-space: pre-wrap;
+}
+
+.blk > .txt {
+    min-height: 0;
+    line-height: var(--lh, inherit);
+}
+
+.blk > .dt {
+    line-height: var(--lh, inherit);
 }
 
 .txt:focus-visible {
@@ -97,25 +284,26 @@
 }
 
 h1.txt {
-    font-size: 22px;
+    font-size: calc(var(--body-px, 14) * 1.5714 * var(--u));
     font-weight: 700;
-    line-height: 1.4;
+    line-height: calc(var(--pitch, 24.2) * 1.5 * var(--u));
     letter-spacing: -0.01em;
 }
 
 h2.txt {
-    font-size: 15px;
+    font-size: calc(var(--body-px, 14) * 1.0714 * var(--u));
     font-weight: 700;
+    line-height: calc(var(--pitch, 24.2) * 1.3 * var(--u));
 }
 
 .byline {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-start;
-    gap: 0 18px;
-    padding-bottom: 14px;
-    border-bottom: 1.5px solid var(--ink);
-    font-size: 13px;
+    gap: 0 calc(var(--body-px, 14) * 1.2857 * var(--u));
+    padding-bottom: calc(var(--pitch, 24.2) * 0.25 * var(--u));
+    border-bottom: calc(1.5 * var(--u)) solid var(--ink);
+    font-size: calc(var(--body-px, 14) * 0.9286 * var(--u));
     color: var(--ink-2);
 }
 
@@ -142,7 +330,7 @@ h2.txt {
 .dt {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: calc(var(--body-px, 14) * 0.9286 * var(--u));
     font-variant-numeric: tabular-nums;
 }
 
@@ -152,7 +340,7 @@ h2.txt {
 
 .dt th,
 .dt td {
-    padding: 5px 10px;
+    padding: calc(var(--pitch, 24.2) * 0.15 * var(--u)) calc(var(--body-px, 14) * 0.7143 * var(--u));
     border: 1px solid var(--thumb-line);
     text-align: left;
     white-space: pre-wrap;
@@ -198,9 +386,9 @@ h2.txt {
 
 .note-slot {
     position: absolute;
-    top: -8px;
-    left: calc(100% + 84px);
-    width: 176px;
+    top: calc(-8 * var(--u));
+    left: calc(100% + 84 * var(--u));
+    width: calc(176 * var(--u));
 }
 
 @container word-canvas (max-width: 599.98px) {
@@ -226,4 +414,30 @@ h2.txt {
     .note-slot ::deep .leader {
         display: none;
     }
+}
+
+.seg.s {
+    text-decoration: line-through;
+}
+
+.seg.u.s {
+    text-decoration: underline line-through;
+}
+
+.blk.list {
+    display: flex;
+    align-items: baseline;
+}
+
+.blk.list > .txt {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.lbl {
+    flex: 0 0 auto;
+    min-width: 2.4em;
+    padding-right: 0.4em;
+    text-align: right;
+    user-select: none;
 }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DocuHelper.Editors;
+using DocuHelper.Tools.Word;
 using DocuHelperEditor.Services;
 using DocuHelperEditor.State.Papers;
 using Microsoft.JSInterop;
@@ -40,14 +41,20 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _files;
+        private readonly IPrintService _prints;
+        private readonly ISpeechService _speech;
+        private readonly IJSRuntime _scriptJs;
         private Run _run;
         private HashSet<string> _tablesBefore;
 
-        public WordCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService files, WordRibbonState state)
+        public WordCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService files, ISpeechService speech, IPrintService prints, WordRibbonState state)
             : base(workspace, assistant, js)
         {
             _clipboard = clipboard;
+            _scriptJs = js;
             _files = files;
+            _speech = speech;
+            _prints = prints;
             State = state;
 
             foreach (var spec in WordCommandTable.All)
@@ -55,6 +62,13 @@ namespace DocuHelperEditor.State.Ribbon
                 _specs[spec.Id] = spec;
                 Register(spec);
             }
+
+            ProvideFileCommands();
+            ProvideMailCommands();
+            ProvideSpeechCommands();
+            ProvideSearchCommands();
+            ProvideReviewCommands();
+            ProvideMergeModeCommands();
         }
 
         public WordRibbonState State { get; }
@@ -114,6 +128,8 @@ namespace DocuHelperEditor.State.Ribbon
             if (model == null)
                 return;
 
+            RestoreSelection(model.Selection);
+
             var before = _tablesBefore;
             _tablesBefore = null;
             if (before != null)
@@ -135,6 +151,8 @@ namespace DocuHelperEditor.State.Ribbon
         }
 
         private WordPaperModel Model => File?.Paper as WordPaperModel;
+
+        private void RestoreSelection(WordSelection selection) => _ = WordSelectionService.RestoreAsync(_scriptJs, selection);
 
         private WordBlockModel Block => Model?.SelectedBlock;
 
@@ -190,6 +208,12 @@ namespace DocuHelperEditor.State.Ribbon
 
             if (spec.Id == "word.review.track.display")
                 command.ValueFrom(() => MarkupLabel(State.MarkupMode));
+
+            if (spec.Id == "word.home.font.name")
+                command.ValueFrom(() => WordSelectionService.FontNameOf(Model, Model?.Selection));
+
+            if (spec.Id == "word.home.font.size")
+                command.ValueFrom(() => WordSelectionService.FontSizeOf(Model, Model?.Selection));
         }
 
         private RibbonCommand RegisterFile(WordCommandSpec spec)
@@ -224,13 +248,12 @@ namespace DocuHelperEditor.State.Ribbon
             if (!prompt.Contains(marker, StringComparison.Ordinal))
                 return prompt;
 
-            var text = Block?.PlainText ?? string.Empty;
-            return prompt.Replace(marker, text.Length > 24 ? text.Substring(0, 24) : text);
+            return prompt.Replace(marker, WordSelectionService.SelectedText(Model));
         }
 
         private string AssistantBlocker(WordCommandSpec spec)
         {
-            if (spec.Prompt != null && spec.Prompt.Contains("{선택한 글}", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(Block?.PlainText))
+            if (spec.Prompt != null && spec.Prompt.Contains("{선택한 글}", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(WordSelectionService.SelectedText(Model)))
                 return "비슷한 말을 찾을 문단을 먼저 눌러 골라 주세요.";
 
             return null;

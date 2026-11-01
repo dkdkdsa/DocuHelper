@@ -1,29 +1,61 @@
 .notes {
     position: relative;
     flex: none;
+    box-sizing: border-box;
     width: 100%;
-    max-width: 560px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 10px 14px 12px;
-    border: 1px solid var(--rule);
-    border-radius: 6px;
+    border-top: 1px solid var(--rule);
     background: var(--paper);
+    overflow: hidden;
+}
+
+.grip {
+    position: relative;
+    flex: none;
+    height: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: row-resize;
+    touch-action: none;
+}
+
+.grip::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -18px;
+    bottom: -18px;
+}
+
+.grip-line {
+    width: 8%;
+    height: 2px;
+    background: var(--thumb-line);
+}
+
+.body-note {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 2px 18px 10px 24px;
     cursor: text;
 }
 
 .change-bar {
     position: absolute;
-    left: -10px;
-    top: 8px;
-    bottom: 8px;
+    left: 10px;
+    top: 4px;
+    bottom: 12px;
     width: 3px;
     border-radius: 2px;
     background: var(--ink);
 }
 
 .label {
+    display: block;
     font-size: 13px;
     font-weight: 700;
     color: var(--ink-2);

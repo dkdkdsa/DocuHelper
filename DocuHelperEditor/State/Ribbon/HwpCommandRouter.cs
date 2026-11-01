@@ -45,6 +45,7 @@ namespace DocuHelperEditor.State.Ribbon
         private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _files;
+        private readonly IJSRuntime _scriptJs;
         private readonly SettingsStore _settings;
         private Run _run;
         private HashSet<string> _tablesBefore;
@@ -59,6 +60,7 @@ namespace DocuHelperEditor.State.Ribbon
             _clipboard = clipboard;
             _files = files;
             _settings = settings;
+            _scriptJs = js;
             State = state;
 
             foreach (var spec in HwpCommandTable.All)
@@ -66,6 +68,22 @@ namespace DocuHelperEditor.State.Ribbon
                 _specs[spec.Id] = spec;
                 Register(spec);
             }
+
+            Provide("hwp.file.info", _ =>
+            {
+                Notify(DocumentInfoText());
+                return Task.CompletedTask;
+            });
+            ProvideSearchCommands();
+        }
+
+        private string DocumentInfoText()
+        {
+            var hwp = File?.Docu as DocuHelper.Docus.HwpDocu;
+            var pages = Model?.Pages.Count ?? 1;
+            var words = hwp == null ? 0 : DocuHelper.Tools.Word.WordStats.Count(hwp).Words;
+            var lost = hwp == null ? null : DocuHelper.Importers.Hwp.HwpLimits.Names(hwp);
+            return $"‘{File?.Name}’은 {pages}쪽, {words:N0}단어예요. 저장하면 빠지는 것은 {lost ?? "없어요"}.";
         }
 
         public HwpRibbonState State { get; }
@@ -130,6 +148,8 @@ namespace DocuHelperEditor.State.Ribbon
             var model = Model;
             if (model == null)
                 return;
+
+            _ = WordSelectionService.RestoreAsync(_scriptJs, model.Selection);
 
             var before = _tablesBefore;
             _tablesBefore = null;
@@ -252,9 +272,21 @@ namespace DocuHelperEditor.State.Ribbon
                 case "hwp.status.revertall":
                     return AddFile(spec.Id, _ => Workspace.RevertAllAsync(File.Id)).EnabledWhen(() => File.Changes.Count > 0, NoChangeReason);
                 default:
-                    var command = AddFile(spec.Id, arg => RunProvidedAsync(spec, arg)).Unless(() => IsProvided(spec.Id) ? null : PendingReason);
+                    var command = AddFile(spec.Id, arg => RunProvidedAsync(spec, arg)).Unless(() => FileBlocker(spec.Id));
                     return s_always.Contains(spec.Id) ? command.AllowWhileLocked() : command;
             }
+        }
+
+        private string FileBlocker(string id)
+        {
+            if (IsProvided(id))
+                return null;
+
+            if (id != "hwp.file.pdf")
+                return PendingReason;
+
+            var hancom = Workspace.Workspace.Editors.TryGetValue(DocuHelper.Docus.DocuType.Hwp, out var editor) && editor is DocuHelper.Editors.HwpEditor hwp && hwp.CanWriteHwp;
+            return hancom ? PendingReason : "이 컴퓨터에 한글이 없어서 PDF로 저장할 수 없어요.";
         }
 
         private Task RunProvidedAsync(HwpCommandSpec spec, string arg)
@@ -281,14 +313,14 @@ namespace DocuHelperEditor.State.Ribbon
 
         private string PromptOf(HwpCommandSpec spec)
         {
-            var text = Block?.PlainText ?? string.Empty;
+            var text = WordSelectionService.SelectedText(Model);
             var prompt = _run?.Entry?.Prompt ?? (text.Length > 0 && spec.SelectionPrompt != null ? spec.SelectionPrompt : spec.Prompt) ?? string.Empty;
-            return prompt.Replace(SelectedTextMarker, text.Length > 24 ? text.Substring(0, 24) : text, StringComparison.Ordinal);
+            return prompt.Replace(SelectedTextMarker, text, StringComparison.Ordinal);
         }
 
         private string AssistantBlocker(HwpCommandSpec spec)
         {
-            if (spec.Prompt != null && spec.Prompt.Contains(SelectedTextMarker, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(Block?.PlainText))
+            if (spec.Prompt != null && spec.Prompt.Contains(SelectedTextMarker, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(WordSelectionService.SelectedText(Model)))
                 return SelectWordReason;
 
             return null;

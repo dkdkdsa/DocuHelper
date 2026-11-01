@@ -55,6 +55,7 @@ namespace DocuHelperEditor.State
             _workspace.OpenFolder(folderPath);
             FolderPath = _workspace.FolderPath;
             FolderName = Path.GetFileName(FolderPath);
+            RestoreFolderPanel();
             FolderOpened?.Invoke();
 
             var failed = new List<string>();
@@ -82,6 +83,8 @@ namespace DocuHelperEditor.State
             if (first != null)
                 Open(first.Id);
 
+            RestoreSession();
+
             if (failed.Count > 0)
                 RaiseNotice($"‘{string.Join("’, ‘", failed)}’ 파일은 열지 못했어요. 파일이 망가졌거나 암호가 걸려 있을 수 있어요.");
 
@@ -91,8 +94,14 @@ namespace DocuHelperEditor.State
         public void SetAskingFile(string fileId)
         {
             AskingFileId = fileId;
+            if (fileId == null)
+                _askingCells.Clear();
+
             foreach (var file in _files.Where(f => f.Docu != null))
+            {
                 file.Activity = ActivityOf(file);
+                ApplyAskingCells(file);
+            }
 
             Notify();
         }
@@ -143,8 +152,8 @@ namespace DocuHelperEditor.State
                         continue;
 
                     last = file;
-                    if (file.Docu is HwpDocu hwp && hwp.Skipped.Count > 0)
-                        notes.Add($"‘{file.Name}’의 {SkippedText(hwp.Skipped)}은 화면에 안 보이고, 저장하면 빠져요. 원래 모습은 [기록]에 남아 있어요.");
+                    if (file.Docu is HwpDocu hwp && HwpLimits.Notice(file.Name, hwp) is string limit)
+                        notes.Add(limit);
 
                     if (file.Docu is HwpDocu signed && signed.IsSigned)
                         notes.Add($"‘{file.Name}’은 서명이 있는 파일이라 저장하면 서명이 풀려요.");
@@ -165,6 +174,12 @@ namespace DocuHelperEditor.State
             if (file == null || !file.IsDirty)
                 return Task.CompletedTask;
 
+            if (_workspace.IsAgentRunning)
+            {
+                RaiseNotice("도우미가 일하는 중에는 저장할 수 없어요.");
+                return Task.CompletedTask;
+            }
+
             if (file.Docu == null)
             {
                 _savedChangeIds.UnionWith(file.Changes.Select(c => c.Id));
@@ -174,7 +189,7 @@ namespace DocuHelperEditor.State
                 return Task.CompletedTask;
             }
 
-            if (file.Docu.IsLocked || !TrySave(file))
+            if (file.Docu.IsLocked || _workspace.IsAgentRunning || !TrySave(file))
                 return Task.CompletedTask;
 
             HasSavedAll = UnsavedCount == 0;
@@ -185,6 +200,12 @@ namespace DocuHelperEditor.State
 
         public Task SaveAllAsync()
         {
+            if (_workspace.IsAgentRunning && UnsavedCount > 0)
+            {
+                RaiseNotice("도우미가 일하는 중에는 저장할 수 없어요.");
+                return Task.CompletedTask;
+            }
+
             if (!CanSaveAll)
                 return Task.CompletedTask;
 
@@ -230,11 +251,16 @@ namespace DocuHelperEditor.State
             if (file.Docu == null)
             {
                 file.Changes.Clear();
+                file.JustReverted = true;
+                file.JustSaved = false;
                 Notify();
                 return Task.CompletedTask;
             }
 
             _workspace.RevertAssistantChanges(file.Docu);
+            file.JustReverted = true;
+            file.JustSaved = false;
+            Notify();
             return Task.CompletedTask;
         }
 
@@ -414,10 +440,15 @@ namespace DocuHelperEditor.State
 
             try
             {
+                var inFolder = _workspace.IsInFolder(path);
                 var docu = await Task.Run(() => importer.Import(_workspace.CopyIntoFolder(path)));
                 _workspace.AddDocu(docu);
                 _workspace.RecordInitial(docu);
-                return _files.FirstOrDefault(f => f.Docu == docu);
+                var added = _files.FirstOrDefault(f => f.Docu == docu);
+                if (added != null)
+                    added.IsCopied = !inFolder;
+
+                return added;
             }
             catch (HwpException e)
             {
@@ -433,20 +464,6 @@ namespace DocuHelperEditor.State
             }
         }
 
-        private static string SkippedText(ICollection<HwpSkipped> skipped)
-        {
-            var names = skipped.OrderBy(s => s).Select(s => s switch
-            {
-                HwpSkipped.Picture => "그림",
-                HwpSkipped.Equation => "수식",
-                HwpSkipped.Chart => "차트",
-                HwpSkipped.HeaderFooter => "머리말·꼬리말",
-                _ => "개체",
-            }).Distinct();
-
-            return string.Join(", ", names);
-        }
-
         private bool TrySave(WorkspaceFile file)
         {
             var changeIds = file.Changes.Select(c => c.Id).ToList();
@@ -455,6 +472,8 @@ namespace DocuHelperEditor.State
             {
                 _workspace.Save(file.Docu);
                 _savedChangeIds.UnionWith(changeIds);
+                file.JustSaved = true;
+                file.JustReverted = false;
                 if (file.Docu.Name != name)
                     RaiseNotice(RenamedText(name, file.Docu.Name));
 
@@ -464,6 +483,12 @@ namespace DocuHelperEditor.State
             {
                 AppLog.Write($"HWP save failed for {file.Name}", e.InnerException ?? e);
                 RaiseNotice($"‘{file.Name}’: {e.Message}");
+                return false;
+            }
+            catch (InvalidOperationException e)
+            {
+                AppLog.Write($"Save blocked for {file.Name}", e);
+                RaiseNotice(_workspace.IsAgentRunning ? "도우미가 일하는 중에는 저장할 수 없어요." : e.Message);
                 return false;
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
@@ -557,7 +582,13 @@ namespace DocuHelperEditor.State
             var docu = file.Docu;
             file.Name = docu.Name;
             file.Path = docu.FilePath;
+            var wasDirty = file.IsDirty;
             file.IsDirty = docu.IsDirty;
+            if (file.IsDirty && !wasDirty)
+            {
+                file.JustSaved = false;
+                file.JustReverted = false;
+            }
             file.Activity = ActivityOf(file);
             file.Changes = docu.Changes
                 .Select(c => new ChangeItem { Id = c.Id, FileId = file.Id, Label = c.Label, Location = c.Location, Icon = c.Icon })
@@ -578,6 +609,8 @@ namespace DocuHelperEditor.State
             {
                 AppLog.Write($"Could not show {file.Name}", e);
             }
+
+            ApplyAskingCells(file);
         }
 
         private FileActivity ActivityOf(WorkspaceFile file)

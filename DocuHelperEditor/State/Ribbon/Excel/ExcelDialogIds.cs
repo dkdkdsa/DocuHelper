@@ -1,0 +1,28 @@
+namespace DocuHelperEditor.State.Ribbon.Excel
+{
+    public static class ExcelDialogIds
+    {
+        public const string ConditionalFormat = "excel.home.condformat";
+        public const string Validation = "excel.data.validation";
+        public const string ProtectSheet = "excel.review.protectsheet";
+        public const string PrintTitles = "excel.layout.printtitles";
+        public const string Margins = "excel.layout.margins";
+        public const string Subtotal = "excel.data.subtotal";
+        public const string TextToColumns = "excel.data.texttocolumns";
+        public const string RemoveDuplicates = "excel.data.removeduplicates";
+        public const string GoalSeek = "excel.data.whatif";
+        public const string PivotSummary = "excel.insert.pivot";
+        public const string Link = "excel.insert.link";
+        public const string Note = "excel.insert.note";
+        public const string NewNote = "excel.review.newnote";
+        public const string AllowRanges = "excel.review.allowranges";
+        public const string Symbol = "excel.insert.symbol";
+        public const string Sort = "excel.data.sort";
+        public const string NameManager = "excel.formula.namemanager";
+        public const string Paste = "excel.home.paste";
+        public const string Chart = "excel.insert.chart.recommended";
+        public const string ProtectBook = "excel.review.protectbook";
+        public const string FormatCells = "excel.home.formatcells";
+        public const string HeaderFooter = "excel.insert.headerfooter";
+    }
+}

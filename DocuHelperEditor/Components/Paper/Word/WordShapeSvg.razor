@@ -1,0 +1,33 @@
+<svg class="shape" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <path d="@Path" fill="@Fill" stroke="@Stroke" stroke-width="@StrokeWidth" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+</svg>
+
+@code {
+    private const string Rect = "M0 0H100V100H0Z";
+
+    [Parameter]
+    public WordObjectModel Item { get; set; }
+
+    private string Path => Item.Preset switch
+    {
+        "roundRect" => "M12 0H88Q100 0 100 12V88Q100 100 88 100H12Q0 100 0 88V12Q0 0 12 0Z",
+        "ellipse" => "M50 0A50 50 0 1 1 50 100A50 50 0 1 1 50 0Z",
+        "triangle" => "M50 0L100 100H0Z",
+        "diamond" or "flowChartDecision" => "M50 0L100 50L50 100L0 50Z",
+        "pentagon" => "M50 0L100 38L82 100H18L0 38Z",
+        "hexagon" => "M25 0H75L100 50L75 100H25L0 50Z",
+        "star5" => "M50 0L61 35L98 35L68 57L79 91L50 70L21 91L32 57L2 35L39 35Z",
+        "rightArrow" => "M0 25H60V0L100 50L60 100V75H0Z",
+        "leftArrow" => "M100 25H40V0L0 50L40 100V75H100Z",
+        "upArrow" => "M25 100V40H0L50 0L100 40H75V100Z",
+        "downArrow" => "M25 0V60H0L50 100L100 60H75V0Z",
+        "line" or "straightArrow" or "straightConnector1" => "M0 0L100 100",
+        _ => Rect,
+    };
+
+    private string Fill => Item.Preset is "line" or "straightArrow" or "straightConnector1" || Item.Fill == null ? "none" : "#" + Item.Fill;
+
+    private string Stroke => Item.Line != null ? "#" + Item.Line : Item.Preset is "line" or "straightArrow" or "straightConnector1" ? "#000000" : "none";
+
+    private string StrokeWidth => (Item.LinePt * 4.0 / 3.0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

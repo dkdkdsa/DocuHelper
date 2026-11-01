@@ -1,60 +1,104 @@
 ﻿@using System.Globalization
+@using System.Text.Json
+@using DocuHelper.Tools.Word
+@using DocuHelperEditor.State
+@using DocuHelperEditor.State.Ribbon
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 
-<div class="canvas">
-    @if (Model == null)
+<div class="pane" style="@PaneStyle">
+    @if (ShowRuler)
     {
-        <div class="spread">
-            <article class="@PageClass(true)" aria-label="1쪽"></article>
-        </div>
+        <WordRuler Box="Box" Layout="RulerLayout" Vertical="false" Millimeters="IsHwp" />
     }
-    else
-    {
-        var hasNotes = Model.HasSourceNotes;
-        foreach (var page in Model.Pages)
+    <div class="row">
+        @if (ShowVRuler)
         {
-            var blocks = Model.BlocksOnPage(page);
-            <div class="spread" @key="page">
-                <article class="@PageClass(blocks.Count == 0)" aria-label="@($"{page}쪽")">
-                    @foreach (var run in Runs(blocks))
-                    {
-                        if (run.Kind == WordListKind.Number)
-                        {
-                            <ol class="list" @key="run.Key">
-                                @foreach (var block in run.Blocks)
-                                {
-                                    <li @key="block.Id">@(BlockView(block))</li>
-                                }
-                            </ol>
-                        }
-                        else if (run.Kind == WordListKind.Bullet)
-                        {
-                            <ul class="list" @key="run.Key">
-                                @foreach (var block in run.Blocks)
-                                {
-                                    <li @key="block.Id">@(BlockView(block))</li>
-                                }
-                            </ul>
-                        }
-                        else
-                        {
-                            @(BlockView(run.Blocks[0]))
-                        }
-                    }
-                </article>
-                @if (hasNotes)
-                {
-                    <div class="margin"></div>
-                }
-            </div>
+            <WordRuler Box="Box" Layout="RulerLayout" Vertical="true" Millimeters="IsHwp" />
         }
-    }
+        <div class="canvas @CanvasClass" style="@CanvasStyle" @ref="_canvas">
+            @if (Model == null)
+            {
+                <div class="spread">
+                    <article class="@PageClass" aria-label="1쪽"><div class="sheet"></div></article>
+                </div>
+            }
+            else if (Flow)
+            {
+                <article class="@PageClass flow" aria-label="본문"><div class="sheet">
+                    @(RunsOf(Model.Blocks, 0))
+                </div></article>
+            }
+            else
+            {
+                var hasNotes = Model.HasSourceNotes;
+                foreach (var page in Model.Pages)
+                {
+                    var blocks = Model.BlocksOnPage(page);
+                    var frame = Model.FrameOf(page);
+                    <div class="spread" @key="page">
+                        <article class="@PageClass" style="@PageStyle(frame)" aria-label="@($"{page}쪽")">
+                            @if (frame?.Watermark != null)
+                            {
+                                <div class="wm" aria-hidden="true"><span>@frame.Watermark</span></div>
+                            }
+                            @if (frame != null && frame.Header.Count > 0)
+                            {
+                                <div class="hf" style="top: @Length(frame.HeaderPt)" aria-hidden="true">
+                                    @foreach (var line in frame.Header)
+                                    {
+                                        @StoryLine(line)
+                                    }
+                                </div>
+                            }
+                            <div class="sheet" style="@SheetStyle(frame)">
+                                @(RunsOf(blocks, page))
+                            </div>
+                            @foreach (var item in Model.PageObjects(page))
+                            {
+                                <WordObjectView Item="item" Selected="SelectedId == item.Id" OnSelect="SelectObject" Router="ObjectRouter" Dialogs="ObjectDialogs" />
+                            }
+                            @if (frame != null && frame.Footer.Count > 0)
+                            {
+                                <div class="hf" style="bottom: @Length(frame.FooterPt)" aria-hidden="true">
+                                    @foreach (var line in frame.Footer)
+                                    {
+                                        @StoryLine(line)
+                                    }
+                                </div>
+                            }
+                            @if (frame != null && frame.Notes.Count > 0)
+                            {
+                                <div class="notes" aria-hidden="true">
+                                    @foreach (var note in frame.Notes)
+                                    {
+                                        <p><span class="nno">@note.Number</span>@note.Text</p>
+                                    }
+                                </div>
+                            }
+                        </article>
+                        @if (hasNotes)
+                        {
+                            <div class="margin"></div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
 </div>
 
 @code {
+    private const double PitchAllowance = 0.98;
+
+    private const double PxPerPt = 4.0 / 3.0;
+
+    private const double PageBorderInsetPt = 24;
+
     private readonly Dictionary<string, ElementReference> _refs = new();
+    private ElementReference _canvas;
+    private DotNetObjectReference<WordPage> _self;
     private readonly Dictionary<string, int> _versions = new();
     private WorkspaceFile _file;
     private string _scrolledChangeId;
@@ -67,9 +111,148 @@
 
     private bool IsLocked => File?.Activity == FileActivity.Editing;
 
-    private string PageClass(bool blank) => (blank ? "page blank" : "page") + (File?.Type == DocuType.Hwp ? " hwp" : null);
+    private string PageClass => File?.Type == DocuType.Hwp ? "page hwp" : "page";
 
-    private string Editable => IsLocked ? "false" : "plaintext-only";
+    private string PaperVariables
+    {
+        get
+        {
+            var layout = Model?.Layout;
+            return layout == null ? null : VariablesOf(layout);
+        }
+    }
+
+    private static string VariablesOf(WordPageLayout layout)
+    {
+        var pitch = (layout.Height - layout.Top - layout.Bottom) / 15.0 / layout.Capacity * PitchAllowance;
+        var body = layout.NormalFontSize * 2.0 / 3.0;
+        return $"--paper-width: {Css(layout.Width / 15.0)}; --paper-ratio: {Css(layout.Width / (double)layout.Height)}; "
+            + $"--paper-top: {Css(layout.Top / 15.0)}; --paper-right: {Css(layout.Right / 15.0)}; "
+            + $"--paper-bottom: {Css(layout.Bottom / 15.0)}; --paper-left: {Css(layout.Left / 15.0)}; "
+            + $"--body-px: {Css(body)}; --pitch: {Css(pitch)};";
+    }
+
+    private string PageStyle(WordPageFrame frame)
+    {
+        var layout = frame?.Layout ?? Model?.Layout;
+        if (layout == null)
+            return null;
+
+        var css = VariablesOf(layout);
+        if (frame?.Background != null)
+            css += $" background: #{frame.Background};";
+
+        if (frame?.BorderColor != null)
+            css += $" outline: {Length(frame.BorderPt)} solid #{frame.BorderColor}; outline-offset: {Length(-PageBorderInsetPt)};";
+
+        return css;
+    }
+
+    private static string SheetStyle(WordPageFrame frame) =>
+        frame is { ColumnCount: > 1 } ? $"columns: {frame.ColumnCount}; column-gap: {Length(frame.ColumnGapPt)}; column-fill: auto; height: 100%;" : null;
+
+    private static RenderFragment StoryLine(WordStoryLine line)
+    {
+        if (line.Align != "tabs")
+            return @<div class="hf-row @line.Align">@line.Text</div>;
+
+        var parts = line.Text.Split('\t');
+        return @<div class="hf-row tabs"><span>@Slot(parts, 0)</span><span>@Slot(parts, 1)</span><span>@Slot(parts, 2)</span></div>;
+    }
+
+    private static string Slot(string[] parts, int index) => index < parts.Length ? parts[index] : string.Empty;
+
+    private static string Css(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);
+
+    private string Editable => IsLocked || Reading ? "false" : "plaintext-only";
+
+    private WordRibbonState Ribbon => File?.Type == DocuType.Hwp ? null : WordRibbonState.Of(File);
+
+    private HwpRibbonState Hwp => File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File) : null;
+
+    private string View => Ribbon?.View ?? (Hwp?.PageOutline == false ? "draft" : "print");
+
+    private bool Flow => View is "web" or "draft" or "outline";
+
+    private bool Reading => View == "read";
+
+    private bool ShowRuler => Model != null && View == "print" && (Ribbon?.Ruler ?? Hwp?.Ruler ?? false);
+
+    private bool ShowVRuler => Ribbon != null ? ShowRuler : Model != null && View == "print" && Hwp?.VRuler == true;
+
+    private bool IsHwp => File?.Type == DocuType.Hwp;
+
+    private string PaneStyle => ShowVRuler ? "--vr: 24px;" : "--vr: 0px;";
+
+    private WordCanvasBox Box => Ribbon?.Canvas ?? Hwp?.Canvas;
+
+    private WordPageLayout RulerLayout => Model?.FrameOf(1)?.Layout ?? Model?.Layout;
+
+    private int Zoom => Ribbon?.Zoom ?? (File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File)?.Zoom ?? 100 : 100);
+
+    private string CanvasClass => string.Join(" ", new[]
+    {
+        View,
+        Flow ? "flow" : null,
+        !Flow && (Reading || (Ribbon?.SideBySide ?? Hwp?.Multi ?? false)) ? "multi" : null,
+        Zoom != 100 ? "zoomed" : null,
+        Ribbon?.Gridlines == true && View == "print" ? "grid" : null,
+        Hwp?.ShowParaMarks == true && View == "print" ? "marks" : null,
+        ShowReviewRoom ? "review" : null,
+    }.Where(c => c != null));
+
+    private string CanvasStyle => $"{PaperVariables} --zoom: {Css(Zoom / 100.0)};";
+
+    private RenderFragment RunsOf(IReadOnlyList<WordBlockModel> blocks, int page) =>
+        @<text>
+            @foreach (var run in Runs(blocks))
+            {
+                if (run.Kind == WordListKind.None)
+                {
+                    @(BlockView(run.Blocks[0], page))
+                }
+                else
+                {
+                    foreach (var block in run.Blocks)
+                    {
+                        <div @key="block.Id">@(BlockView(block, page))</div>
+                    }
+                }
+            }
+        </text>;
+
+    private static readonly JsonSerializerOptions s_json = new() { PropertyNameCaseInsensitive = true };
+
+    private async Task MeasureAsync()
+    {
+        if (Model == null || (Ribbon == null && Hwp == null))
+            return;
+
+        try
+        {
+            var json = await JS.InvokeAsync<string>("docuHelperWordCanvas.measure", _canvas);
+            var box = json == null ? null : JsonSerializer.Deserialize<WordCanvasBox>(json, s_json);
+            if (box != null && box != Box)
+            {
+                if (Ribbon != null)
+                    Ribbon.Canvas = box;
+                else
+                    Hwp.Canvas = box;
+
+                Workspace.Notify();
+            }
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    [JSInvokable]
+    public Task Resized() => MeasureAsync();
+
 
     protected override void OnParametersSet()
     {
@@ -82,6 +265,77 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordSelection.attach", _canvas, _self);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordCanvas.observe", _canvas, _self);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        await MeasureAsync();
+        if (Model != null && (Model.Comments.Count > 0 || Model.Revisions.Count > 0))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordCanvas.layoutBalloons", _canvas);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+        var pageTarget = Ribbon?.PageTarget;
+        if (pageTarget is int page && Ribbon != null)
+        {
+            Ribbon.PageTarget = null;
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordCanvas.scrollToPage", _canvas, page);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        var blockTarget = Ribbon?.BlockTarget;
+        if (blockTarget != null && Ribbon != null)
+        {
+            Ribbon.BlockTarget = null;
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordCanvas.scrollToBlock", _canvas, blockTarget);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
         var changeId = Workspace.SelectedChangeId;
         var target = Model != null && IsLiveChange(changeId) && Model.HasChange(changeId) ? changeId : null;
         if (target == _scrolledChangeId && Workspace.ChangePickVersion == _scrolledPickVersion)
@@ -104,22 +358,122 @@
         }
     }
 
-    private RenderFragment BlockView(WordBlockModel block) =>
-        @<div class="@BlockClass(block)" data-change="@ChangeOf(block)" @key="block.Id">
+    [JSInvokable]
+    public Task Shortcut(string key)
+    {
+        var hwp = File?.Type == DocuType.Hwp;
+        var command = (hwp, key) switch
+        {
+            (true, "b") => "hwp.fmt.bold",
+            (true, "i") => "hwp.fmt.italic",
+            (true, "u") => "hwp.fmt.underline",
+            (false, "b") => "word.home.font.bold",
+            (false, "i") => "word.home.font.italic",
+            (false, "u") => "word.home.font.underline",
+            _ => null,
+        };
+        if (key is "c" or "x" or "v" or "shift+v")
+            return hwp ? HwpRibbonState.Of(File)?.Router?.ShortcutAsync(key) ?? Task.CompletedTask : WordRibbonState.Of(File)?.Router?.ShortcutAsync(key) ?? Task.CompletedTask;
+
+        RibbonRouter router = hwp ? HwpRibbonState.Of(File)?.Router : WordRibbonState.Of(File)?.Router;
+        return command == null || router == null ? Task.CompletedTask : router.InvokeAsync(command, null);
+    }
+
+    [JSInvokable]
+    public void Selected(string json)
+    {
+        var model = Model;
+        var selection = WordSelectionService.Parse(json);
+        if (model == null)
+            return;
+
+        model.Selection = selection;
+        var focus = model.FindBlock(selection.FocusBlockId);
+        if (focus == null)
+        {
+            Workspace.Notify();
+            return;
+        }
+
+        model.SelectedBlockId = focus.Id;
+        if (Hwp != null)
+            Hwp.CurrentPage = focus.Page;
+        if (Ribbon != null)
+            Ribbon.CurrentPage = focus.Page;
+        Workspace.SetSelection(model.Describe(focus));
+        if (Ribbon?.Router != null)
+            Ribbon.Router.SelectionChanged();
+
+        if (Hwp?.Router != null)
+            Hwp.Router.SelectionChanged();
+    }
+
+    protected override void OnDispose()
+    {
+        _self?.Dispose();
+        _ = JS.InvokeVoidAsync("docuHelperWordSelection.detach", _canvas).AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
+        _ = JS.InvokeVoidAsync("docuHelperWordCanvas.unobserve", _canvas).AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
+    }
+
+    private RenderFragment BlockView(WordBlockModel block, int page)
+    {
+        var fragments = Model.FragmentsOn(block, page);
+        if (fragments.Count == 0)
+            return BlockBody(block, null);
+
+        var fragment = fragments[0];
+        var split = block.Fragments.Count > 1;
+        return fragment.Offset > 0
+            ? FragmentFrame(fragment, split, ReadOnlyBody(block, fragment))
+            : FragmentFrame(fragment, split, BlockBody(block, fragment));
+    }
+
+    private static RenderFragment FragmentFrame(WordFragment fragment, bool split, RenderFragment content) =>
+        @<div class="frag" data-split="@(split ? "true" : "false")" style="@FrameStyle(fragment)">@content</div>;
+
+    private RenderFragment ReadOnlyBody(WordBlockModel block, WordFragment fragment) =>
+        block.Table == null
+            ? @<div class="@BlockClass(block)" style="@BlockStyle(block, fragment)"><p class="@TextClass(block)">@block.Text</p></div>
+            : @<div class="@BlockClass(block)" style="@BlockStyle(block, fragment)"><table class="@TableClass(block, block.Table)" style="--pitch: 0; line-height: calc(var(--lh, 1.2em) - 1px)">@ReadOnlyRows(block)</table></div>;
+
+    private RenderFragment ReadOnlyRows(WordBlockModel block) =>
+        @<tbody>
+            @for (var r = 0; r < block.Table.Rows.Count; r++)
+            {
+                var row = r;
+                <tr style="@RowStyle(block, row)">
+                    @foreach (var cell in block.Table.Rows[row])
+                    {
+                        <td>@cell</td>
+                    }
+                </tr>
+            }
+        </tbody>;
+
+    private RenderFragment BlockBody(WordBlockModel block, WordFragment? fragment) =>
+        @<div class="@BlockClassOf(block)" data-change="@ChangeOf(block)" style="@BlockStyle(block, fragment)" @key="block.Id">
             @if (IsLive(block))
             {
                 <span class="bar" aria-hidden="true"></span>
             }
+            @foreach (var item in block.Objects.Where(o => o.Inline))
+            {
+                <WordObjectView Item="item" Selected="SelectedId == item.Id" OnSelect="SelectObject" Router="ObjectRouter" Dialogs="ObjectDialogs" />
+            }
+            @if (block.ListLabel != null)
+            {
+                <span class="lbl" contenteditable="false" aria-hidden="true">@block.ListLabel</span>
+            }
             @switch (block.Kind)
             {
                 case WordBlockKind.Heading1:
-                    <h1 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></h1>
+                    <h1 class="@TextClass(block)" contenteditable="@EditableOf(block)" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@ContentOf(block)</span></h1>
                     break;
                 case WordBlockKind.Heading2:
-                    <h2 class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></h2>
+                    <h2 class="@TextClass(block)" contenteditable="@EditableOf(block)" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@ContentOf(block)</span></h2>
                     break;
                 case WordBlockKind.Byline:
-                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)">@foreach (var part in block.Parts){<span class="@MarkClass(block)" data-change="@MarkChange(block)">@part</span>}</p>
+                    <p class="@TextClass(block)" contenteditable="@EditableOf(block)" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)">@foreach (var part in block.Parts){<span class="@MarkClass(block)" data-change="@MarkChange(block)">@part</span>}</p>
                     break;
                 case WordBlockKind.Table:
                     if (block.Table != null)
@@ -128,8 +482,30 @@
                     }
                     break;
                 default:
-                    <p class="@TextClass(block)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@block.Text</span></p>
+                    <p class="@TextClass(block)" contenteditable="@EditableOf(block)" spellcheck="false" data-block="@block.Id" @key="KeyOf(block.Id)" @ref="_refs[block.Id]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncAsync(block)"><span class="@MarkClass(block)" data-change="@MarkChange(block)">@ContentOf(block)</span></p>
                     break;
+            }
+            @if (block.HasRevisions && ShowRevisionBar)
+            {
+                <span class="rvbar" style="--rev: var(--rev-@RevisionTone(block))" aria-hidden="true"></span>
+            }
+            @if (ShowCommentBalloons)
+            {
+                @foreach (var comment in Model.CommentsOn(block.Id).Where(c => c.ParentId == null))
+                {
+                    <WordCommentBalloon Comment="comment" Replies="Model.RepliesOf(comment.Id)" Ribbon="Ribbon" />
+                }
+            }
+            @if (ShowRevisionBalloons)
+            {
+                @foreach (var revision in Model.RevisionsOn(block.Id))
+                {
+                    <WordRevisionBalloon Revision="revision" Tone="Model.ToneOf(revision.Author)" Ribbon="Ribbon" />
+                }
+            }
+            @foreach (var item in block.Objects.Where(o => !o.Inline && !o.PageLevel))
+            {
+                <WordObjectView Item="item" Selected="SelectedId == item.Id" OnSelect="SelectObject" Router="ObjectRouter" Dialogs="ObjectDialogs" />
             }
             @if (block.Source != null)
             {
@@ -140,7 +516,7 @@
         </div>;
 
     private RenderFragment TableView(WordBlockModel block, WordTableModel table) =>
-        @<table class="@TableClass(block, table)">
+        @<table class="@TableClass(block, table)" style="--pitch: 0; line-height: calc(var(--lh, 1.2em) - 1px)">
             @if (!string.IsNullOrEmpty(table.Caption))
             {
                 <caption class="sr-only">@table.Caption</caption>
@@ -157,14 +533,14 @@
             @if (table.HasHeaderRow)
             {
                 <thead>
-                    <tr style="--row: 0">
+                    <tr style="@RowStyle(block, 0)">
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
                             if (table.IsCovered(0, column))
                                 continue;
 
-                            <th scope="col" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
+                            <th scope="col" data-table="@block.Id" data-row="1" data-column="@(column + 1)" colspan="@table.ColumnSpan(0, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, 0, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, 0, column))" @ref="_refs[CellKey(block, 0, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, 0, column)"><span class="@CellMarkClass(block, table, 0, column)" data-change="@MarkChange(block)">@table.CellText(0, column)</span></th>
                         }
                     </tr>
                 </thead>
@@ -172,14 +548,14 @@
             <tbody>
                 @foreach (var row in table.BodyRows)
                 {
-                    <tr style="--row: @row">
+                    <tr style="@RowStyle(block, row)">
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
                             if (table.IsCovered(row, column))
                                 continue;
 
-                            <td rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
+                            <td data-table="@block.Id" data-row="@(row + 1)" data-column="@(column + 1)" rowspan="@table.RowSpan(row, column)" colspan="@table.ColumnSpan(row, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, row, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, row, column))" @ref="_refs[CellKey(block, row, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, row, column)"><span class="@CellMarkClass(block, table, row, column)" data-change="@MarkChange(block)">@table.CellText(row, column)</span></td>
                         }
                     </tr>
                 }
@@ -188,14 +564,14 @@
             {
                 var footer = table.FooterRow;
                 <tfoot>
-                    <tr style="--row: @footer">
+                    <tr style="@RowStyle(block, footer)">
                         @for (var c = 0; c < table.ColumnCount; c++)
                         {
                             var column = c;
                             if (table.IsCovered(footer, column))
                                 continue;
 
-                            <td colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
+                            <td data-table="@block.Id" data-row="@(footer + 1)" data-column="@(column + 1)" colspan="@table.ColumnSpan(footer, column)" class="@CellClass(table, column)" style="@CellStyleOf(table, footer, column)" contenteditable="@Editable" spellcheck="false" @key="KeyOf(CellKey(block, footer, column))" @ref="_refs[CellKey(block, footer, column)]" @onfocus="() => SelectBlock(block)" @oninput="() => OnInput(block)" @onblur="() => SyncCellAsync(block, footer, column)"><span class="@CellMarkClass(block, table, footer, column)" data-change="@MarkChange(block)">@table.CellText(footer, column)</span></td>
                         }
                     </tr>
                 </tfoot>
@@ -234,8 +610,82 @@
             _ => "blk k-body",
         };
 
+        if (block.ListLabel != null)
+            classes += " list";
+
         return block.Source == null ? classes : classes + " has-note";
     }
+
+    private string MarkupMode => Ribbon?.MarkupMode ?? "all";
+
+    private bool ShowInsDel => Ribbon?.ShowInsDel ?? true;
+
+    private bool ShowRevisionBar => MarkupMode is "all" or "simple";
+
+    private bool ShowRevisionBalloons => MarkupMode == "all" && View == "print" && !Flow && !Reading;
+
+    private bool ShowReviewRoom => (Model?.Comments.Count > 0 || Model?.Revisions.Count > 0) && (ShowCommentBalloons || ShowRevisionBalloons);
+
+    private bool ShowCommentBalloons => (Ribbon?.ShowComments ?? false) && View == "print" && !Flow && !Reading;
+
+    private string EditableOf(WordBlockModel block) => block.HasRevisions ? "false" : Editable;
+
+    private int RevisionTone(WordBlockModel block) => block.ViewSegments.FirstOrDefault(s => s.Kind != null)?.Tone ?? 1;
+
+    private RenderFragment ContentOf(WordBlockModel block) => block.ViewSegments.Count > 0 ? ViewOf(block) : SegmentsOf(block, EditableOf(block) == "false");
+
+    private RenderFragment ViewOf(WordBlockModel block) => builder =>
+    {
+        var caps = EditableOf(block) == "false";
+        var sequence = 0;
+        foreach (var segment in block.ViewSegments)
+        {
+            var look = segment.Look;
+            if (look.Mark == "bm" || look.Mark != null)
+            {
+                builder.OpenElement(sequence++, "span");
+                builder.AddAttribute(sequence++, "class", look.Mark == "bm" ? "mk-bm" : "mk-fn");
+                builder.AddAttribute(sequence++, look.Mark == "bm" ? "data-bookmark" : "data-note", look.MarkText);
+                builder.CloseElement();
+                continue;
+            }
+
+            if (segment.IsDeleted && (MarkupMode is "simple" or "none" || MarkupMode == "all" && !ShowInsDel))
+                continue;
+
+            if (segment.IsInserted && MarkupMode == "original")
+                continue;
+
+            var inserted = segment.IsInserted && MarkupMode == "all" && ShowInsDel;
+            var deleted = segment.IsDeleted && MarkupMode == "all" && ShowInsDel;
+            var comment = segment.CommentId != null && (Ribbon?.ShowComments ?? false);
+            var classes = new List<string> { look.Link ? "seg lnk" : "seg" };
+            if (inserted)
+                classes.Add("rv-ins");
+
+            if (deleted)
+                classes.Add("rv-del");
+
+            if (comment)
+                classes.Add("cmt");
+
+            var style = SegmentStyle(look, caps);
+            if (segment.Kind != null && MarkupMode == "all" && ShowInsDel)
+                style += $"; --rev: var(--rev-{segment.Tone})";
+
+            builder.OpenElement(sequence++, "span");
+            builder.AddAttribute(sequence++, "class", string.Join(" ", classes));
+            builder.AddAttribute(sequence++, "style", style);
+            if (segment.Kind != null && MarkupMode == "all" && ShowInsDel)
+                builder.AddAttribute(sequence++, "data-revision", "r:" + segment.RevisionId);
+
+            if (comment)
+                builder.AddAttribute(sequence++, "data-comment", segment.CommentId);
+
+            builder.AddContent(sequence++, segment.Text);
+            builder.CloseElement();
+        }
+    };
 
     private static string TextClass(WordBlockModel block) => FormatClass(block.Kind == WordBlockKind.Byline ? "txt byline" : "txt", block);
 
@@ -260,6 +710,42 @@
     private static string TableClass(WordBlockModel block, WordTableModel table) => FormatClass(table.HasColumnWidths ? "dt fixed" : "dt", block);
 
     private static string ColumnStyle(double width) => "width: " + width.ToString("0.##", CultureInfo.InvariantCulture) + "%";
+
+    private static string FrameStyle(WordFragment fragment) =>
+        $"display: flow-root; height: {Length(fragment.Height)}; overflow-y: clip;";
+
+    private static string BlockStyle(WordBlockModel block, WordFragment? fragment)
+    {
+        var style = new List<string> { "margin: 0" };
+        var paragraph = ParagraphStyle(block);
+        if (paragraph != null)
+            style.Add(paragraph);
+
+        if (block.FontSize > 0)
+            style.Add("font-size: " + Length(block.FontSize));
+
+        if (block.LineHeight > 0)
+            style.Add("--lh: " + Length(block.LineHeight));
+
+        if (block.SpaceBefore > 0)
+            style.Add("padding-top: " + Length(block.SpaceBefore));
+
+        if (fragment is { Offset: > 0 } continued)
+            style.Add($"margin-top: calc(-{Css(continued.Offset * PxPerPt)} * var(--u))");
+
+        return string.Join("; ", style);
+    }
+
+    private static string RowStyle(WordBlockModel block, int row)
+    {
+        var style = $"--row: {row.ToString(CultureInfo.InvariantCulture)}";
+        if (row >= 0 && row < block.RowHeights.Count)
+            style += "; height: " + Length(block.RowHeights[row]);
+
+        return style;
+    }
+
+    private static string Length(double points) => $"calc({Css(points * PxPerPt)} * var(--u))";
 
     private static string CellClass(WordTableModel table, int column) => table.IsNumeric(column) ? "n" : null;
 
@@ -292,8 +778,33 @@
 
     private string KeyOf(string key) => $"{key}#{VersionOf(key)}";
 
+    private int? SelectedId => Ribbon?.SelectedObjectId ?? Hwp?.SelectedObjectId;
+
+    private RibbonRouter ObjectRouter => Ribbon != null ? Ribbon.Router : Hwp?.Router;
+
+    private IWordDialogPresenter ObjectDialogs => Ribbon?.Dialogs ?? Hwp?.Dialogs;
+
+    private string BlockClassOf(WordBlockModel block) => block.Objects.Count > 0 && string.IsNullOrEmpty(block.Text) ? BlockClass(block) + " obj-only" : BlockClass(block);
+
+    private void SelectObject(int? id)
+    {
+        if (Ribbon != null)
+            Ribbon.SelectedObjectId = id;
+
+        if (Hwp != null)
+            Hwp.SelectedObjectId = id;
+
+        Workspace.Notify();
+    }
+
     private void SelectBlock(WordBlockModel block)
     {
+        if (Ribbon != null)
+            Ribbon.SelectedObjectId = null;
+
+        if (Hwp != null)
+            Hwp.SelectedObjectId = null;
+
         var model = Model;
         if (model == null)
             return;
@@ -326,11 +837,13 @@
         if (current == null)
             return;
 
+        var before = Shape(current, Normalize(current.Text));
         text = Shape(current, text);
-        if (text == Shape(current, Normalize(current.Text)))
+        if (text == before)
             return;
 
-        Edit(block.Id, block.Id, EditCommand.Create("replace_paragraph", new { id = block.Id, text }));
+        var (start, end, inserted) = Changed(before, text);
+        Edit(block.Id, block.Id, EditCommand.Create("edit_text", new { ops = new[] { new { op = "replace", id = block.Id, start, end, text = inserted } } }));
     }
 
     private async Task SyncCellAsync(WordBlockModel block, int row, int column)
@@ -357,6 +870,187 @@
         else
             Workspace.Notify();
     }
+
+    private static (int Start, int End, string Text) Changed(string before, string after)
+    {
+        var prefix = 0;
+        while (prefix < before.Length && prefix < after.Length && before[prefix] == after[prefix])
+            prefix++;
+
+        var suffix = 0;
+        while (suffix < before.Length - prefix && suffix < after.Length - prefix && before[before.Length - 1 - suffix] == after[after.Length - 1 - suffix])
+            suffix++;
+
+        return (prefix, before.Length - suffix, after.Substring(prefix, after.Length - suffix - prefix));
+    }
+
+    private static RenderFragment SegmentsOf(WordBlockModel block, bool caps) => builder =>
+    {
+        if (block.Segments.Count == 0)
+        {
+            builder.AddContent(0, block.Text);
+            return;
+        }
+
+        var sequence = 0;
+        foreach (var segment in block.Segments)
+        {
+            var look = segment.Look;
+            builder.OpenElement(sequence++, "span");
+            if (look.Mark == "bm")
+            {
+                builder.AddAttribute(sequence++, "class", "mk-bm");
+                builder.AddAttribute(sequence++, "data-bookmark", look.MarkText);
+            }
+            else if (look.Mark != null)
+            {
+                builder.AddAttribute(sequence++, "class", "mk-fn");
+                builder.AddAttribute(sequence++, "data-note", look.MarkText);
+            }
+            else
+            {
+                builder.AddAttribute(sequence++, "class", look.Link ? "seg lnk" : "seg");
+                builder.AddAttribute(sequence++, "style", SegmentStyle(look, caps));
+                builder.AddContent(sequence++, segment.Text);
+            }
+
+            builder.CloseElement();
+        }
+    };
+
+    private static string SegmentStyle(WordCharLook look, bool caps)
+    {
+        var css = new List<string>();
+        if (look.Bold)
+            css.Add("font-weight: 700");
+
+        if (look.Italic)
+            css.Add("font-style: italic");
+
+        var lines = new List<string>();
+        if (look.Underline != null)
+            lines.Add("underline");
+
+        if (look.Strike)
+            lines.Add("line-through");
+
+        if (lines.Count > 0)
+            css.Add("text-decoration-line: " + string.Join(" ", lines));
+
+        if (look.Underline != null && look.Underline != "single")
+            css.Add("text-decoration-style: " + UnderlineStyle(look.Underline));
+
+        if (look.Underline == "thick")
+            css.Add("text-decoration-thickness: 3px");
+
+        if (look.Color != null)
+            css.Add("color: #" + look.Color);
+
+        if (look.Highlight != null)
+            css.Add("background-color: #" + look.Highlight);
+
+        if (IsFontName(look.Font))
+            css.Add("font-family: '" + look.Font + "', var(--font-body)");
+
+        if (look.SizePt > 0)
+            css.Add("font-size: " + Length(look.SizePt));
+
+        if (look.SpacingPt != 0)
+            css.Add("letter-spacing: " + Length(look.SpacingPt));
+
+        if (look.Caps && caps)
+            css.Add("text-transform: uppercase");
+
+        if (look.SmallCaps)
+            css.Add("font-variant: small-caps");
+
+        if (look.Vertical == "super")
+            css.Add("vertical-align: super; font-size: 0.75em");
+
+        if (look.Vertical == "sub")
+            css.Add("vertical-align: sub; font-size: 0.75em");
+
+        return string.Join("; ", css);
+    }
+
+    private static string UnderlineStyle(string kind) => kind switch
+    {
+        "double" => "double",
+        "dotted" => "dotted",
+        "dash" => "dashed",
+        "wave" => "wavy",
+        _ => "solid",
+    };
+
+    private static bool IsFontName(string name) =>
+        !string.IsNullOrEmpty(name) && name.All(c => char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '.');
+
+    private static string CellStyleOf(WordTableModel table, int row, int column)
+    {
+        if (!table.CellLooks.TryGetValue((row, column), out var look))
+            return null;
+
+        var css = new List<string>();
+        if (look.Shade != null)
+            css.Add("background-color: #" + look.Shade);
+
+        if (look.Vertical != "top")
+            css.Add("vertical-align: " + look.Vertical);
+
+        return css.Count == 0 ? null : string.Join("; ", css);
+    }
+
+    private static string ParagraphStyle(WordBlockModel block)
+    {
+        var look = block.Look;
+        if (look == null || block.IsTable)
+            return null;
+
+        var css = new List<string>();
+        var align = look.Align switch
+        {
+            "center" => "center",
+            "right" => "right",
+            "justify" => "justify",
+            "distribute" => "justify",
+            _ => null,
+        };
+        if (align != null)
+            css.Add("text-align: " + align);
+
+        if (look.Align == "distribute")
+            css.Add("text-align-last: justify");
+
+        if (block.ListLabel == null)
+        {
+            if (look.LeftPt > 0)
+                css.Add("padding-left: " + Length(look.LeftPt));
+
+            if (look.RightPt > 0)
+                css.Add("padding-right: " + Length(look.RightPt));
+
+            if (look.FirstPt != 0)
+                css.Add("text-indent: " + Length(look.FirstPt));
+        }
+
+        if (look.Shade != null)
+            css.Add("background-color: #" + look.Shade);
+
+        if (look.TopBorder)
+            css.Add("border-top: calc(1 * var(--u)) solid var(--ink)");
+
+        if (look.BottomBorder)
+            css.Add("border-bottom: calc(1 * var(--u)) solid var(--ink)");
+
+        if (look.LeftBorder)
+            css.Add("border-left: calc(1 * var(--u)) solid var(--ink)");
+
+        if (look.RightBorder)
+            css.Add("border-right: calc(1 * var(--u)) solid var(--ink)");
+
+        return css.Count == 0 ? null : string.Join("; ", css);
+    }
+
 
     private static string Shape(WordBlockModel block, string text) =>
         block.Kind == WordBlockKind.Byline ? string.Join("\n", text.Split('\n', StringSplitOptions.RemoveEmptyEntries)) : text;

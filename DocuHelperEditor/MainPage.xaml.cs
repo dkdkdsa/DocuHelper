@@ -17,6 +17,7 @@ namespace DocuHelperEditor
                 e.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
 #endif
                 WebViewFileBridge.Attach(e.WebView.CoreWebView2);
+                WebViewHost.Attach(e.WebView.CoreWebView2);
             };
 #endif
         }

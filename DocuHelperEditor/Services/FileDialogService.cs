@@ -12,7 +12,7 @@ namespace DocuHelperEditor.Services
     {
         private static readonly FilePickerFileType s_documents = new(new Dictionary<DevicePlatform, IEnumerable<string>>
         {
-            { DevicePlatform.WinUI, new[] { ".xlsx", ".docx", ".pptx", ".hwp", ".hwpx", ".xls", ".doc", ".ppt" } },
+            { DevicePlatform.WinUI, new[] { ".xlsx", ".docx", ".pptx", ".hwp", ".hwpx" } },
         });
 
         private static readonly FilePickerFileType s_images = new(new Dictionary<DevicePlatform, IEnumerable<string>>
@@ -72,6 +72,11 @@ namespace DocuHelperEditor.Services
 
         public async Task<string> PickSaveFileAsync(string suggestedName)
         {
+#if DEBUG
+            var forced = Environment.GetEnvironmentVariable("DOCUHELPER_SAVE_PATH");
+            if (!string.IsNullOrWhiteSpace(forced))
+                return forced;
+#endif
 #if WINDOWS
             try
             {

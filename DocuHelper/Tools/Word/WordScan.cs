@@ -32,6 +32,14 @@ namespace DocuHelper.Tools.Word
 
         public int PageCount { get; private set; } = 1;
 
+        public IReadOnlyList<int> PageSections { get; private set; } = Array.Empty<int>();
+
+        public WordPageLayout Layout { get; private set; } = WordPageLayout.Default;
+
+        public IReadOnlyList<WordPageFrame> Frames { get; private set; } = Array.Empty<WordPageFrame>();
+
+        public IReadOnlyList<WordSectionLayout> Sections { get; private set; } = Array.Empty<WordSectionLayout>();
+
         public static WordScan Read(WordprocessingDocument document)
         {
             var scan = new WordScan(document);
@@ -89,8 +97,7 @@ namespace DocuHelper.Tools.Word
             if (Body == null)
                 return;
 
-            var pager = new WordPager(Body, Styles.NormalFontSize);
-            var sections = Body.Descendants<SectionProperties>().ToList();
+            var pager = new WordPager(new WordLayoutContext(Document, Styles), Body);
             foreach (var element in BlockElements(Body))
             {
                 var block = new WordBlock { Index = _blocks.Count + 1 };
@@ -99,27 +106,29 @@ namespace DocuHelper.Tools.Word
                     block.Table = table;
                     block.Id = WordTables.IdOf(table);
                     block.Kind = WordKind.Table;
-                    pager.PlaceTable(block, WordTables.Grid(table));
                 }
                 else
                 {
                     var paragraph = (Paragraph)element;
-                    var marked = WordText.Marked(paragraph);
                     block.Paragraph = paragraph;
                     block.Id = WordIds.Of(paragraph);
-                    block.Text = Strip(marked);
+                    block.Text = Strip(WordText.Marked(paragraph));
                     block.Kind = KindOf(paragraph, out var level, out var numbered);
                     block.ListLevel = level;
                     block.IsNumbered = numbered;
-                    pager.PlaceParagraph(block, marked, BreaksBefore(paragraph), BreaksAfter(paragraph, sections));
                 }
 
+                pager.Place(block);
                 _blocks.Add(block);
                 if (block.Id != null)
                     _byId.TryAdd(block.Id, block);
             }
 
+            Layout = pager.Layout;
+            Sections = pager.Sections;
             PageCount = Math.Max(pager.LastPage, _blocks.Count == 0 ? 1 : _blocks.Max(b => b.Page));
+            PageSections = pager.PageSections;
+            Frames = WordFrames.Build(this, pager.Sections, pager.Marks, pager.PageSections, PageCount);
         }
 
         private WordKind KindOf(Paragraph paragraph, out int level, out bool numbered)
@@ -127,20 +136,6 @@ namespace DocuHelper.Tools.Word
             var list = Numbering.ListKind(paragraph, out level);
             numbered = list != WordKind.Body;
             return Styles.HeadingKind(paragraph) ?? list;
-        }
-
-        private bool BreaksBefore(Paragraph paragraph) => WordStyles.IsOn(Styles.ParagraphValue<PageBreakBefore>(paragraph));
-
-        private static bool BreaksAfter(Paragraph paragraph, List<SectionProperties> sections)
-        {
-            var section = paragraph.ParagraphProperties?.SectionProperties;
-            if (section == null)
-                return false;
-
-            var index = sections.IndexOf(section);
-            var next = index >= 0 && index + 1 < sections.Count ? sections[index + 1] : null;
-            var type = next?.GetFirstChild<SectionType>()?.Val;
-            return type == null || (type.Value != SectionMarkValues.Continuous && type.Value != SectionMarkValues.NextColumn);
         }
 
         private static string Strip(string marked)

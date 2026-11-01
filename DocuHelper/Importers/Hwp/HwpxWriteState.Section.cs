@@ -1,6 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
+using DocuHelper.Tools.Word;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 using static DocuHelper.Importers.Hwp.HwpxNames;
 
@@ -8,41 +11,84 @@ namespace DocuHelper.Importers.Hwp
 {
     internal sealed partial class HwpxWriteState
     {
-        public XElement Section(Body body)
+        private const int DefaultOffset = 1417;
+        private const int DefaultColumnGap = 425;
+        private const double MmPerPt = 25.4 / 72;
+
+        private int _sectionCount = 1;
+
+        internal readonly record struct PageBorderSetting(int Id, bool FromPaper, int Left, int Right, int Top, int Bottom);
+
+        public List<XElement> Sections(Body body)
         {
+            var sections = new List<XElement>();
+            var children = new List<OpenXmlElement>();
+            foreach (var child in body.ChildElements)
+            {
+                if (child is DocumentFormat.OpenXml.Wordprocessing.SectionProperties)
+                    continue;
+
+                children.Add(child);
+                if (child is DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph && paragraph.ParagraphProperties?.SectionProperties is { } properties)
+                {
+                    sections.Add(Section(children, properties));
+                    children = new List<OpenXmlElement>();
+                }
+            }
+
+            sections.Add(Section(children, body.Elements<DocumentFormat.OpenXml.Wordprocessing.SectionProperties>().LastOrDefault()));
+            _sectionCount = sections.Count;
+            return sections;
+        }
+
+        private XElement Section(List<OpenXmlElement> children, DocumentFormat.OpenXml.Wordprocessing.SectionProperties properties)
+        {
+            SetPageNumbering(properties);
             var paragraphs = new List<XElement>();
-            Blocks(body.ChildElements, paragraphs);
+            Blocks(children, paragraphs);
             if (paragraphs.Count == 0)
                 paragraphs.Add(Paragraph(0, 0, false, new List<XElement> { TextRun(0, string.Empty) }));
 
             var first = paragraphs[0];
-            first.AddFirst(new XElement(Hp + "run", new XAttribute("charPrIDRef", "0"), SectionProperties(body), Columns()));
+            var leading = new List<XElement> { new XElement(Hp + "run", new XAttribute("charPrIDRef", "0"), SectionProperties(properties), ColumnControl(properties)) };
+            leading.AddRange(HeaderFooterRuns(properties));
+            for (var i = leading.Count - 1; i >= 0; i--)
+                first.AddFirst(leading[i]);
+
             return new XElement(Hs + "sec", Namespaces(), paragraphs);
         }
 
-        private XElement SectionProperties(Body body)
+        private XElement SectionProperties(DocumentFormat.OpenXml.Wordprocessing.SectionProperties section)
         {
-            var section = body.Elements<SectionProperties>().LastOrDefault();
             var size = section?.GetFirstChild<PageSize>();
             var margin = section?.GetFirstChild<PageMargin>();
             var width = size?.Width?.Value is uint w && w > 0 ? Units((int)w) : 59528;
             var height = size?.Height?.Value is uint h && h > 0 ? Units((int)h) : 84188;
             var landscape = width > height;
-            var header = margin?.Header?.Value is uint hd ? Units((int)hd) : 4252;
-            var footer = margin?.Footer?.Value is uint ft ? Units((int)ft) : 4252;
-            var top = margin?.Top?.Value is int t ? Units(t) - header : 5668;
-            var bottom = margin?.Bottom?.Value is int b ? Units(b) - footer : 4252;
+            var wordHeader = margin?.Header?.Value is uint hd ? Units((int)hd) : 4252;
+            var wordFooter = margin?.Footer?.Value is uint ft ? Units((int)ft) : 4252;
+            var wordTop = margin?.Top?.Value is int t ? Units(Math.Abs(t)) : 8505;
+            var wordBottom = margin?.Bottom?.Value is int b ? Units(Math.Abs(b)) : 7200;
+            var top = wordHeader;
+            var header = Math.Max(0, wordTop - wordHeader);
+            var bottom = wordFooter;
+            var footer = Math.Max(0, wordBottom - wordFooter);
             var left = margin?.Left?.Value is uint l ? Units((int)l) : 8504;
             var right = margin?.Right?.Value is uint rt ? Units((int)rt) : 8504;
-            if (top <= 0)
+            if (top + header <= 0)
                 top = 5668;
 
-            if (bottom <= 0)
+            if (bottom + footer <= 0)
                 bottom = 4252;
 
             if (landscape)
                 (width, height) = (height, width);
 
+            var border = PageBorderOf(section);
+            var titlePage = section?.GetFirstChild<TitlePage>() is { } title && WordStyles.IsOn(title);
+            var hideHeader = titlePage && FirstEmpty(section, false);
+            var hideFooter = titlePage && FirstEmpty(section, true);
+            var start = section?.GetFirstChild<PageNumberType>()?.Start?.Value ?? 0;
             return new XElement(Hp + "secPr",
                 new XAttribute("id", ""),
                 new XAttribute("textDirection", "HORIZONTAL"),
@@ -55,9 +101,9 @@ namespace DocuHelper.Importers.Hwp
                 new XAttribute("textVerticalWidthHead", "0"),
                 new XAttribute("masterPageCnt", "0"),
                 new XElement(Hp + "grid", new XAttribute("lineGrid", "0"), new XAttribute("charGrid", "0"), new XAttribute("wonggojiFormat", "0")),
-                new XElement(Hp + "startNum", new XAttribute("pageStartsOn", "BOTH"), new XAttribute("page", "0"), new XAttribute("pic", "0"), new XAttribute("tbl", "0"), new XAttribute("equation", "0")),
+                new XElement(Hp + "startNum", new XAttribute("pageStartsOn", "BOTH"), new XAttribute("page", Number(start > 0 ? start : 0)), new XAttribute("pic", "0"), new XAttribute("tbl", "0"), new XAttribute("equation", "0")),
                 new XElement(Hp + "visibility",
-                    new XAttribute("hideFirstHeader", "0"), new XAttribute("hideFirstFooter", "0"), new XAttribute("hideFirstMasterPage", "0"),
+                    new XAttribute("hideFirstHeader", Flag(hideHeader)), new XAttribute("hideFirstFooter", Flag(hideFooter)), new XAttribute("hideFirstMasterPage", "0"),
                     new XAttribute("border", "SHOW_ALL"), new XAttribute("fill", "SHOW_ALL"), new XAttribute("hideFirstPageNum", "0"),
                     new XAttribute("hideFirstEmptyLine", "0"), new XAttribute("showLineNumber", "0")),
                 new XElement(Hp + "lineNumberShape", new XAttribute("restartType", "0"), new XAttribute("countBy", "0"), new XAttribute("distance", "0"), new XAttribute("startNumber", "0")),
@@ -72,9 +118,15 @@ namespace DocuHelper.Importers.Hwp
                         new XAttribute("top", Number(top)), new XAttribute("bottom", Number(bottom)))),
                 NoteProperties("footNotePr", "-1", "283", "EACH_COLUMN"),
                 NoteProperties("endNotePr", "14692344", "0", "END_OF_DOCUMENT"),
-                PageBorder("BOTH"),
-                PageBorder("EVEN"),
-                PageBorder("ODD"));
+                PageBorder("BOTH", border),
+                PageBorder("EVEN", border),
+                PageBorder("ODD", border));
+        }
+
+        private bool FirstEmpty(SectionProperties section, bool footer)
+        {
+            var root = Root(section, footer, HeaderFooterValues.First);
+            return root == null || string.IsNullOrWhiteSpace(root.InnerText);
         }
 
         private static XElement NoteProperties(string name, string length, string between, string place) => new(Hp + name,
@@ -84,17 +136,69 @@ namespace DocuHelper.Importers.Hwp
             new XElement(Hp + "numbering", new XAttribute("type", "CONTINUOUS"), new XAttribute("newNum", "1")),
             new XElement(Hp + "placement", new XAttribute("place", place), new XAttribute("beneathText", "0")));
 
-        private static XElement PageBorder(string type) => new(Hp + "pageBorderFill",
+        private static XElement PageBorder(string type, PageBorderSetting border) => new(Hp + "pageBorderFill",
             new XAttribute("type", type),
-            new XAttribute("borderFillIDRef", Number(PlainBorder)),
-            new XAttribute("textBorder", "PAPER"),
+            new XAttribute("borderFillIDRef", Number(border.Id)),
+            new XAttribute("textBorder", border.FromPaper ? "PAPER" : "CONTENT"),
             new XAttribute("headerInside", "0"),
             new XAttribute("footerInside", "0"),
             new XAttribute("fillArea", "PAPER"),
-            new XElement(Hp + "offset", new XAttribute("left", "1417"), new XAttribute("right", "1417"), new XAttribute("top", "1417"), new XAttribute("bottom", "1417")));
+            new XElement(Hp + "offset", new XAttribute("left", Number(border.Left)), new XAttribute("right", Number(border.Right)), new XAttribute("top", Number(border.Top)), new XAttribute("bottom", Number(border.Bottom))));
 
-        private static XElement Columns() => new(Hp + "ctrl",
-            new XElement(Hp + "colPr", new XAttribute("id", ""), new XAttribute("type", "NEWSPAPER"), new XAttribute("layout", "LEFT"),
-                new XAttribute("colCount", "1"), new XAttribute("sameSz", "1"), new XAttribute("sameGap", "0")));
+        private XElement ColumnControl(DocumentFormat.OpenXml.Wordprocessing.SectionProperties section)
+        {
+            var columns = section?.GetFirstChild<Columns>();
+            var count = Math.Max(1, columns?.ColumnCount?.Value is short c ? c : 1);
+            var gap = count > 1 ? Units(ParseInt(columns?.Space?.Value, DefaultColumnGap)) : 0;
+            return new XElement(Hp + "ctrl",
+                new XElement(Hp + "colPr", new XAttribute("id", ""), new XAttribute("type", "NEWSPAPER"), new XAttribute("layout", "LEFT"),
+                    new XAttribute("colCount", Number(count)), new XAttribute("sameSz", "1"), new XAttribute("sameGap", Number(gap))));
+        }
+
+        private PageBorderSetting PageBorderOf(DocumentFormat.OpenXml.Wordprocessing.SectionProperties section)
+        {
+            var borders = section?.GetFirstChild<PageBorders>();
+            var background = _document.MainDocumentPart?.Document?.GetFirstChild<DocumentBackground>()?.Color?.Value;
+            var fill = string.IsNullOrEmpty(background) || background == "auto" ? null : background.TrimStart('#');
+            var lines = new[]
+            {
+                BorderLine(borders?.GetFirstChild<TopBorder>()),
+                BorderLine(borders?.GetFirstChild<LeftBorder>()),
+                BorderLine(borders?.GetFirstChild<BottomBorder>()),
+                BorderLine(borders?.GetFirstChild<RightBorder>()),
+            };
+            if (lines.All(l => l == null) && fill == null)
+                return new PageBorderSetting(PlainBorder, true, DefaultOffset, DefaultOffset, DefaultOffset, DefaultOffset);
+
+            return new PageBorderSetting(
+                BorderFillId(lines, fill),
+                borders?.OffsetFrom?.Value != PageBorderOffsetValues.Text,
+                SideOffset(borders?.GetFirstChild<LeftBorder>()),
+                SideOffset(borders?.GetFirstChild<RightBorder>()),
+                SideOffset(borders?.GetFirstChild<TopBorder>()),
+                SideOffset(borders?.GetFirstChild<BottomBorder>()));
+        }
+
+        private static HwpBorderLine BorderLine(BorderType side)
+        {
+            var style = side?.Val?.Value;
+            if (side == null || style == null || style == BorderValues.Nil || style == BorderValues.None)
+                return null;
+
+            var eighths = side.Size?.Value ?? 4U;
+            var color = side.Color?.Value;
+            return new HwpBorderLine
+            {
+                Type = style == BorderValues.Double ? "DOUBLE_SLIM" : style == BorderValues.Dashed ? "DASH" : style == BorderValues.Dotted ? "DOT" : "SOLID",
+                WidthMm = eighths / 8.0 * MmPerPt,
+                Color = string.IsNullOrEmpty(color) || color == "auto" ? "#000000" : "#" + color.TrimStart('#'),
+            };
+        }
+
+        private static int SideOffset(BorderType side)
+        {
+            var points = side?.Space?.Value;
+            return points is uint space ? (int)space * 100 : DefaultOffset;
+        }
     }
 }

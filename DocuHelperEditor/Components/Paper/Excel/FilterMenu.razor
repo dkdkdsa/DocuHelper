@@ -1,0 +1,208 @@
+@implements IAsyncDisposable
+@using System
+@using System.Collections.Generic
+@using System.Globalization
+@using System.Linq
+@using System.Threading.Tasks
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using DocuHelperEditor.Services
+@inject IJSRuntime JS
+
+<div class="scrim" @onclick="() => OnClose.InvokeAsync()"></div>
+<div class="fm" @ref="_card" id="@CardId" role="dialog" aria-modal="true" aria-label="@Header 필터">
+    <button type="button" class="item" @onclick="() => OnSort.InvokeAsync(false)">오름차순 정렬</button>
+    <button type="button" class="item" @onclick="() => OnSort.InvokeAsync(true)">내림차순 정렬</button>
+    @if (Active)
+    {
+        <button type="button" class="item" @onclick="() => OnClear.InvokeAsync()">필터 지우기</button>
+    }
+    <div class="rule" role="separator"></div>
+    <input id="@SearchId" class="search" type="search" aria-label="검색" placeholder="검색" value="@_search" @oninput="OnSearch" />
+    @if (Visible.Count == 0)
+    {
+        <p class="note" role="status">맞는 값이 없어요</p>
+    }
+    else
+    {
+        <label class="check all">
+            <input type="checkbox" checked="@AllVisibleChecked" @onchange="ToggleAll" />
+            <span>(모두 선택)</span>
+        </label>
+        <div class="values" role="group" aria-label="값 목록">
+            @foreach (var value in Visible.Take(DisplayLimit))
+            {
+                var text = value;
+                <label class="check">
+                    <input type="checkbox" checked="@_selected.Contains(text)" @onchange="e => Toggle(text, e)" />
+                    <span class="v" title="@text">@text</span>
+                </label>
+            }
+        </div>
+        @if (Visible.Count > DisplayLimit)
+        {
+            <p class="note">맞는 값이 @Visible.Count.ToString(CultureInfo.InvariantCulture)개 있어요. 검색으로 줄여 주세요.</p>
+        }
+    }
+    @if (Truncated)
+    {
+        <p class="note warn" role="status">값이 @FilterValueLimit.ToString(CultureInfo.InvariantCulture)개를 넘어서 필터를 적용할 수 없어요. 칸 범위를 좁혀 주세요.</p>
+    }
+    else if (_selected.Count == 0)
+    {
+        <p class="note warn" role="status">선택한 값이 없어요</p>
+    }
+    <div class="actions">
+        <button type="button" class="cancel" @onclick="() => OnClose.InvokeAsync()">취소</button>
+        <button type="button" class="ok" disabled="@ApplyDisabled" @onclick="Apply">확인</button>
+    </div>
+</div>
+
+@code {
+    private const int DisplayLimit = 200;
+    private const int FilterValueLimit = 5000;
+    private const string ModulePath = "./Components/Paper/Excel/FilterMenu.razor.js";
+
+    private ElementReference _card;
+    private IJSObjectReference _module;
+    private DotNetObjectReference<FilterMenu> _self;
+    private string _search = string.Empty;
+    private HashSet<string> _selected = new(StringComparer.Ordinal);
+    private IReadOnlyList<string> _loaded;
+
+    [Parameter]
+    public string Header { get; set; }
+
+    [Parameter]
+    public double X { get; set; }
+
+    [Parameter]
+    public double Y { get; set; }
+
+    [Parameter]
+    public string AnchorId { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<string> Values { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public IReadOnlyCollection<string> Checked { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public bool Active { get; set; }
+
+    [Parameter]
+    public bool Truncated { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnSort { get; set; }
+
+    [Parameter]
+    public EventCallback OnClear { get; set; }
+
+    [Parameter]
+    public EventCallback<List<string>> OnApply { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private readonly string _id = "fm" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+    private string CardId => _id;
+
+    private string SearchId => _id + "-search";
+
+    private List<string> Visible => string.IsNullOrEmpty(_search)
+        ? Values.ToList()
+        : Values.Where(value => value.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private bool AllVisibleChecked
+    {
+        get
+        {
+            var visible = Visible.ToList();
+            return visible.Count > 0 && visible.All(value => _selected.Contains(value));
+        }
+    }
+
+    private bool ApplyDisabled => Truncated || _selected.Count == 0;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_loaded, Values))
+            return;
+
+        _loaded = Values;
+        _selected = new HashSet<string>(Checked, StringComparer.Ordinal);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await _module.InvokeVoidAsync("attach", _card, _self, SearchId, X, Y, AnchorId);
+        }
+        catch (JSException e)
+        {
+            AppLog.Write("Failed to attach the filter menu script", e);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    [JSInvokable]
+    public Task CloseFromKeyboard() => OnClose.InvokeAsync();
+
+    private void OnSearch(ChangeEventArgs e) => _search = e.Value?.ToString() ?? string.Empty;
+
+    private void Toggle(string value, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+            _selected.Add(value);
+        else
+            _selected.Remove(value);
+    }
+
+    private void ToggleAll(ChangeEventArgs e)
+    {
+        foreach (var value in Visible.ToList())
+        {
+            if (e.Value is true)
+                _selected.Add(value);
+            else
+                _selected.Remove(value);
+        }
+    }
+
+    private Task Apply()
+    {
+        var everything = Values.All(value => _selected.Contains(value));
+        return OnApply.InvokeAsync(everything ? null : _selected.ToList());
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module != null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("detach", _card);
+                await _module.DisposeAsync();
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        _self?.Dispose();
+    }
+}

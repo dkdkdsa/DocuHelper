@@ -80,7 +80,7 @@ namespace DocuHelperEditor.State
 
         public bool IsAnyFileEditing => _files.Any(f => f.Activity == FileActivity.Editing);
 
-        public bool CanSaveAll => UnsavedCount > 0 && !IsAnyFileEditing;
+        public bool CanSaveAll => UnsavedCount > 0 && !IsAnyFileEditing && !_workspace.IsAgentRunning;
 
         public string SaveStatusText => UnsavedCount > 0
             ? $"저장 안 한 파일 {UnsavedCount}개"

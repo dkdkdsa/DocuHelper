@@ -54,3 +54,11 @@
     color: var(--paper);
     font-weight: 700;
 }
+
+.clip-note {
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 12px;
+}

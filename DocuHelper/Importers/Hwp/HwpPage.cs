@@ -1,4 +1,4 @@
-﻿namespace DocuHelper.Importers.Hwp
+namespace DocuHelper.Importers.Hwp
 {
     public class HwpPage
     {
@@ -19,5 +19,13 @@
         public int MarginHeader { get; set; }
 
         public int MarginFooter { get; set; }
+
+        public int Columns { get; set; } = 1;
+
+        public int ColumnGap { get; set; }
+
+        public HwpPageBorder PageBorder { get; set; }
+
+        public string BackColor { get; set; }
     }
 }

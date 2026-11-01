@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml;
+﻿using System.Collections.Generic;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace DocuHelper.Tools.Word
@@ -18,6 +19,16 @@ namespace DocuHelper.Tools.Word
         public string Text { get; set; } = string.Empty;
 
         public int Page { get; set; } = 1;
+
+        public List<WordFragment> Fragments { get; } = new();
+
+        public double SpaceBefore { get; set; }
+
+        public double LineHeight { get; set; }
+
+        public double FontSize { get; set; }
+
+        public List<double> RowHeights { get; } = new();
 
         public int ListLevel { get; set; }
 

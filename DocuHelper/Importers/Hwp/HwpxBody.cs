@@ -17,7 +17,10 @@ namespace DocuHelper.Importers.Hwp
         private int _deleting;
         private int _deleted;
         private int _depth;
-        private bool _pageBreak;
+        private HwpSection _section;
+        private HwpSection _pendingSection;
+        private string _pendingHiding;
+        private int? _pendingNewNumber;
 
         public HwpxBody(HwpxHeader header, HwpDocument document)
         {
@@ -40,15 +43,60 @@ namespace DocuHelper.Importers.Hwp
                     .Where(id => !string.IsNullOrEmpty(id)));
             }
 
-            if (first)
-                _document.Page = Page(properties);
-
-            _pageBreak = !first;
+            _section = first ? _document.Sections[0] : NewSection();
+            _section.Page = Page(properties);
+            ApplyColumnsAndBorders(section, properties, _section.Page);
+            ReadSectionControls(properties);
             _deleting = 0;
             foreach (var paragraph in HwpxXml.Children(section, "p"))
                 ReadParagraph(paragraph, _document.Blocks);
+        }
 
-            _pageBreak = false;
+        private HwpSection NewSection()
+        {
+            var section = new HwpSection();
+            _document.Sections.Add(section);
+            _pendingSection = section;
+            return section;
+        }
+
+        private HwpSection TakePendingSection()
+        {
+            var section = _pendingSection;
+            _pendingSection = null;
+            return section;
+        }
+
+        private void ApplyColumnsAndBorders(XElement section, XElement properties, HwpPage page)
+        {
+            var columns = HwpxXml.Children(section, "p")
+                .SelectMany(paragraph => HwpxXml.Children(paragraph, "run"))
+                .SelectMany(run => HwpxXml.Children(run, "ctrl"))
+                .SelectMany(control => HwpxXml.Children(control, "colPr"))
+                .FirstOrDefault()
+                ?? section.Descendants().FirstOrDefault(e => e.Name.LocalName == "colPr");
+            page.Columns = Math.Max(1, HwpxXml.Int(columns, "colCount", 1));
+            page.ColumnGap = HwpxXml.Int(columns, "sameGap", 0);
+            var border = properties?.Elements().FirstOrDefault(e => e.Name.LocalName == "pageBorderFill" && HwpxXml.Attribute(e, "type") == "BOTH");
+            var fill = _header.BorderFill(HwpxXml.Int(border, "borderFillIDRef", -1));
+            if (fill == null)
+                return;
+
+            page.BackColor = fill.FaceColor;
+            var offset = border.Elements().FirstOrDefault(e => e.Name.LocalName == "offset");
+            var lines = new HwpPageBorder
+            {
+                Top = fill.Top,
+                Left = fill.Left,
+                Bottom = fill.Bottom,
+                Right = fill.Right,
+                FromPaper = HwpxXml.Attribute(border, "textBorder") != "CONTENT",
+                OffsetTop = HwpxXml.Int(offset, "top", 1417),
+                OffsetLeft = HwpxXml.Int(offset, "left", 1417),
+                OffsetBottom = HwpxXml.Int(offset, "bottom", 1417),
+                OffsetRight = HwpxXml.Int(offset, "right", 1417),
+            };
+            page.PageBorder = lines.HasLines ? lines : null;
         }
 
         private static HwpPage Page(XElement properties)
@@ -84,6 +132,25 @@ namespace DocuHelper.Importers.Hwp
             _deleting = deleting;
         }
 
+        private static HwpList ListOf(HwpxParaShape shape)
+        {
+            var level = System.Math.Max(0, shape.HeadingLevel);
+            return shape.HeadingType switch
+            {
+                "NUMBER" => new HwpList { Id = shape.HeadingId, Level = level },
+                "BULLET" => new HwpList { Id = HwpxHeader.BulletKey + shape.HeadingId, Level = level, Bullet = true },
+                _ => null,
+            };
+        }
+
+        internal Func<string, (byte[] Bytes, string Extension)?> Binaries { get; set; }
+
+        private HwpxBorderFill BorderOf(int id)
+        {
+            var fill = _header.BorderFill(id);
+            return fill != null && fill.Visible ? fill : null;
+        }
+
         private void ReadParagraph(XElement element, List<HwpBlock> output)
         {
             var shape = _header.ParaShape(HwpxXml.Int(element, "paraPrIDRef", -1));
@@ -95,10 +162,20 @@ namespace DocuHelper.Importers.Hwp
                 SpaceBefore = shape.SpaceBefore,
                 SpaceAfter = shape.SpaceAfter,
                 LineSpacing = shape.LineSpacing,
-                PageBreakBefore = _pageBreak || shape.PageBreakBefore || HwpxXml.Flag(element, "pageBreak"),
-                Label = _numbering.Next(shape, _outline),
+                PageBreakBefore = shape.PageBreakBefore || HwpxXml.Flag(element, "pageBreak"),
+                Section = TakePendingSection(),
+                ColumnBreakBefore = HwpxXml.Flag(element, "columnBreak"),
+                Label = shape.HeadingType == "OUTLINE" ? _numbering.Next(shape, _outline) : null,
+                List = ListOf(shape),
+                RightIndent = shape.RightIndent,
+                KeepWithNext = shape.KeepWithNext,
+                KeepLines = shape.KeepLines,
+                WidowControl = shape.WidowControl,
+                LineSpacingKind = shape.LineSpacingKind,
+                Border = BorderOf(shape.BorderFillId),
+                Tabs = new List<HwpTabStop>(_header.TabStops(shape.TabPrId)),
+                StyleName = _header.Style(HwpxXml.Int(element, "styleIDRef", -1))?.Name,
             };
-            _pageBreak = false;
 
             var runs = new HwpxRunBuilder();
             var anchored = new List<HwpBlock>();
@@ -111,7 +188,11 @@ namespace DocuHelper.Importers.Hwp
             }
 
             paragraph.Runs = runs.Runs;
-            var empty = paragraph.Runs.Count == 0 && paragraph.Label == null && !paragraph.PageBreakBefore;
+            paragraph.PageHiding = _pendingHiding;
+            paragraph.NewPageNumber = _pendingNewNumber;
+            _pendingHiding = null;
+            _pendingNewNumber = null;
+            var empty = paragraph.Runs.Count == 0 && paragraph.Label == null && !paragraph.PageBreakBefore && paragraph.PageHiding == null && paragraph.NewPageNumber == null && paragraph.Section == null;
             if (!empty || (anchored.Count == 0 && _deleted == deleted))
                 output.Add(paragraph);
 
@@ -120,6 +201,9 @@ namespace DocuHelper.Importers.Hwp
 
         private void ReadInline(XElement element, HwpxCharShape shape, HwpxRunBuilder runs, List<HwpBlock> anchored)
         {
+            if (TryKeep(element, shape, runs))
+                return;
+
             switch (element.Name.LocalName)
             {
                 case "t":
@@ -130,10 +214,15 @@ namespace DocuHelper.Importers.Hwp
                     foreach (var control in HwpxXml.Children(element))
                         ReadControl(control, shape, runs);
                     break;
+                case "pic":
+                    ReadPicture(element, runs);
+                    break;
                 case "compose":
+                    _document.Skipped.Add(HwpSkipped.Drawing);
                     Emit(HwpxXml.Attribute(element, "composeText"), shape, runs);
                     break;
                 case "dutmal":
+                    _document.Skipped.Add(HwpSkipped.Drawing);
                     Emit(Dutmal(element), shape, runs);
                     break;
                 default:

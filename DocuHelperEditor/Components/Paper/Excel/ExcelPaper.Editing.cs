@@ -22,6 +22,12 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (e.IsComposing)
                 return;
 
+            if (e.AltKey && e.Key == "ArrowDown" && !_editInCell)
+            {
+                OpenFilterFromKeyboard();
+                return;
+            }
+
             if (_editInCell)
             {
                 switch (e.Key)
@@ -171,6 +177,12 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (IsLocked)
                 return;
 
+            if (SelectionIsLocked)
+            {
+                _editError = ProtectedMessage;
+                return;
+            }
+
             if (IsEditing && !CommitEdit())
                 return;
 
@@ -189,6 +201,12 @@ namespace DocuHelperEditor.Components.Paper.Excel
         {
             if (IsLocked || _editInBar)
                 return;
+
+            if (!_editInCell && SelectionIsLocked)
+            {
+                _editError = ProtectedMessage;
+                return;
+            }
 
             if (!_editInCell)
             {
@@ -212,6 +230,12 @@ namespace DocuHelperEditor.Components.Paper.Excel
         {
             if (IsLocked || _editInCell)
                 return;
+
+            if (!_editInBar && SelectionIsLocked)
+            {
+                _editError = ProtectedMessage;
+                return;
+            }
 
             if (!_editInBar)
             {
@@ -341,6 +365,33 @@ namespace DocuHelperEditor.Components.Paper.Excel
             if (value == before)
                 return;
 
+            if (sheet != null && IsProtectedCell(sheet, row, column))
+            {
+                _editError = ProtectedMessage;
+                return;
+            }
+
+            var rule = sheet?.FindValidation(row, column);
+            if (rule != null && rule.ShowError && !SheetValidationCheck.Allows(rule, value, out var message))
+            {
+                if (rule.ErrorStyle == SheetValidationStyle.Stop)
+                {
+                    _editError = message;
+                    return;
+                }
+
+                if (rule.ErrorStyle == SheetValidationStyle.Warning)
+                {
+                    _confirm = new Confirm(message + " 그래도 입력할까요?", "입력", () => WriteCells(sheetName, cellRef, value));
+                    return;
+                }
+            }
+
+            WriteCells(sheetName, cellRef, value);
+        }
+
+        private void WriteCells(string sheetName, string cellRef, string value)
+        {
             Edit(EditCommand.Create("write_cells", new { sheet = sheetName, start = cellRef, values = new[] { new[] { value } } }));
         }
     }

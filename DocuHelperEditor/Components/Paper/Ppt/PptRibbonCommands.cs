@@ -17,7 +17,7 @@ using static DocuHelperEditor.State.Ribbon.RibbonMenus;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
 {
-    public sealed class PptRibbonCommands : RibbonRouter
+    public sealed partial class PptRibbonCommands : RibbonRouter
     {
         public const string UndoId = "ppt.trailing.undo";
         public const string RedoId = "ppt.trailing.redo";
@@ -46,14 +46,10 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private static readonly HashSet<string> s_knownStates = new(StringComparer.Ordinal)
         {
             "bold", "italic", "underline", "align:left", "align:center", "align:right", "align:justify",
+            "strike", "bullet", "number", "hidden", "useTimings", "mediaControls", "advanceOnClick",
         };
 
         private static readonly string[] s_newSlideIds = { "ppt.home.newSlide", "ppt.insert.newSlide" };
-
-        private static readonly string[] s_pending =
-        {
-            "ppt.home.paste", "ppt.home.cut", "ppt.home.copy", "ppt.home.formatPainter", "ppt.insert.symbol",
-        };
 
         private static readonly string[] s_external =
         {
@@ -62,12 +58,14 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         private static readonly string[] s_print =
         {
-            "ppt.file.pdf", "ppt.file.print", "ppt.file.printHandout",
+            "ppt.file.printHandout",
         };
 
         private static readonly Regex s_hex = new("^[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
 
         private readonly PptRibbonState _state;
+        private readonly IClipboardService _clipboard;
+        private readonly IPrintService _prints;
         private readonly IFileDialogService _dialogs;
         private readonly Dictionary<string, PptCommandSpec> _specs = new(StringComparer.Ordinal);
         private readonly Dictionary<string, (Tool Instance, PptToolSchema Schema)> _schemas = new(StringComparer.Ordinal);
@@ -75,11 +73,13 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private string _pickedName;
         private int _activate = -1;
 
-        public PptRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IFileDialogService dialogs, PptRibbonState state)
+        public PptRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IFileDialogService dialogs, PptRibbonState state, IClipboardService clipboard, IPrintService prints)
             : base(workspace, assistant, js)
         {
             _dialogs = dialogs;
             _state = state;
+            _clipboard = clipboard;
+            _prints = prints;
             foreach (var spec in PptCommandData.All)
             {
                 _specs[spec.Id] = spec;
@@ -233,14 +233,16 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             AddRedo(RedoId);
             AddSave("ppt.file.save");
             AddSaveCopy("ppt.file.saveAs");
+            RegisterFile();
+            RegisterSymbol();
+            RegisterPrint();
             foreach (var id in s_print)
                 AddDisabled(id, PrintReason);
 
             foreach (var id in s_external)
                 AddExternal(id);
 
-            foreach (var id in s_pending)
-                AddDisabled(id, PendingReason);
+            RegisterClipboard();
         }
 
         private string ToolBlocker(PptCommandSpec spec, PptMenuSpec entry)
@@ -384,6 +386,11 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private EditCommand BuildTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
         {
             _state.CommitDraft?.Invoke();
+            return PlanTool(spec, entry, arg);
+        }
+
+        private EditCommand PlanTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
+        {
             var selection = _state.Selection;
             var off = entry == null && spec.ArgsOff != null && IsOn(spec.Id);
             var plan = PlanOf(spec, entry, off);
@@ -450,9 +457,26 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 case "paragraphs":
                 case "range":
                     return null;
+                case "pickedSlides":
+                    return PickedSlides(_fields.TryGetValue(name, out var picked) ? picked : null, selection.SlideCount);
                 default:
                     return _fields.TryGetValue(name, out var field) ? field : null;
             }
+        }
+
+        private static JsonNode PickedSlides(JsonNode picked, int count)
+        {
+            var text = picked is JsonValue value && value.TryGetValue<string>(out var typed) ? typed : string.Empty;
+            var numbers = new JsonArray();
+            foreach (var part in text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out var number) || number < 1 || number > count)
+                    throw new ToolInputException($"넣을 슬라이드 번호는 1~{count} 사이의 숫자로 쉼표로 구분해 알려 주세요.");
+
+                numbers.Add(JsonValue.Create(number));
+            }
+
+            return numbers;
         }
 
         private static JsonNode NextSize(PptRibbonSelection selection, int direction)
@@ -553,7 +577,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 }
                 else
                 {
-                    var values = await _state.Dialogs.ShowAsync(target, dialog);
+                    var values = await _state.Dialogs.ShowAsync(target, dialog, ValidatorOf(spec, entry, arg));
                     if (values == null)
                         return false;
 

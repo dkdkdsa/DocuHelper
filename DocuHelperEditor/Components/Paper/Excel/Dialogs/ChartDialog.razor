@@ -1,0 +1,119 @@
+@using DocuHelper.Editors
+@using DocuHelperEditor.State.Ribbon.Excel
+
+<ExcelDialogFrame Title="차트 삽입" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="Close">
+    <div class="field">
+        <label class="field-label" for="ch-range">데이터 범위 (첫 줄은 항목 이름, 첫 열은 가로축)</label>
+        <input id="ch-range" class="field-input" type="text" autocomplete="off" @bind="_range" @bind:event="oninput" />
+    </div>
+    <fieldset class="group">
+        <legend>차트 종류</legend>
+        <div class="kinds" role="radiogroup">
+            @foreach (var (value, label) in Kinds)
+            {
+                <label class="kind @(_type == value ? "on" : null)">
+                    <input type="radio" name="chart-type" value="@value" checked="@(_type == value)" @onchange="() => _type = value" />
+                    <span>@label</span>
+                </label>
+            }
+        </div>
+    </fieldset>
+    <div class="field">
+        <label class="field-label" for="ch-title">제목 (선택)</label>
+        <input id="ch-title" class="field-input" type="text" maxlength="100" autocomplete="off" @bind="_title" @bind:event="oninput" />
+    </div>
+    <div class="pair">
+        <div class="field">
+            <label class="field-label" for="ch-legend">범례 위치</label>
+            <select id="ch-legend" class="field-input" @bind="_legend">
+                @foreach (var (value, label) in Legends)
+                {
+                    <option value="@value">@label</option>
+                }
+            </select>
+        </div>
+        <label class="check">
+            <input type="checkbox" @bind="_dataLabels" />
+            <span>값 표시</span>
+        </label>
+    </div>
+</ExcelDialogFrame>
+
+@code {
+    private static readonly (string Value, string Label)[] Kinds =
+    {
+        ("column", "세로 막대"),
+        ("bar", "가로 막대"),
+        ("line", "꺾은선"),
+        ("pie", "원형"),
+        ("doughnut", "도넛"),
+        ("area", "영역"),
+        ("scatter", "분산형"),
+    };
+
+    private static readonly (string Value, string Label)[] Legends =
+    {
+        ("bottom", "아래"),
+        ("right", "오른쪽"),
+        ("top", "위"),
+        ("left", "왼쪽"),
+        ("none", "표시 안 함"),
+    };
+
+    [Parameter]
+    public string SheetName { get; set; }
+
+    [Parameter]
+    public string Range { get; set; }
+
+    [Parameter]
+    public Func<EditCommand, string> Apply { get; set; }
+
+    [Parameter]
+    public EventCallback Close { get; set; }
+
+    private string _range = string.Empty;
+    private string _type = "column";
+    private string _title = string.Empty;
+    private string _legend = "bottom";
+    private bool _dataLabels;
+    private string _error;
+    private bool _ready;
+
+    private string ErrorText => _error;
+
+    protected override void OnParametersSet()
+    {
+        if (_ready)
+            return;
+
+        _ready = true;
+        _range = Range ?? string.Empty;
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error = null;
+        _error = ExcelDialogInput.Range(_range, "데이터 범위");
+        if (_error != null)
+            return;
+
+        var range = _range.Trim();
+
+        var args = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["sheet"] = SheetName,
+            ["data_range"] = range,
+            ["type"] = _type,
+            ["legend"] = _legend,
+            ["data_labels"] = _dataLabels,
+        };
+
+        if (_title.Trim().Length > 0)
+            args["title"] = _title.Trim();
+
+        _error = Apply(EditCommand.Create("create_chart", args));
+        if (_error == null)
+            await Close.InvokeAsync();
+    }
+}

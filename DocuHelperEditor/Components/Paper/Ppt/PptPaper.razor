@@ -1,4 +1,5 @@
-﻿@using DocuHelperEditor.Components.Paper
+﻿@using System.Globalization
+@using DocuHelperEditor.Components.Paper
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
@@ -6,24 +7,111 @@
 @if (File != null && _model != null)
 {
     var slide = _model.ActiveSlide;
-    <div class="ppt">
-        <PptRibbon File="File" State="_ribbon" OnChanged="Redraw" />
+    <div class="ppt" @ref="_root">
+        <PptRibbon @ref="_ribbonHost" File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" Sorter="Sorter" OnToggleSorter="ToggleSorter" OnSelect="SelectSlide" OnSlideAction="SlideAction" />
             <div class="stage">
-                <SlideCanvas Slide="slide" Number="_model.ActiveIndex + 1" Footer="@_model.Footer" SelectedBoxId="@_model.SelectedBoxId" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnSelectBox="SelectBox" OnClearSelection="ClearSelection" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
-                @if (_ribbon.NotesOpen)
+                @if (Sorter)
                 {
-                    <SpeakerNotes Slide="slide" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+                    <SlideSorter Slides="_model.Slides" Sections="_model.Sections" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" OnPick="PickSlide" />
+                }
+                else if (Outline)
+                {
+                    <SlideOutline Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" OnPick="PickSlide" />
+                }
+                else if (Show)
+                {
+                    <SlideShowOverlay Slides="ShowSlides()" AspectRatio="_model.AspectRatio" StartIndex="ShowStart()" Reading="@(_ribbon.View == "read")" OnExit="ExitShow" />
+                }
+                else
+                {
+                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @SlideMax">
+                        @if (_ribbon.Rulers)
+                        {
+                            <span class="corner" aria-hidden="true"></span>
+                            <RulerBar Horizontal="true" Cm="_model.SlideWidthCm" Marks="SelectedMarks(true)" />
+                            <RulerBar Horizontal="false" Cm="_model.SlideHeightCm" Marks="SelectedMarks(false)" />
+                        }
+                        <div class="slide-wrap @(_previewing ? "play-" + (slide?.Transition ?? "none") : null)">
+                            <SlideCanvas Slide="slide" AspectRatio="_model.AspectRatio" Snap="@SnapMode()" WidthCm="_model.SlideWidthCm" HeightCm="_model.SlideHeightCm" SelectedShapeIds="_model.SelectedShapeIds" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnGesture="Gesture" OnBoxEdited="BoxEdited" OnBoxCommitted="BoxCommitted" />
+                            @if (_ribbon.Gridlines)
+                            {
+                                <div class="grid-layer" style="@GridStyle()" aria-hidden="true"></div>
+                            }
+                            @if (_ribbon.Guides)
+                            {
+                                <span class="guide x" aria-hidden="true"></span>
+                                <span class="guide y" aria-hidden="true"></span>
+                            }
+                        </div>
+                    </div>
+                    @if (slide != null && slide.Animations.Count > 0)
+                    {
+                        <details class="pane">
+                            <summary>애니메이션 @slide.Animations.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)개</summary>
+                            <AnimationPane Items="slide.Animations" />
+                        </details>
+                    }
+                    @if (slide != null && slide.Comments.Count > 0)
+                    {
+                        <details class="pane">
+                            <summary>메모 @slide.Comments.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)개</summary>
+                            <CommentsPane Items="slide.Comments" />
+                        </details>
+                    }
                 }
             </div>
         </div>
+        @if (_ribbon.View == "normal" && _ribbon.NotesOpen)
+        {
+            <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
+        }
+        <PptStatusBar Model="_model" State="_ribbon" Commands="_ribbonHost?.Commands" SorterOpen="Sorter" OnToggleSorter="ToggleSorter" OnZoom="SetZoom" />
+        <PptDialogHost Presenter="_presenter" />
         <ChangeNavigator File="File" />
     </div>
 }
 
 @code {
-    private readonly PptRibbonState _ribbon = new();
+    private PptRibbonState _ribbon => PptRibbonState.Of(File) ?? new PptRibbonState();
+    private ElementReference _root;
+    private WheelZoom _wheel;
+    private bool Sorter => _ribbon.View == "sorter";
+
+    private bool Outline => _ribbon.View == "outline";
+
+    private string SnapMode() => string.Join(" ", new[] { _ribbon.Gridlines ? "grid" : null, _ribbon.Guides ? "guides" : null }.Where(mode => mode != null));
+
+    private bool Show => _ribbon.View is "show" or "read";
+
+    private List<SlideModel> ShowSlides() => _model.Slides.Where(slide => !slide.IsHidden).ToList();
+
+    private int ShowStart()
+    {
+        if (_ribbon.ShowFrom == "1")
+            return 0;
+
+        var index = ShowSlides().IndexOf(_model.ActiveSlide);
+        return index < 0 ? 0 : index;
+    }
+
+    private void ExitShow(int index)
+    {
+        _ribbon.View = "normal";
+        var visible = ShowSlides();
+        var target = index >= 0 && index < visible.Count ? _model.Slides.IndexOf(visible[index]) : -1;
+        SelectSlide(target < 0 ? _model.ActiveIndex : target);
+    }
+
+    private void ToggleSorter() => SetSorter(!Sorter);
+
+    private PptRibbon _ribbonHost;
+    private readonly PptDialogPresenter _presenter = new();
+    private int _notesHeight = 92;
+    private bool _previewing;
+    private System.Threading.CancellationTokenSource _previewCts;
+    private const int TransitionPreviewMs = 900;
 
     private WorkspaceFile _file;
     private PptPaperModel _model;
@@ -53,6 +141,7 @@
         _ribbon.ModelSource = () => File?.Paper as PptPaperModel ?? _model;
         _ribbon.CommitDraft = CommitDraft;
         _ribbon.ActivateSlide = ActivateSlide;
+        _ribbon.Dialogs = _presenter;
     }
 
     protected override void OnParametersSet() => Sync();
@@ -65,6 +154,15 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_root.Id != null)
+        {
+            _wheel ??= new WheelZoom(JS, ZoomStepAsync);
+            await _wheel.AttachAsync(_root);
+        }
+
+        if (firstRender && _ribbonHost != null)
+            StateHasChanged();
+
         if (_model == null)
             return;
 
@@ -87,7 +185,12 @@
         }
     }
 
-    protected override void OnDispose() => CommitDraft();
+    protected override void OnDispose()
+    {
+        _previewCts?.Cancel();
+        _ = _wheel?.Detach();
+        CommitDraft();
+    }
 
     private void Sync()
     {
@@ -126,7 +229,7 @@
         if (index >= 0 && index != _model.ActiveIndex)
         {
             _model.ActiveIndex = index;
-            _model.SelectedBoxId = null;
+            _model.SelectShape(null, false);
             _notesFocused = false;
         }
 
@@ -158,7 +261,7 @@
         if (_model.SelectedBox != null)
             return $"{number}번 슬라이드 글상자";
 
-        return _notesFocused && _ribbon.NotesOpen ? $"{number}번 슬라이드 발표 메모" : $"{number}번 슬라이드";
+        return _notesFocused && _ribbon.NotesOpen ? $"{number}번 슬라이드 노트" : $"{number}번 슬라이드";
     }
 
     private void Report()
@@ -174,6 +277,90 @@
         }
     }
 
+    private IEnumerable<(double From, double To)> SelectedMarks(bool horizontal)
+    {
+        var id = _model?.SelectedShapeIds?.FirstOrDefault();
+        var shape = _model?.ActiveSlide?.FindShape(id);
+        if (shape == null)
+            yield break;
+
+        var extent = horizontal ? _model.SlideWidthCm : _model.SlideHeightCm;
+        var start = horizontal ? shape.Left : shape.Top;
+        var size = horizontal ? shape.Width : shape.Height;
+        yield return (start / 100 * extent, (start + size) / 100 * extent);
+    }
+
+    private string GridStyle()
+    {
+        var width = 100 / Math.Max(_model.SlideWidthCm, 1);
+        var height = 100 / Math.Max(_model.SlideHeightCm, 1);
+        return string.Format(CultureInfo.InvariantCulture, "background-size: {0:0.###}% 100%, 100% {1:0.###}%", width, height);
+    }
+
+    private void SetNotesHeight(int height) => _notesHeight = Math.Clamp(height, SpeakerNotes.MinHeight, SpeakerNotes.MaxHeight);
+
+    private void ToggleNotes() => _ribbon.NotesOpen = !_ribbon.NotesOpen;
+
+    private void SetSorter(bool on)
+    {
+        CommitDraft();
+        _ribbon.View = on ? "sorter" : "normal";
+    }
+
+    private Task ZoomStepAsync(int direction)
+    {
+        SetZoom(_ribbon.Zoom + direction * 10);
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void SetZoom(int value)
+    {
+        _ribbon.Zoom = Math.Clamp(value, PptRibbonState.MinZoom, PptRibbonState.MaxZoom);
+        _ribbon.FitRequested = false;
+    }
+
+    private string SlideMax => _ribbon.FitRequested ? "100%" : (560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture) + "px";
+
+    private void PickSlide(int index)
+    {
+        _ribbon.View = "normal";
+        SelectSlide(index);
+    }
+
+    private void SlideAction((string Action, int Index) request)
+    {
+        CommitDraft();
+        if (File?.Docu == null || _model == null || request.Index < 0 || request.Index >= _model.Slides.Count)
+            return;
+
+        var number = request.Index + 1;
+        var count = _model.Slides.Count;
+        var target = request.Index;
+        var changed = request.Action switch
+        {
+            "new" => Edit(File, "add_slide", new { after = number }),
+            "duplicate" => Edit(File, "arrange_slides", new { action = "duplicate", slides = new[] { number } }),
+            "up" => Edit(File, "arrange_slides", new { action = "move", slides = new[] { number }, to = number - 2 }),
+            "down" => Edit(File, "arrange_slides", new { action = "move", slides = new[] { number }, to = number + 1 }),
+            "delete" => Edit(File, "arrange_slides", new { action = "delete", slides = new[] { number } }),
+            _ => false,
+        };
+        if (!changed)
+            return;
+
+        target = request.Action switch
+        {
+            "new" => request.Index + 1,
+            "duplicate" => request.Index + 1,
+            "up" => request.Index - 1,
+            "down" => request.Index + 1,
+            "delete" => Math.Min(request.Index, count - 2),
+            _ => target,
+        };
+        SelectSlide(Math.Clamp(target, 0, Math.Max(0, _model.Slides.Count - 1)));
+    }
+
     private void SelectSlide(int index)
     {
         CommitDraft();
@@ -181,35 +368,47 @@
             return;
 
         _model.ActiveIndex = index;
-        _model.SelectedBoxId = null;
+        _model.SelectShape(null, false);
         _notesFocused = false;
         Report();
     }
 
-    private void SelectBox(SlideBoxModel box)
+    private void Gesture(SlideGesture gesture)
     {
-        if (box != null && _draftLines != null && _draftBoxId != box.Id)
-            CommitDraft();
-
-        var slide = _model?.ActiveSlide;
-        if (slide == null || box == null || slide.FindBox(box.Id) == null)
+        if (_model == null || gesture == null)
             return;
 
-        if (_model.SelectedBoxId == box.Id && !_notesFocused)
+        if (gesture.SlideId != null && gesture.SlideId != _model.ActiveSlide?.Id)
             return;
 
-        _model.SelectedBoxId = box.Id;
-        _notesFocused = false;
-        Report();
+        if (gesture.Kind == "select")
+        {
+            SelectShape(gesture.Id, gesture.Additive);
+            return;
+        }
+
+        if (gesture.Kind == "key" && gesture.Key == "Escape")
+        {
+            SelectShape(null, false);
+            return;
+        }
+
+        if (ReadOnly || _model.ActiveSlide == null || !IsRealSlide(_model.ActiveSlide))
+            return;
+
+        CommitDraft();
+        foreach (var edit in PptCanvasEdits.Plan(gesture, _model, _model.ActiveIndex + 1))
+            Edit(File, edit.Tool, edit.Arguments);
     }
 
-    private void ClearSelection()
+    private void SelectShape(string shapeId, bool additive)
     {
         CommitDraft();
-        if (_model == null || (_model.SelectedBoxId == null && !_notesFocused))
+        if (_model == null)
             return;
 
-        _model.SelectedBoxId = null;
+        _model.SelectShape(shapeId, additive);
+        _ribbonHost?.Commands?.SelectionChanged();
         _notesFocused = false;
         Report();
     }
@@ -222,7 +421,7 @@
         if (_model == null || (_model.SelectedBoxId == null && _notesFocused))
             return;
 
-        _model.SelectedBoxId = null;
+        _model.SelectShape(null, false);
         _notesFocused = true;
         Report();
     }
@@ -324,7 +523,42 @@
             Edit(file, "set_slide_text", new { slide = index + 1, shape = box.ShapeKey, lines });
     }
 
-    private void Redraw() => StateHasChanged();
+    private void Redraw()
+    {
+        if (string.Equals(_ribbon.Preview, "transition", StringComparison.Ordinal))
+        {
+            _ribbon.Preview = null;
+            if (!_previewing)
+            {
+                _previewing = true;
+                _ = EndPreviewAsync();
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task EndPreviewAsync()
+    {
+        var cts = _previewCts = new System.Threading.CancellationTokenSource();
+        try
+        {
+            await Task.Delay(TransitionPreviewMs, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cts.IsCancellationRequested)
+            return;
+
+        await InvokeAsync(() =>
+        {
+            _previewing = false;
+            StateHasChanged();
+        });
+    }
 
     private void ActivateSlide(int index)
     {
@@ -333,7 +567,7 @@
             return;
 
         _model.ActiveIndex = Math.Clamp(index, 0, _model.Slides.Count - 1);
-        _model.SelectedBoxId = null;
+        _model.SelectShape(null, false);
         _notesFocused = false;
         Report();
     }

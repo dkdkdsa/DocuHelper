@@ -22,15 +22,12 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             _surface = surface;
         }
 
-        public const string NormalView = "normal";
-        public const string PageLayoutView = "pageLayout";
-        public const string PageBreakView = "pageBreak";
+        public const string NormalView = SheetViewMode.Normal;
+        public const string PageLayoutView = SheetViewMode.PageLayout;
+        public const string PageBreakView = SheetViewMode.PageBreak;
         public const string ViewModesFeature = "view-modes";
         public const string ZoomFeature = "zoom";
         public const string RulerFeature = "ruler";
-
-        private readonly Dictionary<string, string> _viewModes = new Dictionary<string, string>(StringComparer.Ordinal);
-        private readonly Dictionary<string, int> _zooms = new Dictionary<string, int>(StringComparer.Ordinal);
 
         public string FontColor { get; set; } = DefaultFontColor;
 
@@ -38,18 +35,22 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         public string ActiveDialog { get; private set; }
 
-        public bool ShowRuler { get; set; } = true;
+        public bool ShowRuler
+        {
+            get => Model.View.ShowRuler;
+            set => Model.View.ShowRuler = value;
+        }
 
         public string ViewMode
         {
-            get => _viewModes.TryGetValue(SheetName, out var mode) ? mode : NormalView;
-            set => _viewModes[SheetName] = value;
+            get => Model.View.ViewModeOf(SheetName);
+            set => Model.View.SetViewMode(SheetName, value);
         }
 
         public int Zoom
         {
-            get => _zooms.TryGetValue(SheetName, out var zoom) ? zoom : 100;
-            set => _zooms[SheetName] = Math.Clamp(value, 50, 200);
+            get => Model.View.ZoomOf(SheetName);
+            set => Model.View.SetZoom(SheetName, value);
         }
 
         public bool HasDialog(string id) => _dialogs.Contains(id);

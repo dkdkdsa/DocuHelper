@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     --ink: #1C2A48;
     --ink-hover: #0E1830;
     --ink-2: #4A5570;
@@ -20,6 +20,10 @@
     --press-soft: #F5F5F5;
     --bubble: #EEF1F6;
     --thumb-line: #9AA3B5;
+    --rev-1: #0F7B6C;
+    --rev-2: #B8432F;
+    --rev-3: #6B4FBB;
+    --rev-4: #8A5F00;
     --hl: #FFE35A;
     --hl-soft: #FFF3B0;
     --hl-edge: #B59A00;
@@ -34,6 +38,9 @@
     --pptx-soft: #F9E7E1;
     --hwp: #0B7285;
     --hwp-soft: #DCEFF3;
+    --danger: #A3311E;
+    --paper-white: #FFFFFF;
+    --nocolor: #C00000;
 
     --ink-rgb: 28, 42, 72;
     --paper-rgb: 255, 255, 255;
@@ -60,11 +67,14 @@
 
     --hit: 44px;
 
+    --link: #0563C1;
+
     --shadow-item: 0 1px 2px rgba(28, 42, 72, 0.10);
     --shadow-paper: 0 1px 0 rgba(28, 42, 72, 0.05), 0 14px 30px -18px rgba(28, 42, 72, 0.45);
     --shadow-menu: 0 12px 28px -12px rgba(28, 42, 72, 0.35);
     --shadow-pop: 0 18px 44px -16px rgba(28, 42, 72, 0.45);
     --shadow-popup: 0 24px 60px -24px rgba(28, 42, 72, 0.55);
+    --shadow-settings: 0 30px 80px -30px rgba(28, 42, 72, 0.65);
     --shadow-dialog: 0 24px 60px -24px rgba(28, 42, 72, 0.6);
     --shadow-card: 0 1px 0 rgba(28, 42, 72, 0.05), 0 18px 40px -22px rgba(28, 42, 72, 0.5);
     --shadow-toast: 0 14px 30px -14px rgba(28, 42, 72, 0.6);

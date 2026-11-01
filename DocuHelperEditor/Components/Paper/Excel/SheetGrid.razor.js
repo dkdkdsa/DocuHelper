@@ -11,8 +11,8 @@ function cellOf(target) {
     return { row: +tr.dataset.r, column: +td.dataset.c };
 }
 
-function send(state, phase, row, column, shift) {
-    state.dotnet.invokeMethodAsync('Pointer', phase, row, column, !!shift).catch(() => { });
+function send(state, phase, row, column, shift, ctrl) {
+    state.dotnet.invokeMethodAsync('Pointer', phase, row, column, !!shift, !!ctrl).catch(() => { });
 }
 
 function isEditingSink(el) {
@@ -133,7 +133,7 @@ function onDown(state, e) {
     e.preventDefault();
     state.mode = 'select';
     state.last = cell;
-    send(state, 'down', cell.row, cell.column, e.shiftKey);
+    send(state, 'down', cell.row, cell.column, e.shiftKey, e.ctrlKey || e.metaKey);
 }
 
 function onMove(state, e) {
@@ -265,9 +265,50 @@ export function layout(grid, rows, columns) {
     }
 }
 
+function report(state) {
+    if (state.frame) return;
+    state.frame = requestAnimationFrame(() => {
+        state.frame = 0;
+        const table = state.grid.querySelector('table.sheet');
+        if (!table) return;
+        const zoom = parseFloat(table.style.zoom) || 1;
+        const head = table.tHead ? table.tHead.getBoundingClientRect().height / zoom : 0;
+        const top = state.grid.scrollTop / zoom - head;
+        const height = state.grid.clientHeight / zoom;
+        const rows = [];
+        const heights = [];
+        for (const tr of table.tBodies[0].rows) {
+            if (tr.dataset.r === undefined) continue;
+            const row = +tr.dataset.r;
+            const measured = tr.getBoundingClientRect().height / zoom;
+            const known = state.sent.get(row);
+            if (known !== undefined && Math.abs(known - measured) <= 0.5) continue;
+            state.sent.set(row, measured);
+            rows.push(row);
+            heights.push(measured);
+        }
+
+        if (rows.length === 0 && top === state.top && height === state.height) return;
+        state.top = top;
+        state.height = height;
+        state.dotnet.invokeMethodAsync('Viewport', top, height, rows, heights).catch(() => { });
+    });
+}
+
+export function refresh(grid, version) {
+    const state = grid ? grid.__sheet : null;
+    if (!state) return;
+    if (state.version !== version) {
+        state.version = version;
+        state.sent.clear();
+    }
+
+    report(state);
+}
+
 export function attach(grid, dotnet) {
     if (!grid || grid.__sheet) return;
-    const state = { grid, dotnet, mode: null, last: null, resize: null };
+    const state = { grid, dotnet, mode: null, last: null, resize: null, frame: 0, scroll: null, resizer: null, sent: new Map(), version: null, top: null, height: null };
     state.down = e => onDown(state, e);
     state.move = e => onMove(state, e);
     state.up = e => onUp(state, e);
@@ -275,6 +316,10 @@ export function attach(grid, dotnet) {
     state.menu = e => onContextMenu(state, e);
     state.paste = e => onPaste(state, e);
     state.key = e => onKey(state, e);
+    state.scroll = () => report(state);
+    state.resizer = new ResizeObserver(() => report(state));
+    grid.addEventListener('scroll', state.scroll, { passive: true });
+    state.resizer.observe(grid);
     grid.addEventListener('mousedown', state.down);
     grid.addEventListener('dblclick', state.dbl);
     grid.addEventListener('contextmenu', state.menu);
@@ -283,12 +328,16 @@ export function attach(grid, dotnet) {
     grid.addEventListener('paste', state.paste, true);
     grid.addEventListener('keydown', state.key, true);
     grid.__sheet = state;
+    report(state);
 }
 
 export function detach(grid) {
     const state = grid ? grid.__sheet : null;
     if (!state) return;
     if (state.resize) state.resize.guide.remove();
+    if (state.frame) cancelAnimationFrame(state.frame);
+    grid.removeEventListener('scroll', state.scroll);
+    state.resizer.disconnect();
     grid.removeEventListener('mousedown', state.down);
     grid.removeEventListener('dblclick', state.dbl);
     grid.removeEventListener('contextmenu', state.menu);

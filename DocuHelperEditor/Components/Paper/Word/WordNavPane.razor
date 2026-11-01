@@ -1,0 +1,335 @@
+﻿@using DocuHelper.Docus
+@using DocuHelper.Tools.Word
+@using DocuHelperEditor.Components.Paper
+@using DocuHelperEditor.Components.Ui
+@using DocuHelperEditor.State
+@using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.State.Ribbon
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+
+@if (Ribbon != null && Model != null && Ribbon.NavOpen && Ribbon.Supports("nav"))
+{
+    <aside class="nav" aria-label="탐색 창">
+        <div class="head">
+            <h2>탐색</h2>
+            <IconButton Icon="x" IconSize="16" Label="탐색 창 닫기" Title="탐색 창 닫기" OnClick="CloseAsync" />
+        </div>
+        <div class="search">
+            <input id="nav-search" @ref="_search" type="search" class="field" placeholder="문서 검색 (Ctrl+F)" aria-label="문서 검색" value="@Ribbon.SearchText" @oninput="OnSearchAsync" @onkeydown="OnSearchKeyAsync" />
+        </div>
+        <div class="tabs" role="tablist" aria-label="탐색 창 보기" @onkeydown="OnTabKeyAsync">
+            @foreach (var tab in s_tabs)
+            {
+                var key = tab.Key;
+                var selected = Ribbon.NavPane == key;
+                <button type="button" role="tab" id="@TabId(key)" class="tab @(selected ? "on" : null)" aria-selected="@(selected ? "true" : "false")" aria-controls="nav-panel" tabindex="@(selected ? 0 : -1)" @onclick="() => SelectPaneAsync(key)">@tab.Label</button>
+            }
+        </div>
+        <div id="nav-panel" class="panel" role="tabpanel" aria-labelledby="@TabId(Ribbon.NavPane)">
+            @if (Ribbon.NavPane == "head")
+            {
+                @if (Headings.Count == 0)
+                {
+                    <p class="empty">제목 1, 제목 2 스타일을 쓴 문단이 여기에 나와요.</p>
+                }
+                else
+                {
+                    <ul class="list">
+                        @foreach (var heading in Headings)
+                        {
+                            var current = Model.SelectedBlockId == heading.BlockId;
+                            <li>
+                                <button type="button" class="row @(current ? "on" : null)" style="padding-left: @(Indent(heading.Level))px" aria-current="@(current ? "location" : "false")" aria-label="@($"{heading.Text}, {heading.Page}쪽으로 이동")" @onclick="() => GoToHeadingAsync(heading.BlockId)">@heading.Text</button>
+                            </li>
+                        }
+                    </ul>
+                }
+            }
+            else if (Ribbon.NavPane == "res")
+            {
+                <div class="results">
+                    <p class="count" role="status">@CountText</p>
+                    <div class="steps">
+                        <button type="button" class="step" aria-label="이전 결과" disabled="@(Hits.Count == 0)" @onclick="() => GoToStepAsync(-1)">이전</button>
+                        <button type="button" class="step" aria-label="다음 결과" disabled="@(Hits.Count == 0)" @onclick="() => GoToStepAsync(1)">다음</button>
+                    </div>
+                </div>
+                @if (Hits.Count > 0)
+                {
+                    <ol class="list">
+                        @for (var i = 0; i < Hits.Count; i++)
+                        {
+                            var index = i;
+                            var hit = Hits[i];
+                            var current = index == Ribbon.SearchIndex;
+                            <li>
+                                <button type="button" class="row hit @(current ? "on" : null)" aria-current="@(current ? "true" : "false")" aria-label="@($"{hit.Page}쪽, {hit.Before}{hit.Match}{hit.After}")" @onclick="() => GoToHitAsync(index)">
+                                    <span class="page">@(hit.Page)쪽</span>
+                                    <span class="snippet">@hit.Before<mark>@hit.Match</mark>@hit.After</span>
+                                </button>
+                            </li>
+                        }
+                    </ol>
+                }
+                else if (!string.IsNullOrWhiteSpace(Ribbon.SearchText))
+                {
+                    <p class="empty">‘@Ribbon.SearchText’을(를) 찾지 못했어요.</p>
+                }
+                else
+                {
+                    <p class="empty">위 검색 상자에 찾을 말을 넣으면 찾은 곳이 여기에 나와요.</p>
+                }
+            }
+            else if (Ribbon.NavPane == "review")
+            {
+                @if (Model.Comments.Count == 0 && Model.Revisions.Count == 0)
+                {
+                    <p class="empty">메모나 변경 내용이 없어요.</p>
+                }
+                else
+                {
+                    <ul class="list">
+                        @foreach (var comment in Model.Comments)
+                        {
+                            <li>
+                                <button type="button" class="row" aria-label="@($"{comment.Author}의 메모, {comment.Text}")" @onclick="() => GoToReviewAsync(comment.ParagraphId)">
+                                    <span class="page">메모 · @comment.Author</span>
+                                    <span class="snippet">@comment.Text</span>
+                                </button>
+                            </li>
+                        }
+                        @foreach (var revision in Model.Revisions)
+                        {
+                            <li>
+                                <button type="button" class="row" aria-label="@($"{revision.Author}의 변경, {revision.Text}")" @onclick="() => GoToReviewAsync(revision.ParagraphId)">
+                                    <span class="page">@(revision.Kind == "insert" ? "삽입" : revision.Kind == "delete" ? "삭제" : "서식") · @revision.Author</span>
+                                    <span class="snippet">@revision.Text</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            }
+            else
+            {
+                <PageThumbnails Model="Model" Current="Ribbon.CurrentPage" OnPick="GoToPageAsync" />
+            }
+        </div>
+    </aside>
+}
+
+@code {
+    private static readonly (string Key, string Label)[] s_tabs =
+    {
+        ("head", "제목"),
+        ("pages", "페이지"),
+        ("res", "결과"),
+        ("review", "검토"),
+    };
+
+    private ElementReference _search;
+    private WordPaperModel _hitsPaper;
+    private string _hitsQuery;
+    private string _hitsOptions;
+    private IReadOnlyList<WordNavHit> _hits = Array.Empty<WordNavHit>();
+    private IReadOnlyList<WordNavHeading> _headings = Array.Empty<WordNavHeading>();
+    private WordPaperModel _headingsPaper;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private WordRibbonState Ribbon => File?.Type == DocuType.Hwp ? null : WordRibbonState.Of(File);
+
+    private WordPaperModel Model => File?.Paper as WordPaperModel;
+
+    private IReadOnlyList<WordNavHeading> Headings
+    {
+        get
+        {
+            if (!ReferenceEquals(_headingsPaper, Model))
+            {
+                _headingsPaper = Model;
+                _headings = WordNavHeadings.Of(Model);
+            }
+
+            return _headings;
+        }
+    }
+
+    private IReadOnlyList<WordNavHit> Hits
+    {
+        get
+        {
+            var query = Ribbon?.SearchText ?? string.Empty;
+            var options = $"{Ribbon?.SearchMatchCase}|{Ribbon?.SearchWholeWord}";
+            if (!ReferenceEquals(_hitsPaper, Model) || _hitsQuery != query || _hitsOptions != options)
+            {
+                _hitsPaper = Model;
+                _hitsQuery = query;
+                _hitsOptions = options;
+                _hits = WordNavResults.Find(Model, query, Ribbon?.SearchMatchCase ?? false, Ribbon?.SearchWholeWord ?? false);
+            }
+
+            return _hits;
+        }
+    }
+
+    private string CountText => Hits.Count == 0
+        ? string.IsNullOrWhiteSpace(Ribbon.SearchText) ? "검색어를 넣어 주세요." : "찾은 곳이 없어요."
+        : Ribbon.SearchIndex < 0
+            ? $"{Hits.Count}곳에서 찾았어요.{OptionText}"
+            : $"{Hits.Count}곳 중 {Ribbon.SearchIndex + 1}번째{OptionText}";
+
+    private string OptionText => (Ribbon.SearchMatchCase ? " 대/소문자 구분" : string.Empty) + (Ribbon.SearchWholeWord ? " 단어 단위" : string.Empty);
+
+    private static string TabId(string key) => "nav-tab-" + key;
+
+    private static int Indent(int level) => Math.Max(0, level - 1) * 14;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Ribbon == null || !Ribbon.SearchFocus || _search.Context == null)
+            return;
+
+        Ribbon.SearchFocus = false;
+        try
+        {
+            await _search.FocusAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private Task OnSearchAsync(ChangeEventArgs e)
+    {
+        Ribbon.SearchText = e.Value?.ToString() ?? string.Empty;
+        Ribbon.SearchIndex = -1;
+        Workspace.Notify();
+        return Task.CompletedTask;
+    }
+
+    private Task OnSearchKeyAsync(KeyboardEventArgs e)
+    {
+        return e.Key == "Enter" ? GoToStepAsync(e.ShiftKey ? -1 : 1) : Task.CompletedTask;
+    }
+
+    private async Task OnTabKeyAsync(KeyboardEventArgs e)
+    {
+        var keys = s_tabs.Select(t => t.Key).ToList();
+        var current = keys.IndexOf(Ribbon.NavPane);
+        var next = e.Key switch
+        {
+            "ArrowRight" => keys[(current + 1) % keys.Count],
+            "ArrowLeft" => keys[(current - 1 + keys.Count) % keys.Count],
+            "Home" => keys[0],
+            "End" => keys[^1],
+            _ => null,
+        };
+
+        if (next == null)
+            return;
+
+        await SelectPaneAsync(next);
+        await FocusTabAsync(next);
+    }
+
+    private Task SelectPaneAsync(string key)
+    {
+        Ribbon.NavPane = key;
+        Ribbon.Touch();
+        Workspace.Notify();
+        return Task.CompletedTask;
+    }
+
+    private async Task FocusTabAsync(string key)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.focusById", TabId(key));
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private Task GoToPageAsync(int page)
+    {
+        Ribbon.CurrentPage = page;
+        Ribbon.PageTarget = page;
+        Ribbon.Touch();
+        Workspace.Notify();
+        return Task.CompletedTask;
+    }
+
+    private Task GoToHeadingAsync(string blockId)
+    {
+        var block = Model.FindBlock(blockId);
+        if (block == null)
+            return Task.CompletedTask;
+
+        Model.SelectedBlockId = blockId;
+        Ribbon.CurrentPage = block.Page;
+        Ribbon.BlockTarget = blockId;
+        Ribbon.Touch();
+        Workspace.Notify();
+        return Task.CompletedTask;
+    }
+
+    private Task GoToStepAsync(int step)
+    {
+        var count = Hits.Count;
+        if (count == 0)
+            return Task.CompletedTask;
+
+        var current = Ribbon.SearchIndex;
+        var target = current < 0 ? (step > 0 ? 0 : count - 1) : current + step;
+        return GoToHitAsync(target);
+    }
+
+    private async Task GoToHitAsync(int index)
+    {
+        var hits = Hits;
+        if (hits.Count == 0)
+            return;
+
+        index = (index % hits.Count + hits.Count) % hits.Count;
+        var hit = hits[index];
+        Ribbon.SearchIndex = index;
+        Model.SelectedBlockId = hit.BlockId;
+        Model.Selection = WordNavResults.SelectionOf(hit);
+        Ribbon.CurrentPage = hit.Page;
+        Ribbon.BlockTarget = hit.BlockId;
+        Ribbon.Touch();
+        Workspace.SetSelection(Model.Describe(Model.FindBlock(hit.BlockId)));
+        Workspace.Notify();
+        await WordSelectionService.RestoreAsync(JS, Model.Selection);
+    }
+
+    private Task GoToReviewAsync(string paragraphId)
+    {
+        var block = Model.FindBlockOfParagraph(paragraphId);
+        if (block == null)
+        {
+            Assistant.ShowNotice("이 메모나 변경 위치를 문서에서 찾지 못했어요. 문서가 바뀌었을 수 있어요.");
+            return Task.CompletedTask;
+        }
+
+        return GoToHeadingAsync(block.Id);
+    }
+
+    private Task CloseAsync()
+    {
+        Ribbon.NavOpen = false;
+        Ribbon.Touch();
+        Workspace.Notify();
+        return Task.CompletedTask;
+    }
+}

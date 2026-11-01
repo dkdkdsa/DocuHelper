@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
+using DocuHelperEditor.State;
 using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
@@ -10,6 +12,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
     {
         public const int MinZoom = 50;
         public const int MaxZoom = 200;
+
+        private static readonly ConditionalWeakTable<WorkspaceFile, PptRibbonState> s_states = new();
         public const string DefaultFontColor = "B5462A";
 
         private static readonly HashSet<string> s_parameters = new(StringComparer.Ordinal)
@@ -26,6 +30,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         public bool NotesOpen { get; set; } = true;
 
         public int Zoom { get; set; } = 100;
+
+        public static PptRibbonState Of(WorkspaceFile file) => file == null ? null : s_states.GetValue(file, _ => new PptRibbonState());
 
         public bool FitRequested { get; set; }
 
@@ -59,7 +65,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         public IPptDialogHost Dialogs { get; set; }
 
-        public ISet<string> Rendered { get; } = new HashSet<string>(StringComparer.Ordinal) { "view:normal", "notesOpen" };
+        public ISet<string> Rendered { get; } = new HashSet<string>(StringComparer.Ordinal) { "view:normal", "view:sorter", "view:outline", "view:show", "view:read", "preview:transition", "notesOpen", "rulers", "gridlines", "guides", "zoom" };
 
         public PptRibbonSelection Selection => PptRibbonSelection.From(ModelSource?.Invoke());
 

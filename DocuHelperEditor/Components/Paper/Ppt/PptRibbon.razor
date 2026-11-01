@@ -1,6 +1,8 @@
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 @inject IFileDialogService Dialogs
+@inject IClipboardService Clipboard
+@inject IPrintService Prints
 
 <Ribbon Tabs="PptRibbonData.Tabs" @bind-ActiveTab="State.Tab" @bind-IsOpen="State.RibbonOpen" FileItems="PptRibbonData.FileItems" Host="_commands" Format="DocuType.Ppt" Disabled="_commands.IsLocked">
     <Trailing>
@@ -11,6 +13,8 @@
 
 @code {
     private PptRibbonCommands _commands;
+
+    public PptRibbonCommands Commands => _commands;
 
     [Parameter]
     public WorkspaceFile File { get; set; }
@@ -23,7 +27,7 @@
 
     protected override void OnInitialized()
     {
-        _commands = new PptRibbonCommands(Workspace, Assistant, JS, Dialogs, State);
+        _commands = new PptRibbonCommands(Workspace, Assistant, JS, Dialogs, State, Clipboard, Prints);
         _commands.Changed += OnCommandsChanged;
     }
 

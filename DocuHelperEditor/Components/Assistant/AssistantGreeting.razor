@@ -11,11 +11,11 @@
     </div>
     @if (Assistant.IsActiveBlank)
     {
-        <div class="examples">
+        <div class="examples blank">
             <h3 class="examples-title">빈 파일이에요. 이렇게 부탁해 보세요</h3>
             @foreach (var text in Assistant.BlankSuggestions)
             {
-                <button type="button" class="example plain" @key="text" @onclick="() => UseExampleAsync(text)">@text</button>
+                <button type="button" class="example plain chip" @key="text" @onclick="() => UseExampleAsync(text)">@text</button>
             }
         </div>
     }

@@ -1,0 +1,213 @@
+﻿@using System
+@using System.Globalization
+@using System.Linq
+@using DocuHelper.Tools.Excel
+@using DocuHelperEditor.State.Papers
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+@if (ViewMode == SheetViewMode.PageLayout)
+{
+    <div class="pf pf-layout" data-view="pageLayout" @ref="_host">
+        <div class="pf-sheet" style="@WidthStyle">
+            <div class="pf-tag pf-head" aria-hidden="true">@HeaderText</div>
+            <div class="pf-paper" style="@PaddingStyle">
+                @ChildContent
+            </div>
+            <div class="pf-tag pf-foot" aria-hidden="true">@FooterText</div>
+        </div>
+    </div>
+}
+else if (ViewMode == SheetViewMode.PageBreak)
+{
+    <div class="pf pf-break" data-view="pageBreak" @ref="_host">
+        @ChildContent
+        @if (Plan == null)
+        {
+            <div class="pf-watermark" aria-hidden="true">1 페이지</div>
+        }
+    </div>
+}
+else
+{
+    @ChildContent
+}
+
+@code {
+    private const string ModulePath = "./Components/Paper/Excel/SheetPageFrame.razor.js";
+    private const double CentimetersPerPaperWidth = 21.0;
+    private const double PaperWidthPixels = 700.0;
+    private const double PixelsPerCentimeter = 37.8;
+    private const double ColumnFallbackPixels = 96;
+    private const double RowFallbackPixels = 30;
+    private const int MaxDrawnPages = 300;
+
+    private static readonly (int Size, double Width, double Height)[] s_papers =
+    {
+        (1, 21.59, 27.94),
+        (5, 21.59, 35.56),
+        (9, 21.0, 29.7),
+    };
+
+    private ElementReference _host;
+    private IJSObjectReference _module;
+
+    [Parameter]
+    public string ViewMode { get; set; } = SheetViewMode.Normal;
+
+    [Parameter]
+    public SheetPageSetup Setup { get; set; }
+
+    [Parameter]
+    public PagePlan Plan { get; set; }
+
+    [Parameter]
+    public Sheet Sheet { get; set; }
+
+    [Parameter]
+    public int Zoom { get; set; } = 100;
+
+    [Parameter]
+    public string SheetName { get; set; }
+
+    [Parameter]
+    public string FileName { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    private string WidthStyle => FormattableString.Invariant($"width: {Width:0.#}px;");
+
+    private double Width => PaperWidthPixels * Factor;
+
+    private string PaddingStyle
+    {
+        get
+        {
+            var setup = Setup ?? new SheetPageSetup();
+            var factor = Factor;
+            var top = setup.MarginTop * PixelsPerCentimeter * factor;
+            var right = setup.MarginRight * PixelsPerCentimeter * factor;
+            var bottom = setup.MarginBottom * PixelsPerCentimeter * factor;
+            var left = setup.MarginLeft * PixelsPerCentimeter * factor;
+            return FormattableString.Invariant($"padding: {top:0.#}px {right:0.#}px {bottom:0.#}px {left:0.#}px;");
+        }
+    }
+
+    private double Factor
+    {
+        get
+        {
+            var setup = Setup ?? new SheetPageSetup();
+            var paper = s_papers.FirstOrDefault(p => p.Size == setup.PaperSize);
+            if (paper.Size == 0)
+                paper = s_papers[^1];
+
+            var landscape = setup.Orientation == SheetOrientation.Landscape;
+            var widthCm = landscape ? paper.Height : paper.Width;
+            return widthCm / CentimetersPerPaperWidth;
+        }
+    }
+
+    private string HeaderText => PageText(Setup?.HeaderLeft, Setup?.HeaderCenter, Setup?.HeaderRight, "머리글 추가");
+
+    private string FooterText => PageText(Setup?.FooterLeft, Setup?.FooterCenter, Setup?.FooterRight, "바닥글 추가");
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (ViewMode == SheetViewMode.Normal || Plan == null)
+        {
+            await ClearAsync();
+            return;
+        }
+
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await _module.InvokeVoidAsync("draw", _host, Overlay());
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module == null)
+            return;
+
+        await ClearAsync();
+        await _module.DisposeAsync();
+    }
+
+    private async Task ClearAsync()
+    {
+        if (_module == null)
+            return;
+
+        try
+        {
+            await _module.InvokeVoidAsync("clear", _host);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private OverlayModel Overlay()
+    {
+        var setup = Plan.Setup;
+        var pages = Plan.Pages.Take(MaxDrawnPages)
+            .Select(page => new PageBox(
+                page.Cells.Left,
+                page.Cells.Top,
+                page.Cells.Right,
+                page.Cells.Bottom,
+                page.Number,
+                setup.RowBreaks.Contains(page.Cells.Top),
+                setup.ColumnBreaks.Contains(page.Cells.Left)))
+            .ToList();
+        var notice = Plan.Pages.Count > MaxDrawnPages
+            ? $"쪽이 {Plan.Pages.Count.ToString("N0", CultureInfo.InvariantCulture)}개라 앞의 {MaxDrawnPages}쪽만 그려요."
+            : null;
+        var rows = pages.Count == 0 ? 0 : pages.Max(page => page.Bottom) + 2;
+        return new OverlayModel(ViewMode, Zoom / 100.0, ColumnFallbackPixels, RowHeights(rows), pages, notice);
+    }
+
+    private double[] RowHeights(int count)
+    {
+        var heights = new double[count];
+        for (var r = 0; r < count; r++)
+        {
+            var row = Sheet?.FindRow(r);
+            heights[r] = row?.Hidden == true ? 0 : row?.Height ?? RowFallbackPixels;
+        }
+
+        return heights;
+    }
+
+    private string PageText(string left, string center, string right, string placeholder)
+    {
+        var parts = new[] { left, center, right }
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .Select(Expand)
+            .ToArray();
+        return parts.Length == 0 ? placeholder : string.Join("    ", parts);
+    }
+
+    private string Expand(string text)
+    {
+        var pages = Plan?.Pages.Count ?? 1;
+        return text
+            .Replace("{page}", "1", StringComparison.Ordinal)
+            .Replace("{pages}", pages.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+            .Replace("{sheet}", SheetName ?? string.Empty, StringComparison.Ordinal)
+            .Replace("{file}", FileName ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    private sealed record PageBox(int Left, int Top, int Right, int Bottom, int Number, bool ManualTop, bool ManualLeft);
+
+    private sealed record OverlayModel(string Mode, double Zoom, double ColumnFallback, IReadOnlyList<double> RowHeights, IReadOnlyList<PageBox> Pages, string Notice);
+}

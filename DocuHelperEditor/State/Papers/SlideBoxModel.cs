@@ -15,6 +15,22 @@ namespace DocuHelperEditor.State.Papers
 
         public int FontSize { get; set; } = 15;
 
+        public double FontCqw { get; set; }
+
+        public string Color { get; set; }
+
+        public string FontFamily { get; set; }
+
+        public string VerticalAlign { get; set; } = "t";
+
+        public double InsetLeft { get; set; }
+
+        public double InsetTop { get; set; }
+
+        public double InsetRight { get; set; }
+
+        public double InsetBottom { get; set; }
+
         public double PointSize { get; set; }
 
         public bool Bold { get; set; }
@@ -22,6 +38,10 @@ namespace DocuHelperEditor.State.Papers
         public bool Italic { get; set; }
 
         public bool Underline { get; set; }
+
+        public bool Strike { get; set; }
+
+        public string Bullet { get; set; } = "none";
 
         public SlideTextAlign Align { get; set; }
 

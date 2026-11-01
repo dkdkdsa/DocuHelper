@@ -26,6 +26,10 @@
 
         public int? IconIndex { get; set; }
 
+        public int IconCount { get; set; }
+
+        public bool HideValue { get; set; }
+
         public bool HasBar => BarFraction.HasValue && !string.IsNullOrEmpty(BarColor);
 
         public bool HasIcon => !string.IsNullOrEmpty(IconSet) && IconIndex.HasValue;

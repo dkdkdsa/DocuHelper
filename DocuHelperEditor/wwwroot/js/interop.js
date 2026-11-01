@@ -1,5 +1,129 @@
 window.docuHelper = (function () {
     var handler = null;
+    var rememberedFocus = null;
+    var lastFocused = null;
+
+    document.addEventListener('focusin', function (e) {
+        if (e.target && e.target !== document.body) lastFocused = e.target;
+    }, true);
+
+    function fitPage(sheet, piece, scale, bottomPx) {
+        var factor = scale;
+        for (var attempt = 0; attempt < 60; attempt++) {
+            var limit = sheet.getBoundingClientRect().top + sheet.clientHeight - bottomPx;
+            if (piece.getBoundingClientRect().bottom <= limit && sheet.scrollWidth <= sheet.clientWidth + 1)
+                return;
+
+            factor *= 0.97;
+            piece.style.zoom = factor;
+        }
+    }
+
+    function removeSheetPrint() {
+        document.querySelectorAll('.docu-sheet-print').forEach(function (node) {
+            node.remove();
+        });
+    }
+
+    function removeSlidePrint() {
+        document.querySelectorAll('.docu-slide-print').forEach(function (node) {
+            node.remove();
+        });
+        var style = document.getElementById('docu-slide-page');
+        if (style) style.remove();
+    }
+
+    function sheetPiece(table, range, layout, zoom) {
+        var copy = table.cloneNode(false);
+        copy.style.zoom = layout.scale;
+        copy.style.tableLayout = 'fixed';
+        copy.style.borderCollapse = 'collapse';
+
+        var head = table.querySelector('thead');
+        if (head) {
+            var headCopy = head.cloneNode(false);
+            Array.prototype.forEach.call(head.rows, function (row) {
+                headCopy.appendChild(rowPiece(row, range, layout, zoom));
+            });
+            copy.appendChild(headCopy);
+        }
+
+        var bodyCopy = document.createElement('tbody');
+        var body = table.tBodies[0];
+        if (body) {
+            Array.prototype.forEach.call(body.rows, function (row) {
+                if (row.dataset.r === undefined)
+                    return;
+
+                var r = Number(row.dataset.r);
+                if (r < range.r0 || r > range.r1)
+                    return;
+
+                bodyCopy.appendChild(rowPiece(row, range, layout, zoom));
+            });
+        }
+
+        copy.appendChild(bodyCopy);
+        return copy;
+    }
+
+    function rowPiece(row, range, layout, zoom) {
+        var rowCopy = row.cloneNode(false);
+        if (row.dataset.r !== undefined) {
+            var points = layout.rowPoints[Number(row.dataset.r)];
+            if (points === 0)
+                rowCopy.style.display = 'none';
+            else if (points !== undefined)
+                rowCopy.style.height = (points * 4 / 3) + 'px';
+        }
+
+        Array.prototype.forEach.call(row.cells, function (cell) {
+            var width = cell.getBoundingClientRect().width / zoom;
+            if (cell.dataset.c !== undefined) {
+                var c = Number(cell.dataset.c);
+                if (c < range.c0 || c > range.c1)
+                    return;
+
+                if (layout.columnPoints[c] !== undefined)
+                    width = layout.columnPoints[c] * 4 / 3;
+            }
+
+            var cellCopy = cell.cloneNode(true);
+            cellCopy.style.width = width + 'px';
+            cellCopy.style.paddingTop = '0px';
+            cellCopy.style.paddingBottom = '0px';
+            cellCopy.style.lineHeight = '1.2';
+            rowCopy.appendChild(cellCopy);
+        });
+        return rowCopy;
+    }
+
+    function isPrintPage(element, selector) {
+        return element instanceof HTMLElement && element.matches(selector || 'article.page');
+    }
+
+    function hasPrintPage(element, selector) {
+        return Array.prototype.some.call(element.querySelectorAll(selector || 'article.page'), function (el) {
+            return isPrintPage(el, selector);
+        });
+    }
+
+    function markPrintTree(root, selector) {
+        Array.prototype.forEach.call(root.children, function (child) {
+            if (isPrintPage(child, selector)) {
+                child.classList.add('docu-print-keep', 'docu-print-page');
+                return;
+            }
+
+            if (hasPrintPage(child, selector)) {
+                child.classList.add('docu-print-keep');
+                markPrintTree(child, selector);
+                return;
+            }
+
+            child.classList.add('docu-print-hide');
+        });
+    }
 
     function isEditable(el) {
         if (!el) return false;
@@ -110,9 +234,42 @@ window.docuHelper = (function () {
             el.focus();
             el.select();
         },
+        wheelZoom: function (element, dotnet) {
+            var listener = function (e) {
+                if (!e.ctrlKey || e.deltaY === 0) return;
+                e.preventDefault();
+                dotnet.invokeMethodAsync('OnWheel', e.deltaY < 0 ? 1 : -1).catch(function () { });
+            };
+            element.__docuWheelZoom = listener;
+            element.addEventListener('wheel', listener, { passive: false });
+        },
+        unwheelZoom: function (element) {
+            var listener = element && element.__docuWheelZoom;
+            if (!listener) return;
+            element.removeEventListener('wheel', listener);
+            element.__docuWheelZoom = null;
+        },
+        rememberFocus: function () {
+            rememberedFocus = lastFocused;
+        },
+        restoreFocus: function () {
+            if (rememberedFocus && document.contains(rememberedFocus)) rememberedFocus.focus();
+            rememberedFocus = null;
+        },
         focus: function (selector) {
             var el = document.querySelector(selector);
             if (el) el.focus();
+        },
+        nextFrame: function () {
+            return new Promise(function (resolve) {
+                requestAnimationFrame(function () {
+                    setTimeout(resolve, 30);
+                });
+            });
+        },
+        scrollToTop: function (selector) {
+            var el = document.querySelector(selector);
+            if (el) el.scrollTop = 0;
         },
         focusPaperStart: function () {
             var paper = document.querySelector('[data-region="paper"]');
@@ -130,8 +287,97 @@ window.docuHelper = (function () {
             var el = document.querySelector(selector);
             if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         },
+        focusById: function (id) {
+            var el = document.getElementById(id);
+            if (el) el.focus();
+        },
         prefersReducedMotion: function () {
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        },
+        printEnter: function () {
+            var pages = Array.prototype.slice.call(document.querySelectorAll('article.page')).filter(function (el) { return isPrintPage(el); });
+            if (pages.length === 0)
+                return 0;
+
+            markPrintTree(document.body);
+            pages[pages.length - 1].classList.add('docu-print-last');
+            document.body.classList.add('docu-printing');
+            return pages.length;
+        },
+        sheetPrintEnter: function (layout) {
+            var table = document.querySelector('table.sheet');
+            if (!table || !layout || !layout.pages || layout.pages.length === 0)
+                return 0;
+
+            removeSheetPrint();
+            var container = document.createElement('div');
+            container.className = 'docu-sheet-print';
+            document.body.appendChild(container);
+
+            var zoom = parseFloat(table.style.zoom) || 1;
+            layout.pages.forEach(function (range) {
+                var sheet = document.createElement('div');
+                sheet.className = 'page';
+                sheet.style.setProperty('width', layout.widthCm + 'cm', 'important');
+                sheet.style.setProperty('height', (layout.heightCm - 0.05) + 'cm', 'important');
+                sheet.style.setProperty('box-sizing', 'border-box', 'important');
+                sheet.style.setProperty('padding', layout.margins.top + 'cm ' + layout.margins.right + 'cm 0cm ' + layout.margins.left + 'cm', 'important');
+                container.appendChild(sheet);
+                var piece = sheetPiece(table, range, layout, zoom);
+                sheet.appendChild(piece);
+                fitPage(sheet, piece, layout.scale, layout.margins.bottom * 37.8);
+            });
+
+            Array.prototype.forEach.call(document.body.children, function (child) {
+                child.classList.add(child === container ? 'docu-print-keep' : 'docu-print-hide');
+            });
+            container.lastElementChild.classList.add('docu-print-last');
+            document.body.classList.add('docu-printing');
+            return layout.pages.length;
+        },
+        pptPrintEnter: function (widthCm, heightCm) {
+            var slides = Array.prototype.slice.call(document.querySelectorAll('.strip .mini > .slide'));
+            if (slides.length === 0 || !(widthCm > 0) || !(heightCm > 0))
+                return 0;
+
+            removeSheetPrint();
+            removeSlidePrint();
+            var style = document.createElement('style');
+            style.id = 'docu-slide-page';
+            style.textContent = '@page { size: ' + widthCm + 'cm ' + heightCm + 'cm; margin: 0; }';
+            document.head.appendChild(style);
+
+            var container = document.createElement('div');
+            container.className = 'docu-slide-print';
+            document.body.appendChild(container);
+            slides.forEach(function (slide) {
+                var page = document.createElement('div');
+                page.className = 'page';
+                page.style.setProperty('width', widthCm + 'cm', 'important');
+                page.style.setProperty('height', heightCm + 'cm', 'important');
+                page.style.setProperty('padding', '0', 'important');
+                page.style.setProperty('box-sizing', 'border-box', 'important');
+                var copy = slide.cloneNode(true);
+                copy.removeAttribute('id');
+                copy.style.setProperty('width', '100%', 'important');
+                copy.style.setProperty('max-width', 'none', 'important');
+                copy.style.setProperty('box-shadow', 'none', 'important');
+                page.appendChild(copy);
+                container.appendChild(page);
+            });
+
+            markPrintTree(document.body, '.docu-slide-print');
+            container.lastElementChild.classList.add('docu-print-last');
+            document.body.classList.add('docu-printing');
+            return slides.length;
+        },
+        printExit: function () {
+            removeSheetPrint();
+            removeSlidePrint();
+            document.body.classList.remove('docu-printing');
+            document.querySelectorAll('.docu-print-hide, .docu-print-keep, .docu-print-page, .docu-print-last').forEach(function (el) {
+                el.classList.remove('docu-print-hide', 'docu-print-keep', 'docu-print-page', 'docu-print-last');
+            });
         }
     };
 })();

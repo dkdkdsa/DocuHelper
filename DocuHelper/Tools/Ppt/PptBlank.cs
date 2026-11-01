@@ -102,6 +102,21 @@ namespace DocuHelper.Tools.Ppt
                     <p:spPr><a:xfrm><a:off x="838200" y="1825625"/><a:ext cx="10515600" cy="4351338"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
                     <p:txBody><a:bodyPr vert="horz" lIns="91440" tIns="45720" rIns="91440" bIns="45720" rtlCol="0"><a:normAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr lvl="0"/><a:r><a:rPr lang="ko-KR" altLang="en-US"/><a:t>마스터 텍스트 스타일 편집</a:t></a:r></a:p><a:p><a:pPr lvl="1"/><a:r><a:rPr lang="ko-KR" altLang="en-US"/><a:t>둘째 수준</a:t></a:r></a:p><a:p><a:pPr lvl="2"/><a:r><a:rPr lang="ko-KR" altLang="en-US"/><a:t>셋째 수준</a:t></a:r><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
                   </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="4" name="Date Placeholder 3"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="dt" sz="half" idx="2"/></p:nvPr></p:nvSpPr>
+                    <p:spPr><a:xfrm><a:off x="838200" y="6356350"/><a:ext cx="2743200" cy="365125"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+                    <p:txBody><a:bodyPr vert="horz" lIns="91440" tIns="45720" rIns="91440" bIns="45720" rtlCol="0" anchor="ctr"/><a:lstStyle><a:lvl1pPr algn="l"><a:defRPr sz="1200"><a:solidFill><a:schemeClr val="tx1"><a:tint val="75000"/></a:schemeClr></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle><a:p><a:fld id="{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}" type="datetimeFigureOut"><a:rPr lang="ko-KR" altLang="en-US"/><a:t>2026-11-01</a:t></a:fld><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="5" name="Footer Placeholder 4"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="ftr" sz="quarter" idx="3"/></p:nvPr></p:nvSpPr>
+                    <p:spPr><a:xfrm><a:off x="4038600" y="6356350"/><a:ext cx="4114800" cy="365125"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+                    <p:txBody><a:bodyPr vert="horz" lIns="91440" tIns="45720" rIns="91440" bIns="45720" rtlCol="0" anchor="ctr"/><a:lstStyle><a:lvl1pPr algn="ctr"><a:defRPr sz="1200"><a:solidFill><a:schemeClr val="tx1"><a:tint val="75000"/></a:schemeClr></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle><a:p><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="6" name="Slide Number Placeholder 5"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldNum" sz="quarter" idx="4"/></p:nvPr></p:nvSpPr>
+                    <p:spPr><a:xfrm><a:off x="8610600" y="6356350"/><a:ext cx="2743200" cy="365125"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+                    <p:txBody><a:bodyPr vert="horz" lIns="91440" tIns="45720" rIns="91440" bIns="45720" rtlCol="0" anchor="ctr"/><a:lstStyle><a:lvl1pPr algn="r"><a:defRPr sz="1200"><a:solidFill><a:schemeClr val="tx1"><a:tint val="75000"/></a:schemeClr></a:solidFill></a:defRPr></a:lvl1pPr></a:lstStyle><a:p><a:fld id="{7A6F3C2E-5B1D-4E8A-9C3F-2D8E1B4A6C90}" type="slidenum"><a:rPr lang="ko-KR" altLang="en-US"/><a:t>‹#›</a:t></a:fld><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
                 </p:spTree>
               </p:cSld>
               <p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>
@@ -144,6 +159,21 @@ namespace DocuHelper.Tools.Ppt
                     <p:spPr><a:xfrm><a:off x="1524000" y="3602038"/><a:ext cx="9144000" cy="1655762"/></a:xfrm></p:spPr>
                     <p:txBody><a:bodyPr/><a:lstStyle><a:lvl1pPr marL="0" indent="0" algn="ctr"><a:buNone/><a:defRPr sz="2400"/></a:lvl1pPr></a:lstStyle><a:p><a:r><a:rPr lang="ko-KR" altLang="en-US"/><a:t>마스터 부제목 스타일 편집</a:t></a:r><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
                   </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="4" name="Date Placeholder 3"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="dt" sz="half" idx="10"/></p:nvPr></p:nvSpPr>
+                    <p:spPr/>
+                    <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:fld id="{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}" type="datetimeFigureOut"><a:rPr lang="ko-KR" altLang="en-US"/><a:t>2026-11-01</a:t></a:fld><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="5" name="Footer Placeholder 4"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="ftr" sz="quarter" idx="11"/></p:nvPr></p:nvSpPr>
+                    <p:spPr/>
+                    <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="6" name="Slide Number Placeholder 5"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldNum" sz="quarter" idx="12"/></p:nvPr></p:nvSpPr>
+                    <p:spPr/>
+                    <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:fld id="{7A6F3C2E-5B1D-4E8A-9C3F-2D8E1B4A6C90}" type="slidenum"><a:rPr lang="ko-KR" altLang="en-US"/><a:t>‹#›</a:t></a:fld><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
                 </p:spTree>
               </p:cSld>
               <p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
@@ -165,6 +195,21 @@ namespace DocuHelper.Tools.Ppt
                     <p:nvSpPr><p:cNvPr id="3" name="Content Placeholder 2"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph idx="1"/></p:nvPr></p:nvSpPr>
                     <p:spPr/>
                     <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr lvl="0"/><a:r><a:rPr lang="ko-KR" altLang="en-US"/><a:t>마스터 텍스트 스타일 편집</a:t></a:r></a:p><a:p><a:pPr lvl="1"/><a:r><a:rPr lang="ko-KR" altLang="en-US"/><a:t>둘째 수준</a:t></a:r></a:p><a:p><a:pPr lvl="2"/><a:r><a:rPr lang="ko-KR" altLang="en-US"/><a:t>셋째 수준</a:t></a:r><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="4" name="Date Placeholder 3"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="dt" sz="half" idx="10"/></p:nvPr></p:nvSpPr>
+                    <p:spPr/>
+                    <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:fld id="{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}" type="datetimeFigureOut"><a:rPr lang="ko-KR" altLang="en-US"/><a:t>2026-11-01</a:t></a:fld><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="5" name="Footer Placeholder 4"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="ftr" sz="quarter" idx="11"/></p:nvPr></p:nvSpPr>
+                    <p:spPr/>
+                    <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
+                  </p:sp>
+                  <p:sp>
+                    <p:nvSpPr><p:cNvPr id="6" name="Slide Number Placeholder 5"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph type="sldNum" sz="quarter" idx="12"/></p:nvPr></p:nvSpPr>
+                    <p:spPr/>
+                    <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:fld id="{7A6F3C2E-5B1D-4E8A-9C3F-2D8E1B4A6C90}" type="slidenum"><a:rPr lang="ko-KR" altLang="en-US"/><a:t>‹#›</a:t></a:fld><a:endParaRPr lang="ko-KR" altLang="en-US"/></a:p></p:txBody>
                   </p:sp>
                 </p:spTree>
               </p:cSld>

@@ -21,5 +21,31 @@ namespace DocuHelper.Importers.Hwp
         public int LineSpacing { get; set; }
 
         public bool PageBreakBefore { get; set; }
+
+        public bool ColumnBreakBefore { get; set; }
+
+        public string PageHiding { get; set; }
+
+        public int? NewPageNumber { get; set; }
+
+        public int RightIndent { get; set; }
+
+        public bool KeepWithNext { get; set; }
+
+        public bool KeepLines { get; set; }
+
+        public bool WidowControl { get; set; }
+
+        public string LineSpacingKind { get; set; } = "PERCENT";
+
+        internal HwpxBorderFill Border { get; set; }
+
+        public List<HwpTabStop> Tabs { get; set; } = new();
+
+        public string StyleName { get; set; }
+
+        public HwpList List { get; set; }
+
+        public HwpSection Section { get; set; }
     }
 }

@@ -45,6 +45,18 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
                     _menuItems = TabMenu(request.Row);
                     break;
+                case "filter":
+                    OpenFilterMenu(request);
+                    return;
+                case "validation":
+                    if (!selection.Contains(request.Row, request.Column))
+                        SelectCell(SheetRef.Make(request.Column, request.Row), true);
+
+                    _menuItems = ValidationItems(request.Row, request.Column);
+                    if (_menuItems.Count == 0)
+                        return;
+
+                    break;
                 default:
                     if (!selection.Contains(request.Row, request.Column))
                         SelectCell(SheetRef.Make(request.Column, request.Row), true);
@@ -117,7 +129,14 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         private async Task PickMenuAsync(string key)
         {
+            var menu = _menu;
             CloseMenu();
+            if (menu != null && key.StartsWith(ValidationPickPrefix, StringComparison.Ordinal))
+            {
+                WriteValidationValue(menu.Row, menu.Column, key.Substring(ValidationPickPrefix.Length));
+                return;
+            }
+
             await RunCommandAsync(key);
         }
 

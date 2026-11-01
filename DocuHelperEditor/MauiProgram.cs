@@ -58,8 +58,24 @@ namespace DocuHelperEditor
             builder.Services.AddSingleton<IConversationRepository, ConversationRepository>();
 #if WINDOWS
             builder.Services.AddSingleton<IShellService>(_ => CreateShellService());
+#if DEBUG
+            if (System.Environment.GetEnvironmentVariable("DOCUHELPER_CLIPBOARD") == "memory")
+                builder.Services.AddSingleton<IClipboardService, MemoryClipboardService>();
+            else
+#endif
             builder.Services.AddSingleton<IClipboardService, WindowsClipboardService>();
+#if DEBUG
+            if (System.Environment.GetEnvironmentVariable("DOCUHELPER_SPEECH") is "fake" or "none")
+                builder.Services.AddSingleton<ISpeechService, FakeSpeechService>();
+            else
+#endif
+            builder.Services.AddSingleton<ISpeechService, WindowsSpeechService>();
             builder.Services.AddSingleton<IPrintService, WindowsPrintService>();
+#if DEBUG
+            if (System.Environment.GetEnvironmentVariable(FakeUpdateService.ScenarioVariable) is { Length: > 0 })
+                builder.Services.AddSingleton<IUpdateService, FakeUpdateService>();
+            else
+#endif
             builder.Services.AddSingleton<IUpdateService, VelopackUpdateService>();
             builder.Services.AddSingleton<ISecretStore, DpapiSecretStore>();
             builder.Services.AddSingleton<IOfficeInterop, OfficeComInterop>();
@@ -81,7 +97,7 @@ namespace DocuHelperEditor
 
         private static Workspace CreateWorkspace()
         {
-            var workspace = new Workspace { Agent = new ClaudeAgent() };
+            var workspace = new Workspace { Agent = new AgentRouter(new ClaudeAgent(), new ChatGptAgent()) };
             workspace.RegisterEditor(new WordEditor());
             workspace.RegisterEditor(new ExcelEditor());
             workspace.RegisterEditor(new PptEditor());

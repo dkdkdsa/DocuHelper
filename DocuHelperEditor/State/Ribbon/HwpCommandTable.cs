@@ -95,7 +95,6 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordDialogField("space_before_pt", "문단 위 (pt)", "number", "\"{cur.spaceBeforePt}\"", Array.Empty<string>(), Array.Empty<string>()),
                     new WordDialogField("space_after_pt", "문단 아래 (pt)", "number", "\"{cur.spaceAfterPt}\"", Array.Empty<string>(), Array.Empty<string>()),
                     new WordDialogField("keep_with_next", "다음 문단과 함께", "bool", "\"{cur.keepWithNext}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("page_break_before", "문단 앞에서 쪽 나눔", "bool", "\"{cur.pageBreakBefore}\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -243,7 +242,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_object",
                 Args = """{"action":"insert","kind":"picture","at":"{caret}","picture":{"path":"{file}","alt":"{alt}"}}""",
-                Reason = "그림은 아직 한글 파일에 저장되지 않아요. 한글에서 넣어 주세요.",
+                Reason = "그림을 넣을 문단을 골라 주세요.",
                 Gates = new[] { "Pictures" },
                 Menu = new[]
                 {
@@ -445,8 +444,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "누름틀",
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_form_field",
-                Args = """{"action":"insert","at":"{caret}","name":"{name}","hint":"{hint}","memo":"{memo}"}""",
-                Reason = "누름틀은 아직 한글 파일에 저장되지 않아요. 한글에서 넣어 주세요.",
+                Args = """{"action":"insert","at":"{caret}","name":"{name}","hint":"{hint}"}""",
                 Gates = new[] { "ClickHere" },
                 Dialog = new WordDialogSpec("누름틀 넣기", new[]
                 {
@@ -698,7 +696,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"divide"}""",
-                Reason = "나눔 정렬은 아직 한글 파일에 저장되지 않아요. 배분 정렬을 써 주세요.",
+                Reason = "문단을 골라야 나눔 정렬을 쓸 수 있어요.",
                 Gates = new[] { "ParaDivide" },
             },
             new HwpCommandSpec
@@ -720,7 +718,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Label = "300 %", Args = """{"value":300}""" },
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
                     new HwpMenuSpec { Label = "직접 입력…", Args = """{"dialog":"lineSpacing"}""", Detail = "50~500 %" },
-                    new HwpMenuSpec { Label = "고정 값 (pt)…", Args = """{"dialog":"lineSpacing","mode":"fixed"}""", Detail = "줄 간격을 pt로 고정해요", Gates = new[] { "ParaFixedLine" }, Reason = "고정 값 줄 간격은 아직 저장되지 않아서 쓸 수 없어요." },
+                    new HwpMenuSpec { Label = "고정 값 (pt)…", Args = """{"dialog":"lineSpacing","mode":"fixed"}""", Detail = "줄 간격을 pt로 고정해요", Gates = new[] { "ParaFixedLine" }, Reason = "고정 값 줄 간격은 한글 파일에 저장돼요. 이 대화상자는 아직 이 앱에서 열 수 없어요." },
                 },
                 Dialog = new WordDialogSpec("줄 간격", new[]
                 {
@@ -903,7 +901,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_style",
                 Args = """{"action":"define","style":"{name}","based_on":"{based_on}","next_style":"{next_style}","copy_from":{"id":"{id}"}}""",
-                Reason = "새 스타일은 아직 한글 파일에 저장되지 않아서 쓸 수 없어요. 저장하면 이름이 사라지거든요.",
+                Reason = "스타일 이름과 바탕 스타일을 정하는 대화상자는 아직 이 앱에서 열 수 없어요.",
                 Gates = new[] { "NamedStyles" },
                 Dialog = new WordDialogSpec("스타일 추가하기", new[]
                 {
@@ -919,7 +917,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_style",
                 Args = """{"action":"modify","style":"{cur.style}","copy_from":{"id":"{id}"}}""",
-                Reason = "스타일 고치기는 아직 한글 파일에 저장되지 않아서 쓸 수 없어요.",
+                Reason = "스타일을 고치려면 문단을 골라 주세요.",
                 Gates = new[] { "NamedStyles" },
             },
             new HwpCommandSpec
@@ -1010,7 +1008,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Dialog = new WordDialogSpec("쪽 번호 매기기", new[]
                 {
                     new WordDialogField("position", "번호 위치", "choice", "\"가운데 아래\"", new string[] { "없음", "왼쪽 위", "가운데 위", "오른쪽 위", "왼쪽 아래", "가운데 아래", "오른쪽 아래", "바깥쪽 위", "바깥쪽 아래", "안쪽 위", "안쪽 아래" }, Array.Empty<string>()),
-                    new WordDialogField("format", "번호 모양", "choice", "\"1, 2, 3\"", new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c", "가, 나, 다" }, Array.Empty<string>()),
+                    new WordDialogField("format", "번호 모양", "choice", "\"1, 2, 3\"", new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c" }, new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c" }),
                     new WordDialogField("dash", "줄표 넣기 (- 1 -)", "bool", "true", Array.Empty<string>(), Array.Empty<string>()),
                     new WordDialogField("start_at", "시작 번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
                 }),
@@ -1082,7 +1080,6 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "insert_page",
                 Args = """{"kind":"section_next_page","at":"{caret}"}""",
-                Reason = "구역 나누기는 아직 한글 파일에 저장되지 않아요. 쪽 나누기를 써 주세요.",
                 Gates = new[] { "Sections" },
             },
             new HwpCommandSpec
@@ -1139,8 +1136,8 @@ namespace DocuHelperEditor.State.Ribbon
             {
                 Id = "hwp.review.proof.helper",
                 Label = "맞춤법 도우미",
-                Class = RibbonCommandClass.View,
-                Action = "toggleSpellcheck",
+                Class = RibbonCommandClass.Assistant,
+                Prompt = "이 문서의 맞춤법, 띄어쓰기, 문법을 검사해서 틀린 곳을 고쳐 줘. 어디를 어떻게 고쳤는지 알려 줘.",
             },
             new HwpCommandSpec
             {
@@ -1272,15 +1269,15 @@ namespace DocuHelperEditor.State.Ribbon
                 Tool = "manage_toc",
                 Args = """{"action":"insert","kind":"contents","at":"{caret}","contents":{"style":"manual","right_align":true,"tab_leader":"dot","hyperlinks":false}}""",
                 Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아요. 한글에서 만들어 주세요.",
-                Gates = new[] { "TabStops" },
+                Gates = new[] { "StaticToc" },
                 Menu = new[]
                 {
-                    new HwpMenuSpec { Label = "제목 차례 만들기", Args = """{"action":"insert","kind":"contents"}""", Detail = "개요·제목 문단으로 차례를 만들어요", Gates = new[] { "TabStops" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
-                    new HwpMenuSpec { Label = "표 차례 만들기", Args = """{"action":"insert","kind":"figures","figures":{"label":"표"}}""", Detail = "‘표 1.’ 같은 설명 문단으로", Gates = new[] { "TabStops" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
-                    new HwpMenuSpec { Label = "그림 차례 만들기", Args = """{"action":"insert","kind":"figures","figures":{"label":"그림"}}""", Detail = "‘그림 1.’ 같은 설명 문단으로", Gates = new[] { "TabStops" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
+                    new HwpMenuSpec { Label = "제목 차례 만들기", Args = """{"action":"insert","kind":"contents"}""", Detail = "개요·제목 문단으로 차례를 만들어요", Gates = new[] { "StaticToc" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
+                    new HwpMenuSpec { Label = "표 차례 만들기", Args = """{"action":"insert","kind":"figures","figures":{"label":"표"}}""", Detail = "‘표 1.’ 같은 설명 문단으로", Gates = new[] { "FigureToc" }, Reason = "그림·표 차례는 캡션을 넣을 수 없어서 한글에서 만들어 주세요." },
+                    new HwpMenuSpec { Label = "그림 차례 만들기", Args = """{"action":"insert","kind":"figures","figures":{"label":"그림"}}""", Detail = "‘그림 1.’ 같은 설명 문단으로", Gates = new[] { "FigureToc" }, Reason = "그림·표 차례는 캡션을 넣을 수 없어서 한글에서 만들어 주세요." },
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
-                    new HwpMenuSpec { Label = "차례 새로 고침", Args = """{"action":"update","kind":"contents"}""", Detail = "쪽 번호와 제목을 다시 맞춰요", Gates = new[] { "TabStops" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
-                    new HwpMenuSpec { Label = "차례 지우기", Args = """{"action":"remove","kind":"contents"}""", Gates = new[] { "TabStops" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
+                    new HwpMenuSpec { Label = "차례 새로 고침", Args = """{"action":"update","kind":"contents"}""", Detail = "쪽 번호와 제목을 다시 맞춰요", Gates = new[] { "StaticToc" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
+                    new HwpMenuSpec { Label = "차례 지우기", Args = """{"action":"remove","kind":"contents"}""", Gates = new[] { "StaticToc" }, Reason = "차례는 아직 한글 파일에 알맞게 저장되지 않아서 쓸 수 없어요." },
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
                     new HwpMenuSpec { Label = "색인 만들기", Args = """{"command":"hwp.file.openapp"}""", Detail = "색인은 한글에서 만들어요" },
                     new HwpMenuSpec { Label = "색인 표시 달기", Args = """{"command":"hwp.file.openapp"}""", Detail = "색인은 한글에서 만들어요" },

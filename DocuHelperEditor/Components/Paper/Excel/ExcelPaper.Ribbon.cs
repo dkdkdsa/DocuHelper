@@ -12,11 +12,14 @@ namespace DocuHelperEditor.Components.Paper.Excel
     public partial class ExcelPaper : IExcelSurface
     {
         private ExcelCommandRouter _router;
-        private bool _showFormulaBar = true;
         private Painter _painter;
+        private string _shownDialog;
 
         [Inject]
         private IFileDialogService FileDialogs { get; set; }
+
+        [Inject]
+        private IPrintService Prints { get; set; }
 
         ExcelPaperModel IExcelSurface.Model => Model;
 
@@ -40,8 +43,8 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         bool IExcelSurface.ShowFormulaBar
         {
-            get => _showFormulaBar;
-            set => _showFormulaBar = value;
+            get => Model.View.ShowFormulaBar;
+            set => Model.View.ShowFormulaBar = value;
         }
 
         bool IExcelSurface.HasClip => _clip != null;
@@ -58,7 +61,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         protected override void OnInitialized()
         {
-            _router = new ExcelCommandRouter(Workspace, Assistant, JS, Clipboards, FileDialogs, this);
+            _router = new ExcelCommandRouter(Workspace, Assistant, JS, Clipboards, FileDialogs, Prints, this);
             _router.File = File;
             _router.Changed += OnRouterChanged;
             Clipboards.Changed += OnRouterChanged;
@@ -74,6 +77,7 @@ namespace DocuHelperEditor.Components.Paper.Excel
 
         protected override void OnDispose()
         {
+            _ = _wheel?.Detach();
             if (_router == null)
                 return;
 
@@ -81,7 +85,17 @@ namespace DocuHelperEditor.Components.Paper.Excel
             Clipboards.Changed -= OnRouterChanged;
         }
 
-        private void OnRouterChanged() => _ = InvokeAsync(StateHasChanged);
+        private void OnRouterChanged()
+        {
+            var dialog = _router.State.ActiveDialog;
+            if (dialog != _shownDialog)
+            {
+                _shownDialog = dialog;
+                _editError = null;
+            }
+
+            _ = InvokeAsync(StateHasChanged);
+        }
 
         bool IExcelSurface.Prepare()
         {

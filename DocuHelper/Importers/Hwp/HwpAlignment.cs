@@ -7,5 +7,6 @@
         Right,
         Center,
         Distribute,
+        Divide,
     }
 }
