@@ -17,7 +17,8 @@ namespace DocuHelper.Importers.Hwp
         private int _deleting;
         private int _deleted;
         private int _depth;
-        private bool _pageBreak;
+        private HwpSection _section;
+        private HwpSection _pendingSection;
         private string _pendingHiding;
         private int? _pendingNewNumber;
 
@@ -42,19 +43,28 @@ namespace DocuHelper.Importers.Hwp
                     .Where(id => !string.IsNullOrEmpty(id)));
             }
 
-            if (first)
-            {
-                _document.Page = Page(properties);
-                ApplyColumnsAndBorders(section, properties, _document.Page);
-                ReadSectionControls(properties);
-            }
-
-            _pageBreak = !first;
+            _section = first ? _document.Sections[0] : NewSection();
+            _section.Page = Page(properties);
+            ApplyColumnsAndBorders(section, properties, _section.Page);
+            ReadSectionControls(properties);
             _deleting = 0;
             foreach (var paragraph in HwpxXml.Children(section, "p"))
                 ReadParagraph(paragraph, _document.Blocks);
+        }
 
-            _pageBreak = false;
+        private HwpSection NewSection()
+        {
+            var section = new HwpSection();
+            _document.Sections.Add(section);
+            _pendingSection = section;
+            return section;
+        }
+
+        private HwpSection TakePendingSection()
+        {
+            var section = _pendingSection;
+            _pendingSection = null;
+            return section;
         }
 
         private void ApplyColumnsAndBorders(XElement section, XElement properties, HwpPage page)
@@ -147,7 +157,8 @@ namespace DocuHelper.Importers.Hwp
                 SpaceBefore = shape.SpaceBefore,
                 SpaceAfter = shape.SpaceAfter,
                 LineSpacing = shape.LineSpacing,
-                PageBreakBefore = _pageBreak || shape.PageBreakBefore || HwpxXml.Flag(element, "pageBreak"),
+                PageBreakBefore = shape.PageBreakBefore || HwpxXml.Flag(element, "pageBreak"),
+                Section = TakePendingSection(),
                 ColumnBreakBefore = HwpxXml.Flag(element, "columnBreak"),
                 Label = shape.HeadingType == "OUTLINE" ? _numbering.Next(shape, _outline) : null,
                 List = ListOf(shape),
@@ -160,7 +171,6 @@ namespace DocuHelper.Importers.Hwp
                 Tabs = new List<HwpTabStop>(_header.TabStops(shape.TabPrId)),
                 StyleName = _header.Style(HwpxXml.Int(element, "styleIDRef", -1))?.Name,
             };
-            _pageBreak = false;
 
             var runs = new HwpxRunBuilder();
             var anchored = new List<HwpBlock>();

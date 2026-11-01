@@ -75,8 +75,7 @@ namespace DocuHelper.Tools.Word
             if (!s_kinds.Contains(kind))
                 throw new ToolInputException($"'kind' 값은 {string.Join(", ", s_kinds)} 중 하나여야 해요.");
 
-            RefuseInHwp(docu, "구역 나누기", kind.StartsWith("section_", StringComparison.Ordinal));
-            RefuseInHwp(docu, "단 나누기", kind == "column_break");
+            RefuseInHwp(docu, "이어 쓰기·짝수·홀수 구역 나누기", kind is "section_continuous" or "section_even_page" or "section_odd_page");
             RefuseInHwp(docu, "봉투", kind == "envelope");
             RefuseInHwp(docu, "레이블", kind == "labels");
 

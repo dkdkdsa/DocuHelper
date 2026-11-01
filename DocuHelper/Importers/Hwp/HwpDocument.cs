@@ -4,7 +4,13 @@ namespace DocuHelper.Importers.Hwp
 {
     public class HwpDocument
     {
-        public HwpPage Page { get; set; }
+        public List<HwpSection> Sections { get; } = new() { new HwpSection() };
+
+        public HwpPage Page
+        {
+            get => Sections[0].Page;
+            set => Sections[0].Page = value;
+        }
 
         public List<HwpBlock> Blocks { get; set; } = new();
 
@@ -16,15 +22,31 @@ namespace DocuHelper.Importers.Hwp
 
         public HashSet<HwpSkipped> Skipped { get; set; } = new();
 
-        public List<HwpHeaderFooter> HeaderFooters { get; set; } = new();
+        public List<HwpHeaderFooter> HeaderFooters => Sections[0].HeaderFooters;
 
-        public HwpPageNumber PageNumber { get; set; }
+        public HwpPageNumber PageNumber
+        {
+            get => Sections[0].PageNumber;
+            set => Sections[0].PageNumber = value;
+        }
 
-        public bool HideFirstHeader { get; set; }
+        public bool HideFirstHeader
+        {
+            get => Sections[0].HideFirstHeader;
+            set => Sections[0].HideFirstHeader = value;
+        }
 
-        public bool HideFirstFooter { get; set; }
+        public bool HideFirstFooter
+        {
+            get => Sections[0].HideFirstFooter;
+            set => Sections[0].HideFirstFooter = value;
+        }
 
-        public int StartPage { get; set; }
+        public int StartPage
+        {
+            get => Sections[0].StartPage;
+            set => Sections[0].StartPage = value;
+        }
 
         public bool Signed { get; set; }
     }

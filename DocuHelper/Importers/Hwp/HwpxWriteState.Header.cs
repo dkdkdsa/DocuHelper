@@ -79,7 +79,7 @@ namespace DocuHelper.Importers.Hwp
 
             return new XElement(Hh + "head", Namespaces(),
                 new XAttribute("version", "1.4"),
-                new XAttribute("secCnt", "1"),
+                new XAttribute("secCnt", Number(_sectionCount)),
                 new XElement(Hh + "beginNum",
                     new XAttribute("page", "1"), new XAttribute("footnote", "1"), new XAttribute("endnote", "1"),
                     new XAttribute("pic", "1"), new XAttribute("tbl", "1"), new XAttribute("equation", "1")),

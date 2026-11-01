@@ -1082,7 +1082,6 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "insert_page",
                 Args = """{"kind":"section_next_page","at":"{caret}"}""",
-                Reason = "구역 나누기는 아직 한글 파일에 저장되지 않아요. 쪽 나누기를 써 주세요.",
                 Gates = new[] { "Sections" },
             },
             new HwpCommandSpec

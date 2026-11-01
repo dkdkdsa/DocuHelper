@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using DocuHelper.Tools.Word;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 using static DocuHelper.Importers.Hwp.HwpxNames;
 
@@ -14,28 +15,51 @@ namespace DocuHelper.Importers.Hwp
         private const int DefaultColumnGap = 425;
         private const double MmPerPt = 25.4 / 72;
 
+        private int _sectionCount = 1;
+
         internal readonly record struct PageBorderSetting(int Id, bool FromPaper, int Left, int Right, int Top, int Bottom);
 
-        public XElement Section(Body body)
+        public List<XElement> Sections(Body body)
         {
-            SetPageNumbering(body);
+            var sections = new List<XElement>();
+            var children = new List<OpenXmlElement>();
+            foreach (var child in body.ChildElements)
+            {
+                if (child is DocumentFormat.OpenXml.Wordprocessing.SectionProperties)
+                    continue;
+
+                children.Add(child);
+                if (child is DocumentFormat.OpenXml.Wordprocessing.Paragraph paragraph && paragraph.ParagraphProperties?.SectionProperties is { } properties)
+                {
+                    sections.Add(Section(children, properties));
+                    children = new List<OpenXmlElement>();
+                }
+            }
+
+            sections.Add(Section(children, body.Elements<DocumentFormat.OpenXml.Wordprocessing.SectionProperties>().LastOrDefault()));
+            _sectionCount = sections.Count;
+            return sections;
+        }
+
+        private XElement Section(List<OpenXmlElement> children, DocumentFormat.OpenXml.Wordprocessing.SectionProperties properties)
+        {
+            SetPageNumbering(properties);
             var paragraphs = new List<XElement>();
-            Blocks(body.ChildElements, paragraphs);
+            Blocks(children, paragraphs);
             if (paragraphs.Count == 0)
                 paragraphs.Add(Paragraph(0, 0, false, new List<XElement> { TextRun(0, string.Empty) }));
 
             var first = paragraphs[0];
-            var leading = new List<XElement> { new XElement(Hp + "run", new XAttribute("charPrIDRef", "0"), SectionProperties(body), ColumnControl(body)) };
-            leading.AddRange(HeaderFooterRuns(body));
+            var leading = new List<XElement> { new XElement(Hp + "run", new XAttribute("charPrIDRef", "0"), SectionProperties(properties), ColumnControl(properties)) };
+            leading.AddRange(HeaderFooterRuns(properties));
             for (var i = leading.Count - 1; i >= 0; i--)
                 first.AddFirst(leading[i]);
 
             return new XElement(Hs + "sec", Namespaces(), paragraphs);
         }
 
-        private XElement SectionProperties(Body body)
+        private XElement SectionProperties(DocumentFormat.OpenXml.Wordprocessing.SectionProperties section)
         {
-            var section = body.Elements<SectionProperties>().LastOrDefault();
             var size = section?.GetFirstChild<PageSize>();
             var margin = section?.GetFirstChild<PageMargin>();
             var width = size?.Width?.Value is uint w && w > 0 ? Units((int)w) : 59528;
@@ -60,7 +84,7 @@ namespace DocuHelper.Importers.Hwp
             if (landscape)
                 (width, height) = (height, width);
 
-            var border = PageBorderOf(body);
+            var border = PageBorderOf(section);
             var titlePage = section?.GetFirstChild<TitlePage>() is { } title && WordStyles.IsOn(title);
             var hideHeader = titlePage && FirstEmpty(section, false);
             var hideFooter = titlePage && FirstEmpty(section, true);
@@ -121,9 +145,9 @@ namespace DocuHelper.Importers.Hwp
             new XAttribute("fillArea", "PAPER"),
             new XElement(Hp + "offset", new XAttribute("left", Number(border.Left)), new XAttribute("right", Number(border.Right)), new XAttribute("top", Number(border.Top)), new XAttribute("bottom", Number(border.Bottom))));
 
-        private XElement ColumnControl(Body body)
+        private XElement ColumnControl(DocumentFormat.OpenXml.Wordprocessing.SectionProperties section)
         {
-            var columns = body.Elements<SectionProperties>().LastOrDefault()?.GetFirstChild<Columns>();
+            var columns = section?.GetFirstChild<Columns>();
             var count = Math.Max(1, columns?.ColumnCount?.Value is short c ? c : 1);
             var gap = count > 1 ? Units(ParseInt(columns?.Space?.Value, DefaultColumnGap)) : 0;
             return new XElement(Hp + "ctrl",
@@ -131,9 +155,8 @@ namespace DocuHelper.Importers.Hwp
                     new XAttribute("colCount", Number(count)), new XAttribute("sameSz", "1"), new XAttribute("sameGap", Number(gap))));
         }
 
-        private PageBorderSetting PageBorderOf(Body body)
+        private PageBorderSetting PageBorderOf(DocumentFormat.OpenXml.Wordprocessing.SectionProperties section)
         {
-            var section = body.Elements<SectionProperties>().LastOrDefault();
             var borders = section?.GetFirstChild<PageBorders>();
             var background = _document.MainDocumentPart?.Document?.GetFirstChild<DocumentBackground>()?.Color?.Value;
             var fill = string.IsNullOrEmpty(background) || background == "auto" ? null : background.TrimStart('#');

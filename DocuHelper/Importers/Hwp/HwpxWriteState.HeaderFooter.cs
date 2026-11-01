@@ -38,16 +38,15 @@ namespace DocuHelper.Importers.Hwp
             public bool Anchored { get; set; }
         }
 
-        private void SetPageNumbering(Body body)
+        private void SetPageNumbering(DocumentFormat.OpenXml.Wordprocessing.SectionProperties section)
         {
-            var numbers = body.Elements<SectionProperties>().LastOrDefault()?.GetFirstChild<PageNumberType>();
+            var numbers = section?.GetFirstChild<PageNumberType>();
             _pageFormat = FormatType(numbers?.Format?.InnerText);
         }
 
-        private List<XElement> HeaderFooterRuns(Body body)
+        private List<XElement> HeaderFooterRuns(DocumentFormat.OpenXml.Wordprocessing.SectionProperties section)
         {
             var runs = new List<XElement>();
-            var section = body.Elements<SectionProperties>().LastOrDefault();
             var main = _document?.MainDocumentPart;
             if (section == null || main == null)
                 return runs;

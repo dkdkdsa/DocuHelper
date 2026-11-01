@@ -19,25 +19,25 @@ namespace DocuHelper.Importers.Hwp
         private const string HidePrefix = "_hwpHide_";
         private const string NewNumberPrefix = "_hwpNewNum_";
 
-        internal static void Apply(WordprocessingDocument word, HwpDocument document, SectionProperties section, int width, HwpBookmarkIds ids)
+        internal static void Apply(WordprocessingDocument word, HwpSection source, SectionProperties section, int width, HwpBookmarkIds ids)
         {
             var main = word.MainDocumentPart;
             section.RemoveAllChildren<HeaderReference>();
             section.RemoveAllChildren<FooterReference>();
-            var even = document.HeaderFooters.Any(p => p.Apply == "EVEN");
+            var even = source.HeaderFooters.Any(p => p.Apply == "EVEN");
             var references = new List<OpenXmlElement>();
             foreach (var footer in new[] { false, true })
             {
-                references.Add(Part(main, document, footer, HeaderFooterValues.Default, width, ids));
+                references.Add(Part(main, source, footer, HeaderFooterValues.Default, width, ids));
                 if (even)
-                    references.Add(Part(main, document, footer, HeaderFooterValues.Even, width, ids));
+                    references.Add(Part(main, source, footer, HeaderFooterValues.Even, width, ids));
             }
 
-            if (document.HideFirstHeader || document.HideFirstFooter)
+            if (source.HideFirstHeader || source.HideFirstFooter)
             {
                 WordSections.Set(section, new TitlePage());
-                references.Add(document.HideFirstHeader ? Reference(main, false, HeaderFooterValues.First, new List<OpenXmlElement> { new DocumentFormat.OpenXml.Wordprocessing.Paragraph() }) : Part(main, document, false, HeaderFooterValues.First, width, ids));
-                references.Add(document.HideFirstFooter ? Reference(main, true, HeaderFooterValues.First, new List<OpenXmlElement> { new DocumentFormat.OpenXml.Wordprocessing.Paragraph() }) : Part(main, document, true, HeaderFooterValues.First, width, ids));
+                references.Add(source.HideFirstHeader ? Reference(main, false, HeaderFooterValues.First, new List<OpenXmlElement> { new DocumentFormat.OpenXml.Wordprocessing.Paragraph() }) : Part(main, source, false, HeaderFooterValues.First, width, ids));
+                references.Add(source.HideFirstFooter ? Reference(main, true, HeaderFooterValues.First, new List<OpenXmlElement> { new DocumentFormat.OpenXml.Wordprocessing.Paragraph() }) : Part(main, source, true, HeaderFooterValues.First, width, ids));
             }
 
             var at = 0;
@@ -51,11 +51,11 @@ namespace DocuHelper.Importers.Hwp
                     settings.AddChild(new EvenAndOddHeaders());
             }
 
-            if (document.StartPage > 0 || (document.PageNumber != null && document.PageNumber.Format != "DIGIT"))
+            if (source.StartPage > 0 || (source.PageNumber != null && source.PageNumber.Format != "DIGIT"))
             {
-                var numbers = new PageNumberType { Format = Format(document.PageNumber?.Format) };
-                if (document.StartPage > 0)
-                    numbers.Start = document.StartPage;
+                var numbers = new PageNumberType { Format = Format(source.PageNumber?.Format) };
+                if (source.StartPage > 0)
+                    numbers.Start = source.StartPage;
 
                 WordSections.Set(section, numbers);
             }
@@ -84,13 +84,13 @@ namespace DocuHelper.Importers.Hwp
             start.InsertAfterSelf(end);
         }
 
-        private static OpenXmlElement Part(MainDocumentPart main, HwpDocument document, bool footer, HeaderFooterValues type, int width, HwpBookmarkIds ids)
+        private static OpenXmlElement Part(MainDocumentPart main, HwpSection source, bool footer, HeaderFooterValues type, int width, HwpBookmarkIds ids)
         {
             var elements = new List<OpenXmlElement>();
-            if (document != null)
+            if (source != null)
             {
-                elements.AddRange(HwpWordWriter.ToElements(Blocks(document, footer, type), width, ids));
-                var pageNumber = PageNumberParagraph(document, footer);
+                elements.AddRange(HwpWordWriter.ToElements(Blocks(source, footer, type), width, ids));
+                var pageNumber = PageNumberParagraph(source, footer);
                 if (pageNumber != null)
                     elements.Add(pageNumber);
             }
@@ -115,15 +115,15 @@ namespace DocuHelper.Importers.Hwp
             return new HeaderReference { Type = type, Id = main.GetIdOfPart(header) };
         }
 
-        private static List<HwpBlock> Blocks(HwpDocument document, bool footer, HeaderFooterValues type) =>
-            document.HeaderFooters
+        private static List<HwpBlock> Blocks(HwpSection source, bool footer, HeaderFooterValues type) =>
+            source.HeaderFooters
                 .Where(p => p.Footer == footer && (type == HeaderFooterValues.Even ? p.Apply == "EVEN" : p.Apply != "EVEN"))
                 .SelectMany(p => p.Blocks)
                 .ToList();
 
-        private static DocumentFormat.OpenXml.Wordprocessing.Paragraph PageNumberParagraph(HwpDocument document, bool footer)
+        private static DocumentFormat.OpenXml.Wordprocessing.Paragraph PageNumberParagraph(HwpSection source, bool footer)
         {
-            var number = document.PageNumber;
+            var number = source.PageNumber;
             if (number == null || number.Position == "NONE")
                 return null;
 

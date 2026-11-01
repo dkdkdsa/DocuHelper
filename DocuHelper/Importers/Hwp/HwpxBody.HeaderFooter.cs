@@ -9,9 +9,9 @@ namespace DocuHelper.Importers.Hwp
         private void ReadSectionControls(XElement properties)
         {
             var visibility = HwpxXml.Child(properties, "visibility");
-            _document.HideFirstHeader = HwpxXml.Flag(visibility, "hideFirstHeader");
-            _document.HideFirstFooter = HwpxXml.Flag(visibility, "hideFirstFooter");
-            _document.StartPage = Math.Max(0, HwpxXml.Int(HwpxXml.Child(properties, "startNum"), "page", 0));
+            _section.HideFirstHeader = HwpxXml.Flag(visibility, "hideFirstHeader");
+            _section.HideFirstFooter = HwpxXml.Flag(visibility, "hideFirstFooter");
+            _section.StartPage = Math.Max(0, HwpxXml.Int(HwpxXml.Child(properties, "startNum"), "page", 0));
         }
 
         private void ReadHeaderFooter(XElement element, bool footer)
@@ -23,7 +23,7 @@ namespace DocuHelper.Importers.Hwp
             ReadList(HwpxXml.Child(element, "subList"), part.Blocks);
             (_pendingHiding, _pendingNewNumber) = saved;
             if (part.Blocks.Count > 0)
-                _document.HeaderFooters.Add(part);
+                _section.HeaderFooters.Add(part);
         }
 
         private void ReadPageNumber(XElement element)
@@ -32,7 +32,7 @@ namespace DocuHelper.Importers.Hwp
             if (string.IsNullOrEmpty(position) || position == "NONE")
                 return;
 
-            _document.PageNumber = new HwpPageNumber
+            _section.PageNumber = new HwpPageNumber
             {
                 Position = position,
                 Format = HwpxXml.Attribute(element, "formatType") ?? "DIGIT",

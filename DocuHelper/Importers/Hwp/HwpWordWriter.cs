@@ -29,16 +29,30 @@ namespace DocuHelper.Importers.Hwp
                 foreach (var paragraph in body.Elements<Paragraph>().ToList())
                     paragraph.Remove();
 
-                var width = HwpWordPage.ApplyPage(section, document.Page);
-                HwpWordPage.ApplyBackground(word, document.Page);
                 var ids = new HwpBookmarkIds();
-                HwpWordHeaderFooter.Apply(word, document, section, width, ids);
-                var elements = ToElements(document.Blocks, width, ids);
-                if (elements.Count == 0 || elements[^1] is Table)
-                    elements.Add(new Paragraph());
+                var chunks = Sections(document);
+                var parts = new List<List<OpenXmlElement>>();
+                var width = 0;
+                for (var i = 0; i < chunks.Count; i++)
+                {
+                    var properties = i == chunks.Count - 1 ? section : new SectionProperties();
+                    width = HwpWordPage.ApplyPage(properties, chunks[i].Section.Page);
+                    if (i == 0)
+                        HwpWordPage.ApplyBackground(word, document.Page);
+
+                    HwpWordHeaderFooter.Apply(word, chunks[i].Section, properties, width, ids);
+                    var elements = ToElements(chunks[i].Blocks, width, ids);
+                    if (elements.Count == 0 || elements[^1] is Table)
+                        elements.Add(new Paragraph());
+
+                    if (i < chunks.Count - 1)
+                        EndSection((Paragraph)elements[^1], properties);
+
+                    parts.Add(elements);
+                }
 
                 section.Remove();
-                foreach (var element in elements)
+                foreach (var element in parts.SelectMany(part => part))
                     body.AppendChild(element);
 
                 body.AppendChild(section);
@@ -52,6 +66,26 @@ namespace DocuHelper.Importers.Hwp
             }
 
             return stream.ToArray();
+        }
+
+        private static List<(HwpSection Section, List<HwpBlock> Blocks)> Sections(HwpDocument document)
+        {
+            var chunks = new List<(HwpSection Section, List<HwpBlock> Blocks)> { (document.Sections[0], new List<HwpBlock>()) };
+            foreach (var block in document.Blocks)
+            {
+                if (block is HwpParagraph paragraph && paragraph.Section != null)
+                    chunks.Add((paragraph.Section, new List<HwpBlock>()));
+
+                chunks[^1].Blocks.Add(block);
+            }
+
+            return chunks;
+        }
+
+        private static void EndSection(Paragraph last, SectionProperties properties)
+        {
+            last.ParagraphProperties ??= new ParagraphProperties();
+            last.ParagraphProperties.AppendChild(properties);
         }
 
         internal static List<OpenXmlElement> ToElements(IEnumerable<HwpBlock> blocks, int width) => ToElements(blocks, width, new HwpBookmarkIds());

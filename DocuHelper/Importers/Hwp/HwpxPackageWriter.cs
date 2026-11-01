@@ -20,7 +20,7 @@ namespace DocuHelper.Importers.Hwp
         OmitXmlDeclaration = false,
     };
 
-        internal static byte[] Pack(XElement header, XElement section, IReadOnlyList<HwpxBinary> binaries)
+        internal static byte[] Pack(XElement header, IReadOnlyList<XElement> sections, IReadOnlyList<HwpxBinary> binaries)
         {
             using var output = new MemoryStream();
             using (var zip = new ZipArchive(output, ZipArchiveMode.Create, true))
@@ -34,7 +34,8 @@ namespace DocuHelper.Importers.Hwp
 
                 Add(zip, "version.xml", Version());
                 Add(zip, "Contents/header.xml", header);
-                Add(zip, "Contents/section0.xml", section);
+                for (var i = 0; i < sections.Count; i++)
+                    Add(zip, $"Contents/section{i}.xml", sections[i]);
                 Add(zip, "settings.xml", Settings());
                 foreach (var binary in binaries)
                 {
@@ -45,7 +46,7 @@ namespace DocuHelper.Importers.Hwp
 
                 Add(zip, "META-INF/container.xml", Container());
                 Add(zip, "META-INF/manifest.xml", new XElement(Odf + "manifest", new XAttribute(XNamespace.Xmlns + "odf", Odf)));
-                Add(zip, "Contents/content.hpf", Package(binaries));
+                Add(zip, "Contents/content.hpf", Package(binaries, sections.Count));
             }
 
             return output.ToArray();
@@ -82,7 +83,7 @@ namespace DocuHelper.Importers.Hwp
         new XElement(Ocf + "rootfiles",
             new XElement(Ocf + "rootfile", new XAttribute("full-path", "Contents/content.hpf"), new XAttribute("media-type", "application/hwpml-package+xml"))));
 
-    private static XElement Package(IReadOnlyList<HwpxBinary> binaries) => new(Opf + "package",
+    private static XElement Package(IReadOnlyList<HwpxBinary> binaries, int sectionCount) => new(Opf + "package",
         Namespaces(),
         new XAttribute("version", ""),
         new XAttribute("unique-identifier", ""),
@@ -92,12 +93,12 @@ namespace DocuHelper.Importers.Hwp
             new XElement(Opf + "language", "ko")),
         new XElement(Opf + "manifest",
             Item("header", "Contents/header.xml"),
-            Item("section0", "Contents/section0.xml"),
+            Enumerable.Range(0, sectionCount).Select(i => Item($"section{i}", $"Contents/section{i}.xml")),
             Item("settings", "settings.xml"),
             binaries.Select(b => new XElement(Opf + "item", new XAttribute("id", b.Id), new XAttribute("href", b.Path), new XAttribute("media-type", b.MediaType), new XAttribute("isEmbeded", "1")))),
         new XElement(Opf + "spine",
             new XElement(Opf + "itemref", new XAttribute("idref", "header"), new XAttribute("linear", "yes")),
-            new XElement(Opf + "itemref", new XAttribute("idref", "section0"), new XAttribute("linear", "yes"))));
+            Enumerable.Range(0, sectionCount).Select(i => new XElement(Opf + "itemref", new XAttribute("idref", $"section{i}"), new XAttribute("linear", "yes")))));
 
     private static XElement Item(string id, string href) =>
         new(Opf + "item", new XAttribute("id", id), new XAttribute("href", href), new XAttribute("media-type", "application/xml"));

@@ -45,5 +45,7 @@ namespace DocuHelper.Importers.Hwp
         public string StyleName { get; set; }
 
         public HwpList List { get; set; }
+
+        public HwpSection Section { get; set; }
     }
 }

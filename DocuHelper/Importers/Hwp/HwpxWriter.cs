@@ -11,9 +11,9 @@ namespace DocuHelper.Importers.Hwp
         {
             var body = document?.MainDocumentPart?.Document?.Body ?? throw new InvalidDataException("The document has no body.");
             var state = new HwpxWriteState(document);
-            var section = state.Section(body);
+            var sections = state.Sections(body);
             var header = state.Header();
-            return HwpxPackageWriter.Pack(header, section, state.Binaries);
+            return HwpxPackageWriter.Pack(header, sections, state.Binaries);
         }
 
         public static bool IsHwpx(byte[] content)
