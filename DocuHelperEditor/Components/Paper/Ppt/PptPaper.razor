@@ -10,9 +10,9 @@
     <div class="ppt">
         <PptRibbon File="File" State="_ribbon" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" />
+            <SlideStrip Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" HighlightId="@_highlightId" LiveChanges="_live" OnSelect="SelectSlide" Sorter="_sorter" OnToggleSorter="ToggleSorter" />
             <div class="stage">
-                @if (Sorter)
+                @if (_sorter)
                 {
                     <SlideSorter Slides="_model.Slides" Sections="_model.Sections" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" OnPick="PickSlide" />
                 }
@@ -26,7 +26,7 @@
                 }
                 else
                 {
-                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @((560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture))px">
+                    <div class="frame @(_ribbon.Rulers ? "rulers" : null)">
                         @if (_ribbon.Rulers)
                         {
                             <span class="corner" aria-hidden="true"></span>
@@ -63,18 +63,17 @@
                 }
             </div>
         </div>
-        @if (_ribbon.View == "normal" && _ribbon.NotesOpen)
+        @if (!_sorter && _ribbon.View == "normal" && _ribbon.NotesOpen)
         {
             <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
         }
-        <PptStatusBar Active="_model.ActiveIndex" Count="_model.Slides.Count" NotesOpen="_ribbon.NotesOpen" Sorter="Sorter" Zoom="_ribbon.Zoom" OnToggleNotes="ToggleNotes" OnSetSorter="SetSorter" OnZoom="SetZoom" />
         <ChangeNavigator File="File" />
     </div>
 }
 
 @code {
     private readonly PptRibbonState _ribbon = new();
-    private bool Sorter => _ribbon.View == "sorter";
+    private bool _sorter;
 
     private bool Outline => _ribbon.View == "outline";
 
@@ -262,19 +261,15 @@
 
     private void SetNotesHeight(int height) => _notesHeight = Math.Clamp(height, SpeakerNotes.MinHeight, SpeakerNotes.MaxHeight);
 
-    private void ToggleNotes() => _ribbon.NotesOpen = !_ribbon.NotesOpen;
-
-    private void SetSorter(bool on)
+    private void ToggleSorter()
     {
         CommitDraft();
-        _ribbon.View = on ? "sorter" : "normal";
+        _sorter = !_sorter;
     }
-
-    private void SetZoom(int value) => _ribbon.Zoom = Math.Clamp(value, PptRibbonState.MinZoom, PptRibbonState.MaxZoom);
 
     private void PickSlide(int index)
     {
-        _ribbon.View = "normal";
+        _sorter = false;
         SelectSlide(index);
     }
 
