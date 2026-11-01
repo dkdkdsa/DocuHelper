@@ -17,6 +17,8 @@ namespace DocuHelperEditor.State.Papers
 
         public int RevealedPickVersion { get; set; }
 
+        public ExcelViewState View { get; set; } = new();
+
         public string DefaultFontName { get; set; } = "맑은 고딕";
 
         public double DefaultFontSize { get; set; } = 11;

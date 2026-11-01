@@ -15,6 +15,8 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         private void RegisterView()
         {
+            State.RegisterFeature(ExcelRibbonState.ZoomFeature);
+            State.RegisterFeature(ExcelRibbonState.RulerFeature);
             ViewMode("excel.view.normal", ExcelRibbonState.NormalView);
             ViewMode("excel.view.pagebreak", ExcelRibbonState.PageBreakView);
             ViewMode("excel.view.pagelayout", ExcelRibbonState.PageLayoutView);
@@ -53,8 +55,10 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         private void ViewMode(string id, string mode)
         {
-            Gated(AddView(id, _ => State.ViewMode = mode), ExcelRibbonState.ViewModesFeature)
+            var command = AddView(id, _ => State.ViewMode = mode)
                 .PressedWhen(() => State.ViewMode == mode);
+            if (mode != ExcelRibbonState.NormalView)
+                Gated(command, ExcelRibbonState.ViewModesFeature);
         }
 
         private IReadOnlyList<RibbonMenuItem> ZoomMenu()

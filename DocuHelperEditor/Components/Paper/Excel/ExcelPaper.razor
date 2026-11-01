@@ -8,14 +8,17 @@
 
 <div class="excel-paper @PaintingClass" id="@_uid">
     <ExcelRibbon Router="_router" />
-    @if (_showFormulaBar)
+    @if (ShowFormulaBar)
     {
         <FormulaBar RefId="@RefId"
                     ContentId="@ContentId"
                     CellRef="@SelectedRef"
+                    Range="@SelectionText"
                     Text="@BarText"
                     Version="@_editVersion"
                     Locked="@IsLocked"
+                    Editing="@IsEditing"
+                    OnFunction="InsertFunctionAsync"
                     OnGoTo="GoTo"
                     OnEdit="HandleBarEdit"
                     OnCommit="HandleBarCommit"
@@ -64,6 +67,7 @@
                FillPreview="@_fillPreview"
                ShowFillHandle="@(!IsLocked && !IsEditing)"
                Locked="@IsLocked"
+               Zoom="@ZoomValue"
                EditingInCell="@_editInCell"
                EditingInBar="@_editInBar"
                Draft="@_draft"
@@ -93,6 +97,14 @@
                OnAdd="AddSheet"
                OnMenu="OpenMenu"
                OnRename="RenameSheet" />
+    <SheetStatusBar StateText="@StatusText"
+                    Stats="@SelectionStats"
+                    Range="@SelectionText"
+                    ViewMode="@ViewModeValue"
+                    PageModesReady="@PageModesReady"
+                    Zoom="@ZoomValue"
+                    OnCommand="RunStatusCommandAsync"
+                    OnZoom="SetZoomAsync" />
     @if (_menu != null)
     {
         <SheetMenu Label="@MenuLabel" X="@_menu.X" Y="@_menu.Y" Items="@_menuItems" OnPick="PickMenuAsync" OnClose="CloseMenu" />

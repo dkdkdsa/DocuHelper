@@ -1,7 +1,18 @@
-﻿<div class="fbar">
+﻿@using DocuHelperEditor.Components.Ribbon
+
+<div class="fbar">
     <label for="@RefId" class="sr-only">칸 주소</label>
     <input id="@RefId" class="ref" value="@_refText" autocomplete="off" spellcheck="false" @oninput="OnRefInput" @onkeydown="OnRefKeyDownAsync" @onblur="OnRefBlur" />
-    <span class="fx" aria-hidden="true">fx</span>
+    <span class="divider" aria-hidden="true"></span>
+    <button type="button" class="fbtn" aria-label="취소" title="@(Editing ? "취소 (Esc)" : "취소 (고치는 중일 때만)")" disabled="@(!Editing)" @onmousedown:preventDefault @onclick="OnCancel">
+        <RibbonIcon Name="close" Size="17" Stroke="2.2" />
+    </button>
+    <button type="button" class="fbtn" aria-label="입력" title="@(Editing ? "입력 (Enter)" : "입력 (고치는 중일 때만)")" disabled="@(!Editing)" @onmousedown:preventDefault @onclick="OnCommit">
+        <RibbonIcon Name="check" Size="17" Stroke="2.2" />
+    </button>
+    <button type="button" class="fbtn" aria-label="함수 삽입" title="함수 삽입 (Shift+F3)" @onmousedown:preventDefault @onclick="OnFunction">
+        <span class="fx" aria-hidden="true">fx</span>
+    </button>
     <label for="@ContentId" class="sr-only">칸 내용</label>
     <input id="@ContentId" @key="ContentKey" class="content" value="@Text" readonly="@Locked" autocomplete="off" spellcheck="false" @oninput="OnContentInput" @onkeydown="OnContentKeyDownAsync" @onblur="OnContentBlur" />
 </div>
@@ -20,6 +31,9 @@
     public string CellRef { get; set; }
 
     [Parameter]
+    public string Range { get; set; }
+
+    [Parameter]
     public string Text { get; set; }
 
     [Parameter]
@@ -27,6 +41,12 @@
 
     [Parameter]
     public bool Locked { get; set; }
+
+    [Parameter]
+    public bool Editing { get; set; }
+
+    [Parameter]
+    public EventCallback OnFunction { get; set; }
 
     [Parameter]
     public EventCallback<string> OnGoTo { get; set; }
@@ -45,13 +65,15 @@
 
     private string ContentKey => (CellRef ?? string.Empty) + "-" + Version;
 
+    private string Shown => Range ?? CellRef ?? string.Empty;
+
     protected override void OnParametersSet()
     {
-        if (CellRef == _shownRef)
+        if (Shown == _shownRef)
             return;
 
-        _shownRef = CellRef;
-        _refText = CellRef ?? string.Empty;
+        _shownRef = Shown;
+        _refText = Shown;
     }
 
     private void OnRefInput(ChangeEventArgs e) => _refText = e.Value?.ToString() ?? string.Empty;
@@ -64,16 +86,16 @@
         if (e.Key == "Enter")
         {
             var text = _refText;
-            _refText = CellRef ?? string.Empty;
+            _refText = Shown;
             await OnGoTo.InvokeAsync(text);
         }
         else if (e.Key == "Escape")
         {
-            _refText = CellRef ?? string.Empty;
+            _refText = Shown;
         }
     }
 
-    private void OnRefBlur() => _refText = CellRef ?? string.Empty;
+    private void OnRefBlur() => _refText = Shown;
 
     private Task OnContentInput(ChangeEventArgs e) => OnEdit.InvokeAsync(e.Value?.ToString() ?? string.Empty);
 

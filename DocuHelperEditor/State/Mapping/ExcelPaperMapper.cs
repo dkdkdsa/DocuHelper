@@ -38,6 +38,7 @@ namespace DocuHelperEditor.State.Mapping
             {
                 RevealedChangeId = old?.RevealedChangeId,
                 RevealedPickVersion = old?.RevealedPickVersion ?? 0,
+                View = old?.View ?? new ExcelViewState(),
                 DefaultFontName = normal.FontName ?? ExcelStyles.DefaultFontName,
                 DefaultFontSize = normal.FontSize ?? 11,
             };
@@ -75,6 +76,7 @@ namespace DocuHelperEditor.State.Mapping
         private static Sheet MapSheet(ExcelBook book, ExcelSheet sheet, ExcelChangeIndex changes, Sheet previous, ExcelPaperModel model)
         {
             var (freezeRows, freezeColumns) = sheet.Freeze;
+            var sheetView = sheet.Worksheet?.SheetViews?.Elements<DocumentFormat.OpenXml.Spreadsheet.SheetView>().FirstOrDefault();
             var view = new Sheet
             {
                 Name = sheet.Name,
@@ -85,6 +87,8 @@ namespace DocuHelperEditor.State.Mapping
                 IsHidden = sheet.IsHidden,
                 FreezeRows = Math.Min(freezeRows, MaxRows),
                 FreezeColumns = Math.Min(freezeColumns, MaxColumns - 1),
+                ShowGridlines = sheetView?.ShowGridLines?.Value ?? true,
+                ShowHeadings = sheetView?.ShowRowColHeaders?.Value ?? true,
             };
             view.IsNew = view.ChangeId != null;
 
