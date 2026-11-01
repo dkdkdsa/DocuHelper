@@ -32,6 +32,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.AllowRanges] = context => AllowRanges(context),
             [ExcelDialogIds.Symbol] = context => Symbol(context),
             [ExcelDialogIds.ProtectBook] = context => ProtectBook(context),
+            [ExcelDialogIds.FormatCells] = context => FormatCells(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -381,6 +382,38 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                     ["windows"] = WordNamedDialogs.Flag(values, "windows"),
                 };
                 AddText(args, "password", WordNamedDialogs.Text(values, "password"));
+                return args;
+            });
+
+        private static ExcelNamedDialog FormatCells(ExcelDialogContext context) => new(
+            "format_range",
+            "셀 서식",
+            new[]
+            {
+                WordNamedDialogs.Text("range", "범위", context.Range),
+                WordNamedDialogs.Choice(
+                    "number_format",
+                    "표시 형식",
+                    "general",
+                    new[] { "general", "number", "currency", "accounting_krw", "short_date", "long_date", "time", "percent", "percent2", "fraction", "scientific", "text" },
+                    new[] { "일반", "숫자", "통화", "회계 (원)", "짧은 날짜", "긴 날짜", "시간", "백분율", "소수점 있는 백분율", "분수", "지수", "텍스트" }),
+                WordNamedDialogs.Text("cell_style", "셀 스타일 (선택, 예: 나쁨, 강조색1)", string.Empty),
+                WordNamedDialogs.Choice("lock", "잠금", "keep", new[] { "keep", "locked", "unlocked" }, new[] { "바꾸지 않음", "잠금", "잠금 해제" }),
+            },
+            null,
+            (values, context) =>
+            {
+                var args = new JsonObject
+                {
+                    ["sheet"] = context.Sheet,
+                    ["range"] = WordNamedDialogs.Text(values, "range").Trim(),
+                    ["number_format"] = WordNamedDialogs.Text(values, "number_format"),
+                };
+                AddText(args, "cell_style", WordNamedDialogs.Text(values, "cell_style"));
+                var lockMode = WordNamedDialogs.Text(values, "lock");
+                if (lockMode != "keep")
+                    args["locked"] = lockMode == "locked";
+
                 return args;
             });
 
