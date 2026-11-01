@@ -25,6 +25,10 @@ namespace DocuHelperEditor.State
 
         public bool IsJustCreated { get; set; }
 
+        public bool JustSaved { get; set; }
+
+        public bool JustReverted { get; set; }
+
         public bool IsBlank => Paper?.IsBlank == true;
 
         public string StatusText
@@ -39,6 +43,12 @@ namespace DocuHelperEditor.State
 
                 if (Changes.Count > 0)
                     return $"도우미가 {Changes.Count}곳 고침, 저장 전";
+
+                if (JustSaved)
+                    return "방금 저장함";
+
+                if (JustReverted)
+                    return "처음 상태로 되돌림";
 
                 return IsJustCreated ? "방금 만듦" : null;
             }
