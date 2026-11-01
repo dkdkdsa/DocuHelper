@@ -101,6 +101,30 @@ window.docuHelperPptCanvas = (function () {
         slide.focus({ preventScroll: true });
     }
 
+    function whenSelected(shape, limit, callback) {
+        if (shape.classList.contains('on')) {
+            callback();
+            return;
+        }
+
+        var done = false;
+        var timer = null;
+        var observer = new MutationObserver(function () {
+            if (shape.classList.contains('on')) finish();
+        });
+
+        function finish() {
+            if (done) return;
+            done = true;
+            observer.disconnect();
+            clearTimeout(timer);
+            callback();
+        }
+
+        observer.observe(shape, { attributes: true, attributeFilter: ['class'] });
+        timer = setTimeout(finish, limit);
+    }
+
     function startEditing(shape) {
         if (!shape || !shape.classList.contains('on')) return false;
 
@@ -329,15 +353,16 @@ window.docuHelperPptCanvas = (function () {
             session.onDblClick = function (e) {
                 var shape = e.target.closest ? e.target.closest('[data-shape]') : null;
                 if (!shape || !slide.contains(shape) || slide.dataset.locked === 'true') return;
+                var text = shape.querySelector('[contenteditable="plaintext-only"]');
+                if (text && document.activeElement === text) return;
+
                 if (shape.classList.contains('on')) {
                     startEditing(shape);
                     return;
                 }
 
                 send(session, { kind: 'select', id: shape.dataset.shape, additive: false });
-                requestAnimationFrame(function () {
-                    requestAnimationFrame(function () { startEditing(shape); });
-                });
+                whenSelected(shape, 500, function () { startEditing(shape); });
             };
 
             sessions.set(slide, session);
