@@ -46,6 +46,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private static readonly HashSet<string> s_knownStates = new(StringComparer.Ordinal)
         {
             "bold", "italic", "underline", "align:left", "align:center", "align:right", "align:justify",
+            "strike", "bullet", "number", "hidden", "useTimings", "mediaControls", "advanceOnClick",
         };
 
         private static readonly string[] s_newSlideIds = { "ppt.home.newSlide", "ppt.insert.newSlide" };

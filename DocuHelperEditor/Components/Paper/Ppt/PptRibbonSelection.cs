@@ -53,11 +53,15 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 return selection;
 
             selection.SlideCount = model.Slides.Count(IsRealSlide);
+            selection.UseTimings = model.UseTimings;
+            selection.MediaControls = model.MediaControls;
             var slide = model.ActiveSlide;
             if (!IsRealSlide(slide))
                 return selection;
 
             selection.SlideNumber = model.Slides.IndexOf(slide) + 1;
+            selection.Hidden = slide.IsHidden;
+            selection.AdvanceOnClick = slide.AdvanceOnClick;
             var box = model.SelectedBox;
             if (box == null || string.IsNullOrEmpty(box.ShapeKey))
                 return selection;
@@ -68,6 +72,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             selection.Bold = box.Bold;
             selection.Italic = box.Italic;
             selection.Underline = box.Underline;
+            selection.Strike = box.Strike;
+            selection.Bullet = box.Bullet;
             selection.Align = box.Align == SlideTextAlign.Center ? "center" : "left";
             return selection;
         }
