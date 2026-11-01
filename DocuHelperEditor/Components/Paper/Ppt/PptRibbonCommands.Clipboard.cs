@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using DocuHelper.Editors;
@@ -14,7 +15,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private const string PasteId = "ppt.home.paste";
         private const string PainterId = "ppt.home.formatPainter";
         private const string PasteEmptyText = "붙여넣을 글자가 없어요.";
-        private const string PasteCutText = "글자가 길어서 앞부분 {0}줄만 붙였어요.";
+        private const string PasteLinesText = "글자가 길어서 앞부분 {0}줄만 붙였어요.";
+        private const string PasteCharsText = "글자가 4000자를 넘어서 앞부분만 붙였어요.";
         private const string PainterOnText = "서식을 복사했어요. 이어서 고른 글상자에 붙여요.";
         private const string PainterOffText = "서식 복사를 껐어요.";
         private const int MaxPasteLines = 60;
@@ -90,15 +92,15 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             if (box == null || string.IsNullOrEmpty(box.ShapeKey))
                 return;
 
-            var lines = PastedLines(await _clipboard.GetTextAsync(), out var truncated);
+            var lines = PastedLines(await _clipboard.GetTextAsync(), out var notice);
             if (lines.Count == 0)
             {
                 Notify(PasteEmptyText);
                 return;
             }
 
-            if (truncated)
-                Notify(string.Format(System.Globalization.CultureInfo.InvariantCulture, PasteCutText, lines.Count));
+            if (notice != null)
+                Notify(notice);
 
             Apply(EditCommand.Create("set_slide_text", new { slide = _state.Selection.SlideNumber, shape = box.ShapeKey, lines = lines.ToArray() }));
         }
@@ -129,9 +131,9 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return Task.CompletedTask;
         }
 
-        private static List<string> PastedLines(string text, out bool truncated)
+        private static List<string> PastedLines(string text, out string notice)
         {
-            truncated = false;
+            notice = null;
             var lines = new List<string>();
             if (string.IsNullOrWhiteSpace(text))
                 return lines;
@@ -140,7 +142,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             if (normalized.Length > MaxPasteCharacters)
             {
                 normalized = normalized.Substring(0, MaxPasteCharacters);
-                truncated = true;
+                notice = PasteCharsText;
             }
 
             var clean = new string(normalized.Where(c => c == '\n' || !char.IsControl(c)).ToArray());
@@ -148,14 +150,11 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             if (lines.Count > MaxPasteLines)
             {
                 lines.RemoveRange(MaxPasteLines, lines.Count - MaxPasteLines);
-                truncated = true;
+                notice = string.Format(CultureInfo.InvariantCulture, PasteLinesText, MaxPasteLines);
             }
 
             while (lines.Count > 0 && lines[lines.Count - 1].Trim().Length == 0)
                 lines.RemoveAt(lines.Count - 1);
-
-            if (truncated && lines.Count == 0)
-                truncated = false;
 
             return lines;
         }
