@@ -43,7 +43,8 @@ namespace DocuHelperEditor.State
             {
                 if (match.Groups[4].Success)
                 {
-                    var text = WebUtility.HtmlDecode(match.Groups[4].Value).Replace(' ', ' ').Replace("\r", string.Empty).Replace("\n", " ");
+                    var decoded = WebUtility.HtmlDecode(match.Groups[4].Value);
+                    var text = decoded.Replace(' ', ' ').Replace("\r", string.Empty).Replace("\n", " ");
                     if (preDepth == 0)
                     {
                         text = s_spaces.Replace(text, " ");
@@ -53,6 +54,8 @@ namespace DocuHelperEditor.State
 
                     if (text.Length > 0)
                         runs.Add(new WordClipRun(text, styles.Peek()));
+                    else if (preDepth == 0 && decoded.Contains(' '))
+                        runs.Add(new WordClipRun(string.Empty, styles.Peek()));
 
                     continue;
                 }
@@ -99,14 +102,14 @@ namespace DocuHelperEditor.State
             if (runs.Count > 0)
                 AddParagraph(paragraphs, runs, preDepth == 0);
 
-            var result = paragraphs.Where(p => p.Runs.Any(r => !string.IsNullOrWhiteSpace(r.Text))).ToList();
+            var result = paragraphs.Where(p => p.Runs.Any(r => r.Text.Length == 0 || !string.IsNullOrWhiteSpace(r.Text))).ToList();
             var characters = result.Sum(p => p.Text.Length);
             return result.Count > MaxParagraphs || characters > MaxCharacters ? new List<WordClipParagraph>() : result;
         }
 
         private static void AddParagraph(List<WordClipParagraph> paragraphs, List<WordClipRun> runs, bool trim)
         {
-            if (trim && runs.Count > 0)
+            if (trim && runs.Count > 0 && runs[^1].Text.Length > 0)
             {
                 var last = runs[^1];
                 var trimmed = last.Text.TrimEnd(' ');
