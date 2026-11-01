@@ -46,6 +46,10 @@
                       OnToggleReplace="ToggleReplace"
                       OnClose="CloseFind" />
     }
+    @if (CurrentSheet.IsClipped)
+    {
+        <p class="clip-note" role="status">이 시트에는 100열을 넘는 칸이 있어요. 그 칸은 이 화면에 나타나지 않아요.</p>
+    }
     @if (!string.IsNullOrEmpty(_editError))
     {
         <p class="edit-error" role="alert">@_editError</p>
