@@ -143,6 +143,10 @@
             <ProtectSheetDialog SheetName="@CurrentSheet.Name" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
             break;
     }
+    @if (_router.State.ActiveDialog is { } namedDialog && ExcelNamedDialogs.Has(namedDialog))
+    {
+        <ExcelFormDialog @key="namedDialog" Id="@namedDialog" Context="@DialogContext" Commit="CommitForm" Done="CloseDialog" />
+    }
     @if (_menu != null)
     {
         <SheetMenu Label="@MenuLabel" X="@_menu.X" Y="@_menu.Y" Items="@_menuItems" OnPick="PickMenuAsync" OnClose="CloseMenu" />

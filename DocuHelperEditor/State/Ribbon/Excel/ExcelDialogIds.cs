@@ -5,5 +5,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string ConditionalFormat = "excel.home.condformat";
         public const string Validation = "excel.data.validation";
         public const string ProtectSheet = "excel.review.protectsheet";
+        public const string PrintTitles = "excel.layout.printtitles";
+        public const string Margins = "excel.layout.margins";
     }
 }
