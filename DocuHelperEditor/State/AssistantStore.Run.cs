@@ -470,8 +470,8 @@ namespace DocuHelperEditor.State
 
             return Path.GetExtension(fileName ?? string.Empty).ToLowerInvariant() switch
             {
-                ".xlsx" => DocuType.Excel,
-                ".pptx" => DocuType.Ppt,
+                ".xlsx" or ".xls" => DocuType.Excel,
+                ".pptx" or ".ppt" => DocuType.Ppt,
                 ".hwp" or ".hwpx" => DocuType.Hwp,
                 _ => DocuType.Word,
             };

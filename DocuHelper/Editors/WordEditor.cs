@@ -38,6 +38,8 @@ namespace DocuHelper.Editors
 
         public override string Extension => ".docx";
 
+        public override string LegacyExtension => ".doc";
+
         public override string Describe(Docu docu) => docu is WordDocu word ? WordSummary.Describe(word) : docu.Name;
 
         public override Docu CreateBlank(string filePath) => new WordDocu(filePath, WordTemplate.Blank());

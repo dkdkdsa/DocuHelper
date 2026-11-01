@@ -165,6 +165,9 @@ namespace DocuHelper
             if (editor == null)
                 throw new InvalidOperationException("파일 이름은 .xlsx, .docx, .hwpx, .pptx 중 하나로 끝나야 해요.");
 
+            if (editor.IsLegacyPath(name))
+                name = Path.ChangeExtension(name, editor.Extension);
+
             var docu = editor.CreateBlank(UniquePath(name));
             editor.Save(docu);
             History.Record(docu.FilePath, "새로 만든 상태");

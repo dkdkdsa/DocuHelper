@@ -28,6 +28,8 @@ namespace DocuHelper.Editors
 
         public override string Extension => NewAsHwp && CanWriteHwp ? ".hwp" : ".hwpx";
 
+        public override string LegacyExtension => null;
+
         public override bool Accepts(string extension) =>
             string.Equals(extension, ".hwpx", StringComparison.OrdinalIgnoreCase) || string.Equals(extension, ".hwp", StringComparison.OrdinalIgnoreCase);
 

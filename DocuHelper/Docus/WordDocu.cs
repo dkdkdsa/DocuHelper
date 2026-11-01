@@ -1,4 +1,6 @@
 ﻿using System.IO;
+using DocuHelper.Importers.Hwp;
+using DocuHelper.Importers.Legacy.Doc;
 using DocuHelper.Tools.Word;
 using DocumentFormat.OpenXml.Packaging;
 
@@ -14,6 +16,9 @@ namespace DocuHelper.Docus
         public override DocuType Type => DocuType.Word;
 
         public string AssistantRevisionAuthor { get; set; }
+
+        public override void Load(byte[] content) =>
+            base.Load(HwpCompoundFile.IsCompoundFile(content) ? DocReader.ToDocx(content) : content);
 
         public override byte[] ToBytes() => WordDocumentProperties.WithCoreProperties(base.ToBytes(), Document);
 
