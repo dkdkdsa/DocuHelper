@@ -76,11 +76,11 @@
 .sheet th,
 .sheet td {
     height: 30px;
-    padding: 0 8px;
+    padding: 0 5px;
     border: 1px solid var(--hair);
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
     text-align: left;
     font-weight: 400;
     user-select: none;

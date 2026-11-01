@@ -22,6 +22,8 @@ namespace DocuHelper.Tools.Ppt
 
         public List<PptSceneShape> Shapes { get; set; } = new();
 
+        public List<PptSceneShape> Decor { get; set; } = new();
+
         public PptTransitionInfo Transition { get; set; }
 
         public List<PptAnimationInfo> Animations { get; set; } = new();

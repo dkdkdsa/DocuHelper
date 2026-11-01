@@ -13,6 +13,8 @@ namespace DocuHelperEditor.State.Papers
 
         public List<string> Lines { get; set; } = new();
 
+        public List<SlideLineStyle> LineStyles { get; set; }
+
         public int FontSize { get; set; } = 15;
 
         public double FontCqw { get; set; }

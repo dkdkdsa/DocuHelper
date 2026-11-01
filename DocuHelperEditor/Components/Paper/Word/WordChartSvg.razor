@@ -2,7 +2,7 @@
 @using System.Net
 @using System.Text
 @using DocuHelper.Tools.Ppt
-<svg class="chart" viewBox="0 0 400 270" preserveAspectRatio="xMidYMid meet" role="img" aria-label="@Caption" focusable="false">
+<svg class="chart" viewBox="0 0 @Num(_width) 270" preserveAspectRatio="xMidYMid meet" role="img" aria-label="@Caption" focusable="false">
     @foreach (var mark in Marks)
     {
         switch (mark.Kind)
@@ -19,6 +19,9 @@
             case "dot":
                 <circle cx="@Num(mark.X)" cy="@Num(mark.Y)" r="3.5" fill="@mark.Fill" />
                 break;
+            case "grid":
+                <path d="@mark.Path" fill="none" stroke="#D9D9D9" stroke-width="0.75" />
+                break;
             case "axis":
                 <path d="@mark.Path" fill="none" stroke="#9AA3B5" stroke-width="1" />
                 break;
@@ -30,11 +33,15 @@
 </svg>
 
 @code {
-    private static readonly string[] s_palette = { "#2F5FA8", "#B8432F", "#0F7B6C", "#8A5F00", "#6B4FBB", "#5B6577" };
+    private static readonly string[] s_palette = { "#156082", "#E97132", "#196B24", "#0F9ED5", "#A02B93", "#4EA72E" };
 
     private const double X0 = 48;
 
-    private const double X1 = 388;
+    private double X1 => _width - 12;
+
+    private double _width = 400;
+
+    private double _builtWidth;
 
     private const double Y0 = 44;
 
@@ -47,13 +54,19 @@
     [Parameter]
     public PptChartInfo Chart { get; set; }
 
+    [Parameter]
+    public double Aspect { get; set; } = 400.0 / 270;
+
+    protected override void OnParametersSet() => _width = Math.Clamp(270 * (Aspect > 0 ? Aspect : 400.0 / 270), 220, 900);
+
     private IReadOnlyList<Mark> Marks
     {
         get
         {
-            if (!ReferenceEquals(_source, Chart))
+            if (!ReferenceEquals(_source, Chart) || _builtWidth != _width)
             {
                 _source = Chart;
+                _builtWidth = _width;
                 _marks = Build(Chart);
             }
 
@@ -74,17 +87,17 @@
     private static double Value(PptSeriesInfo series, int index) =>
         index < series.Values.Count && series.Values[index].HasValue ? series.Values[index].Value : 0;
 
-    private static IReadOnlyList<Mark> Build(PptChartInfo chart)
+    private IReadOnlyList<Mark> Build(PptChartInfo chart)
     {
         var marks = new List<Mark>();
         if (chart == null || chart.Series.Count == 0)
         {
-            marks.Add(new Mark("label", 200, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
+            marks.Add(new Mark("label", _width / 2, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
             return marks;
         }
 
         if (chart.HasTitle && chart.Title != null)
-            marks.Add(new Mark("title", 200, 24, 0, 0, null, chart.Title, "middle", null));
+            marks.Add(new Mark("title", _width / 2, 24, 0, 0, null, chart.Title, "middle", null));
 
         if (chart.Type is "pie" or "doughnut")
             return Pie(chart, marks);
@@ -92,7 +105,7 @@
         var count = Math.Max(chart.Categories.Count, chart.Series.Max(s => s.Values.Count));
         if (count == 0)
         {
-            marks.Add(new Mark("label", 200, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
+            marks.Add(new Mark("label", _width / 2, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
             return marks;
         }
 
@@ -102,14 +115,48 @@
         if (max - min <= 0)
             max = 1;
 
+        var step = Step(max - min);
+        min = min < 0 ? Math.Floor(min / step) * step : 0;
+        max = Math.Ceiling((max + 0.05 * (max - min)) / step) * step;
+        Grid(marks, chart.Type == "bar", min, max, step);
+
         return chart.Type == "bar" ? Horizontal(chart, marks, count, min, max) : Vertical(chart, marks, count, min, max);
     }
 
-    private static List<Mark> Vertical(PptChartInfo chart, List<Mark> marks, int count, double min, double max)
+    private static double Step(double span)
+    {
+        var raw = span / 8;
+        var magnitude = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        var normal = raw / magnitude;
+        return (normal <= 1 ? 1 : normal <= 2 ? 2 : normal <= 5 ? 5 : 10) * magnitude;
+    }
+
+    private void Grid(List<Mark> marks, bool horizontal, double min, double max, double step)
+    {
+        var span = max - min;
+        for (var value = min; value <= max + step / 1000; value += step)
+        {
+            var text = value.ToString("0.##", CultureInfo.InvariantCulture);
+            if (horizontal)
+            {
+                var x = X0 + (value - min) / span * (X1 - X0);
+                marks.Add(new Mark("grid", 0, 0, 0, 0, null, null, null, $"M{Num(x)} {Num(Y0)}V{Num(Y1)}"));
+                marks.Add(new Mark("label", x, Y1 + 16, 0, 0, null, text, "middle", null));
+            }
+            else
+            {
+                var y = Y1 - (value - min) / span * (Y1 - Y0);
+                marks.Add(new Mark("grid", 0, 0, 0, 0, null, null, null, $"M{Num(X0)} {Num(y)}H{Num(X1)}"));
+                marks.Add(new Mark("label", X0 - 6, y + 4, 0, 0, null, text, "end", null));
+            }
+        }
+    }
+
+    private List<Mark> Vertical(PptChartInfo chart, List<Mark> marks, int count, double min, double max)
     {
         var group = (X1 - X0) / count;
         var series = chart.Series.Count;
-        var bar = group * 0.7 / series;
+        var bar = group * 0.4 / series;
         var line = chart.Type == "line";
         var span = max - min;
         var zero = Y1 - (0 - min) / span * (Y1 - Y0);
@@ -130,7 +177,9 @@
                 }
                 else if (value != 0)
                 {
-                    marks.Add(new Mark("rect", X0 + i * group + group * 0.15 + s * bar, Math.Min(y, zero), bar, Math.Abs(zero - y), color, null, null, null));
+                    marks.Add(new Mark("rect", X0 + i * group + group * 0.3 + s * bar, Math.Min(y, zero), bar, Math.Abs(zero - y), color, null, null, null));
+                    if (chart.DataLabels)
+                        marks.Add(new Mark("label", X0 + i * group + group * 0.5 + (s - (series - 1) / 2.0) * bar, value >= 0 ? y - 6 : y + 14, 0, 0, null, value.ToString("0.##", CultureInfo.InvariantCulture), "middle", null));
                 }
             }
 
@@ -147,11 +196,11 @@
         return Legend(chart, marks, 258);
     }
 
-    private static List<Mark> Horizontal(PptChartInfo chart, List<Mark> marks, int count, double min, double max)
+    private List<Mark> Horizontal(PptChartInfo chart, List<Mark> marks, int count, double min, double max)
     {
         var row = (Y1 - Y0) / count;
         var series = chart.Series.Count;
-        var bar = row * 0.7 / series;
+        var bar = row * 0.4 / series;
         var span = max - min;
         var zero = X0 + (0 - min) / span * (X1 - X0);
         marks.Add(new Mark("axis", 0, 0, 0, 0, null, null, null, $"M{Num(zero)} {Num(Y0)}V{Num(Y1)}"));
@@ -165,31 +214,33 @@
                     continue;
 
                 var end = X0 + (value - min) / span * (X1 - X0);
-                marks.Add(new Mark("rect", Math.Min(end, zero), Y0 + i * row + row * 0.15 + s * bar, Math.Abs(end - zero), bar, color, null, null, null));
+                marks.Add(new Mark("rect", Math.Min(end, zero), Y0 + (count - 1 - i) * row + row * 0.3 + (series - 1 - s) * bar, Math.Abs(end - zero), bar, color, null, null, null));
+                if (chart.DataLabels)
+                    marks.Add(new Mark("label", value >= 0 ? end + 4 : end - 4, Y0 + (count - 1 - i) * row + row * 0.3 + (series - 1 - s) * bar + bar / 2 + 4, 0, 0, null, value.ToString("0.##", CultureInfo.InvariantCulture), value >= 0 ? "start" : "end", null));
             }
         }
 
         for (var i = 0; i < count; i++)
         {
             var label = i < chart.Categories.Count ? chart.Categories[i] : string.Empty;
-            marks.Add(new Mark("label", X0 - 6, Y0 + (i + 0.5) * row + 4, 0, 0, null, label, "end", null));
+            marks.Add(new Mark("label", X0 - 6, Y0 + (count - 1 - i + 0.5) * row + 4, 0, 0, null, label, "end", null));
         }
 
         return Legend(chart, marks, 258);
     }
 
-    private static List<Mark> Pie(PptChartInfo chart, List<Mark> marks)
+    private List<Mark> Pie(PptChartInfo chart, List<Mark> marks)
     {
         var series = chart.Series[0];
         var values = Enumerable.Range(0, Math.Max(series.Values.Count, chart.Categories.Count)).Select(i => Math.Max(0, Value(series, i))).ToList();
         var total = values.Sum();
         if (total <= 0)
         {
-            marks.Add(new Mark("label", 200, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
+            marks.Add(new Mark("label", _width / 2, 140, 0, 0, null, "차트 자료가 없어요", "middle", null));
             return marks;
         }
 
-        const double cx = 150;
+        var cx = _width * 0.375;
         const double cy = 142;
         const double radius = 96;
         var angle = -Math.PI / 2;
@@ -211,8 +262,8 @@
         {
             var label = i < chart.Categories.Count ? chart.Categories[i] : string.Empty;
             var y = 84 + i * 20;
-            marks.Add(new Mark("rect", 270, y - 9, 10, 10, s_palette[i % s_palette.Length], null, null, null));
-            marks.Add(new Mark("label", 286, y, 0, 0, null, label, "start", null));
+            marks.Add(new Mark("rect", cx + 120, y - 9, 10, 10, s_palette[i % s_palette.Length], null, null, null));
+            marks.Add(new Mark("label", cx + 136, y, 0, 0, null, label, "start", null));
         }
 
         return marks;
@@ -233,7 +284,7 @@
         return $"M{Num(cx)} {Num(cy)}L{Num(x1)} {Num(y1)}A{Num(radius)} {Num(radius)} 0 {large} 1 {Num(x2)} {Num(y2)}Z";
     }
 
-    private static List<Mark> Legend(PptChartInfo chart, List<Mark> marks, double y)
+    private List<Mark> Legend(PptChartInfo chart, List<Mark> marks, double y)
     {
         if (chart.Series.Count < 2)
             return marks;

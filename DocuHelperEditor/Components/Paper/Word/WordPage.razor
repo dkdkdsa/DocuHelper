@@ -429,7 +429,7 @@
     }
 
     private static RenderFragment FragmentFrame(WordFragment fragment, bool split, RenderFragment content) =>
-        @<div class="frag" data-split="@(split ? "true" : "false")" style="@FrameStyle(fragment)">@content</div>;
+        @<div class="frag" data-split="@(split ? "true" : "false")" style="@FrameStyle(fragment, split)">@content</div>;
 
     private RenderFragment ReadOnlyBody(WordBlockModel block, WordFragment fragment) =>
         block.Table == null
@@ -711,8 +711,9 @@
 
     private static string ColumnStyle(double width) => "width: " + width.ToString("0.##", CultureInfo.InvariantCulture) + "%";
 
-    private static string FrameStyle(WordFragment fragment) =>
-        $"display: flow-root; height: {Length(fragment.Height)}; overflow-y: clip;";
+    private static string FrameStyle(WordFragment fragment, bool split) => split
+        ? $"display: flow-root; height: {Length(fragment.Height)}; overflow-y: clip;"
+        : $"display: flow-root; min-height: {Length(fragment.Height)};";
 
     private static string BlockStyle(WordBlockModel block, WordFragment? fragment)
     {

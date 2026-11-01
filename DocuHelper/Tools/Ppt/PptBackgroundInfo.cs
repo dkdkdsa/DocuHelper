@@ -14,6 +14,8 @@ namespace DocuHelper.Tools.Ppt
 
         public string ImageKey { get; set; }
 
+        public DocumentFormat.OpenXml.Packaging.OpenXmlPart Owner { get; set; }
+
         public bool HideMasterShapes { get; set; }
     }
 }

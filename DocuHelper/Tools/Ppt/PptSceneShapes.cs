@@ -103,7 +103,7 @@ namespace DocuHelper.Tools.Ppt
             result.Inherited = inherited;
             ApplyBox(result, box, shape);
             result.Geometry = Geometry(shape.ShapeProperties);
-            result.Fill = Fill(shape.ShapeProperties, context.Part, context.Theme, context.ColorMap);
+            result.Fill = Fill(shape.ShapeProperties, context.Owner, context.Theme, context.ColorMap);
             result.Line = Line(shape.ShapeProperties, context.Theme, context.ColorMap);
             ApplyStyle(result, shape, context.Theme, context.ColorMap);
             result.Shadow = Shadow(shape.ShapeProperties, context.Theme, context.ColorMap);
@@ -124,6 +124,7 @@ namespace DocuHelper.Tools.Ppt
             result.Picture = new PptScenePicture
             {
                 ImageKey = blip?.Embed?.Value,
+                Owner = context.Owner,
                 CropL = Percent(crop?.Left?.Value),
                 CropT = Percent(crop?.Top?.Value),
                 CropR = Percent(crop?.Right?.Value),
@@ -230,7 +231,7 @@ namespace DocuHelper.Tools.Ppt
         private static PptSceneLink Link(OpenXmlElement element, PptSceneContext context)
         {
             var click = element.Descendants<A.HyperlinkOnClick>().FirstOrDefault();
-            if (click == null)
+            if (click == null || context.IsDecor)
                 return null;
 
             return PptLinkRelations.Describe(context.Part, click);
@@ -358,7 +359,7 @@ namespace DocuHelper.Tools.Ppt
 
             var blip = properties.Elements<A.BlipFill>().FirstOrDefault();
             if (blip != null)
-                return new PptSceneFill { Kind = "picture", ImageKey = blip.Descendants<A.Blip>().FirstOrDefault()?.Embed?.Value };
+                return new PptSceneFill { Kind = "picture", ImageKey = blip.Descendants<A.Blip>().FirstOrDefault()?.Embed?.Value, Owner = part };
 
             return new PptSceneFill { Kind = "none" };
         }
@@ -641,7 +642,7 @@ namespace DocuHelper.Tools.Ppt
             var highlight = properties?.GetFirstChild<A.Highlight>()?.GetFirstChild<OpenXmlElement>();
             run.Highlight = highlight == null ? null : PptColor.Resolve(highlight, context.Theme, context.ColorMap, null);
             var link = properties?.GetFirstChild<A.HyperlinkOnClick>();
-            if (link != null)
+            if (link != null && !context.IsDecor)
                 run.Link = PptLinkRelations.Describe(context.Part, link);
 
             return run;
@@ -695,7 +696,7 @@ namespace DocuHelper.Tools.Ppt
                             "b" => "b",
                             _ => "t",
                         },
-                        Fill = properties2 == null ? null : Fill(properties2, context.Part, context.Theme, context.ColorMap),
+                        Fill = properties2 == null ? null : Fill(properties2, context.Owner, context.Theme, context.ColorMap),
                         BorderL = Border(properties2?.LeftBorderLineProperties, context),
                         BorderT = Border(properties2?.TopBorderLineProperties, context),
                         BorderR = Border(properties2?.RightBorderLineProperties, context),

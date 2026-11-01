@@ -16,6 +16,8 @@ namespace DocuHelperEditor.State.Papers
 
         public bool IsInherited { get; set; }
 
+        public bool IsDecor { get; set; }
+
         public bool IsGrouped { get; set; }
 
         public double Left { get; set; }

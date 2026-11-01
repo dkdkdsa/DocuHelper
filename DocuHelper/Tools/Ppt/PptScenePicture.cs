@@ -4,6 +4,8 @@ namespace DocuHelper.Tools.Ppt
     {
         public string ImageKey { get; set; }
 
+        public DocumentFormat.OpenXml.Packaging.OpenXmlPart Owner { get; set; }
+
         public double CropL { get; set; }
 
         public double CropT { get; set; }
