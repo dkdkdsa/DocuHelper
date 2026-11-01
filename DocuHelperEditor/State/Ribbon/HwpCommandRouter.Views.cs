@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -229,23 +229,14 @@ namespace DocuHelperEditor.State.Ribbon
             if (IsProvided(spec.Id))
                 return null;
 
-            switch (spec.Action)
+            return spec.Action switch
             {
-                case "copy":
-                    return Block == null ? SelectParagraphReason : null;
-                case "cut":
-                    return HasTool("edit_text") ? SelectTextReason : PendingReason;
-                case "paste":
-                    if (!HasTool("edit_text"))
-                        return PendingReason;
-
-                    if (Block == null)
-                        return "붙여넣을 자리를 먼저 눌러 골라 주세요.";
-
-                    return (_clipboard.Kinds & ClipboardKinds.Text) == 0 ? "클립보드에 붙여넣을 글이 없어요." : null;
-                default:
-                    return PendingReason;
-            }
+                "copy" => CopyBlocker(),
+                "cut" => CopyBlocker(),
+                "paste" => PasteBlocker(),
+                "formatPainter" => PainterBlocker(),
+                _ => PendingReason,
+            };
         }
 
         private async Task RunClipboardAsync(HwpCommandSpec spec, string arg)
@@ -256,17 +247,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return;
             }
 
-            if (spec.Action == "copy")
-            {
-                var block = Block;
-                if (block != null)
-                    await _clipboard.SetTextAsync(TextOf(block));
-
-                return;
-            }
-
-            if (spec.Action == "paste")
-                Apply(BuildEdits(spec, arg));
+            await RunClipboardOperationAsync(spec, arg);
         }
 
         private static string TextOf(WordBlockModel block)

@@ -372,6 +372,9 @@
             (false, "u") => "word.home.font.underline",
             _ => null,
         };
+        if (key is "c" or "x" or "v" or "shift+v")
+            return hwp ? HwpRibbonState.Of(File)?.Router?.ShortcutAsync(key) ?? Task.CompletedTask : WordRibbonState.Of(File)?.Router?.ShortcutAsync(key) ?? Task.CompletedTask;
+
         RibbonRouter router = hwp ? HwpRibbonState.Of(File)?.Router : WordRibbonState.Of(File)?.Router;
         return command == null || router == null ? Task.CompletedTask : router.InvokeAsync(command, null);
     }
@@ -398,6 +401,11 @@
         if (Ribbon != null)
             Ribbon.CurrentPage = focus.Page;
         Workspace.SetSelection(model.Describe(focus));
+        if (Ribbon?.Router != null)
+            Ribbon.Router.SelectionChanged();
+
+        if (Hwp?.Router != null)
+            Hwp.Router.SelectionChanged();
     }
 
     protected override void OnDispose()

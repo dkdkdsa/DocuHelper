@@ -58,6 +58,11 @@ namespace DocuHelperEditor
             builder.Services.AddSingleton<IConversationRepository, ConversationRepository>();
 #if WINDOWS
             builder.Services.AddSingleton<IShellService>(_ => CreateShellService());
+#if DEBUG
+            if (System.Environment.GetEnvironmentVariable("DOCUHELPER_CLIPBOARD") == "memory")
+                builder.Services.AddSingleton<IClipboardService, MemoryClipboardService>();
+            else
+#endif
             builder.Services.AddSingleton<IClipboardService, WindowsClipboardService>();
             builder.Services.AddSingleton<IPrintService, WindowsPrintService>();
             builder.Services.AddSingleton<IUpdateService, VelopackUpdateService>();

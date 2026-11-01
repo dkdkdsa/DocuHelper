@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using DocuHelperEditor.State;
 using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.State.Ribbon
@@ -58,6 +59,8 @@ namespace DocuHelperEditor.State.Ribbon
         public string BlockTarget { get; set; }
 
         public int? SelectedObjectId { get; set; }
+
+        public WordFormatPainter FormatPainter { get; set; }
 
         public string MarkupMode { get; set; } = "all";
 

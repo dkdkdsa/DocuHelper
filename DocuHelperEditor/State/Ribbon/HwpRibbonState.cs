@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using DocuHelperEditor.State;
 using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.State.Ribbon
@@ -69,6 +70,8 @@ namespace DocuHelperEditor.State.Ribbon
         public IWordDialogPresenter Dialogs { get; set; }
 
         public int? SelectedObjectId { get; set; }
+
+        public WordFormatPainter FormatPainter { get; set; }
 
         public WordCanvasBox Canvas { get; set; }
 
