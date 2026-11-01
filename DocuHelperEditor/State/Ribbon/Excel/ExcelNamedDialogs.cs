@@ -26,6 +26,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.RemoveDuplicates] = context => RemoveDuplicates(context),
             [ExcelDialogIds.GoalSeek] = context => GoalSeek(context),
             [ExcelDialogIds.PivotSummary] = context => PivotSummary(context),
+            [ExcelDialogIds.Link] = context => Link(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -253,6 +254,48 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
                 return args;
             });
+
+        private static ExcelNamedDialog Link(ExcelDialogContext context) => new(
+            "set_hyperlink",
+            "링크 삽입",
+            new[]
+            {
+                WordNamedDialogs.Text("cell", "링크를 걸 칸", context.Cell),
+                WordNamedDialogs.Text("text", "표시할 글자 (비우면 칸의 글자 그대로)", string.Empty),
+                WordNamedDialogs.Text("url", "웹 주소 (http, https, mailto)", string.Empty),
+                WordNamedDialogs.Text("location", "이 문서 안의 위치 (예: '시트2'!A1)", string.Empty),
+                WordNamedDialogs.Text("tooltip", "풍선 도움말", string.Empty),
+            },
+            values =>
+            {
+                var url = WordNamedDialogs.Text(values, "url").Trim();
+                var location = WordNamedDialogs.Text(values, "location").Trim();
+                if (url.Length == 0 && location.Length == 0)
+                    return "웹 주소나 문서 안의 위치를 넣어 주세요.";
+
+                return url.Length > 0 && location.Length > 0 ? "웹 주소와 문서 안의 위치 중 하나만 넣어 주세요." : null;
+            },
+            (values, context) =>
+            {
+                var args = new JsonObject
+                {
+                    ["sheet"] = context.Sheet,
+                    ["cell"] = WordNamedDialogs.Text(values, "cell").Trim(),
+                    ["action"] = "set",
+                };
+                AddText(args, "url", WordNamedDialogs.Text(values, "url"));
+                AddText(args, "location", WordNamedDialogs.Text(values, "location"));
+                AddText(args, "text", WordNamedDialogs.Text(values, "text"));
+                AddText(args, "tooltip", WordNamedDialogs.Text(values, "tooltip"));
+                return args;
+            });
+
+        private static void AddText(JsonObject args, string key, string value)
+        {
+            var text = value.Trim();
+            if (text.Length > 0)
+                args[key] = text;
+        }
 
         private static List<string> ActiveDelimiters(IReadOnlyDictionary<string, JsonNode> values)
         {
