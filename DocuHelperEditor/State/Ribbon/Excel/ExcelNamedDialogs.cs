@@ -31,6 +31,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.NewNote] = context => Note(context),
             [ExcelDialogIds.AllowRanges] = context => AllowRanges(context),
             [ExcelDialogIds.Symbol] = context => Symbol(context),
+            [ExcelDialogIds.ProtectBook] = context => ProtectBook(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -358,6 +359,29 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 ["sheet"] = context.Sheet,
                 ["start"] = WordNamedDialogs.Text(values, "cell").Trim(),
                 ["values"] = new JsonArray(new JsonArray(JsonValue.Create(WordNamedDialogs.Text(values, "symbol")))),
+            });
+
+        private static ExcelNamedDialog ProtectBook(ExcelDialogContext context) => new(
+            "protect",
+            "통합 문서 보호",
+            new[]
+            {
+                WordNamedDialogs.Flag("structure", "시트 추가·삭제·이동·이름 바꾸기 막기", "true"),
+                WordNamedDialogs.Flag("windows", "창 크기와 위치 고정", "false"),
+                WordNamedDialogs.Text("password", "암호 (선택)", string.Empty),
+            },
+            null,
+            (values, context) =>
+            {
+                var args = new JsonObject
+                {
+                    ["scope"] = "workbook",
+                    ["action"] = "protect",
+                    ["structure"] = WordNamedDialogs.Flag(values, "structure"),
+                    ["windows"] = WordNamedDialogs.Flag(values, "windows"),
+                };
+                AddText(args, "password", WordNamedDialogs.Text(values, "password"));
+                return args;
             });
 
         private static void AddText(JsonObject args, string key, string value)

@@ -21,5 +21,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string NameManager = "excel.formula.namemanager";
         public const string Paste = "excel.home.paste";
         public const string Chart = "excel.insert.chart.recommended";
+        public const string ProtectBook = "excel.review.protectbook";
     }
 }
