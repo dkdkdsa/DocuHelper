@@ -12,6 +12,8 @@
 @code {
     private PptRibbonCommands _commands;
 
+    public PptRibbonCommands Commands => _commands;
+
     [Parameter]
     public WorkspaceFile File { get; set; }
 
