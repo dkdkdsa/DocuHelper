@@ -29,6 +29,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             [ExcelDialogIds.Link] = context => Link(context),
             [ExcelDialogIds.Note] = context => Note(context),
             [ExcelDialogIds.NewNote] = context => Note(context),
+            [ExcelDialogIds.AllowRanges] = context => AllowRanges(context),
         };
 
         public static IEnumerable<string> Ids => s_dialogs.Keys;
@@ -313,6 +314,33 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 };
                 AddText(args, "author", WordNamedDialogs.Text(values, "author"));
                 return args;
+            });
+
+        private static ExcelNamedDialog AllowRanges(ExcelDialogContext context) => new(
+            "protect",
+            "편집 허용 범위",
+            new[]
+            {
+                WordNamedDialogs.Text("title", "범위 이름", string.Empty),
+                WordNamedDialogs.Text("range", "범위", context.Range),
+                WordNamedDialogs.Text("password", "암호 (선택)", string.Empty),
+            },
+            values => Required(values, "title", "범위 이름") ?? Required(values, "range", "범위"),
+            (values, context) =>
+            {
+                var range = new JsonObject
+                {
+                    ["title"] = WordNamedDialogs.Text(values, "title").Trim(),
+                    ["range"] = WordNamedDialogs.Text(values, "range").Trim(),
+                };
+                AddText(range, "password", WordNamedDialogs.Text(values, "password"));
+                return new JsonObject
+                {
+                    ["scope"] = "sheet",
+                    ["sheet"] = context.Sheet,
+                    ["action"] = "allow_range_add",
+                    ["allow_ranges"] = new JsonArray(range),
+                };
             });
 
         private static void AddText(JsonObject args, string key, string value)

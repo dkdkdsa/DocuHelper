@@ -15,5 +15,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string Link = "excel.insert.link";
         public const string Note = "excel.insert.note";
         public const string NewNote = "excel.review.newnote";
+        public const string AllowRanges = "excel.review.allowranges";
     }
 }
