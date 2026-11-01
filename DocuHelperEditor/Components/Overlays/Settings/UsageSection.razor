@@ -1,0 +1,823 @@
+﻿@using System.Globalization
+@using System.IO
+@using System.Text
+@using DocuHelper.Agents
+@inherits StoreComponentBase
+@inject IFileDialogService Dialogs
+@inject IJSRuntime JS
+
+@{
+    var v = BuildView();
+}
+
+<section aria-labelledby="settings-usage-h">
+    <div class="top">
+        <div class="top-text">
+            <h2 id="settings-usage-h">사용량</h2>
+            <p class="lead">도우미에게 부탁할 때마다 이 컴퓨터에서 직접 세요. 실제 청구는 각 회사 사이트가 기준이에요.</p>
+        </div>
+        <div class="seg" role="group" aria-label="기간">
+            <button type="button" aria-pressed="@Pressed(!_previous)" @onclick="() => PickMonth(false)">@MonthName(Usage.ThisMonth) · 이번 달</button>
+            <button type="button" aria-pressed="@Pressed(_previous)" @onclick="() => PickMonth(true)">@MonthName(Usage.ThisMonth.AddMonths(-1))</button>
+        </div>
+    </div>
+
+    <div class="card hero">
+        <div class="hero-row">
+            <div class="hero-main">
+                <span class="lb">@HeroLabel(v)</span>
+                <p class="big">@UsageStore.FormatNumber(v.TotalWon)원</p>
+                <span class="mu">$@v.TotalUsd.ToString("0.00", CultureInfo.InvariantCulture) · 1달러 @UsageStore.FormatNumber(Settings.UsdRate)원으로 계산</span>
+            </div>
+            <div class="hero-cap">
+                <span class="lb">한 달 한도</span>
+                @if (!_capEdit)
+                {
+                    <div class="cap-line">
+                        <span class="cap-text">
+                            <b>@(Usage.HasCap ? UsageStore.FormatNumber(Usage.Cap) + "원" : "한도 없음")</b>
+                            <span class="mu">@(Usage.HasCap ? "약 $" + (Usage.Cap / (double)Settings.UsdRate).ToString("0.00", CultureInfo.InvariantCulture) : "알림도 안 보내요")</span>
+                        </span>
+                        <ActionButton Kind="ButtonKind.Secondary" id="usage-cap-btn" OnClick="StartCapEdit">바꾸기</ActionButton>
+                    </div>
+                }
+                <span class="mu">@(v.IsNow ? $"{Usage.NextResetText}에 0원부터 다시 세요" : "다 끝난 달이에요")</span>
+            </div>
+        </div>
+
+        @if (_capEdit)
+        {
+            <div class="edit">
+                <span id="usage-cap-l" class="lb ink">한 달 한도 바꾸기</span>
+                <div class="seg" role="group" aria-labelledby="usage-cap-l">
+                    @foreach (var option in s_capOptions)
+                    {
+                        <button type="button" aria-pressed="@Pressed(_capDraft == option)" @onclick="() => PickCap(option)">@(option == 0 ? "한도 없음" : UsageStore.FormatNumber(option) + "원")</button>
+                    }
+                </div>
+                <div class="edit-line">
+                    <label for="usage-cap-in" class="mu">직접 적기</label>
+                    <div class="fld"><input id="usage-cap-in" type="text" inputmode="numeric" value="@_capInput" aria-describedby="usage-cap-d" @oninput="TypeCap" /><span aria-hidden="true">원</span></div>
+                    <ActionButton Kind="ButtonKind.Primary" Disabled="@(!SettingsStore.IsValidCap(_capDraft))" OnClick="SaveCapAsync">저장</ActionButton>
+                    <ActionButton Kind="ButtonKind.Ghost" OnClick="CancelCapAsync">취소</ActionButton>
+                </div>
+                <span id="usage-cap-d" class="mu">@CapHelp(v)</span>
+            </div>
+        }
+
+        @if (Usage.HasCap)
+        {
+            <progress class="sr-only" value="@v.PercentShown" max="100">한도 @UsageStore.FormatNumber(Usage.Cap)원 중 @Math.Round(v.Percent)% 썼어요</progress>
+            <div class="gauge" aria-hidden="true">
+                @if (v.ShowProjection)
+                {
+                    <span class="proj" style="left: @Css(v.FillWidth)%; width: @Css(v.ProjectionWidth)%"></span>
+                }
+                <span class="fill @(v.Percent >= Usage.AlertPercent ? "hot" : null)" style="width: @Css(v.FillWidth)%"></span>
+                <span class="mark" style="left: @(Usage.AlertPercent)%"></span>
+            </div>
+            <div class="legend" aria-hidden="true">
+                <span><i class="key-fill @(v.Percent >= Usage.AlertPercent ? "hot" : null)"></i>쓴 돈 @Math.Round(v.Percent)%</span>
+                @if (v.ShowProjection)
+                {
+                    <span><i class="key-proj"></i>이대로면 @Math.Round(v.ProjectionPercent)%</span>
+                }
+                <span><i class="key-mark"></i>알림 @(Usage.AlertPercent)%</span>
+            </div>
+        }
+
+        <ul class="facts">
+            <li><span class="mu">부탁</span><b>@(v.Tasks.Count)번</b></li>
+            <li><span class="mu">하루 평균</span><b>@UsageStore.FormatNumber(v.DailyWon)원</b></li>
+            @if (v.IsNow)
+            {
+                <li><span class="mu">이대로면 @MonthName(v.Month) 한 달</span><b>약 @UsageStore.FormatNumber(Math.Round(v.ProjectedWon / 10) * 10)원</b></li>
+            }
+            else
+            {
+                <li><span class="mu">알림</span><b>@(v.AlertDay > 0 ? $"{MonthName(v.Month)} {v.AlertDay}일에 {Usage.AlertPercent}% 넘음" : "안 보냈어요")</b></li>
+            }
+        </ul>
+
+        @if (!string.IsNullOrEmpty(v.Warning))
+        {
+            <p class="warn"><Icon Name="alert-triangle" Size="18" Stroke="2.2" /><span>@v.Warning</span></p>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>날마다 쓴 돈</h3>
+            <span class="spacer"></span>
+            <ActionButton Kind="ButtonKind.Secondary" aria-pressed="@Pressed(_table)" OnClick="ToggleTable">@(_table ? "막대로 보기" : "표로 보기")</ActionButton>
+        </div>
+        <p class="day-line @(v.Selected > 0 ? "on" : null)">@DayLine(v)</p>
+
+        @if (!_table)
+        {
+            <div>
+                <div class="chart">
+                    <span class="grid" style="top: 0"></span><span class="ylabel" style="top: 0">@UsageStore.FormatNumber(v.ChartTop)원</span>
+                    <span class="grid" style="top: 50%"></span><span class="ylabel" style="top: 50%">@UsageStore.FormatNumber(v.ChartTop / 2)</span>
+                    <span class="grid base" style="top: 100%"></span><span class="ylabel" style="top: 100%">0</span>
+                    <div class="bars" @onkeydown="OnBarKeyDownAsync" @onmouseleave="() => _hover = 0">
+                        @for (var d = 1; d <= v.Days; d++)
+                        {
+                            var day = d;
+                            var on = v.Selected == day;
+                            <button type="button" id="@($"usage-bar-{day}")" class="bar @(on ? "sel" : null)" tabindex="@(day == v.FocusDay ? 0 : -1)" aria-pressed="@Pressed(on)" aria-label="@BarLabel(v, day)" disabled="@(!v.HasDay(day))" @onclick="() => PickDay(day)" @onmouseenter="() => _hover = day" @onfocus="() => _hover = day" @onblur="() => _hover = 0">
+                                <span class="bar-fill" style="height: @(v.BarHeight(day))px"></span>
+                            </button>
+                        }
+                    </div>
+                    @if (_hover > 0 && _hover <= v.Days && v.HasDay(_hover))
+                    {
+                        <div class="tip" style="left: @Css((_hover - 0.5) / v.Days * 100)%; bottom: @(v.BarHeight(_hover) + 10)px; transform: translateX(@TipShift(v))">
+                            <b>@(_hover)일 (@Weekday(v.Month, _hover))@(_hover == v.Today ? " 오늘" : null)</b>
+                            <span>@Usage.FormatWon(v.DayUsd[_hover]) · 부탁 @(v.DayCount[_hover])번</span>
+                        </div>
+                    }
+                </div>
+                <div class="xlabels" aria-hidden="true">
+                    @for (var d = 1; d <= v.Days; d++)
+                    {
+                        <span class="@XLabelClass(v, d)">@XLabel(v, d)</span>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="day-table">
+                <div class="day-row head" aria-hidden="true"><span>날짜</span><span>금액</span><span>부탁</span></div>
+                @for (var d = v.LastDay; d >= 1; d--)
+                {
+                    var day = d;
+                    if (!v.HasDay(day))
+                        continue;
+
+                    <button type="button" class="day-row" aria-pressed="@Pressed(v.Selected == day)" @onclick="() => PickDay(day)">
+                        <span>@(day)일 (@Weekday(v.Month, day))@(day == v.Today ? " 오늘" : null)</span>
+                        <span>@Usage.FormatWon(v.DayUsd[day])</span>
+                        <span>@(v.DayCount[day])번</span>
+                    </button>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>어디에 썼나</h3>
+            <span class="spacer"></span>
+            <div class="seg" role="group" aria-label="나눠 보기">
+                <button type="button" aria-pressed="@Pressed(!_byFile)" @onclick="() => _byFile = false">모델별</button>
+                <button type="button" aria-pressed="@Pressed(_byFile)" @onclick="() => _byFile = true">파일별</button>
+            </div>
+        </div>
+        @if (v.Tasks.Count == 0)
+        {
+            <p class="mu">이 달에는 아직 부탁한 기록이 없어요.</p>
+        }
+        else
+        {
+            <ul class="split">
+                @foreach (var row in Breakdown(v))
+                {
+                    <li class="split-row">
+                        <span class="name">
+                            @if (row.Type is DocuType type)
+                            {
+                                <FileTypeIcon Type="type" Size="22" Variant="chat" />
+                            }
+                            <span class="name-text"><b>@row.Name</b><small>부탁 @(row.Count)번</small></span>
+                            @if (!string.IsNullOrEmpty(row.Tag))
+                            {
+                                <span class="prov">@row.Tag</span>
+                            }
+                        </span>
+                        <span class="track" aria-hidden="true"><span style="width: @Css(row.Share)%"></span></span>
+                        <span class="value">@Usage.FormatWon(row.Usd)</span>
+                        <span class="share">@Math.Round(row.Share)%</span>
+                    </li>
+                }
+            </ul>
+            <p class="mu">@TokenLine(v)</p>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h3>부탁 기록</h3>
+            <span class="mu">@ListHead(v)</span>
+            @if (v.Selected > 0)
+            {
+                <ActionButton Kind="ButtonKind.Secondary" OnClick="() => PickDay(0)">@MonthName(v.Month) 전체 보기</ActionButton>
+            }
+        </div>
+        @if (v.Tasks.Count == 0)
+        {
+            <p class="mu">부탁하면 여기에 한 줄씩 쌓여요.</p>
+        }
+        else
+        {
+            <ul class="tasks">
+                @foreach (var task in ListedTasks(v))
+                {
+                    var open = _openTask == task.Id;
+                    <li class="task" @key="task.Id">
+                        <button type="button" class="task-head" aria-expanded="@Pressed(open)" @onclick="() => ToggleTask(task.Id)">
+                            <span class="when">@When(v, task)</span>
+                            @if (FileType(task.File) is DocuType type)
+                            {
+                                <FileTypeIcon Type="type" Size="22" Variant="chat" />
+                            }
+                            else
+                            {
+                                <span class="no-file" aria-hidden="true"></span>
+                            }
+                            <span class="task-text"><b>@task.Ask</b><small>@TaskMeta(task)</small></span>
+                            <span class="amount">@Usage.FormatWon(task.Usd)</span>
+                            <Icon Name="chevron-down" Size="16" Class="@(open ? "chevron up" : "chevron")" />
+                        </button>
+                        @if (open)
+                        {
+                            <div class="steps">
+                                <div class="step head"><span>단계</span><span>한 일</span><span>입력</span><span>캐시 쓰기</span><span>캐시 읽기</span><span>출력</span><span>금액</span></div>
+                                @for (var i = 0; i < task.Steps.Count; i++)
+                                {
+                                    var step = task.Steps[i];
+                                    <div class="step"><span>@(i + 1)</span><span class="step-name">@step.Step</span><span>@Tokens(step.Input)</span><span>@Dash(step.CacheWrite)</span><span>@Dash(step.CacheRead)</span><span>@Tokens(step.Output)</span><span>@Usage.FormatWon(step.Usd)</span></div>
+                                }
+                                <div class="step total"><span></span><span>합계 (토큰)</span><span>@Tokens(task.Input)</span><span>@Dash(task.CacheWrite)</span><span>@Dash(task.CacheRead)</span><span>@Tokens(task.Output)</span><span>@Usage.FormatWon(task.Usd)</span></div>
+                                <p class="mu">@TaskNote(task)</p>
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+            @if (v.Selected == 0 && _more < v.Tasks.Count)
+            {
+                <ActionButton Kind="ButtonKind.Secondary" Class="more" OnClick="() => _more += PageSize">더 보기</ActionButton>
+            }
+        }
+    </div>
+
+    <h3 class="rows-title">한도와 알림</h3>
+
+    <div class="row center">
+        <div class="row-head">
+            <span id="usage-alert-l" class="row-title">알림 보낼 때</span>
+            <span class="row-note">넘으면 제목 줄에 알림이 떠요. 저절로 열리진 않아요.</span>
+        </div>
+        <div class="row-body">
+            <div class="seg" role="group" aria-labelledby="usage-alert-l">
+                @foreach (var percent in SettingsStore.UsageAlertOptions)
+                {
+                    <button type="button" aria-pressed="@Pressed(Settings.UsageAlertPercent == percent)" @onclick="() => Settings.SetUsageAlert(percent)">@(percent)%@(percent == SettingsStore.DefaultUsageAlert ? " (기본)" : null)</button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">한도를 다 쓰면</span>
+            <span class="row-note">하던 부탁은 끝까지 해요. 중간에 끊으면 반쯤 고친 파일이 남으니까요.</span>
+        </div>
+        <fieldset class="row-body options">
+            <legend class="sr-only">한도를 다 쓰면</legend>
+            <RadioOption Group="usage-at-cap" Value="@SettingsStore.CapStop" Class="compact" Selected="@Usage.StopsAtCap" OnSelect="Settings.SetUsageAtCap">
+                <span class="opt-line"><span class="opt-name">도우미 쉬기</span><span class="default-tag">기본</span></span>
+                <span class="opt-note">다음 달 1일까지 새 부탁을 못 해요. 파일 열기, 직접 고치기, 저장은 그대로 돼요</span>
+            </RadioOption>
+            <RadioOption Group="usage-at-cap" Value="@SettingsStore.CapWarn" Class="compact" Selected="@(!Usage.StopsAtCap)" OnSelect="Settings.SetUsageAtCap">
+                <span class="opt-line"><span class="opt-name">알리기만 하고 계속 쓰기</span></span>
+                <span class="opt-note">넘은 금액을 제목 줄에 계속 보여 줘요</span>
+            </RadioOption>
+        </fieldset>
+    </div>
+
+    <div class="row">
+        <div class="row-head">
+            <label for="usage-cost" class="row-title">부탁마다 금액 보여 주기</label>
+            <span id="usage-cost-d" class="row-note">도우미 결과의 ‘다 했어요’ 줄에 그 부탁의 금액이 같이 나와요.</span>
+        </div>
+        <div class="row-body stack">
+            <div class="switch-row">
+                <input type="checkbox" role="switch" id="usage-cost" class="switch" checked="@Settings.UsageShowCost" aria-describedby="usage-cost-d" @onchange="e => Settings.SetUsageShowCost(IsOn(e))" />
+                <span class="switch-text" aria-hidden="true">@(Settings.UsageShowCost ? "켜짐" : "꺼짐")</span>
+            </div>
+            <span class="chip" aria-label="미리 보기">
+                <span class="chip-check" aria-hidden="true"><Icon Name="check" Size="11" Stroke="3.6" /></span>
+                <b>다 했어요</b>
+                <span class="mu">@ChipSteps(v)</span>
+                @if (Settings.UsageShowCost)
+                {
+                    <b>· 약 @Usage.FormatWon(ChipUsd(v))</b>
+                }
+            </span>
+        </div>
+    </div>
+
+    <div class="row center">
+        <div class="row-head">
+            <span class="row-title">환율</span>
+            <span class="row-note">두 회사 모두 달러로 청구해요. 카드 청구 환율과 조금 다를 수 있어요.</span>
+        </div>
+        <div class="row-body">
+            @if (!_rateEdit)
+            {
+                <div class="edit-line">
+                    <span class="rate">1달러 = @UsageStore.FormatNumber(Settings.UsdRate)원</span>
+                    <ActionButton Kind="ButtonKind.Secondary" id="usage-rate-btn" OnClick="StartRateEdit">바꾸기</ActionButton>
+                </div>
+            }
+            else
+            {
+                <div class="edit-line">
+                    <label for="usage-rate-in">1달러 =</label>
+                    <div class="fld"><input id="usage-rate-in" type="text" inputmode="numeric" value="@_rateInput" @oninput="e => _rateInput = e.Value?.ToString() ?? string.Empty" /><span aria-hidden="true">원</span></div>
+                    <ActionButton Kind="ButtonKind.Primary" Disabled="@(!SettingsStore.IsValidRate(Digits(_rateInput)))" OnClick="SaveRateAsync">저장</ActionButton>
+                    <ActionButton Kind="ButtonKind.Ghost" OnClick="CancelRateAsync">취소</ActionButton>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="row center">
+        <div class="row-head">
+            <span class="row-title">정확한 청구 금액</span>
+            <span class="row-note">여기 숫자는 앱이 직접 센 값이라, 회사 사이트와 몇 원 다를 수 있어요.</span>
+        </div>
+        <div class="row-body links">
+            <a class="link-btn" href="https://platform.claude.com/usage" target="_blank" rel="noopener">Claude 콘솔 사용량<Icon Name="external" Size="15" /></a>
+            <a class="link-btn" href="https://platform.openai.com/usage" target="_blank" rel="noopener">OpenAI 사용량<Icon Name="external" Size="15" /></a>
+        </div>
+    </div>
+
+    <div class="row center">
+        <div class="row-head">
+            <span class="row-title">기록 내보내기</span>
+            <span class="row-note">단계마다 한 줄씩: 날짜, 부탁, 파일, 모델, 토큰, 금액</span>
+        </div>
+        <div class="row-body edit-line">
+            <ActionButton Kind="ButtonKind.Secondary" Disabled="@(Usage.Records.Count == 0)" OnClick="ExportAsync">CSV로 저장</ActionButton>
+            <span class="mu" role="status">@_exportStatus</span>
+        </div>
+    </div>
+</section>
+
+@code {
+    private const int PageSize = 8;
+    private const int ChartHeight = 150;
+    private static readonly int[] s_capOptions = { 3000, 5000, 10000, 30000, 0 };
+    private static readonly int[] s_xLabels = { 1, 5, 10, 15, 20, 25, 30 };
+    private static readonly CultureInfo s_korean = CultureInfo.GetCultureInfo("ko-KR");
+
+    [Parameter]
+    public EventCallback<string> OnFocusRequest { get; set; }
+
+    private bool _previous;
+    private bool _capEdit;
+    private int _capDraft;
+    private string _capInput = string.Empty;
+    private bool _rateEdit;
+    private string _rateInput = string.Empty;
+    private bool _byFile;
+    private bool _table;
+    private int _selected = -1;
+    private int _hover;
+    private string _openTask;
+    private int _more = PageSize;
+    private string _exportStatus;
+
+    private UsageView BuildView()
+    {
+        var month = _previous ? Usage.ThisMonth.AddMonths(-1) : Usage.ThisMonth;
+        var view = new UsageView(month, _previous ? 0 : DateTime.Now.Day, Usage.TasksIn(month));
+        var rate = Settings.UsdRate;
+        view.TotalUsd = view.Tasks.Sum(t => t.Usd);
+        view.TotalWon = view.TotalUsd * rate;
+        view.DailyWon = view.TotalWon / view.Elapsed;
+        view.ProjectedWon = view.IsNow ? view.DailyWon * view.Days : view.TotalWon;
+        view.Selected = _selected < 0 ? (view.IsNow && view.HasDay(view.Today) ? view.Today : 0) : _selected;
+        if (view.Selected > 0 && !view.HasDay(view.Selected))
+            view.Selected = 0;
+
+        view.FocusDay = view.Selected > 0 ? view.Selected : view.LastDay;
+        view.ChartTop = Math.Max(200, Math.Ceiling(view.DayUsd.Max() * rate / 200) * 200);
+        view.ScaleWon = rate;
+
+        if (Usage.HasCap)
+        {
+            view.Percent = view.TotalWon / Usage.Cap * 100;
+            view.ProjectionPercent = view.ProjectedWon / Usage.Cap * 100;
+            view.ShowProjection = view.IsNow && view.ProjectionPercent > view.Percent;
+            view.FillWidth = Math.Min(100, view.Percent);
+            view.ProjectionWidth = Math.Max(0, Math.Min(100, view.ProjectionPercent) - view.FillWidth);
+
+            var sum = 0.0;
+            for (var d = 1; d <= view.Elapsed; d++)
+            {
+                sum += view.DayUsd[d] * rate;
+                if (sum >= Usage.Cap * Usage.AlertPercent / 100.0)
+                {
+                    view.AlertDay = d;
+                    break;
+                }
+            }
+
+            view.Warning = Warning(view);
+        }
+
+        return view;
+    }
+
+    private string Warning(UsageView v)
+    {
+        if (!v.IsNow)
+            return null;
+
+        if (v.Percent >= 100)
+            return Usage.StopsAtCap
+                ? $"한도를 다 썼어요. {Usage.NextResetText}까지 새 부탁은 쉬어요."
+                : "한도를 넘었어요. 알리기만 하고 계속 쓰는 중이에요.";
+
+        if (v.ProjectedWon > Usage.Cap && v.DailyWon > 0)
+        {
+            var hitDay = Math.Min(v.Days, v.Today + (int)Math.Ceiling((Usage.Cap - v.TotalWon) / v.DailyWon));
+            return $"이대로면 {hitDay}일쯤 한도에 닿아요. " + (Usage.StopsAtCap
+                ? $"그 뒤로 {Usage.NextResetText}까지는 도우미가 쉬어요."
+                : "넘어도 계속 쓸 수 있게 해 뒀어요.");
+        }
+
+        return v.Percent >= Usage.AlertPercent
+            ? $"알림 기준 {Usage.AlertPercent}%를 넘어서 제목 줄에 알림이 떠 있어요."
+            : null;
+    }
+
+    private IEnumerable<SplitRow> Breakdown(UsageView v)
+    {
+        var total = Math.Max(v.TotalUsd, double.Epsilon);
+        var groups = _byFile
+            ? v.Tasks.GroupBy(t => string.IsNullOrWhiteSpace(t.File) ? "파일 없이 한 부탁" : t.File)
+                .Select(g => new SplitRow(g.Key, null, FileType(g.First().File), g.Count(), g.Sum(t => t.Usd), g.Sum(t => t.Usd) / total * 100))
+            : v.Tasks.GroupBy(t => UsageStore.ModelName(t.Model))
+                .Select(g => new SplitRow(g.Key, ProviderTag(g.First().Model), null, g.Count(), g.Sum(t => t.Usd), g.Sum(t => t.Usd) / total * 100));
+
+        return groups.OrderByDescending(r => r.Usd);
+    }
+
+    private IEnumerable<UsageTask> ListedTasks(UsageView v) => v.Selected > 0
+        ? v.Tasks.Where(t => t.StartedAt.Day == v.Selected)
+        : v.Tasks.Take(_more);
+
+    private string HeroLabel(UsageView v) => v.IsNow ? $"{MonthName(v.Month)}에 쓴 돈 · {v.Today}일까지" : $"{MonthName(v.Month)}에 쓴 돈";
+
+    private string CapHelp(UsageView v)
+    {
+        if (!SettingsStore.IsValidCap(_capDraft))
+            return "500원부터 100만 원까지 적을 수 있어요.";
+
+        if (_capDraft == 0)
+            return "한도 없음이면 알림도 안 보내요.";
+
+        return v.DailyWon > 0
+            ? $"하루 평균대로면 한 달에 약 {UsageStore.FormatNumber(Math.Round(v.DailyWon * 30 / 100) * 100)}원 써요."
+            : "한도를 넘으면 다음 달 1일까지 도우미가 쉬어요.";
+    }
+
+    private string DayLine(UsageView v)
+    {
+        if (v.Selected > 0)
+            return $"{v.Selected}일 ({Weekday(v.Month, v.Selected)}){(v.Selected == v.Today ? " 오늘" : null)} · {Usage.FormatWon(v.DayUsd[v.Selected])} · 부탁 {v.DayCount[v.Selected]}번";
+
+        if (v.Tasks.Count == 0)
+            return "이 달에는 아직 쓴 돈이 없어요.";
+
+        return _table ? "날짜를 누르면 그날 부탁만 아래에 보여요" : "막대를 누르면 그날 부탁만 아래에 보여요";
+    }
+
+    private string BarLabel(UsageView v, int day)
+    {
+        var future = v.IsNow && day > v.Today;
+        var text = $"{day}일 {Weekday(v.Month, day)}요일{(day == v.Today ? " 오늘" : null)}, ";
+        return text + (future ? "아직 안 온 날" : v.HasDay(day) ? $"{Usage.FormatWon(v.DayUsd[day])}, 부탁 {v.DayCount[day]}번" : "안 씀");
+    }
+
+    private string XLabel(UsageView v, int day)
+    {
+        if (day == v.Today)
+            return "오늘";
+
+        if (day == v.Selected)
+            return day.ToString(CultureInfo.InvariantCulture);
+
+        var near = Math.Abs(day - (v.Today > 0 ? v.Today : -9)) <= 1 || Math.Abs(day - (v.Selected > 0 ? v.Selected : -9)) <= 1;
+        return Array.IndexOf(s_xLabels, day) >= 0 && !near ? day.ToString(CultureInfo.InvariantCulture) : null;
+    }
+
+    private static string XLabelClass(UsageView v, int day)
+    {
+        if (day == v.Selected)
+            return "on";
+
+        return v.IsNow && day > v.Today ? "future" : null;
+    }
+
+    private string TipShift(UsageView v) => _hover <= 2 ? "-12px" : _hover >= v.Days - 2 ? "calc(-100% + 12px)" : "-50%";
+
+    private string TokenLine(UsageView v)
+    {
+        var saved = Usage.Won(v.Tasks.Sum(t => t.Saved));
+        var line = $"{MonthName(v.Month)} 토큰: 입력 {ShortTokens(v.Tasks.Sum(t => t.Input))}, 캐시 쓰기 {ShortTokens(v.Tasks.Sum(t => t.CacheWrite))}, 캐시 읽기 {ShortTokens(v.Tasks.Sum(t => t.CacheRead))}, 출력 {ShortTokens(v.Tasks.Sum(t => t.Output))}.";
+        return saved >= 1 ? line + $" 캐시 덕분에 약 {UsageStore.FormatNumber(saved)}원 아꼈어요." : line;
+    }
+
+    private string ListHead(UsageView v) => v.Selected > 0
+        ? $"{v.Selected}일 ({Weekday(v.Month, v.Selected)}) · 부탁 {v.DayCount[v.Selected]}번 · {Usage.FormatWon(v.DayUsd[v.Selected])}"
+        : $"{MonthName(v.Month)} 전체 {v.Tasks.Count}번 · 최근 것부터";
+
+    private string When(UsageView v, UsageTask task)
+    {
+        var time = task.StartedAt.ToString("tt h:mm", s_korean);
+        return v.Selected > 0 ? time : $"{task.StartedAt.Day}일 {time}";
+    }
+
+    private string TaskMeta(UsageTask task)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(task.File))
+            parts.Add(task.File);
+
+        parts.Add(UsageStore.ModelName(task.Model));
+        parts.Add(AssistantModels.FindEffort(task.Effort).Name);
+        parts.Add($"{task.Steps.Count}단계, {FormatSeconds(task.Seconds)}");
+        return string.Join(" · ", parts);
+    }
+
+    private string TaskNote(UsageTask task)
+    {
+        var text = string.Empty;
+        if (UsageStore.ModelFor(task.Model)?.Provider == AgentProvider.OpenAi)
+        {
+            text = "OpenAI는 캐시를 알아서 써서 쓰기 요금이 없어요. ";
+        }
+        else if (task.Steps[0].CacheWrite > 0 && task.Usd > 0)
+        {
+            var share = (int)Math.Round(task.Steps[0].Usd / task.Usd * 100);
+            text = $"1단계가 금액의 {share}%예요. 시스템 프롬프트와 도구 설명을 캐시에 처음 쓰는 값이라서요. ";
+        }
+
+        var saved = task.Saved;
+        return saved > 0 ? text + $"캐시 덕분에 이 부탁에서 약 {Usage.FormatWon(saved)} 아꼈어요." : text.TrimEnd();
+    }
+
+    private static string ChipSteps(UsageView v)
+    {
+        var task = v.Tasks.FirstOrDefault();
+        return task == null ? "5단계, 18초" : $"{task.Steps.Count}단계, {FormatSeconds(task.Seconds)}";
+    }
+
+    private static double ChipUsd(UsageView v) => v.Tasks.FirstOrDefault()?.Usd ?? 0.05;
+
+    private static string ProviderTag(string model) => UsageStore.ModelFor(model)?.Provider == AgentProvider.OpenAi ? "ChatGPT" : "Claude";
+
+    private static DocuType? FileType(string fileName) => Path.GetExtension(fileName ?? string.Empty).ToLowerInvariant() switch
+    {
+        ".xlsx" => DocuType.Excel,
+        ".docx" => DocuType.Word,
+        ".pptx" => DocuType.Ppt,
+        ".hwp" or ".hwpx" => DocuType.Hwp,
+        _ => null,
+    };
+
+    private static string MonthName(DateTime month) => $"{month.Month}월";
+
+    private static string Weekday(DateTime month, int day) => new DateTime(month.Year, month.Month, day).ToString("ddd", s_korean);
+
+    private static string Pressed(bool on) => on ? "true" : "false";
+
+    private static string Css(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static string Tokens(long count) => count.ToString("#,0", s_korean);
+
+    private static string Dash(long count) => count > 0 ? Tokens(count) : "–";
+
+    private static string ShortTokens(long count) => count >= 10000
+        ? (Math.Round(count / 1000.0) / 10).ToString("#,0.#", s_korean) + "만"
+        : Tokens(count);
+
+    private static string FormatSeconds(int seconds) => seconds < 60 ? $"{seconds}초" : $"{seconds / 60}분 {seconds % 60}초";
+
+    private static int Digits(string text)
+    {
+        var digits = new string((text ?? string.Empty).Where(char.IsDigit).ToArray());
+        return digits.Length is > 0 and <= 9 ? int.Parse(digits, CultureInfo.InvariantCulture) : -1;
+    }
+
+    private static bool IsOn(ChangeEventArgs e) => e.Value is bool on ? on : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+    private void PickMonth(bool previous)
+    {
+        _previous = previous;
+        _selected = -1;
+        _hover = 0;
+        _openTask = null;
+        _more = PageSize;
+    }
+
+    private void PickDay(int day)
+    {
+        _selected = _selected == day ? 0 : day;
+        _openTask = null;
+        _more = PageSize;
+    }
+
+    private void ToggleTable()
+    {
+        _table = !_table;
+        _hover = 0;
+    }
+
+    private void ToggleTask(string id) => _openTask = _openTask == id ? null : id;
+
+    private async Task OnBarKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key is not ("ArrowLeft" or "ArrowRight" or "Home" or "End"))
+            return;
+
+        var v = BuildView();
+        var days = Enumerable.Range(1, v.Days).Where(v.HasDay).ToList();
+        if (days.Count == 0)
+            return;
+
+        var current = _hover > 0 ? _hover : v.FocusDay;
+        var index = days.IndexOf(current);
+        var next = e.Key switch
+        {
+            "Home" => days[0],
+            "End" => days[^1],
+            "ArrowLeft" => days[Math.Max(0, index < 0 ? 0 : index - 1)],
+            _ => days[Math.Min(days.Count - 1, index + 1)],
+        };
+
+        _hover = next;
+        await OnFocusRequest.InvokeAsync($"#usage-bar-{next}");
+    }
+
+    private async Task StartCapEdit()
+    {
+        _capEdit = true;
+        _capDraft = Usage.Cap;
+        _capInput = Usage.Cap > 0 ? Usage.Cap.ToString(CultureInfo.InvariantCulture) : string.Empty;
+        await OnFocusRequest.InvokeAsync("#usage-cap-in");
+    }
+
+    private void PickCap(int won)
+    {
+        _capDraft = won;
+        _capInput = won > 0 ? won.ToString(CultureInfo.InvariantCulture) : string.Empty;
+    }
+
+    private void TypeCap(ChangeEventArgs e)
+    {
+        _capInput = e.Value?.ToString() ?? string.Empty;
+        _capDraft = string.IsNullOrWhiteSpace(_capInput) ? 0 : Digits(_capInput);
+    }
+
+    private async Task SaveCapAsync()
+    {
+        if (!SettingsStore.IsValidCap(_capDraft))
+            return;
+
+        Settings.SetUsageCap(_capDraft);
+        _capEdit = false;
+        await OnFocusRequest.InvokeAsync("#usage-cap-btn");
+    }
+
+    private async Task CancelCapAsync()
+    {
+        _capEdit = false;
+        await OnFocusRequest.InvokeAsync("#usage-cap-btn");
+    }
+
+    private async Task StartRateEdit()
+    {
+        _rateEdit = true;
+        _rateInput = Settings.UsdRate.ToString(CultureInfo.InvariantCulture);
+        await OnFocusRequest.InvokeAsync("#usage-rate-in");
+    }
+
+    private async Task SaveRateAsync()
+    {
+        var rate = Digits(_rateInput);
+        if (!SettingsStore.IsValidRate(rate))
+            return;
+
+        Settings.SetUsdRate(rate);
+        _rateEdit = false;
+        await OnFocusRequest.InvokeAsync("#usage-rate-btn");
+    }
+
+    private async Task CancelRateAsync()
+    {
+        _rateEdit = false;
+        await OnFocusRequest.InvokeAsync("#usage-rate-btn");
+    }
+
+    private async Task ExportAsync()
+    {
+        _exportStatus = null;
+        var path = await Dialogs.PickSaveFileAsync($"문서도우미 사용량 {DateTime.Now:yyyy-MM-dd}.csv", asCopy: false);
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        try
+        {
+            await File.WriteAllTextAsync(path, Usage.ToCsv(), new UTF8Encoding(true));
+            _exportStatus = $"‘{Path.GetFileName(path)}’로 저장했어요.";
+        }
+        catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+        {
+            AppLog.Write("Could not export usage", e);
+            _exportStatus = "저장하지 못했어요. 다른 곳을 골라 주세요.";
+        }
+    }
+
+    private sealed record SplitRow(string Name, string Tag, DocuType? Type, int Count, double Usd, double Share);
+
+    private sealed class UsageView
+    {
+        public UsageView(DateTime month, int today, IReadOnlyList<UsageTask> tasks)
+        {
+            Month = month;
+            Today = today;
+            Tasks = tasks;
+            Days = DateTime.DaysInMonth(month.Year, month.Month);
+            DayUsd = new double[Days + 1];
+            DayCount = new int[Days + 1];
+            foreach (var task in tasks)
+            {
+                var day = Math.Clamp(task.StartedAt.Month == month.Month ? task.StartedAt.Day : 1, 1, Days);
+                DayUsd[day] += task.Usd;
+                DayCount[day]++;
+            }
+        }
+
+        public DateTime Month { get; }
+
+        public int Today { get; }
+
+        public bool IsNow => Today > 0;
+
+        public int Days { get; }
+
+        public int Elapsed => IsNow ? Today : Days;
+
+        public int LastDay => Enumerable.Range(1, Days).LastOrDefault(HasDay);
+
+        public IReadOnlyList<UsageTask> Tasks { get; }
+
+        public double[] DayUsd { get; }
+
+        public int[] DayCount { get; }
+
+        public double TotalUsd { get; set; }
+
+        public double TotalWon { get; set; }
+
+        public double DailyWon { get; set; }
+
+        public double ProjectedWon { get; set; }
+
+        public int Selected { get; set; }
+
+        public int FocusDay { get; set; }
+
+        public double ChartTop { get; set; }
+
+        public double ScaleWon { get; set; }
+
+        public double Percent { get; set; }
+
+        public double ProjectionPercent { get; set; }
+
+        public bool ShowProjection { get; set; }
+
+        public double FillWidth { get; set; }
+
+        public double ProjectionWidth { get; set; }
+
+        public int PercentShown => (int)Math.Clamp(Math.Round(Percent), 0, 100);
+
+        public int AlertDay { get; set; }
+
+        public string Warning { get; set; }
+
+        public bool HasDay(int day) => day >= 1 && day <= Days && DayCount[day] > 0;
+
+        public int BarHeight(int day) => HasDay(day) ? Math.Max(3, (int)Math.Round(DayUsd[day] * ScaleWon / ChartTop * ChartHeight)) : 0;
+    }
+}

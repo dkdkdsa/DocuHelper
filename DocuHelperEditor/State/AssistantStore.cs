@@ -28,13 +28,15 @@ namespace DocuHelperEditor.State
         private readonly WorkspaceStore _workspace;
         private readonly SettingsStore _settings;
         private readonly IConversationRepository _conversations;
+        private readonly UsageStore _usage;
         private readonly List<ChatEntry> _entries = new();
 
-        public AssistantStore(WorkspaceStore workspace, SettingsStore settings, IConversationRepository conversations)
+        public AssistantStore(WorkspaceStore workspace, SettingsStore settings, IConversationRepository conversations, UsageStore usage)
         {
             _workspace = workspace;
             _settings = settings;
             _conversations = conversations;
+            _usage = usage;
             _workspace.NoticeRaised += OnNotice;
             _workspace.FolderOpened += OnFolderOpened;
         }
@@ -71,10 +73,13 @@ namespace DocuHelperEditor.State
 
         public bool CanSend => (!string.IsNullOrWhiteSpace(Draft) || (Status != AssistantStatus.Asking && _attachments.Count > 0))
             && Status != AssistantStatus.Working
-            && (Status == AssistantStatus.Asking || !IsRunning);
+            && (Status == AssistantStatus.Asking || (!IsRunning && !IsUsageBlocked));
+
+        public bool IsUsageBlocked => _usage.IsBlocked;
 
         public string ComposerPlaceholder => Status == AssistantStatus.Asking
             ? "질문에 먼저 답해 주세요"
+            : IsUsageBlocked ? "이번 달은 도우미가 쉬어요"
             : _entries.Count == 0 ? "부탁할 일을 적어 주세요" : "더 부탁할 게 있으면 적어 주세요";
 
         public IReadOnlyList<ContextChipModel> ContextChips
@@ -309,7 +314,7 @@ namespace DocuHelperEditor.State
             _lastPrompt = null;
             _lastAttachments = new List<AttachmentModel>();
             ForgetConversation();
-            _workspace.Workspace.Agent?.ResetConversation();
+            _workspace.Workspace.ResetConversation();
             Notify();
         }
 

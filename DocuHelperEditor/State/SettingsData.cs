@@ -31,5 +31,15 @@ namespace DocuHelperEditor.State
         public DateTime? ClaudeCheckedAt { get; set; }
 
         public DateTime? OpenAiCheckedAt { get; set; }
+
+        public int? UsageCap { get; set; }
+
+        public int? UsageAlert { get; set; }
+
+        public string UsageAtCap { get; set; }
+
+        public bool UsageShowCost { get; set; }
+
+        public int? UsdRate { get; set; }
     }
 }

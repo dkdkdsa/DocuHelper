@@ -50,6 +50,10 @@
                             <AssistantSection Settings="Settings" OnFocusRequest="FocusAsync" />
                             break;
 
+                        case "usage":
+                            <UsageSection OnFocusRequest="FocusAsync" />
+                            break;
+
                         case "folder":
                             <FolderSection Settings="Settings" Workspace="Workspace" RecentsCleared="_recentsCleared" OnClearRecents="ClearRecents" />
                             break;
@@ -86,6 +90,7 @@
     {
         ("key", "도우미 열쇠", "key-round"),
         ("ai", "도우미", "highlighter"),
+        ("usage", "사용량", "gauge"),
         ("folder", "작업 폴더", "folder"),
         ("hwp", "한글 파일", null),
         ("view", "화면", "type"),

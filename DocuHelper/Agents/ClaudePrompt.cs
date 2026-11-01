@@ -27,7 +27,7 @@ namespace DocuHelper.Agents
             Read before you write: look at the relevant sheet, paragraphs or slides first. Never guess at content or invent numbers; take them from the files, the user or the web.
             Change only what the request needs. Keep the existing layout, styles, fonts and number formats, and leave other sheets, sections and slides alone.
             Prefer one well-scoped write call per logical change. Every write call needs `label`: one short Korean sentence ending in 요 that says what the change does, such as "거래처마다 금액 합계를 구해요". Each label becomes one item in the user's change list, so make each one meaningful on its own.
-            Use `step` to show progress: 3 to 6 short Korean steps per task, such as "파일 읽기", "요약표 만들기", "계산식 넣기". Calls that belong to the same step share the same text.
+            Every tool also takes `step`, the progress label the user sees while you work. Use 3 to 6 short Korean steps per task, such as "파일 읽기", "요약표 만들기", "계산식 넣기". Calls that belong to the same step share the same text.
             """;
 
         private const string AskingGuide = """

@@ -89,9 +89,31 @@ namespace DocuHelper.Agents
             return string.Join("\n\n", texts);
         }
 
+        public static AgentUsage Usage(JsonObject response, JsonArray output, string model)
+        {
+            var served = Field(response, "model");
+            var usage = new AgentUsage { Model = string.IsNullOrEmpty(served) ? model : served };
+            if (response["usage"] is JsonObject counts)
+            {
+                var input = Count(counts["input_tokens"]);
+                var cached = Count(counts["input_tokens_details"]?["cached_tokens"]);
+                usage.CacheReadTokens = Math.Min(cached, input);
+                usage.InputTokens = input - usage.CacheReadTokens;
+                usage.OutputTokens = Count(counts["output_tokens"]);
+            }
+
+            foreach (var call in FunctionCalls(output))
+                usage.Tools.Add(Field(call, "name"));
+
+            return usage;
+        }
+
         public static bool IsCutOff(JsonObject response) =>
             Field(response, "status") == "incomplete"
             && Field(response["incomplete_details"], "reason") == "max_output_tokens";
+
+        private static long Count(JsonNode node) =>
+            node is JsonValue value && value.TryGetValue<long>(out var count) ? Math.Max(0, count) : 0;
 
         public static string Field(JsonNode node, string key) =>
             node is JsonObject obj && obj[key] is JsonValue value && value.TryGetValue(out string text) ? text : string.Empty;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -54,7 +54,7 @@ namespace DocuHelperEditor.State
             _conversationFileType = saved.FileType;
             _entries.Add(new ChatEntry { Kind = ChatEntryKind.Time, Text = ConversationTime.Describe(saved.CreatedAt) });
             _entries.AddRange(saved.Entries.Where(e => e.Kind != ChatEntryKind.Time).Select(FromSaved));
-            _workspace.Workspace.Agent?.RestoreConversation(_entries.Select(ToTurn).Where(t => t != null).ToList());
+            _workspace.Workspace.RestoreConversation(_entries.Select(ToTurn).Where(t => t != null).ToList());
             Notify();
         }
 
@@ -159,6 +159,7 @@ namespace DocuHelperEditor.State
                 }).ToList(),
                 Steps = entry.Progress?.Steps.Select(s => s.Label).ToList() ?? new List<string>(),
                 Elapsed = entry.Progress?.Elapsed,
+                Usd = entry.Progress?.Usd,
                 Result = entry.Result,
             };
         }
@@ -190,6 +191,7 @@ namespace DocuHelperEditor.State
                     IsFinished = true,
                     IsExpanded = false,
                     Elapsed = saved.Elapsed,
+                    Usd = saved.Usd,
                 };
             }
 

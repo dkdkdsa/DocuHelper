@@ -13,6 +13,8 @@ namespace DocuHelperEditor.State
 
         public string Elapsed { get; set; }
 
+        public double? Usd { get; set; }
+
         public string CurrentDetail { get; set; }
 
         public int DoneCount => Steps.Count(s => s.State == TaskStepState.Done);

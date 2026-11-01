@@ -11,6 +11,8 @@ namespace DocuHelper.Agents
 
         void OnStepCompleted(AgentStep step);
 
+        void OnUsage(AgentUsage usage);
+
         Task<string> AskUserAsync(AgentQuestion question, CancellationToken cancellationToken);
 
         Task WaitForRetryAsync(AgentRetry retry, CancellationToken cancellationToken);
