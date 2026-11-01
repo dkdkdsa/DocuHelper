@@ -6,7 +6,7 @@
 
 @if (Slide != null)
 {
-    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount">
+    <div @ref="_stage" class="slide @LayoutClass" style="@SlideStyle" tabindex="-1" data-locked="@(Locked ? "true" : null)" data-selected="@SelectedCount">
         @if (Slide.Background.Kind == "picture" && Slide.Background.ImageSrc != null)
         {
             <img class="bg" src="@Slide.Background.ImageSrc" alt="" />

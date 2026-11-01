@@ -80,6 +80,7 @@ window.docuHelperPptCanvas = (function () {
         }
 
         if (!shape || !slide.contains(shape)) {
+            slide.focus({ preventScroll: true });
             if (slide.querySelector('.shape.on')) {
                 send(session, { kind: 'select', id: null, additive: false });
             }
@@ -94,7 +95,10 @@ window.docuHelperPptCanvas = (function () {
         if (shape.dataset.movable !== 'true') return;
         if (editing && shape.classList.contains('on')) return;
 
-        if (!editing) e.preventDefault();
+        if (!editing) {
+            e.preventDefault();
+            slide.focus({ preventScroll: true });
+        }
         startDrag(session, slide, e, 'move', shape, null);
     }
 
