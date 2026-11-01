@@ -28,6 +28,7 @@ namespace DocuHelper.Agents
         private readonly List<BetaContentBlockParam> _pendingResults = new();
         private AnthropicClient _client;
         private string _clientKey;
+        private string _containerId;
         private long _attachedBytes;
         private int _attachedImages;
 
@@ -44,6 +45,7 @@ namespace DocuHelper.Agents
 
             var startCount = _messages.Count;
             var pending = _pendingResults.ToList();
+            var startContainer = _containerId;
 
             var opening = new List<BetaContentBlockParam>(pending);
             opening.AddRange(attachments.Select(ToBlock));
@@ -57,7 +59,11 @@ namespace DocuHelper.Agents
             {
                 for (var turn = 0; turn < MaxTurns; turn++)
                 {
-                    var response = await CreateWithRetryAsync(client, CreateParams(request, toolbox), host, cancellationToken);
+                    var parameters = CreateParams(request, toolbox);
+                    if (_containerId != null)
+                        parameters = parameters with { Container = _containerId };
+
+                    var response = await CreateWithRetryAsync(client, parameters, host, cancellationToken);
                     if (response.StopReason == "refusal")
                         throw new AgentException(AgentFailure.Refused, "이 부탁은 도와드리기 어려워요. 다르게 말해 주시면 다시 해 볼게요.");
 
@@ -71,6 +77,8 @@ namespace DocuHelper.Agents
                         .Select(b => b.TryPickToolUse(out var use) ? use : null)
                         .Where(use => use != null)
                         .ToList();
+                    var calledFromCode = uses.Any(IsCalledFromCode);
+                    _containerId = calledFromCode || response.StopReason == "pause_turn" ? response.Container?.ID : null;
 
                     ReportWebSteps(served, host);
 
@@ -114,7 +122,7 @@ namespace DocuHelper.Agents
                         });
                     }
 
-                    if (toolbox.IsFinished)
+                    if (toolbox.IsFinished && !calledFromCode)
                     {
                         _pendingResults.AddRange(results);
                         return toolbox.BuildResult(text);
@@ -130,6 +138,7 @@ namespace DocuHelper.Agents
                 _messages.RemoveRange(startCount, _messages.Count - startCount);
                 _pendingResults.Clear();
                 _pendingResults.AddRange(pending);
+                _containerId = startContainer;
                 _attachedBytes -= addedBytes;
                 _attachedImages -= addedImages;
                 throw;
@@ -140,6 +149,7 @@ namespace DocuHelper.Agents
         {
             _messages.Clear();
             _pendingResults.Clear();
+            _containerId = null;
             _attachedBytes = 0;
             _attachedImages = 0;
         }
@@ -374,11 +384,17 @@ namespace DocuHelper.Agents
                 {
                     echo.Add(new BetaRedactedThinkingBlockParam { Data = redacted.Data });
                 }
-                else if (block.TryPickToolUse(out var use))
+                else if (block.TryPickToolUse(out var use) && !IsCalledFromCode(use))
                 {
                     echo.Add(new BetaToolUseBlockParam { ID = use.ID, Name = use.Name, Input = use.Input });
                 }
-                else if (block.TryPickServerToolUse(out _) || block.TryPickWebSearchToolResult(out _) || block.TryPickWebFetchToolResult(out _))
+                else if (block.TryPickToolUse(out _)
+                    || block.TryPickServerToolUse(out _)
+                    || block.TryPickWebSearchToolResult(out _)
+                    || block.TryPickWebFetchToolResult(out _)
+                    || block.TryPickCodeExecutionToolResult(out _)
+                    || block.TryPickBashCodeExecutionToolResult(out _)
+                    || block.TryPickTextEditorCodeExecutionToolResult(out _))
                 {
                     echo.Add(JsonSerializer.Deserialize<BetaContentBlockParam>(JsonSerializer.Serialize(block)));
                 }
@@ -386,6 +402,8 @@ namespace DocuHelper.Agents
 
             return echo;
         }
+
+        private static bool IsCalledFromCode(BetaToolUseBlock use) => use.Caller != null && !use.Caller.TryPickBetaDirect(out _);
 
         private static string ServedText(List<BetaContentBlock> blocks)
         {
@@ -415,6 +433,9 @@ namespace DocuHelper.Agents
                     continue;
 
                 var isFetch = use.Input.TryGetValue("url", out var url);
+                if (!isFetch && !use.Input.TryGetValue("query", out _))
+                    continue;
+
                 use.Input.TryGetValue("query", out var query);
                 var target = isFetch ? url : query;
                 var step = new AgentStep
