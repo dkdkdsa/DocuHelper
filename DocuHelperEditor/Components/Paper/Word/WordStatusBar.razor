@@ -1,0 +1,109 @@
+@using System.Globalization
+@using DocuHelper.Docus
+@using DocuHelper.Tools.Word
+@using DocuHelperEditor.Components.Ribbon
+@using DocuHelperEditor.State.Papers
+@using DocuHelperEditor.State.Ribbon
+@inherits StoreComponentBase
+
+@if (File != null)
+{
+    <StatusBar Format="DocuType.Word" Label="상태 표시줄" Left="Left" Right="Right" />
+}
+
+@code {
+    private object _countsFor;
+    private WordCounts _counts;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private WordRibbonState Ribbon => WordRibbonState.Of(File);
+
+    private WordPaperModel Model => File?.Paper as WordPaperModel;
+
+    private string View => Ribbon?.View ?? "print";
+
+    private int Zoom => Ribbon?.Zoom ?? 100;
+
+    private bool ShowChanges => File != null && File.Changes.Count > 0 && File.Activity != FileActivity.Editing;
+
+    private int Position
+    {
+        get
+        {
+            var index = File.Changes.FindIndex(c => c.Id == Workspace.SelectedChangeId);
+            return index < 0 ? 1 : index + 1;
+        }
+    }
+
+    private WordCounts Counts
+    {
+        get
+        {
+            if (!ReferenceEquals(_countsFor, File?.Paper))
+            {
+                _countsFor = File?.Paper;
+                _counts = File?.Docu is WordDocu word ? WordStats.Count(word) : null;
+            }
+
+            return _counts;
+        }
+    }
+
+    private int CurrentPage
+    {
+        get
+        {
+            var page = Model?.FindBlock(Model.SelectedBlockId)?.Page ?? 1;
+            if (Ribbon != null)
+                Ribbon.CurrentPage = page;
+
+            return page;
+        }
+    }
+
+    private int SelectedCharacters
+    {
+        get
+        {
+            var selection = Model?.Selection;
+            return selection == null || !selection.HasText ? 0 : selection.Ranges.Sum(r => r.End - r.Start);
+        }
+    }
+
+    private string Text(int count) => count.ToString("N0", CultureInfo.InvariantCulture);
+
+    private Task Command(string id) => Ribbon?.Router?.InvokeAsync(id, null) ?? Task.CompletedTask;
+
+    private Task SetZoomAsync(int value) =>
+        Ribbon?.Router?.InvokeAsync("word.status.zoomslider", value.ToString(CultureInfo.InvariantCulture)) ?? Task.CompletedTask;
+
+    private RenderFragment Left => __builder =>
+    {
+        <StatusButton Tip="이동 (Ctrl+G)" OnClick='() => Command("word.status.page")'>@CurrentPage/@Model?.Pages.Count 페이지</StatusButton>
+        <StatusButton Tip="단어 개수" OnClick='() => Command("word.review.proofing.wordcount")'>@Text(Counts?.Words ?? 0)단어</StatusButton>
+        <StatusButton Tip="글자 수 (공백 포함)">@Text(Counts?.Characters ?? 0)글자</StatusButton>
+        @if (SelectedCharacters > 0)
+        {
+            <StatusButton Tip="선택한 글자 수">선택 @Text(SelectedCharacters)글자</StatusButton>
+        }
+        <StatusButton Tip="문서 언어">한국어</StatusButton>
+        <RibbonDivider Gap="6" />
+        @if (ShowChanges)
+        {
+            <StatusChanges Label="바뀐 곳" Position="Position" Count="File.Changes.Count" OnPrevious="() => Workspace.MoveChange(-1)" OnNext="() => Workspace.MoveChange(1)" OnRevertAll="() => Workspace.RevertAllAsync(File.Id)" />
+        }
+    };
+
+    private RenderFragment Right => __builder =>
+    {
+        <span class="views">
+            <StatusButton Icon="read" Label="읽기 모드" Pressed='@(View == "read")' OnClick='() => Command("word.view.views.read")' />
+            <StatusButton Icon="page" Label="인쇄 모양" Pressed='@(View == "print")' OnClick='() => Command("word.view.views.print")' />
+            <StatusButton Icon="web" Label="웹 모양" Pressed='@(View == "web")' OnClick='() => Command("word.view.views.web")' />
+        </span>
+        <RibbonDivider Gap="4" />
+        <ZoomControl Value="Zoom" ValueChanged="SetZoomAsync" SliderWidth="92" />
+    };
+}

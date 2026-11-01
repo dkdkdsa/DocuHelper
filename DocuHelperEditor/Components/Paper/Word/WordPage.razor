@@ -1,4 +1,5 @@
 ﻿@using System.Globalization
+@using System.Text.Json
 @using DocuHelper.Tools.Word
 @using DocuHelperEditor.State
 @using DocuHelperEditor.State.Ribbon
@@ -6,77 +7,82 @@
 @inherits StoreComponentBase
 @inject IJSRuntime JS
 
-<div class="canvas" style="@PaperVariables" @ref="_canvas">
-    @if (Model == null)
+<div class="pane">
+    @if (ShowRuler)
     {
-        <div class="spread">
-            <article class="@PageClass" aria-label="1쪽"><div class="sheet"></div></article>
-        </div>
+        <WordRuler Box="Box" Layout="RulerLayout" Vertical="false" />
     }
-    else
-    {
-        var hasNotes = Model.HasSourceNotes;
-        foreach (var page in Model.Pages)
+    <div class="row">
+        @if (ShowRuler)
         {
-            var blocks = Model.BlocksOnPage(page);
-            var frame = Model.FrameOf(page);
-            <div class="spread" @key="page">
-                <article class="@PageClass" style="@PageStyle(frame)" aria-label="@($"{page}쪽")">
-                    @if (frame?.Watermark != null)
-                    {
-                        <div class="wm" aria-hidden="true"><span>@frame.Watermark</span></div>
-                    }
-                    @if (frame != null && frame.Header.Count > 0)
-                    {
-                        <div class="hf" style="top: @Length(frame.HeaderPt)" aria-hidden="true">
-                            @foreach (var line in frame.Header)
-                            {
-                                @StoryLine(line)
-                            }
-                        </div>
-                    }
-                    <div class="sheet" style="@SheetStyle(frame)">
-                    @foreach (var run in Runs(blocks))
-                    {
-                        if (run.Kind == WordListKind.None)
-                        {
-                            @(BlockView(run.Blocks[0], page))
-                        }
-                        else
-                        {
-                            foreach (var block in run.Blocks)
-                            {
-                                <div @key="block.Id">@(BlockView(block, page))</div>
-                            }
-                        }
-                    }
-                    </div>
-                    @if (frame != null && frame.Footer.Count > 0)
-                    {
-                        <div class="hf" style="bottom: @Length(frame.FooterPt)" aria-hidden="true">
-                            @foreach (var line in frame.Footer)
-                            {
-                                @StoryLine(line)
-                            }
-                        </div>
-                    }
-                    @if (frame != null && frame.Notes.Count > 0)
-                    {
-                        <div class="notes" aria-hidden="true">
-                            @foreach (var note in frame.Notes)
-                            {
-                                <p><span class="nno">@note.Number</span>@note.Text</p>
-                            }
-                        </div>
-                    }
-                </article>
-                @if (hasNotes)
-                {
-                    <div class="margin"></div>
-                }
-            </div>
+            <WordRuler Box="Box" Layout="RulerLayout" Vertical="true" />
         }
-    }
+        <div class="canvas @CanvasClass" style="@CanvasStyle" @ref="_canvas">
+            @if (Model == null)
+            {
+                <div class="spread">
+                    <article class="@PageClass" aria-label="1쪽"><div class="sheet"></div></article>
+                </div>
+            }
+            else if (Flow)
+            {
+                <article class="@PageClass flow" aria-label="본문"><div class="sheet">
+                    @(RunsOf(Model.Blocks, 0))
+                </div></article>
+            }
+            else
+            {
+                var hasNotes = Model.HasSourceNotes;
+                foreach (var page in Model.Pages)
+                {
+                    var blocks = Model.BlocksOnPage(page);
+                    var frame = Model.FrameOf(page);
+                    <div class="spread" @key="page">
+                        <article class="@PageClass" style="@PageStyle(frame)" aria-label="@($"{page}쪽")">
+                            @if (frame?.Watermark != null)
+                            {
+                                <div class="wm" aria-hidden="true"><span>@frame.Watermark</span></div>
+                            }
+                            @if (frame != null && frame.Header.Count > 0)
+                            {
+                                <div class="hf" style="top: @Length(frame.HeaderPt)" aria-hidden="true">
+                                    @foreach (var line in frame.Header)
+                                    {
+                                        @StoryLine(line)
+                                    }
+                                </div>
+                            }
+                            <div class="sheet" style="@SheetStyle(frame)">
+                                @(RunsOf(blocks, page))
+                            </div>
+                            @if (frame != null && frame.Footer.Count > 0)
+                            {
+                                <div class="hf" style="bottom: @Length(frame.FooterPt)" aria-hidden="true">
+                                    @foreach (var line in frame.Footer)
+                                    {
+                                        @StoryLine(line)
+                                    }
+                                </div>
+                            }
+                            @if (frame != null && frame.Notes.Count > 0)
+                            {
+                                <div class="notes" aria-hidden="true">
+                                    @foreach (var note in frame.Notes)
+                                    {
+                                        <p><span class="nno">@note.Number</span>@note.Text</p>
+                                    }
+                                </div>
+                            }
+                        </article>
+                        @if (hasNotes)
+                        {
+                            <div class="margin"></div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
 </div>
 
 @code {
@@ -154,7 +160,82 @@
 
     private static string Css(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);
 
-    private string Editable => IsLocked ? "false" : "plaintext-only";
+    private string Editable => IsLocked || Reading ? "false" : "plaintext-only";
+
+    private WordRibbonState Ribbon => File?.Type == DocuType.Hwp ? null : WordRibbonState.Of(File);
+
+    private string View => Ribbon?.View ?? "print";
+
+    private bool Flow => View is "web" or "draft" or "outline";
+
+    private bool Reading => View == "read";
+
+    private bool ShowRuler => Ribbon != null && Ribbon.Ruler && View == "print" && Model != null;
+
+    private WordCanvasBox Box => Ribbon?.Canvas;
+
+    private WordPageLayout RulerLayout => Model?.FrameOf(1)?.Layout ?? Model?.Layout;
+
+    private int Zoom => Ribbon?.Zoom ?? (File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File)?.Zoom ?? 100 : 100);
+
+    private string CanvasClass => string.Join(" ", new[]
+    {
+        View,
+        Flow ? "flow" : null,
+        !Flow && (Reading || (Ribbon?.SideBySide ?? false)) ? "multi" : null,
+        Zoom != 100 ? "zoomed" : null,
+        Ribbon?.Gridlines == true && View == "print" ? "grid" : null,
+    }.Where(c => c != null));
+
+    private string CanvasStyle => $"{PaperVariables} --zoom: {Css(Zoom / 100.0)};";
+
+    private RenderFragment RunsOf(IReadOnlyList<WordBlockModel> blocks, int page) =>
+        @<text>
+            @foreach (var run in Runs(blocks))
+            {
+                if (run.Kind == WordListKind.None)
+                {
+                    @(BlockView(run.Blocks[0], page))
+                }
+                else
+                {
+                    foreach (var block in run.Blocks)
+                    {
+                        <div @key="block.Id">@(BlockView(block, page))</div>
+                    }
+                }
+            }
+        </text>;
+
+    private static readonly JsonSerializerOptions s_json = new() { PropertyNameCaseInsensitive = true };
+
+    private async Task MeasureAsync()
+    {
+        var ribbon = Ribbon;
+        if (ribbon == null || Model == null)
+            return;
+
+        try
+        {
+            var json = await JS.InvokeAsync<string>("docuHelperWordCanvas.measure", _canvas);
+            var box = json == null ? null : JsonSerializer.Deserialize<WordCanvasBox>(json, s_json);
+            if (box != null && box != ribbon.Canvas)
+            {
+                ribbon.Canvas = box;
+                Workspace.Notify();
+            }
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    [JSInvokable]
+    public Task Resized() => MeasureAsync();
+
 
     protected override void OnParametersSet()
     {
@@ -173,6 +254,33 @@
             try
             {
                 await JS.InvokeVoidAsync("docuHelperWordSelection.attach", _canvas, _self);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordCanvas.observe", _canvas, _self);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        await MeasureAsync();
+        var pageTarget = Ribbon?.PageTarget;
+        if (pageTarget is int page && Ribbon != null)
+        {
+            Ribbon.PageTarget = null;
+            try
+            {
+                await JS.InvokeVoidAsync("docuHelperWordCanvas.scrollToPage", _canvas, page);
             }
             catch (JSException)
             {
@@ -246,6 +354,7 @@
     {
         _self?.Dispose();
         _ = JS.InvokeVoidAsync("docuHelperWordSelection.detach", _canvas).AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
+        _ = JS.InvokeVoidAsync("docuHelperWordCanvas.unobserve", _canvas).AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
     }
 
     private RenderFragment BlockView(WordBlockModel block, int page)

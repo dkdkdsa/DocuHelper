@@ -1,0 +1,39 @@
+@using System.Globalization
+@using DocuHelper.Tools.Word
+@using DocuHelperEditor.State.Papers
+
+@if (Box != null && Layout != null)
+{
+    <div class="@(Vertical ? "rul v" : "rul h")" aria-hidden="true">
+        <div class="bar" style="@Style"></div>
+    </div>
+}
+
+@code {
+    private const double TwipsPerCm = 567.0;
+
+    [Parameter]
+    public WordCanvasBox Box { get; set; }
+
+    [Parameter]
+    public WordPageLayout Layout { get; set; }
+
+    [Parameter]
+    public bool Vertical { get; set; }
+
+    private string Style => Vertical ? VerticalStyle() : HorizontalStyle();
+
+    private string HorizontalStyle()
+    {
+        var cm = Box.PageWidth / (Layout.Width / TwipsPerCm);
+        return $"--left: {Css(Box.PageLeft)}px; --page: {Css(Box.PageWidth)}px; --pl: {Css(Box.PaddingLeft)}px; --pr: {Css(Box.PaddingRight)}px; --cm: {Css(cm)}px;";
+    }
+
+    private string VerticalStyle()
+    {
+        var cm = Box.PageHeight / (Layout.Height / TwipsPerCm);
+        return $"--top: {Css(Box.PageTop)}px; --page: {Css(Box.PageHeight)}px; --pt: {Css(Box.PaddingTop)}px; --pb: {Css(Box.PaddingBottom)}px; --cm: {Css(cm)}px;";
+    }
+
+    private static string Css(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+}

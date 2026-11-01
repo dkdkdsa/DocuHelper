@@ -3,7 +3,7 @@
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 
-<div class="word" style="@ZoomVariable">
+<div class="word">
     @if (File?.Type == DocuType.Hwp)
     {
         <HwpRibbonHost File="File" />
@@ -14,7 +14,14 @@
     }
 
     <WordPage File="File" />
-    <ChangeNavigator File="File" />
+    @if (File?.Type == DocuType.Hwp)
+    {
+        <ChangeNavigator File="File" />
+    }
+    else
+    {
+        <WordStatusBar File="File" />
+    }
 </div>
 
 @code {
@@ -22,15 +29,6 @@
 
     [Parameter]
     public WorkspaceFile File { get; set; }
-
-    private string ZoomVariable
-    {
-        get
-        {
-            var zoom = File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File)?.Zoom ?? 100 : WordRibbonState.Of(File)?.Zoom ?? 100;
-            return zoom == 100 ? null : "--word-zoom: " + (zoom / 100.0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-        }
-    }
 
     protected override void OnParametersSet()
     {

@@ -1,0 +1,52 @@
+.rul {
+    position: relative;
+    flex: none;
+    overflow: hidden;
+    background: var(--paper-2);
+}
+
+.rul.h {
+    height: 24px;
+    margin-left: 24px;
+    border-bottom: 1px solid var(--hair);
+}
+
+.rul.v {
+    align-self: stretch;
+    width: 24px;
+    border-right: 1px solid var(--hair);
+}
+
+.bar {
+    position: absolute;
+}
+
+.rul.h .bar {
+    top: 0;
+    bottom: 0;
+    left: var(--left);
+    width: var(--page);
+    background: linear-gradient(90deg, var(--hair) 0 var(--pl), var(--paper) var(--pl) calc(100% - var(--pr)), var(--hair) calc(100% - var(--pr)));
+}
+
+.rul.h .bar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--thumb-line) 1px, transparent 1px) 0 100% / var(--cm) 6px repeat-x;
+}
+
+.rul.v .bar {
+    left: 0;
+    right: 0;
+    top: var(--top);
+    height: var(--page);
+    background: linear-gradient(180deg, var(--hair) 0 var(--pt), var(--paper) var(--pt) calc(100% - var(--pb)), var(--hair) calc(100% - var(--pb)));
+}
+
+.rul.v .bar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, var(--thumb-line) 1px, transparent 1px) 100% 0 / 6px var(--cm) repeat-y;
+}

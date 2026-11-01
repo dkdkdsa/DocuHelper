@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.State.Ribbon
 {
@@ -10,12 +11,23 @@ namespace DocuHelperEditor.State.Ribbon
         public const int MinZoom = 50;
         public const int MaxZoom = 200;
 
+        private static readonly string[] s_features = { "views", "ruler", "grid" };
+
         private static readonly ConditionalWeakTable<WorkspaceFile, WordRibbonState> s_states = new ConditionalWeakTable<WorkspaceFile, WordRibbonState>();
 
         private readonly HashSet<string> _features = new HashSet<string>(StringComparer.Ordinal);
         private int _zoom = 100;
 
-        public static WordRibbonState Of(WorkspaceFile file) => file == null ? null : s_states.GetValue(file, _ => new WordRibbonState());
+        public static WordRibbonState Of(WorkspaceFile file) => file == null ? null : s_states.GetValue(file, _ => Create());
+
+        private static WordRibbonState Create()
+        {
+            var state = new WordRibbonState();
+            foreach (var feature in s_features)
+                state.Enable(feature);
+
+            return state;
+        }
 
         public event Action Changed;
 
@@ -48,6 +60,10 @@ namespace DocuHelperEditor.State.Ribbon
         public bool ReadingAloud { get; set; }
 
         public WordCommandRouter Router { get; set; }
+
+        public WordCanvasBox Canvas { get; set; }
+
+        public int? PageTarget { get; set; }
 
         public IWordDialogPresenter Dialogs { get; set; }
 

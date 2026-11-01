@@ -1,0 +1,50 @@
+window.docuHelperWordCanvas = (function () {
+    var observers = new Map();
+
+    function measure(canvas) {
+        if (!canvas) return null;
+        var page = canvas.querySelector('article.page');
+        if (!page) return null;
+        var sheet = page.querySelector('.sheet') || page;
+        var box = page.getBoundingClientRect();
+        var origin = canvas.getBoundingClientRect();
+        var style = getComputedStyle(sheet);
+        return {
+            viewportWidth: canvas.clientWidth,
+            viewportHeight: canvas.clientHeight,
+            pageWidth: box.width,
+            pageHeight: box.height,
+            pageLeft: box.left - origin.left,
+            pageTop: box.top - origin.top,
+            paddingLeft: parseFloat(style.paddingLeft) || 0,
+            paddingRight: parseFloat(style.paddingRight) || 0,
+            paddingTop: parseFloat(style.paddingTop) || 0,
+            paddingBottom: parseFloat(style.paddingBottom) || 0
+        };
+    }
+
+    return {
+        measure: function (canvas) {
+            return JSON.stringify(measure(canvas));
+        },
+        observe: function (canvas, reference) {
+            if (!canvas || !window.ResizeObserver || observers.has(canvas)) return;
+            var observer = new ResizeObserver(function () {
+                reference.invokeMethodAsync('Resized').catch(function () { });
+            });
+            observer.observe(canvas);
+            observers.set(canvas, observer);
+        },
+        unobserve: function (canvas) {
+            var observer = observers.get(canvas);
+            if (observer) {
+                observer.disconnect();
+                observers.delete(canvas);
+            }
+        },
+        scrollToPage: function (canvas, page) {
+            var target = canvas && canvas.querySelector('article[aria-label="' + page + '쪽"]');
+            if (target) target.scrollIntoView({ block: 'start' });
+        }
+    };
+})();

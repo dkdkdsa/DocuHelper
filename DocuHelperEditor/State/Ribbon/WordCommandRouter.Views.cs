@@ -11,6 +11,11 @@ namespace DocuHelperEditor.State.Ribbon
 {
     public sealed partial class WordCommandRouter
     {
+        private const double TwipsPerPixel = 15.0;
+        private const double CanvasGutter = 32;
+        private const double CanvasVerticalGutter = 56;
+        private const double PageGap = 24;
+
         private static readonly HashSet<string> s_internal = new HashSet<string>(StringComparer.Ordinal)
         {
             "toggleRibbon",
@@ -25,6 +30,10 @@ namespace DocuHelperEditor.State.Ribbon
             "openNavigation",
             "setMarkup",
             "toggleComments",
+            "fitPage",
+            "fitMulti",
+            "fitWidth",
+            "goToPage",
         };
 
         private static readonly Dictionary<string, string> s_features = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -129,6 +138,15 @@ namespace DocuHelperEditor.State.Ribbon
                 case "toggleComments":
                     State.ShowComments = !State.ShowComments;
                     break;
+                case "fitPage":
+                case "fitMulti":
+                case "fitWidth":
+                    SetView(args);
+                    FitZoom(spec.Action);
+                    break;
+                case "goToPage":
+                    GoToPage(Int(args, "page", 0));
+                    break;
             }
 
             State.Touch();
@@ -174,6 +192,36 @@ namespace DocuHelperEditor.State.Ribbon
 
             if (args["rib"] is JsonValue rib && rib.TryGetValue<bool>(out var open))
                 State.RibbonOpen = open;
+        }
+
+        private void FitZoom(string action)
+        {
+            var box = State.Canvas;
+            var layout = Model?.FrameOf(State.CurrentPage)?.Layout ?? Model?.Layout;
+            if (box == null || layout == null)
+                return;
+
+            var width = layout.Width / TwipsPerPixel;
+            var height = layout.Height / TwipsPerPixel;
+            var room = Math.Max(0, box.ViewportWidth - CanvasGutter);
+            var tall = Math.Max(0, box.ViewportHeight - CanvasVerticalGutter);
+            var zoom = action switch
+            {
+                "fitWidth" => room / width,
+                "fitPage" => Math.Min(room / width, tall / height),
+                _ => Math.Min((room - PageGap) / (2 * width), tall / height),
+            };
+            State.Zoom = (int)Math.Floor(zoom * 100);
+        }
+
+        private void GoToPage(int page)
+        {
+            var last = Model?.Pages.Count ?? 1;
+            if (page < 1 || page > last)
+                return;
+
+            State.CurrentPage = page;
+            State.PageTarget = page;
         }
 
         private void SetPageMovement(JsonObject args)
