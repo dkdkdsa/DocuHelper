@@ -1,3 +1,4 @@
+using System.Linq;
 using DocuHelper.Editors;
 using DocuHelperEditor.State.Papers;
 using Microsoft.AspNetCore.Components;
@@ -7,34 +8,47 @@ namespace DocuHelperEditor.Components.Paper.Excel
 {
     public partial class ExcelPaper
     {
-        private string _selectedObject;
+        private string _selectedObjectSheet;
+        private string _selectedObjectId;
 
         private RenderFragment<Sheet> ObjectOverlay => sheet => builder =>
         {
             builder.OpenComponent<SheetObjectLayer>(0);
-            builder.AddAttribute(1, nameof(SheetObjectLayer.Objects), sheet.Objects);
-            builder.AddAttribute(2, nameof(SheetObjectLayer.Selected), _selectedObject);
-            builder.AddAttribute(3, nameof(SheetObjectLayer.OnSelect), EventCallback.Factory.Create<string>(this, SelectObject));
-            builder.AddAttribute(4, nameof(SheetObjectLayer.OnChange), EventCallback.Factory.Create<SheetObjectChange>(this, ChangeObject));
+            builder.AddAttribute(1, nameof(SheetObjectLayer.SheetName), sheet.Name);
+            builder.AddAttribute(2, nameof(SheetObjectLayer.Objects), sheet.Objects);
+            builder.AddAttribute(3, nameof(SheetObjectLayer.SelectedId), _selectedObjectSheet == sheet.Name ? _selectedObjectId : null);
+            builder.AddAttribute(4, nameof(SheetObjectLayer.OnSelect), EventCallback.Factory.Create<string>(this, SelectObject));
+            builder.AddAttribute(5, nameof(SheetObjectLayer.OnChange), EventCallback.Factory.Create<SheetObjectChange>(this, ChangeObject));
             builder.CloseComponent();
         };
 
-        private void SelectObject(string name) => _selectedObject = string.IsNullOrEmpty(name) ? null : name;
+        private void SelectObject(string id)
+        {
+            _selectedObjectSheet = string.IsNullOrEmpty(id) ? null : CurrentSheet.Name;
+            _selectedObjectId = string.IsNullOrEmpty(id) ? null : id;
+        }
 
         private void ChangeObject(SheetObjectChange change)
         {
+            if (change.SheetName != CurrentSheet.Name)
+                return;
+
+            var item = CurrentSheet.Objects.FirstOrDefault(o => o.Id == change.Id);
+            if (item == null || !item.Editable)
+                return;
+
             var sheet = CurrentSheet.Name;
             switch (change.Action)
             {
-                case "move":
-                    Edit(EditCommand.Create("change_object", new { sheet, @object = change.Name, action = "move", anchor = SheetRef.Make(change.Column, change.Row) }));
+                case SheetObjectAction.Move:
+                    Edit(EditCommand.Create("change_object", new { sheet, @object = item.Name, action = "move", anchor = SheetRef.Make(change.Column, change.Row) }));
                     break;
-                case "resize":
-                    Edit(EditCommand.Create("change_object", new { sheet, @object = change.Name, action = "resize", columns = change.Columns, rows = change.Rows }));
+                case SheetObjectAction.Resize:
+                    Edit(EditCommand.Create("change_object", new { sheet, @object = item.Name, action = "resize", columns = change.Columns, rows = change.Rows }));
                     break;
-                case "delete":
-                    if (Edit(EditCommand.Create("change_object", new { sheet, @object = change.Name, action = "delete" })))
-                        _selectedObject = null;
+                case SheetObjectAction.Delete:
+                    if (Edit(EditCommand.Create("change_object", new { sheet, @object = item.Name, action = "delete" })))
+                        SelectObject(null);
                     break;
             }
         }

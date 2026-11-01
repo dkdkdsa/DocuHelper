@@ -2,25 +2,41 @@
 @using System
 @using System.Collections.Generic
 @using System.Globalization
+@using System.Linq
 @using System.Threading.Tasks
 @using Microsoft.JSInterop
+@using DocuHelperEditor.Services
 @using DocuHelperEditor.State.Papers
 @inject IJSRuntime JS
 
 <div class="layer" @ref="_root">
-    @if (Objects != null)
+    @if (_jsFailed)
+    {
+        <ul class="fallback" aria-label="개체 목록">
+            @if (Objects != null)
+            {
+                foreach (var item in Objects)
+                {
+                    <li>@Label(item)</li>
+                }
+            }
+        </ul>
+    }
+    else if (Objects != null)
     {
         foreach (var item in Objects)
         {
             var current = item;
-            var selected = current.Name == Selected;
-            <div class="obj @KindClass(current) @(selected ? "sel" : null)" role="button" tabindex="0"
+            var selected = current.Id == SelectedId;
+            var one = current.Anchor.FromRow == current.Anchor.ToRow && current.Anchor.FromColumn == current.Anchor.ToColumn && current.Width > 0;
+            <div class="obj @KindClass(current) @(selected ? "sel" : null) @(current.Editable ? null : "locked")" role="button" tabindex="0"
                  aria-label="@Label(current)" aria-pressed="@(selected ? "true" : "false")"
-                 data-name="@current.Name" data-kind="@KindName(current)"
+                 data-id="@current.Id" data-name="@current.Name" data-kind="@KindName(current)" data-editable="@(current.Editable ? "true" : "false")"
                  data-from-row="@current.Anchor.FromRow" data-from-column="@current.Anchor.FromColumn"
                  data-from-row-offset="@Px(current.Anchor.FromRowOffset)" data-from-column-offset="@Px(current.Anchor.FromColumnOffset)"
                  data-to-row="@current.Anchor.ToRow" data-to-column="@current.Anchor.ToColumn"
                  data-to-row-offset="@Px(current.Anchor.ToRowOffset)" data-to-column-offset="@Px(current.Anchor.ToColumnOffset)"
+                 data-one-cell="@(one ? "true" : "false")" data-width="@Px(current.Width)" data-height="@Px(current.Height)"
                  style="visibility: hidden;@FillStyle(current)">
                 @if (current.Kind == SheetObjectKind.Picture && !string.IsNullOrEmpty(current.ImageUrl))
                 {
@@ -53,12 +69,18 @@
     private ElementReference _root;
     private IJSObjectReference _module;
     private DotNetObjectReference<SheetObjectLayer> _self;
+    private bool _attached;
+    private bool _disposed;
+    private bool _jsFailed;
+
+    [Parameter]
+    public string SheetName { get; set; }
 
     [Parameter]
     public IReadOnlyList<SheetObject> Objects { get; set; }
 
     [Parameter]
-    public string Selected { get; set; }
+    public string SelectedId { get; set; }
 
     [Parameter]
     public EventCallback<string> OnSelect { get; set; }
@@ -68,36 +90,125 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && !_disposed)
         {
             _self = DotNetObjectReference.Create(this);
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
-            await _module.InvokeVoidAsync("attach", _root, _self);
+            try
+            {
+                var module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+                if (_disposed)
+                {
+                    await module.DisposeAsync();
+                    return;
+                }
+
+                _module = module;
+                await _module.InvokeVoidAsync("attach", _root, _self);
+                _attached = true;
+            }
+            catch (JSException e)
+            {
+                AppLog.Write("개체 레이어 스크립트를 불러오지 못했어요", e);
+                _jsFailed = true;
+                StateHasChanged();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
         }
 
-        if (_module != null)
-            await _module.InvokeVoidAsync("layout", _root);
+        if (_attached && !_disposed && !_jsFailed)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("layout", _root);
+            }
+            catch (JSException e)
+            {
+                AppLog.Write("개체 위치를 정하지 못했어요", e);
+                _jsFailed = true;
+                StateHasChanged();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
     }
 
     [JSInvokable]
-    public Task Select(string name) => OnSelect.InvokeAsync(name);
+    public Task Select(string id) => OnSelect.InvokeAsync(id ?? string.Empty);
 
     [JSInvokable]
-    public Task Drop(string name, string action, int row, int column, int columns, int rows) =>
-        OnChange.InvokeAsync(new SheetObjectChange(name, action, row, column, columns, rows));
+    public async Task Drop(string id, string action, int row, int column, int columns, int rows)
+    {
+        if (!Enum.TryParse(action, true, out SheetObjectAction parsed) || !Enum.IsDefined(parsed))
+            return;
+
+        await Send(id, parsed, row, column, columns, rows);
+    }
 
     [JSInvokable]
-    public Task Remove(string name) => OnChange.InvokeAsync(new SheetObjectChange(name, "delete", 0, 0, 0, 0));
+    public Task Remove(string id) => Send(id, SheetObjectAction.Delete, 0, 0, 0, 0);
+
+    private async Task Send(string id, SheetObjectAction action, int row, int column, int columns, int rows)
+    {
+        var item = Objects?.FirstOrDefault(o => o.Id == id);
+        if (item == null || !item.Editable)
+            return;
+
+        try
+        {
+            await OnChange.InvokeAsync(new SheetObjectChange(SheetName, id, item.Name, action, row, column, columns, rows));
+        }
+        catch (Exception e)
+        {
+            AppLog.Write("개체 변경을 적용하지 못했어요", e);
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         if (_module != null)
         {
-            await _module.InvokeVoidAsync("detach", _root);
-            await _module.DisposeAsync();
+            try
+            {
+                if (_attached)
+                    await _module.InvokeVoidAsync("detach", _root);
+            }
+            catch (JSException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+
+            try
+            {
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
         }
 
         _self?.Dispose();
+    }
+
+    private string Label(SheetObject item)
+    {
+        var kind = item.Kind switch
+        {
+            SheetObjectKind.Chart => "차트",
+            SheetObjectKind.Picture => "그림",
+            SheetObjectKind.TextBox => "글상자",
+            _ => "도형",
+        };
+        var text = kind + " " + item.Name;
+        if (!string.IsNullOrEmpty(item.Alt))
+            text += ", " + item.Alt;
+
+        return item.Editable ? text : text + ", 편집할 수 없어요";
     }
 
     private static string KindName(SheetObject item) => item.Kind switch
@@ -109,14 +220,6 @@
     };
 
     private static string KindClass(SheetObject item) => "k-" + KindName(item);
-
-    private static string Label(SheetObject item) => item.Kind switch
-    {
-        SheetObjectKind.Chart => "차트 " + item.Name,
-        SheetObjectKind.Picture => "그림 " + item.Name,
-        SheetObjectKind.TextBox => "글상자 " + item.Name,
-        _ => "도형 " + item.Name,
-    };
 
     private static string FillStyle(SheetObject item) => string.IsNullOrEmpty(item.FillColor) ? null : " background-color: #" + item.FillColor + ";";
 

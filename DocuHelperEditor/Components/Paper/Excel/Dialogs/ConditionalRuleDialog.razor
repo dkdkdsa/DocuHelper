@@ -1,0 +1,230 @@
+@using System.Globalization
+@using DocuHelper.Editors
+
+<ExcelDialogFrame Title="조건부 서식 규칙" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
+    <div class="field">
+        <label class="field-label" for="cf-range">적용할 범위</label>
+        <input id="cf-range" class="field-input" type="text" autocomplete="off" @bind="_range" />
+    </div>
+    <div class="field">
+        <label class="field-label" for="cf-rule">규칙 종류</label>
+        <select id="cf-rule" class="field-input" @bind="_rule">
+            @foreach (var (value, label) in Rules)
+            {
+                <option value="@value">@label</option>
+            }
+        </select>
+    </div>
+    @if (_rule == "cell_value")
+    {
+        <div class="field">
+            <label class="field-label" for="cf-op">조건</label>
+            <select id="cf-op" class="field-input" @bind="_operator">
+                @foreach (var (value, label) in Operators)
+                {
+                    <option value="@value">@label</option>
+                }
+            </select>
+        </div>
+        <div class="pair">
+            <div class="field">
+                <label class="field-label" for="cf-value">@(IsBetween ? "최소값" : "값")</label>
+                <input id="cf-value" class="field-input" type="text" autocomplete="off" @bind="_value" />
+            </div>
+            @if (IsBetween)
+            {
+                <div class="field">
+                    <label class="field-label" for="cf-value2">최대값</label>
+                    <input id="cf-value2" class="field-input" type="text" autocomplete="off" @bind="_value2" />
+                </div>
+            }
+        </div>
+        <p class="hint">숫자, 날짜(예: 2026-06-30), 셀 주소(예: $B$1)를 넣을 수 있어요.</p>
+    }
+    @if (_rule == "text_contains")
+    {
+        <div class="field">
+            <label class="field-label" for="cf-text">포함할 텍스트</label>
+            <input id="cf-text" class="field-input" type="text" autocomplete="off" @bind="_text" />
+        </div>
+    }
+    @if (_rule is "top" or "bottom")
+    {
+        <div class="pair">
+            <div class="field">
+                <label class="field-label" for="cf-count">개수</label>
+                <input id="cf-count" class="field-input" type="number" min="1" max="1000" inputmode="numeric" @bind="_count" />
+            </div>
+            <label class="check">
+                <input type="checkbox" @bind="_percent" />
+                <span>백분율</span>
+            </label>
+        </div>
+    }
+    @if (_rule == "formula")
+    {
+        <div class="field">
+            <label class="field-label" for="cf-formula">수식</label>
+            <input id="cf-formula" class="field-input" type="text" autocomplete="off" @bind="_formula" />
+        </div>
+        <p class="hint">=로 시작하고, 범위의 왼쪽 위 칸을 기준으로 써요. 예: =$C2>1000000</p>
+    }
+    <div class="field">
+        <label class="field-label" for="cf-look">서식</label>
+        <select id="cf-look" class="field-input" @bind="_look">
+            @foreach (var (value, label) in Looks)
+            {
+                <option value="@value">@label</option>
+            }
+        </select>
+    </div>
+</ExcelDialogFrame>
+
+@code {
+    private static readonly (string Value, string Label)[] Rules =
+    {
+        ("cell_value", "셀 값"),
+        ("text_contains", "텍스트 포함"),
+        ("duplicate", "중복 값"),
+        ("unique", "고유 값"),
+        ("top", "상위 항목"),
+        ("bottom", "하위 항목"),
+        ("above_average", "평균 초과"),
+        ("below_average", "평균 미만"),
+        ("blanks", "빈 칸"),
+        ("errors", "오류"),
+        ("formula", "수식"),
+    };
+
+    private static readonly (string Value, string Label)[] Operators =
+    {
+        ("greater_than", "보다 큼"),
+        ("less_than", "보다 작음"),
+        ("greater_equal", "이상"),
+        ("less_equal", "이하"),
+        ("equal", "같음"),
+        ("not_equal", "같지 않음"),
+        ("between", "사이"),
+        ("not_between", "사이가 아님"),
+    };
+
+    private static readonly (string Value, string Label)[] Looks =
+    {
+        ("light_red_fill_dark_red_text", "연한 빨강 채우기와 진한 빨강 글자"),
+        ("yellow_fill_dark_yellow_text", "노랑 채우기와 진한 노랑 글자"),
+        ("green_fill_dark_green_text", "녹색 채우기와 진한 녹색 글자"),
+        ("light_red_fill", "연한 빨강 채우기"),
+        ("red_text", "빨간 글자"),
+        ("red_border", "빨간 테두리"),
+    };
+
+    [Parameter]
+    public string SheetName { get; set; }
+
+    [Parameter]
+    public string Range { get; set; }
+
+    [Parameter]
+    public string Error { get; set; }
+
+    [Parameter]
+    public EventCallback<EditCommand> OnApply { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private string _range = string.Empty;
+    private string _rule = "cell_value";
+    private string _operator = "greater_than";
+    private string _value = string.Empty;
+    private string _value2 = string.Empty;
+    private string _text = string.Empty;
+    private string _count = "10";
+    private bool _percent;
+    private string _formula = string.Empty;
+    private string _look = "light_red_fill_dark_red_text";
+    private string _error;
+    private bool _ready;
+
+    private bool IsBetween => _operator is "between" or "not_between";
+
+    private string ErrorText => _error ?? Error;
+
+    protected override void OnParametersSet()
+    {
+        if (_ready)
+            return;
+
+        _ready = true;
+        _range = Range ?? string.Empty;
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error = null;
+        var command = Build();
+        if (command != null)
+            await OnApply.InvokeAsync(command);
+    }
+
+    private EditCommand Build()
+    {
+        var range = _range.Trim();
+        if (range.Length == 0)
+            return Fail("적용할 범위를 넣어 주세요.");
+
+        var args = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["sheet"] = SheetName,
+            ["range"] = range,
+            ["action"] = "add",
+            ["rule"] = _rule,
+            ["look"] = _look,
+        };
+
+        switch (_rule)
+        {
+            case "cell_value":
+                if (_value.Trim().Length == 0)
+                    return Fail("비교할 값을 넣어 주세요.");
+
+                if (IsBetween && _value2.Trim().Length == 0)
+                    return Fail("최대값을 넣어 주세요.");
+
+                args["operator"] = _operator;
+                args["value"] = _value.Trim();
+                if (IsBetween)
+                    args["value2"] = _value2.Trim();
+                break;
+            case "text_contains":
+                if (_text.Trim().Length == 0)
+                    return Fail("포함할 텍스트를 넣어 주세요.");
+
+                args["text"] = _text.Trim();
+                break;
+            case "top":
+            case "bottom":
+                if (!int.TryParse(_count, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) || count is < 1 or > 1000)
+                    return Fail("개수는 1부터 1000 사이로 넣어 주세요.");
+
+                args["count"] = count;
+                if (_percent)
+                    args["percent"] = true;
+                break;
+            case "formula":
+                if (!_formula.Trim().StartsWith("=", StringComparison.Ordinal))
+                    return Fail("수식은 =로 시작해야 해요.");
+
+                args["formula"] = _formula.Trim();
+                break;
+        }
+
+        return EditCommand.Create("set_conditional_format", args);
+    }
+
+    private EditCommand Fail(string message)
+    {
+        _error = message;
+        return null;
+    }
+}

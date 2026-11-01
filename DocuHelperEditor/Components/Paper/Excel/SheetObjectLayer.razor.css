@@ -74,3 +74,29 @@
     background: var(--ink);
     cursor: nwse-resize;
 }
+
+.rz::before {
+    content: "";
+    position: absolute;
+    left: -18px;
+    top: -18px;
+    width: 44px;
+    height: 44px;
+}
+
+.obj.locked {
+    cursor: default;
+}
+
+.obj.dragging {
+    opacity: 0.8;
+    z-index: 3;
+}
+
+.fallback {
+    margin: 0;
+    padding: 4px 12px;
+    color: var(--ink-2);
+    font-size: 12px;
+    pointer-events: auto;
+}
