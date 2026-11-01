@@ -15,13 +15,13 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         public event Action<WordDialogRequest> Requested;
 
-        public async Task<IReadOnlyDictionary<string, object>> ShowAsync(string commandId, string dialogJson)
+        public async Task<IReadOnlyDictionary<string, object>> ShowAsync(string commandId, string dialogJson, Func<IReadOnlyDictionary<string, JsonNode>, string> validate)
         {
             if (_active != null)
                 return null;
 
             var dialog = JsonNode.Parse(dialogJson) as JsonObject;
-            var request = new WordDialogRequest(TitleOf(dialog), FieldsOf(dialog), s_none, null);
+            var request = new WordDialogRequest(TitleOf(dialog), FieldsOf(dialog), s_none, validate);
             _active = request;
             Requested?.Invoke(request);
             try

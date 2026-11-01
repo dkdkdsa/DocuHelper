@@ -388,6 +388,11 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private EditCommand BuildTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
         {
             _state.CommitDraft?.Invoke();
+            return PlanTool(spec, entry, arg);
+        }
+
+        private EditCommand PlanTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
+        {
             var selection = _state.Selection;
             var off = entry == null && spec.ArgsOff != null && IsOn(spec.Id);
             var plan = PlanOf(spec, entry, off);
@@ -557,7 +562,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 }
                 else
                 {
-                    var values = await _state.Dialogs.ShowAsync(target, dialog);
+                    var values = await _state.Dialogs.ShowAsync(target, dialog, ValidatorOf(spec, entry, arg));
                     if (values == null)
                         return false;
 
