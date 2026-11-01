@@ -86,14 +86,22 @@ window.docuHelper = (function () {
         return rowCopy;
     }
 
+    function isPrintPage(element) {
+        return element instanceof HTMLElement && element.matches('.page');
+    }
+
+    function hasPrintPage(element) {
+        return Array.prototype.some.call(element.querySelectorAll('.page'), isPrintPage);
+    }
+
     function markPrintTree(root) {
         Array.prototype.forEach.call(root.children, function (child) {
-            if (child.matches('.page')) {
+            if (isPrintPage(child)) {
                 child.classList.add('docu-print-keep', 'docu-print-page');
                 return;
             }
 
-            if (child.querySelector('.page')) {
+            if (hasPrintPage(child)) {
                 child.classList.add('docu-print-keep');
                 markPrintTree(child);
                 return;
@@ -251,7 +259,7 @@ window.docuHelper = (function () {
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         },
         printEnter: function () {
-            var pages = Array.prototype.slice.call(document.querySelectorAll('.page'));
+            var pages = Array.prototype.slice.call(document.querySelectorAll('.page')).filter(isPrintPage);
             if (pages.length === 0)
                 return 0;
 
