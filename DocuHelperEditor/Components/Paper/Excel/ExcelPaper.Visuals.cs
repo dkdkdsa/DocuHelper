@@ -102,7 +102,12 @@ namespace DocuHelperEditor.Components.Paper.Excel
                 return false;
 
             if (link.IsExternal)
-                Shells.FirstOrDefault()?.OpenFile(link.Url);
+            {
+                if (SheetLinkPolicy.TryOpenable(link.Url, out var target))
+                    Shells.FirstOrDefault()?.OpenFile(target);
+                else
+                    _editError = "이 링크는 안전하지 않아서 열지 않았어요.";
+            }
             else if (link.IsInternal)
                 NavigateTo(link.Location);
 
