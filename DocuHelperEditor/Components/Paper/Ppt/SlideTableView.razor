@@ -1,0 +1,57 @@
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+
+<table class="tbl" role="table">
+    <colgroup>
+        @foreach (var width in Table.Columns)
+        {
+            <col style="width: @Num(width)%" />
+        }
+    </colgroup>
+    <tbody>
+        @foreach (var row in Table.Rows)
+        {
+            <tr style="height: @Num(row.Height)%">
+                @foreach (var cell in row.Cells)
+                {
+                    if (!cell.Merged)
+                    {
+                        <td colspan="@cell.GridSpan" rowspan="@cell.RowSpan" style="@CellStyle(cell)">
+                            @foreach (var line in cell.Lines)
+                            {
+                                <span class="line">@line</span>
+                            }
+                        </td>
+                    }
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter]
+    public SlideTableModel Table { get; set; }
+
+    private static string CellStyle(SlideTableCellModel cell)
+    {
+        var css = $"font-size: {Num(cell.FontCqw)}cqw; font-weight: {(cell.Bold ? 700 : 400)}; text-align: {(cell.Align == SlideTextAlign.Center ? "center" : "left")}; vertical-align: {VerticalOf(cell.VerticalAlign)}";
+        if (cell.FillColor != null)
+            css += $"; background: {cell.FillColor}";
+
+        if (cell.TextColor != null)
+            css += $"; color: {cell.TextColor}";
+
+        css += $"; border-top: {cell.BorderTop ?? "none"}; border-right: {cell.BorderRight ?? "none"}; border-bottom: {cell.BorderBottom ?? "none"}; border-left: {cell.BorderLeft ?? "none"}";
+        return css;
+    }
+
+    private static string VerticalOf(string anchor) => anchor switch
+    {
+        "ctr" => "middle",
+        "b" => "bottom",
+        _ => "top",
+    };
+
+    private static string Num(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+}

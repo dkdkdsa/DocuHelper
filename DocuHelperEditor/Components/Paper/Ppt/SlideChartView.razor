@@ -1,0 +1,216 @@
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+
+<figure class="chart" aria-label="@Label">
+    @if (Chart.Type is "pie" or "doughnut")
+    {
+        <svg class="pie" viewBox="0 0 100 100" aria-hidden="true">
+            @foreach (var slice in Slices())
+            {
+                <path d="@slice.Path" fill="@slice.Color" />
+            }
+            @if (Chart.Type == "doughnut")
+            {
+                <circle cx="50" cy="50" r="24" fill="var(--paper)" />
+            }
+        </svg>
+    }
+    else if (Chart.Type is "line" or "area")
+    {
+        <div class="plotarea">
+            <svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                @for (var s = 0; s < Series.Count; s++)
+                {
+                    var index = s;
+                    <polyline points="@Points(index)" fill="none" stroke="@ColorOf(index)" />
+                }
+            </svg>
+            @for (var s = 0; s < Series.Count; s++)
+            {
+                var index = s;
+                for (var i = 0; i < Count; i++)
+                {
+                    var category = i;
+                    <span class="dot" style="left: @Share(category, index, true)%; top: @Value100(category, index)%; background: @ColorOf(index)"></span>
+                }
+            }
+        </div>
+        <div class="cats">
+            @for (var i = 0; i < Count; i++)
+            {
+                <span>@Category(i)</span>
+            }
+        </div>
+    }
+    else if (Chart.Kind == SlideChartKind.Bar)
+    {
+        <div class="rows">
+            @for (var i = 0; i < Count; i++)
+            {
+                var category = i;
+                <div class="row">
+                    <span class="cat">@Category(category)</span>
+                    <span class="track">
+                        @for (var s = 0; s < Series.Count; s++)
+                        {
+                            var index = s;
+                            <span class="bar" style="width: @Share(category, index)%; background: @ColorOf(index)"></span>
+                        }
+                    </span>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="cols">
+            @for (var i = 0; i < Count; i++)
+            {
+                var category = i;
+                <div class="group">
+                    <span class="stack">
+                        @for (var s = 0; s < Series.Count; s++)
+                        {
+                            var index = s;
+                            <span class="bar" style="height: @Share(category, index)%; background: @ColorOf(index)"></span>
+                        }
+                    </span>
+                    <span class="cat">@Category(category)</span>
+                </div>
+            }
+        </div>
+    }
+    @if (ShowLegend)
+    {
+        <ul class="legend">
+            @if (Chart.Type is "pie" or "doughnut")
+            {
+                for (var i = 0; i < Count; i++)
+                {
+                    var category = i;
+                    if (Value(category, 0) > 0)
+                    {
+                        <li><span class="swatch" style="background: @SliceColor(category)"></span>@Category(category)</li>
+                    }
+                }
+            }
+            else
+            {
+                for (var s = 0; s < Series.Count; s++)
+                {
+                    var index = s;
+                    <li><span class="swatch" style="background: @ColorOf(index)"></span>@SeriesName(index)</li>
+                }
+            }
+        </ul>
+    }
+</figure>
+
+@code {
+    private static readonly string[] s_defaults = { "var(--ink)", "var(--line-strong)", "var(--ink-2)", "var(--rule)", "var(--ink-3)", "var(--hair)" };
+
+    [Parameter]
+    public SlideChartModel Chart { get; set; }
+
+    private List<SlideChartSeries> Series => Chart.Series.Count > 0
+        ? Chart.Series
+        : new List<SlideChartSeries>
+        {
+            new()
+            {
+                Name = Chart.Label,
+                Values = Chart.Bars.Select(b => (double?)b.Value).ToList(),
+            },
+        };
+
+    private int Count => Math.Max(Chart.Categories.Count, Series.Count == 0 ? 0 : Series.Max(s => s.Values.Count));
+
+    private string Label => Chart.Label ?? "차트";
+
+    private bool ShowLegend => Chart.Legend != "none" && Series.Count > 0;
+
+    private double Max => Math.Max(Series.SelectMany(s => s.Values).Where(v => v.HasValue).Select(v => v.Value).DefaultIfEmpty(0).Max(), 0);
+
+    private string Category(int index) => index < Chart.Categories.Count && !string.IsNullOrWhiteSpace(Chart.Categories[index])
+        ? Chart.Categories[index]
+        : (index + 1).ToString(CultureInfo.InvariantCulture);
+
+    private string SeriesName(int index) => string.IsNullOrWhiteSpace(Series[index].Name) ? "계열 " + (index + 1).ToString(CultureInfo.InvariantCulture) : Series[index].Name;
+
+    private string ColorOf(int index) => Series[index].Color ?? s_defaults[index % s_defaults.Length];
+
+    private double Value(int category, int index)
+    {
+        var values = Series[index].Values;
+        var value = category < values.Count ? values[category] : null;
+        return value.HasValue && value.Value > 0 ? value.Value : 0;
+    }
+
+    private string Share(int category, int index, bool horizontal = false)
+    {
+        var max = Max;
+        var ratio = max <= 0 ? 0 : Math.Clamp(Value(category, index) / max, 0, 1) * 100;
+        if (horizontal)
+            ratio = Count <= 1 ? 50 : (category + 0.5) / Count * 100;
+
+        return ratio.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private string Value100(int category, int index)
+    {
+        var max = Max;
+        var ratio = max <= 0 ? 100 : 100 - Math.Clamp(Value(category, index) / max, 0, 1) * 100;
+        return ratio.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private string SliceColor(int index) => s_defaults[index % s_defaults.Length];
+
+    private string Points(int index)
+    {
+        var count = Math.Max(1, Count);
+        var max = Max;
+        var points = new List<string>();
+        for (var i = 0; i < count; i++)
+        {
+            var x = (i + 0.5) / count * 100;
+            var y = max <= 0 ? 100 : 100 - Value(i, index) / max * 100;
+            points.Add(x.ToString("0.##", CultureInfo.InvariantCulture) + "," + y.ToString("0.##", CultureInfo.InvariantCulture));
+        }
+
+        return string.Join(" ", points);
+    }
+
+    private IEnumerable<(string Path, string Color)> Slices()
+    {
+        var values = Series[0].Values;
+        var total = values.Where(v => v.HasValue && v.Value > 0).Sum(v => v.Value);
+        if (total <= 0)
+            yield break;
+
+        var positive = values.Count(v => v.HasValue && v.Value > 0);
+        if (positive == 1)
+        {
+            var only = values.FindIndex(v => v.HasValue && v.Value > 0);
+            yield return ("M0,50 A50,50 0 1 1 100,50 A50,50 0 1 1 0,50 Z", SliceColor(only));
+            yield break;
+        }
+
+        var angle = -Math.PI / 2;
+        for (var i = 0; i < values.Count; i++)
+        {
+            var value = values[i];
+            if (!value.HasValue || value.Value <= 0)
+                continue;
+
+            var sweep = value.Value / total * Math.PI * 2;
+            var end = angle + sweep;
+            var large = sweep > Math.PI ? 1 : 0;
+            var path = FormattableString.Invariant($"M50,50 L{Point(angle)} A50,50 0 {large} 1 {Point(end)} Z");
+            yield return (path, SliceColor(i));
+            angle = end;
+        }
+    }
+
+    private static string Point(double angle) =>
+        FormattableString.Invariant($"{50 + 50 * Math.Cos(angle):0.###},{50 + 50 * Math.Sin(angle):0.###}");
+}

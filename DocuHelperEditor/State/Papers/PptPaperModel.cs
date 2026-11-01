@@ -12,6 +12,14 @@ namespace DocuHelperEditor.State.Papers
 
         public string SelectedBoxId { get; set; }
 
+        public List<string> SelectedShapeIds { get; set; } = new();
+
+        public double SlideWidthCm { get; set; } = 33.867;
+
+        public double SlideHeightCm { get; set; } = 19.05;
+
+        public double AspectRatio => SlideHeightCm > 0 ? SlideWidthCm / SlideHeightCm : 16.0 / 9.0;
+
         public string Footer { get; set; }
 
         public override bool IsBlank => Slides == null || Slides.All(s =>
@@ -37,9 +45,45 @@ namespace DocuHelperEditor.State.Papers
             if (Slides.Count == 0)
                 Slides.Add(SlideModel.CreateEmpty());
 
+            foreach (var slide in Slides)
+                slide.EnsureShapes();
+
             ActiveIndex = Math.Clamp(ActiveIndex, 0, Slides.Count - 1);
-            if (SelectedBox == null)
-                SelectedBoxId = null;
+            SyncSelection();
+        }
+
+        public void SelectShape(string shapeId, bool additive)
+        {
+            SelectedShapeIds ??= new List<string>();
+            SelectedBoxId = null;
+            var exists =!string.IsNullOrEmpty(shapeId) && ActiveSlide?.FindShape(shapeId) != null;
+            if (!exists)
+            {
+                if (!additive)
+                    SelectedShapeIds.Clear();
+            }
+            else if (additive)
+            {
+                if (!SelectedShapeIds.Remove(shapeId))
+                    SelectedShapeIds.Add(shapeId);
+            }
+            else
+            {
+                SelectedShapeIds.Clear();
+                SelectedShapeIds.Add(shapeId);
+            }
+
+            SyncSelection();
+        }
+
+        public void SyncSelection()
+        {
+            SelectedShapeIds ??= new List<string>();
+            SelectedShapeIds.RemoveAll(id => ActiveSlide?.FindShape(id) == null);
+            if (SelectedShapeIds.Count == 0 && ActiveSlide?.FindShape(SelectedBoxId) != null)
+                SelectedShapeIds.Add(SelectedBoxId);
+
+            SelectedBoxId = SelectedShapeIds.Count == 1 ? ActiveSlide?.FindShape(SelectedShapeIds[0])?.Text?.Id : null;
         }
 
         public static PptPaperModel CreateEmpty()
