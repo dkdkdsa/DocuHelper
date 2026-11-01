@@ -74,7 +74,7 @@
 }
 
 @code {
-    private readonly PptRibbonState _ribbon = new();
+    private PptRibbonState _ribbon => PptRibbonState.Of(File) ?? new PptRibbonState();
     private ElementReference _root;
     private WheelZoom _wheel;
     private bool Sorter => _ribbon.View == "sorter";
