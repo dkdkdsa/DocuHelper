@@ -145,6 +145,9 @@
         case ExcelDialogIds.Sort:
             <SortDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
             break;
+        case ExcelDialogIds.NameManager:
+            <NameManagerDialog SheetName="@CurrentSheet.Name" Range="@SelectionText" Names="@Model.Names" Error="@_editError" OnApply="ApplyDialog" OnCancel="CloseDialog" />
+            break;
     }
     @if (_router.State.ActiveDialog is { } namedDialog && ExcelNamedDialogs.Has(namedDialog))
     {

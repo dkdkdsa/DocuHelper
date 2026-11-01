@@ -1,0 +1,121 @@
+@using DocuHelper.Editors
+@using DocuHelperEditor.State.Papers
+
+<ExcelDialogFrame Title="이름 관리자" Error="@ErrorText" OnSubmit="SubmitAsync" OnCancel="OnCancel">
+    @if (Names.Count > 0)
+    {
+        <ul class="names" aria-label="정의된 이름">
+            @foreach (var name in Names)
+            {
+                <li><strong>@name.Name</strong> <span class="hint">@name.RefersTo</span></li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="hint">아직 정의된 이름이 없어요.</p>
+    }
+    <div class="field">
+        <label class="field-label" for="nm-action">작업</label>
+        <select id="nm-action" class="field-input" @bind="_action">
+            <option value="set">이름 만들기 또는 고치기</option>
+            <option value="delete">이름 지우기</option>
+        </select>
+    </div>
+    <div class="field">
+        <label class="field-label" for="nm-name">이름</label>
+        <input id="nm-name" class="field-input" type="text" autocomplete="off" @bind="_name" />
+    </div>
+    @if (_action == "set")
+    {
+        <div class="field">
+            <label class="field-label" for="nm-refers">참조 대상</label>
+            <input id="nm-refers" class="field-input" type="text" autocomplete="off" @bind="_refersTo" />
+        </div>
+        <p class="hint">예: '@SheetName'!$A$1:$C$10 또는 =상수값</p>
+        <div class="field">
+            <label class="field-label" for="nm-comment">메모 (선택)</label>
+            <input id="nm-comment" class="field-input" type="text" autocomplete="off" @bind="_comment" />
+        </div>
+    }
+    <div class="field">
+        <label class="field-label" for="nm-scope">적용 범위 (비우면 통합 문서)</label>
+        <input id="nm-scope" class="field-input" type="text" autocomplete="off" placeholder="@SheetName" @bind="_scope" />
+    </div>
+</ExcelDialogFrame>
+
+@code {
+    [Parameter]
+    public string SheetName { get; set; }
+
+    [Parameter]
+    public string Range { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SheetName> Names { get; set; } = Array.Empty<SheetName>();
+
+    [Parameter]
+    public string Error { get; set; }
+
+    [Parameter]
+    public EventCallback<EditCommand> OnApply { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private string _action = "set";
+    private string _name = string.Empty;
+    private string _refersTo;
+    private string _comment = string.Empty;
+    private string _scope = string.Empty;
+    private string _error;
+    private bool _ready;
+
+    private string ErrorText => _error ?? Error;
+
+    protected override void OnParametersSet()
+    {
+        if (_ready)
+            return;
+
+        _ready = true;
+        _refersTo = "'" + SheetName + "'!" + (Range ?? string.Empty);
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error = null;
+        var name = _name.Trim();
+        var refersTo = _refersTo?.Trim() ?? string.Empty;
+        var scope = _scope.Trim();
+        if (name.Length == 0)
+        {
+            _error = "이름을 넣어 주세요.";
+            return;
+        }
+
+        if (_action == "set" && refersTo.Length == 0)
+        {
+            _error = "참조 대상을 넣어 주세요.";
+            return;
+        }
+
+        var args = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["action"] = _action,
+            ["name"] = name,
+        };
+
+        if (_action == "set")
+        {
+            args["refers_to"] = refersTo;
+            if (_comment.Trim().Length > 0)
+                args["comment"] = _comment.Trim();
+        }
+
+        if (scope.Length > 0)
+            args["scope"] = scope;
+
+        await OnApply.InvokeAsync(EditCommand.Create("define_name", args));
+    }
+}

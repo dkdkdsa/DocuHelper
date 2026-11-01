@@ -18,5 +18,6 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         public const string AllowRanges = "excel.review.allowranges";
         public const string Symbol = "excel.insert.symbol";
         public const string Sort = "excel.data.sort";
+        public const string NameManager = "excel.formula.namemanager";
     }
 }

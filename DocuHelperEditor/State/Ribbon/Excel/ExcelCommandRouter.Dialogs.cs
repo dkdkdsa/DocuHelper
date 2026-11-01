@@ -8,6 +8,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             State.RegisterDialog(ExcelDialogIds.Validation);
             State.RegisterDialog(ExcelDialogIds.ProtectSheet);
             State.RegisterDialog(ExcelDialogIds.Sort);
+            State.RegisterDialog(ExcelDialogIds.NameManager);
             foreach (var id in ExcelNamedDialogs.Ids)
                 State.RegisterDialog(id);
         }
