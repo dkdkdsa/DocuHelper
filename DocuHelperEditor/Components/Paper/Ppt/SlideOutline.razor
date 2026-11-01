@@ -1,0 +1,56 @@
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+
+<section class="outline" aria-label="개요 보기">
+    <ol class="rows">
+        @for (var i = 0; i < Count; i++)
+        {
+            var index = i;
+            var slide = Slides[index];
+            var head = TitleBox(slide);
+            var title = FirstLine(head) ?? "제목 없음";
+            var lines = BodyLines(slide, head);
+            <li>
+                <button type="button" class="row @(index == ActiveIndex ? "on" : null)" aria-current="@(index == ActiveIndex ? "true" : "false")" aria-label="@(index + 1)번 슬라이드, @title" @onclick="() => OnPick.InvokeAsync(index)">
+                    <span class="num" aria-hidden="true">@((index + 1).ToString(CultureInfo.InvariantCulture))</span>
+                    <span class="text">
+                        <span class="title">@title</span>
+                        @foreach (var line in lines)
+                        {
+                            <span class="line">@line</span>
+                        }
+                    </span>
+                </button>
+            </li>
+        }
+    </ol>
+</section>
+
+@code {
+    private const int MaxLines = 8;
+
+    [Parameter]
+    public List<SlideModel> Slides { get; set; }
+
+    [Parameter]
+    public int ActiveIndex { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnPick { get; set; }
+
+    private int Count => Slides?.Count ?? 0;
+
+    private static string FirstLine(SlideBoxModel box) =>
+        box?.Lines.FirstOrDefault(line => !string.IsNullOrWhiteSpace(line));
+
+    private static SlideBoxModel TitleBox(SlideModel slide) =>
+        slide.FindBox(SlideBoxKind.Title) ?? slide.Boxes.FirstOrDefault(box => !box.IsEmpty);
+
+    private static List<string> BodyLines(SlideModel slide, SlideBoxModel head) =>
+        slide.Boxes
+            .Where(box => box != head)
+            .SelectMany(box => box.Lines)
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Take(MaxLines)
+            .ToList();
+}

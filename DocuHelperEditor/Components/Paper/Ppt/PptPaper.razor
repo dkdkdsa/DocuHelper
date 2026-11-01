@@ -16,6 +16,10 @@
                 {
                     <SlideSorter Slides="_model.Slides" Sections="_model.Sections" ActiveIndex="_model.ActiveIndex" AspectRatio="_model.AspectRatio" OnPick="PickSlide" />
                 }
+                else if (Outline)
+                {
+                    <SlideOutline Slides="_model.Slides" ActiveIndex="_model.ActiveIndex" OnPick="PickSlide" />
+                }
                 else
                 {
                     <div class="frame @(_ribbon.Rulers ? "rulers" : null)" style="--slide-max: @((560 * _ribbon.Zoom / 100).ToString(CultureInfo.InvariantCulture))px">
@@ -55,7 +59,7 @@
                 }
             </div>
         </div>
-        @if (!Sorter && _ribbon.NotesOpen)
+        @if (_ribbon.View == "normal" && _ribbon.NotesOpen)
         {
             <SpeakerNotes Slide="slide" Height="_notesHeight" OnResize="SetNotesHeight" HighlightId="@_highlightId" LiveChanges="_live" Locked="ReadOnly" OnFocus="FocusNotes" OnEdited="NotesEdited" OnCommitted="NotesCommitted" />
         }
@@ -67,6 +71,8 @@
 @code {
     private readonly PptRibbonState _ribbon = new();
     private bool Sorter => _ribbon.View == "sorter";
+
+    private bool Outline => _ribbon.View == "outline";
     private int _notesHeight = 92;
 
     private WorkspaceFile _file;
