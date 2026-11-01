@@ -2,6 +2,7 @@
 @inject IJSRuntime JS
 
 <nav class="strip" aria-label="슬라이드">
+    <button type="button" class="sorter-toggle @(Sorter ? "on" : null)" aria-pressed="@(Sorter ? "true" : "false")" @onclick="OnToggleSorter">정렬 보기</button>
     <ol class="list">
         @for (var i = 0; i < Count; i++)
         {
@@ -48,6 +49,11 @@
     [Parameter]
     public EventCallback<int> OnSelect { get; set; }
 
+    [Parameter]
+    public bool Sorter { get; set; }
+
+    [Parameter]
+    public EventCallback OnToggleSorter { get; set; }
 
     private int Count => Slides?.Count ?? 0;
 
