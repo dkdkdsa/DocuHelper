@@ -12,6 +12,9 @@ namespace DocuHelper.Tools.Word
     {
         private const int DefaultHeaderTwips = 720;
         private const double MinCapacityPt = 72;
+        private const int MaxColumns = 6;
+        private const double ColumnFill = 0.9;
+        private const double DefaultSpaceTwips = 720;
 
         public WordPageLayout Page { get; private init; }
 
@@ -20,6 +23,10 @@ namespace DocuHelper.Tools.Word
         public double TextWidthPt { get; private init; }
 
         public double CapacityPt { get; private init; }
+
+        public int ColumnCount { get; private init; } = 1;
+
+        public double ColumnGapPt { get; private init; }
 
         public double HeaderPt { get; private init; }
 
@@ -42,6 +49,10 @@ namespace DocuHelper.Tools.Word
                 var left = Math.Abs(Twips(margin, "left", 1440));
                 var gutter = Math.Abs(Twips(margin, "gutter", 0));
                 var textWidth = (width - left - right - gutter) / 20.0;
+                var columns = section?.GetFirstChild<Columns>();
+                var count = Math.Clamp((int)(columns?.ColumnCount?.Value ?? 1), 1, MaxColumns);
+                var gapPt = Math.Abs(Twips(columns, "space", (int)DefaultSpaceTwips)) / 20.0;
+                var columnWidth = (textWidth - gapPt * (count - 1)) / count;
                 var headerPt = Story(context, section, true, textWidth) ?? headerPrevious;
                 var footerPt = Story(context, section, false, textWidth) ?? footerPrevious;
                 headerPrevious = headerPt;
@@ -51,12 +62,15 @@ namespace DocuHelper.Tools.Word
                 var bodyTop = Math.Max(top / 20.0, headerDistance / 20.0 + headerPt);
                 var bodyBottom = Math.Max(bottom / 20.0, footerDistance / 20.0 + footerPt);
                 var capacity = Math.Max(MinCapacityPt, height / 20.0 - bodyTop - bodyBottom);
+                capacity = count > 1 ? capacity * count * ColumnFill : capacity;
                 var page = new WordPageLayout(width, height, top, right, bottom, left, LegacyCapacity(context, height, top, bottom), context.Styles.NormalFontSize);
                 list.Add(new WordSectionLayout
                 {
                     Page = page,
                     Start = section?.GetFirstChild<SectionType>()?.Val?.Value ?? SectionMarkValues.NextPage,
-                    TextWidthPt = textWidth,
+                    TextWidthPt = columnWidth,
+                    ColumnCount = count,
+                    ColumnGapPt = gapPt,
                     CapacityPt = capacity,
                     HeaderPt = headerPt,
                     FooterPt = footerPt,

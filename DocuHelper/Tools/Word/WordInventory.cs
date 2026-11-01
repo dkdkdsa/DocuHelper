@@ -222,15 +222,17 @@ namespace DocuHelper.Tools.Word
             return infos;
         }
 
-        public static IReadOnlyList<WordNoteInfo> Notes(WordDocu docu, WordScan scan = null)
+        public static IReadOnlyList<WordNoteInfo> Notes(WordDocu docu, WordScan scan = null) => Notes(docu.Document, scan);
+
+        internal static IReadOnlyList<WordNoteInfo> Notes(DocumentFormat.OpenXml.Packaging.WordprocessingDocument document, WordScan scan)
         {
-            var main = docu.Document.MainDocumentPart;
+            var main = document.MainDocumentPart;
             var footnotes = main?.FootnotesPart?.Footnotes?.Elements<Footnote>().Where(WordStats.IsReal).ToList() ?? new List<Footnote>();
             var endnotes = main?.EndnotesPart?.Endnotes?.Elements<Endnote>().Where(WordStats.IsReal).ToList() ?? new List<Endnote>();
             if (footnotes.Count == 0 && endnotes.Count == 0)
                 return Array.Empty<WordNoteInfo>();
 
-            scan ??= WordScan.Read(docu.Document);
+            scan ??= WordScan.Read(document);
             var pages = new PageMap(scan);
             var footnoteRefs = new List<FootnoteReference>();
             var endnoteRefs = new List<EndnoteReference>();

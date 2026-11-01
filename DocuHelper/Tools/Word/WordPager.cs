@@ -17,6 +17,8 @@ namespace DocuHelper.Tools.Word
         private int _current;
         private double _used;
         private bool _fresh = true;
+        private readonly List<int> _pageSections = new() { 0 };
+        private double _notes;
 
         public WordPager(WordLayoutContext context, Body body)
         {
@@ -28,6 +30,10 @@ namespace DocuHelper.Tools.Word
         public IReadOnlyList<WordSectionLayout> Sections { get; }
 
         public int Page { get; private set; } = 1;
+
+        public IReadOnlyList<int> PageSections => _pageSections;
+
+        public IReadOnlyList<SectionProperties> Marks => _marks;
 
         public WordPageLayout Layout => Sections[^1].Page;
 
@@ -97,6 +103,8 @@ namespace DocuHelper.Tools.Word
             if (box.PageBefore)
                 NewPage(false);
 
+            _notes = Math.Min(_notes + WordFootnotes.Height(_context, block.Paragraph, section.TextWidthPt), section.CapacityPt / 2);
+
             var spacing = _fresh ? 0 : box.Before;
             block.LineHeight = box.Lines.Select(l => l.Height).FirstOrDefault(h => h > 0);
             block.FontSize = WordParagraphMetrics.FontSizeOf(_context, block.Paragraph);
@@ -104,7 +112,7 @@ namespace DocuHelper.Tools.Word
             foreach (var line in box.Lines)
             {
                 var extra = placed ? 0 : spacing;
-                if (!_fresh && _used + extra + line.Height > section.CapacityPt)
+                if (!_fresh && _used + extra + line.Height > Room(section))
                     NewPage(false);
 
                 if (!placed)
@@ -148,7 +156,7 @@ namespace DocuHelper.Tools.Word
             var placed = false;
             foreach (var height in rows)
             {
-                if (!_fresh && _used + height > section.CapacityPt)
+                if (!_fresh && _used + height > Room(section))
                     NewPage(false);
 
                 if (!placed)
@@ -197,6 +205,8 @@ namespace DocuHelper.Tools.Word
                 NewPage(true);
         }
 
+        private double Room(WordSectionLayout section) => section.CapacityPt - _notes;
+
         private void NewPage(bool always)
         {
             if (_fresh && !always)
@@ -205,6 +215,8 @@ namespace DocuHelper.Tools.Word
             Page++;
             _used = 0;
             _fresh = true;
+            _notes = 0;
+            _pageSections.Add(_current);
         }
     }
 }

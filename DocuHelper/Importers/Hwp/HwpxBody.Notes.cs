@@ -23,12 +23,16 @@ namespace DocuHelper.Importers.Hwp
 
             var drop = _dropNumber;
             var dropped = _droppedNumber;
+            var saved = (_pendingHiding, _pendingNewNumber);
+            _pendingHiding = null;
+            _pendingNewNumber = null;
             _dropNumber = true;
             _droppedNumber = false;
             ReadList(HwpxXml.Child(element, "subList"), note.Blocks);
             if (_droppedNumber)
                 TrimStart(note.Blocks);
 
+            (_pendingHiding, _pendingNewNumber) = saved;
             _dropNumber = drop;
             _droppedNumber = dropped;
         }

@@ -63,6 +63,7 @@ namespace DocuHelperEditor.State.Mapping
             {
                 Blocks = blocks,
                 Layout = scan.Layout,
+                Frames = scan.Frames,
                 SelectedBlockId = selected != null && blocks.Any(b => b.Id == selected) ? selected : null,
             };
             var selection = old?.Selection ?? WordSelection.None;

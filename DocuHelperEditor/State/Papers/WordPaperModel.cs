@@ -13,6 +13,10 @@ namespace DocuHelperEditor.State.Papers
 
         public WordPageLayout Layout { get; set; } = WordPageLayout.Default;
 
+        public IReadOnlyList<WordPageFrame> Frames { get; set; } = Array.Empty<WordPageFrame>();
+
+        public WordPageFrame FrameOf(int page) => page >= 1 && page <= Frames.Count ? Frames[page - 1] : null;
+
         public string SelectedBlockId { get; set; }
 
         public WordSelection Selection { get; set; } = WordSelection.None;

@@ -34,6 +34,8 @@ namespace DocuHelper.Tools.Word
 
         public WordPageLayout Layout { get; private set; } = WordPageLayout.Default;
 
+        public IReadOnlyList<WordPageFrame> Frames { get; private set; } = Array.Empty<WordPageFrame>();
+
         public IReadOnlyList<WordSectionLayout> Sections { get; private set; } = Array.Empty<WordSectionLayout>();
 
         public static WordScan Read(WordprocessingDocument document)
@@ -123,6 +125,7 @@ namespace DocuHelper.Tools.Word
             Layout = pager.Layout;
             Sections = pager.Sections;
             PageCount = Math.Max(pager.LastPage, _blocks.Count == 0 ? 1 : _blocks.Max(b => b.Page));
+            Frames = WordFrames.Build(this, pager.Sections, pager.Marks, pager.PageSections, PageCount);
         }
 
         private WordKind KindOf(Paragraph paragraph, out int level, out bool numbered)
