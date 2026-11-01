@@ -50,11 +50,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         private static readonly string[] s_newSlideIds = { "ppt.home.newSlide", "ppt.insert.newSlide" };
 
-        private static readonly string[] s_pending =
-        {
-            "ppt.insert.symbol",
-        };
-
         private static readonly string[] s_external =
         {
             "ppt.view.slideMaster", "ppt.view.handoutMaster", "ppt.view.notesMaster", "ppt.file.openOriginal",
@@ -236,6 +231,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             AddSave("ppt.file.save");
             AddSaveCopy("ppt.file.saveAs");
             RegisterFile();
+            RegisterSymbol();
             foreach (var id in s_print)
                 AddDisabled(id, PrintReason);
 
@@ -243,8 +239,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 AddExternal(id);
 
             RegisterClipboard();
-            foreach (var id in s_pending)
-                AddDisabled(id, PendingReason);
         }
 
         private string ToolBlocker(PptCommandSpec spec, PptMenuSpec entry)
