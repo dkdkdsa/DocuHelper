@@ -77,5 +77,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         void AfterPaste(bool transposed);
 
         void DisarmPainter();
+
+        Task RenderAllRowsAsync(bool on);
     }
 }

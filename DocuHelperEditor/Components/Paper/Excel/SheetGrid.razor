@@ -180,6 +180,9 @@
     public int Zoom { get; set; } = 100;
 
     [Parameter]
+    public bool RenderAllRows { get; set; }
+
+    [Parameter]
     public bool EditingInCell { get; set; }
 
     [Parameter]
@@ -494,8 +497,8 @@
             ranges.Add((0, frozen - 1));
         }
 
-        var start = Math.Max(0, RowAt(_viewTop) - overscan);
-        var end = Math.Min(_rowCount - 1, RowAt(_viewTop + _viewHeight) + overscan);
+        var start = RenderAllRows ? 0 : Math.Max(0, RowAt(_viewTop) - overscan);
+        var end = RenderAllRows ? _rowCount - 1 : Math.Min(_rowCount - 1, RowAt(_viewTop + _viewHeight) + overscan);
         if (start <= end)
         {
             ranges.Add((start, end));

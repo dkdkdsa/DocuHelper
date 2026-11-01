@@ -7,10 +7,11 @@ window.docuHelper = (function () {
         if (e.target && e.target !== document.body) lastFocused = e.target;
     }, true);
 
-    function fitPage(sheet, piece, scale) {
+    function fitPage(sheet, piece, scale, bottomPx) {
         var factor = scale;
         for (var attempt = 0; attempt < 60; attempt++) {
-            if (sheet.scrollHeight <= sheet.clientHeight + 1 && sheet.scrollWidth <= sheet.clientWidth + 1)
+            var limit = sheet.getBoundingClientRect().top + sheet.clientHeight - bottomPx;
+            if (piece.getBoundingClientRect().bottom <= limit && sheet.scrollWidth <= sheet.clientWidth + 1)
                 return;
 
             factor *= 0.97;
@@ -89,22 +90,34 @@ window.docuHelper = (function () {
 
             var cellCopy = cell.cloneNode(true);
             cellCopy.style.width = width + 'px';
+            cellCopy.style.paddingTop = '0px';
+            cellCopy.style.paddingBottom = '0px';
+            cellCopy.style.lineHeight = '1.2';
             rowCopy.appendChild(cellCopy);
         });
         return rowCopy;
     }
 
+    function isPrintPage(element, selector) {
+        return element instanceof HTMLElement && element.matches(selector || '.page');
+    }
+
+    function hasPrintPage(element, selector) {
+        return Array.prototype.some.call(element.querySelectorAll(selector || '.page'), function (el) {
+            return isPrintPage(el, selector);
+        });
+    }
+
     function markPrintTree(root, selector) {
-        var sel = selector || '.page';
         Array.prototype.forEach.call(root.children, function (child) {
-            if (child.matches(sel)) {
+            if (isPrintPage(child, selector)) {
                 child.classList.add('docu-print-keep', 'docu-print-page');
                 return;
             }
 
-            if (child.querySelector(sel)) {
+            if (hasPrintPage(child, selector)) {
                 child.classList.add('docu-print-keep');
-                markPrintTree(child, sel);
+                markPrintTree(child, selector);
                 return;
             }
 
@@ -232,6 +245,13 @@ window.docuHelper = (function () {
             var el = document.querySelector(selector);
             if (el) el.focus();
         },
+        nextFrame: function () {
+            return new Promise(function (resolve) {
+                requestAnimationFrame(function () {
+                    setTimeout(resolve, 30);
+                });
+            });
+        },
         scrollToTop: function (selector) {
             var el = document.querySelector(selector);
             if (el) el.scrollTop = 0;
@@ -260,7 +280,7 @@ window.docuHelper = (function () {
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         },
         printEnter: function () {
-            var pages = Array.prototype.slice.call(document.querySelectorAll('.page'));
+            var pages = Array.prototype.slice.call(document.querySelectorAll('.page')).filter(function (el) { return isPrintPage(el); });
             if (pages.length === 0)
                 return 0;
 
@@ -286,11 +306,11 @@ window.docuHelper = (function () {
                 sheet.style.setProperty('width', layout.widthCm + 'cm', 'important');
                 sheet.style.setProperty('height', layout.heightCm + 'cm', 'important');
                 sheet.style.setProperty('box-sizing', 'border-box', 'important');
-                sheet.style.setProperty('padding', layout.margins.top + 'cm ' + layout.margins.right + 'cm ' + layout.margins.bottom + 'cm ' + layout.margins.left + 'cm', 'important');
+                sheet.style.setProperty('padding', layout.margins.top + 'cm ' + layout.margins.right + 'cm 0cm ' + layout.margins.left + 'cm', 'important');
                 container.appendChild(sheet);
                 var piece = sheetPiece(table, range, layout, zoom);
                 sheet.appendChild(piece);
-                fitPage(sheet, piece, layout.scale);
+                fitPage(sheet, piece, layout.scale, layout.margins.bottom * 37.8);
             });
 
             markPrintTree(document.body);

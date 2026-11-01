@@ -1,4 +1,6 @@
-﻿using DocuHelper.Docus;
+﻿using System.Threading.Tasks;
+using DocuHelper.Docus;
+using Microsoft.JSInterop;
 using DocuHelper.Tools.Excel;
 using DocuHelperEditor.State.Papers;
 
@@ -8,6 +10,17 @@ namespace DocuHelperEditor.Components.Paper.Excel
     {
         private Sheet _planSheet;
         private PagePlan _pagePlan;
+        private bool _renderAllRows;
+
+        public async Task RenderAllRowsAsync(bool on)
+        {
+            if (_renderAllRows == on)
+                return;
+
+            _renderAllRows = on;
+            await InvokeAsync(StateHasChanged);
+            await JS.InvokeVoidAsync("docuHelper.nextFrame");
+        }
 
         private PagePlan CurrentPagePlan
         {
