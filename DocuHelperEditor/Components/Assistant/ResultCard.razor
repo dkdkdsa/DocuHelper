@@ -41,7 +41,7 @@
                         }
                     </ul>
                 }
-                @if (group.FileType == DocuType.Hwp && Workspace.HwpSaveNote(group.FileName) is string saveNote)
+                @if ((group.FileType == DocuType.Hwp ? Workspace.HwpSaveNote(group.FileName) : Workspace.LegacySaveNote(group.FileName)) is string saveNote)
                 {
                     <p class="save-format">
                         <Icon Name="file-check" Size="15" />

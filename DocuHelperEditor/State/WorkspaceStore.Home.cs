@@ -331,12 +331,15 @@ namespace DocuHelperEditor.State
                     switch (Path.GetExtension(path).ToLowerInvariant())
                     {
                         case ".xlsx":
+                        case ".xls":
                             folder.ExcelCount++;
                             break;
                         case ".docx":
+                        case ".doc":
                             folder.WordCount++;
                             break;
                         case ".pptx":
+                        case ".ppt":
                             folder.PptCount++;
                             break;
                         case ".hwp":

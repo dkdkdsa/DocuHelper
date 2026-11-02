@@ -48,6 +48,8 @@ namespace DocuHelper.Editors
 
         public override string Extension => ".xlsx";
 
+        public override string LegacyExtension => ".xls";
+
         public override string Describe(Docu docu)
         {
             if (docu is not ExcelDocu excel || excel.Document?.WorkbookPart?.Workbook == null)

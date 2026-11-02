@@ -10,8 +10,6 @@ namespace DocuHelperEditor.State
 {
     public partial class WorkspaceStore
     {
-        private static readonly string[] s_explainedExtensions = { ".xls", ".doc", ".ppt" };
-
         private readonly List<DropCandidate> _dropCandidates = new();
 
         public bool IsDragOver { get; private set; }
@@ -74,17 +72,12 @@ namespace DocuHelperEditor.State
 
         public static string ExplainUnsupportedDrop(string name)
         {
-            var extension = Path.GetExtension(name ?? string.Empty).ToLowerInvariant();
-            if (s_explainedExtensions.Contains(extension))
-                return DocuImporter.ExplainUnsupported(name);
-
             return "넣을 수 없는 파일이에요. 엑셀, 워드, 파워포인트, 한글 파일은 작업 폴더에 넣고, 그림, PDF, 글 파일(.txt, .csv, .md)은 도우미에게 붙일 수 있어요.";
         }
 
         private bool CanTake(string path) =>
             Directory.Exists(path)
-            || FindImporter(path) != null
-            || s_explainedExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
+            || FindImporter(path) != null;
 
         private static void AddDragRow(List<DropCandidate> rows, Dictionary<string, int> counts, string kind, string label, DocuType? type, DropDestination destination, string glyph)
         {

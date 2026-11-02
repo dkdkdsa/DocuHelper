@@ -43,6 +43,8 @@ namespace DocuHelper.Editors
 
         public override string Extension => ".pptx";
 
+        public override string LegacyExtension => ".ppt";
+
         public override string Describe(Docu docu)
         {
             if (docu is not PptDocu ppt || ppt.Document == null)

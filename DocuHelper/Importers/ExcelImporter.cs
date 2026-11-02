@@ -5,7 +5,7 @@ namespace DocuHelper.Importers
 {
     public class ExcelImporter : DocuImporter
     {
-        public override IReadOnlyList<string> SupportedExtensions { get; } = [".xlsx"];
+        public override IReadOnlyList<string> SupportedExtensions { get; } = [".xlsx", ".xls"];
 
         public override ExcelDocu Create(string filePath, byte[] content) => new(filePath, content);
     }

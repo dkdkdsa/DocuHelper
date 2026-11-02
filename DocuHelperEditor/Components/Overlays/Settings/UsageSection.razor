@@ -586,9 +586,9 @@
 
     private static DocuType? FileType(string fileName) => Path.GetExtension(fileName ?? string.Empty).ToLowerInvariant() switch
     {
-        ".xlsx" => DocuType.Excel,
-        ".docx" => DocuType.Word,
-        ".pptx" => DocuType.Ppt,
+        ".xlsx" or ".xls" => DocuType.Excel,
+        ".docx" or ".doc" => DocuType.Word,
+        ".pptx" or ".ppt" => DocuType.Ppt,
         ".hwp" or ".hwpx" => DocuType.Hwp,
         _ => null,
     };

@@ -15,15 +15,20 @@ namespace DocuHelper.Editors
 
         public abstract string Extension { get; }
 
+        public virtual string LegacyExtension => null;
+
         public IReadOnlyDictionary<string, Tool> Tools => _tools;
 
         public abstract string Describe(Docu docu);
 
         public abstract Docu CreateBlank(string filePath);
 
-        public virtual bool Accepts(string extension) => string.Equals(Extension, extension, StringComparison.OrdinalIgnoreCase);
+        public virtual bool Accepts(string extension) =>
+            string.Equals(Extension, extension, StringComparison.OrdinalIgnoreCase) || IsLegacyExtension(extension);
 
-        public virtual string SavePath(Docu docu) => docu.FilePath;
+        public bool IsLegacyPath(string filePath) => IsLegacyExtension(Path.GetExtension(filePath ?? string.Empty));
+
+        public virtual string SavePath(Docu docu) => IsLegacyPath(docu.FilePath) ? Path.ChangeExtension(docu.FilePath, Extension) : docu.FilePath;
 
         public ToolResult Apply(Docu docu, EditCommand command)
         {
@@ -57,6 +62,9 @@ namespace DocuHelper.Editors
         public virtual byte[] Export(Docu docu, string targetPath) => docu.ToBytes();
 
         protected void AddTool(Tool tool) => _tools[tool.Name] = tool;
+
+        private bool IsLegacyExtension(string extension) =>
+            LegacyExtension != null && string.Equals(LegacyExtension, extension, StringComparison.OrdinalIgnoreCase);
 
         private static ToolResult Run(Docu docu, Tool tool, JsonElement arguments)
         {

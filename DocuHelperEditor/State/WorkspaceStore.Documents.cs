@@ -8,6 +8,7 @@ using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Importers;
 using DocuHelper.Importers.Hwp;
+using DocuHelper.Importers.Legacy;
 using DocuHelper.Tools;
 using DocuHelperEditor.Services;
 
@@ -456,6 +457,12 @@ namespace DocuHelperEditor.State
                 problems.Add($"‘{name}’: {e.Message}");
                 return null;
             }
+            catch (LegacyOfficeException e)
+            {
+                AppLog.Write($"Legacy import failed for {path}", e.InnerException ?? e);
+                problems.Add($"‘{name}’: {e.Message}");
+                return null;
+            }
             catch (Exception e)
             {
                 AppLog.Write($"Import failed for {path}", e);
@@ -475,7 +482,7 @@ namespace DocuHelperEditor.State
                 file.JustSaved = true;
                 file.JustReverted = false;
                 if (file.Docu.Name != name)
-                    RaiseNotice(RenamedText(name, file.Docu.Name));
+                    RaiseNotice(file.Docu is HwpDocu ? RenamedText(name, file.Docu.Name) : LegacyRenamedText(name, file.Docu.Name));
 
                 return true;
             }
@@ -511,6 +518,18 @@ namespace DocuHelperEditor.State
 
             return $"저장하면 .hwpx 형식으로 따로 저장돼요. 원래 {Path.GetExtension(file.Docu.FilePath).ToLowerInvariant()} 파일은 그대로 있어요";
         }
+
+        public string LegacySaveNote(string fileName)
+        {
+            var file = _files.FirstOrDefault(f => f.Name == fileName && f.Docu != null && f.Docu is not HwpDocu);
+            if (file == null || !_workspace.Editors.TryGetValue(file.Docu.Type, out var editor) || !editor.IsLegacyPath(file.Docu.FilePath))
+                return null;
+
+            return $"저장하면 새 형식({editor.Extension})으로 따로 저장돼요. 원래 {Path.GetExtension(file.Docu.FilePath).ToLowerInvariant()} 파일은 그대로 있어요";
+        }
+
+        private static string LegacyRenamedText(string before, string after) =>
+            $"옛날 형식으로는 저장할 수 없어서 새 형식 ‘{after}’로 저장했어요. 원래 파일 ‘{before}’은 그대로 있어요.";
 
         private string RenamedText(string before, string after)
         {

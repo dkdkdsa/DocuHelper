@@ -12,7 +12,7 @@ namespace DocuHelperEditor.Services
     {
         private static readonly FilePickerFileType s_documents = new(new Dictionary<DevicePlatform, IEnumerable<string>>
         {
-            { DevicePlatform.WinUI, new[] { ".xlsx", ".docx", ".pptx", ".hwp", ".hwpx" } },
+            { DevicePlatform.WinUI, new[] { ".xlsx", ".xls", ".docx", ".doc", ".pptx", ".ppt", ".hwp", ".hwpx" } },
         });
 
         private static readonly FilePickerFileType s_images = new(new Dictionary<DevicePlatform, IEnumerable<string>>

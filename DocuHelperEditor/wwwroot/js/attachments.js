@@ -38,9 +38,9 @@ function dragKindOf(type) {
     if (type.startsWith('image/')) return 'image';
     if (type === 'application/pdf') return 'pdf';
     if (TEXT_TYPES.includes(type)) return 'text';
-    if (type.includes('spreadsheetml')) return 'excel';
-    if (type.includes('wordprocessingml')) return 'word';
-    if (type.includes('presentationml')) return 'ppt';
+    if (type.includes('spreadsheetml') || type === 'application/vnd.ms-excel') return 'excel';
+    if (type.includes('wordprocessingml') || type === 'application/msword') return 'word';
+    if (type.includes('presentationml') || type === 'application/vnd.ms-powerpoint') return 'ppt';
     return 'other';
 }
 
