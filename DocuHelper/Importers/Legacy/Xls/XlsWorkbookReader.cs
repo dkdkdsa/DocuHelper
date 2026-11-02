@@ -54,6 +54,9 @@ namespace DocuHelper.Importers.Legacy.Xls
                     case XlsIds.Xf:
                         styles.ReadXf(record);
                         break;
+                    case XlsIds.XfExt:
+                        styles.ReadXfExt(record);
+                        break;
                     case XlsIds.Palette:
                         styles.Palette.Read(record);
                         break;

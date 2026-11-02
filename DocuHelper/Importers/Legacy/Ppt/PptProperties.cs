@@ -32,6 +32,7 @@ namespace DocuHelper.Importers.Legacy.Ppt
         public const int LineBooleans = 0x01FF;
 
         private const int MaxProperties = 4096;
+        private const int BooleanGroup = 0x3F;
 
         private readonly Dictionary<int, uint> _values = new();
 
@@ -43,8 +44,15 @@ namespace DocuHelper.Importers.Legacy.Ppt
             for (var i = 0; i < count && i < MaxProperties && record.Has(i * 6, 6); i++)
             {
                 var id = record.UInt16(i * 6) & 0x3FFF;
-                _values[id] = record.UInt32(i * 6 + 2);
+                var value = record.UInt32(i * 6 + 2);
+                _values[id] = (id & BooleanGroup) == BooleanGroup && _values.TryGetValue(id, out var earlier) ? MergeFlags(earlier, value) : value;
             }
+        }
+
+        private static uint MergeFlags(uint earlier, uint value)
+        {
+            var used = (value & 0xFFFF0000) | (value >> 16);
+            return (earlier & ~used) | value;
         }
 
         public bool HasOwn(int id) => _values.ContainsKey(id);

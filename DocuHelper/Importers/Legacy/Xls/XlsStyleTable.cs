@@ -31,5 +31,35 @@ namespace DocuHelper.Importers.Legacy.Xls
         }
 
         public void ReadXf(XlsRecord record) => Xfs.Add(XlsXf.Read(record));
+
+        public void ReadXfExt(XlsRecord record)
+        {
+            var reader = new XlsDataReader(record);
+            if (reader.Remaining < 20)
+                return;
+
+            reader.Skip(14);
+            var index = reader.ReadUInt16();
+            reader.Skip(2);
+            var count = reader.ReadUInt16();
+            if (index >= Xfs.Count)
+                return;
+
+            var colors = Xfs[index].Colors;
+            for (var i = 0; i < count && reader.Remaining >= 4; i++)
+            {
+                var start = reader.Position;
+                var type = reader.ReadUInt16();
+                var size = reader.ReadUInt16();
+                if (size < 4 || size > reader.Remaining + 4)
+                    return;
+
+                if (size >= 12 && (type == XlsFullColor.CellForeground || type == XlsFullColor.CellBackground || type == XlsFullColor.TextColor
+                    || (type >= XlsFullColor.TopBorder && type <= XlsFullColor.DiagonalBorder)))
+                    colors[type] = XlsFullColor.Read(reader);
+
+                reader.Position = start + size;
+            }
+        }
     }
 }

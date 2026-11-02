@@ -31,6 +31,7 @@
         public const int String = 0x0207;
         public const int Row = 0x0208;
         public const int Bof = 0x0809;
+        public const int XfExt = 0x087D;
         public const int Array = 0x0221;
         public const int DefaultRowHeight = 0x0225;
         public const int Table = 0x0236;

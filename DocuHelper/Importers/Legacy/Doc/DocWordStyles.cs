@@ -26,12 +26,14 @@ namespace DocuHelper.Importers.Legacy.Doc
                 var style = doc.Styles.Find(map.Used[i]);
                 var character = style.Kind == 2;
                 var id = map.IdOf(style.Index, character);
-                if (root.Elements<Style>().Any(s => s.StyleId?.Value == id))
-                    continue;
-
                 if (map.IsBuiltin(id))
-                    WordBuiltinStyles.Ensure(helper, id);
-                else
+                {
+                    var builtin = WordBuiltinStyles.Ensure(helper, id);
+                    var target = root.Elements<Style>().FirstOrDefault(s => s.StyleId?.Value == builtin);
+                    if (target != null)
+                        Adopt(target, doc, map, style, character);
+                }
+                else if (!root.Elements<Style>().Any(s => s.StyleId?.Value == id))
                     root.AppendChild(Custom(doc, map, style, id, character));
             }
         }
@@ -95,35 +97,56 @@ namespace DocuHelper.Importers.Legacy.Doc
             };
 
             style.AppendChild(new StyleName { Val = string.IsNullOrWhiteSpace(source.Name) ? id : source.Name });
-            var parent = source.Base != DocStyle.NoBase && source.Base != source.Index ? map.IdOf(source.Base, character) : null;
-            if (parent == null && !character)
-                parent = NormalId;
-
+            var parent = Parent(map, source, character);
             if (parent != null)
                 style.AppendChild(new BasedOn { Val = parent });
 
             style.AppendChild(new UIPriority { Val = 99 });
-            if (character)
-            {
-                var run = new StyleRunProperties();
-                DocWordRuns.Fill(run, WithoutStyle(source.Chp), doc.Fonts);
-                if (run.HasChildren)
-                    style.AppendChild(run);
+            AppendFormatting(style, doc, source, character);
+            return style;
+        }
 
-                return style;
+        private static void Adopt(Style style, DocDocument doc, DocStyleMap map, DocStyle source, bool character)
+        {
+            var outline = style.StyleParagraphProperties?.OutlineLevel?.CloneNode(true) as OutlineLevel;
+            style.StyleParagraphProperties?.Remove();
+            style.StyleRunProperties?.Remove();
+            style.BasedOn?.Remove();
+            var parent = Parent(map, source, character);
+            if (parent != null && style.StyleName != null)
+                style.StyleName.InsertAfterSelf(new BasedOn { Val = parent });
+
+            AppendFormatting(style, doc, source, character);
+            if (outline == null || character)
+                return;
+
+            var paragraph = style.StyleParagraphProperties;
+            if (paragraph == null)
+                style.InsertBefore(new StyleParagraphProperties(outline), style.StyleRunProperties);
+            else if (paragraph.OutlineLevel == null)
+                paragraph.AppendChild(outline);
+        }
+
+        private static string Parent(DocStyleMap map, DocStyle source, bool character)
+        {
+            var parent = source.Base != DocStyle.NoBase && source.Base != source.Index ? map.IdOf(source.Base, character) : null;
+            return parent == null && !character ? NormalId : parent;
+        }
+
+        private static void AppendFormatting(Style style, DocDocument doc, DocStyle source, bool character)
+        {
+            if (!character)
+            {
+                var paragraph = new StyleParagraphProperties();
+                DocWordParagraphs.Fill(paragraph, source.Pap, null, 0);
+                if (paragraph.HasChildren)
+                    style.AppendChild(paragraph);
             }
 
-            var paragraph = new StyleParagraphProperties();
-            DocWordParagraphs.Fill(paragraph, source.Pap, null, 0);
-            if (paragraph.HasChildren)
-                style.AppendChild(paragraph);
-
-            var characters = new StyleRunProperties();
-            DocWordRuns.Fill(characters, WithoutStyle(source.Chp), doc.Fonts);
-            if (characters.HasChildren)
-                style.AppendChild(characters);
-
-            return style;
+            var run = new StyleRunProperties();
+            DocWordRuns.Fill(run, WithoutStyle(source.Chp), doc.Fonts);
+            if (run.HasChildren)
+                style.AppendChild(run);
         }
 
         private static DocChp WithoutStyle(DocChp chp)

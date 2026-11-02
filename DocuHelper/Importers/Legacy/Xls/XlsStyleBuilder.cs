@@ -97,7 +97,7 @@ namespace DocuHelper.Importers.Legacy.Xls
             var format = new CellFormat
             {
                 NumberFormatId = _numberFormats.Resolve(xf.FormatId),
-                FontId = FontId(_table.FontAt(xf.FontIndex)),
+                FontId = FontId(_table.FontAt(xf.FontIndex), xf),
                 FillId = FillId(xf),
                 BorderId = BorderId(xf),
                 FormatId = 0,
@@ -170,7 +170,7 @@ namespace DocuHelper.Importers.Legacy.Xls
             return used ? alignment : null;
         }
 
-        private uint FontId(XlsFont source)
+        private uint FontId(XlsFont source, XlsXf xf)
         {
             var font = new Font();
             if (source == null)
@@ -199,9 +199,13 @@ namespace DocuHelper.Importers.Legacy.Xls
                     font.Append(new VerticalTextAlignment { Val = VerticalAlignmentRunValues.Subscript });
 
                 font.Append(new FontSize { Val = source.Height > 0 ? Math.Min(source.Height / 20.0, 409) : 11 });
-                var color = _table.Palette.Resolve(source.ColorIndex, false);
+                var color = Ext<Color>(xf, XlsFullColor.TextColor);
+                var indexed = _table.Palette.Resolve(source.ColorIndex, false);
+                if (color == null && indexed != null)
+                    color = new Color { Rgb = indexed };
+
                 if (color != null)
-                    font.Append(new Color { Rgb = color });
+                    font.Append(color);
 
                 font.Append(new FontName { Val = string.IsNullOrEmpty(source.Name) ? ExcelStyles.DefaultFontName : source.Name });
                 if (source.Family > 0 && source.Family <= 5)
@@ -221,11 +225,8 @@ namespace DocuHelper.Importers.Legacy.Xls
             var pattern = new PatternFill { PatternType = s_patterns[xf.Pattern] };
             var fore = _table.Palette.Resolve(xf.ForeColor, true);
             var back = _table.Palette.Resolve(xf.BackColor, true);
-            if (fore != null)
-                pattern.ForegroundColor = new ForegroundColor { Rgb = fore };
-
-            if (back != null)
-                pattern.BackgroundColor = new BackgroundColor { Rgb = back };
+            pattern.ForegroundColor = Ext<ForegroundColor>(xf, XlsFullColor.CellForeground) ?? (fore != null ? new ForegroundColor { Rgb = fore } : null);
+            pattern.BackgroundColor = Ext<BackgroundColor>(xf, XlsFullColor.CellBackground) ?? (back != null ? new BackgroundColor { Rgb = back } : null);
 
             return Intern(new Fill(pattern), _fills, _fillKeys);
         }
@@ -242,15 +243,19 @@ namespace DocuHelper.Importers.Legacy.Xls
                     border.DiagonalUp = true;
             }
 
-            border.Append(Side<LeftBorder>(xf.LeftStyle, xf.LeftColor));
-            border.Append(Side<RightBorder>(xf.RightStyle, xf.RightColor));
-            border.Append(Side<TopBorder>(xf.TopStyle, xf.TopColor));
-            border.Append(Side<BottomBorder>(xf.BottomStyle, xf.BottomColor));
-            border.Append(xf.DiagonalDirection != 0 ? Side<DiagonalBorder>(xf.DiagonalStyle, xf.DiagonalColor) : new DiagonalBorder());
+            border.Append(Side<LeftBorder>(xf.LeftStyle, xf.LeftColor, Ext<Color>(xf, XlsFullColor.LeftBorder)));
+            border.Append(Side<RightBorder>(xf.RightStyle, xf.RightColor, Ext<Color>(xf, XlsFullColor.RightBorder)));
+            border.Append(Side<TopBorder>(xf.TopStyle, xf.TopColor, Ext<Color>(xf, XlsFullColor.TopBorder)));
+            border.Append(Side<BottomBorder>(xf.BottomStyle, xf.BottomColor, Ext<Color>(xf, XlsFullColor.BottomBorder)));
+            border.Append(xf.DiagonalDirection != 0 ? Side<DiagonalBorder>(xf.DiagonalStyle, xf.DiagonalColor, Ext<Color>(xf, XlsFullColor.DiagonalBorder)) : new DiagonalBorder());
             return Intern(border, _borders, _borderKeys);
         }
 
-        private T Side<T>(int style, int colorIndex)
+        private T Ext<T>(XlsXf xf, int type)
+            where T : ColorType, new()
+            => xf != null && xf.Colors.TryGetValue(type, out var color) ? color.ToColor<T>(_table.Palette) : null;
+
+        private T Side<T>(int style, int colorIndex, Color full)
             where T : BorderPropertiesType, new()
         {
             var side = new T();
@@ -259,7 +264,7 @@ namespace DocuHelper.Importers.Legacy.Xls
 
             side.Style = s_borderStyles[style];
             var color = _table.Palette.Resolve(colorIndex, false);
-            side.Color = color != null ? new Color { Rgb = color } : new Color { Auto = true };
+            side.Color = full ?? (color != null ? new Color { Rgb = color } : new Color { Auto = true });
             return side;
         }
 

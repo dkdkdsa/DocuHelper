@@ -1,4 +1,6 @@
-﻿namespace DocuHelper.Importers.Legacy.Xls
+﻿using System.Collections.Generic;
+
+namespace DocuHelper.Importers.Legacy.Xls
 {
     internal sealed class XlsXf
     {
@@ -49,6 +51,8 @@
         public int ForeColor { get; set; }
 
         public int BackColor { get; set; }
+
+        public Dictionary<int, XlsFullColor> Colors { get; } = new();
 
         public static XlsXf Read(XlsRecord record)
         {
