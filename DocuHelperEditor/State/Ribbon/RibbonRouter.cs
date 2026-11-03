@@ -33,6 +33,9 @@ namespace DocuHelperEditor.State.Ribbon
             Workspace = workspace;
             Assistant = assistant;
             _js = js;
+#if DEBUG
+            DocuHelperEditor.Components.Dev.RibbonDump.Track(this);
+#endif
         }
 
         public event Action Changed;
