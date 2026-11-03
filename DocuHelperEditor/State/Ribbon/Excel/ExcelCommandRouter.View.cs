@@ -18,54 +18,42 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
         private static readonly int[] s_zoomLevels = { 200, 150, 100, 75, 50 };
 
-        private void RegisterView()
+        private void RegisterFeatures()
         {
             State.RegisterFeature(ExcelRibbonState.ZoomFeature);
             State.RegisterFeature(ExcelRibbonState.RulerFeature);
             State.RegisterFeature(ExcelRibbonState.ViewModesFeature);
             State.RegisterFeature(ZoomSelectionFeature);
-            ViewMode("excel.view.normal", ExcelRibbonState.NormalView);
-            ViewMode("excel.view.pagebreak", ExcelRibbonState.PageBreakView);
-            ViewMode("excel.view.pagelayout", ExcelRibbonState.PageLayoutView);
-            Gated(AddView("excel.view.ruler", _ => State.ShowRuler = !State.ShowRuler), ExcelRibbonState.RulerFeature)
-                .PressedWhen(() => State.ShowRuler);
-            AddView("excel.view.formulabar", _ => _surface.ShowFormulaBar = !_surface.ShowFormulaBar)
-                .PressedWhen(() => _surface.ShowFormulaBar);
-            SheetOption("excel.view.gridlines", "set_sheet_view", "show_gridlines", () => State.Sheet.ShowGridlines);
-            SheetOption("excel.view.headings", "set_sheet_view", "show_headings", () => State.Sheet.ShowHeadings);
-            Gated(AddView("excel.view.zoom", arg => SetZoom(arg)), ExcelRibbonState.ZoomFeature)
-                .MenuFrom(ZoomMenu);
-            Gated(AddView("excel.view.zoom100", _ => State.Zoom = 100), ExcelRibbonState.ZoomFeature);
-            Gated(AddView("excel.view.zoomselection", _ => ZoomToSelection()), ZoomSelectionFeature);
-            AddFile("excel.view.freeze", arg => RunFreeze(arg))
-                .Needs("freeze_panes")
-                .PressedWhen(() => State.IsFrozen)
-                .MenuFrom(FreezeMenu);
-            AddExternal("excel.view.newwindow");
-            AddDisabled("excel.view.arrangeall", "이 앱은 파일마다 탭으로 열어서 창을 나란히 둘 수 없어요.");
-            AddDisabled("excel.view.split", "화면 나누기는 아직 지원하지 않아요. 틀 고정을 써 보세요.");
-            AddDisabled("excel.view.hidewindow", "이 앱에는 창을 숨기는 기능이 없어요.");
-            RegisterBars();
         }
 
-        private void RegisterBars()
+        private void AddViewHandlers()
         {
-            Alias("excel.fbar.insertfn", "excel.formula.insertfn");
-            Alias("excel.status.view.normal", "excel.view.normal");
-            Alias("excel.status.view.pagelayout", "excel.view.pagelayout");
-            Alias("excel.status.view.pagebreak", "excel.view.pagebreak");
-            Gated(AddView("excel.status.zoomout", _ => State.Zoom -= 10), ExcelRibbonState.ZoomFeature);
-            Gated(AddView("excel.status.zoomin", _ => State.Zoom += 10), ExcelRibbonState.ZoomFeature);
-            Gated(AddView("excel.status.zoomreset", _ => State.Zoom = 100), ExcelRibbonState.ZoomFeature);
-            Gated(AddView("excel.status.zoomslider", arg => SetZoom(arg)), ExcelRibbonState.ZoomFeature);
-        }
+            _runs.Add("viewNormal", Run(_ => State.ViewMode = ExcelRibbonState.NormalView));
+            _runs.Add("viewPageBreak", Run(_ => State.ViewMode = ExcelRibbonState.PageBreakView));
+            _runs.Add("viewPageLayout", Run(_ => State.ViewMode = ExcelRibbonState.PageLayoutView));
+            _runs.Add("ruler", Run(_ => State.ShowRuler = !State.ShowRuler));
+            _runs.Add("formulaBar", Run(_ => _surface.ShowFormulaBar = !_surface.ShowFormulaBar));
+            _runs.Add("setZoom", Run(SetZoom));
+            _runs.Add("zoomReset", Run(_ => State.Zoom = 100));
+            _runs.Add("zoomOut", Run(_ => State.Zoom -= 10));
+            _runs.Add("zoomIn", Run(_ => State.Zoom += 10));
+            _runs.Add("zoomSelection", Run(_ => ZoomToSelection()));
+            _runs.Add("freeze", RunFreeze);
 
-        private void ViewMode(string id, string mode)
-        {
-            var command = AddView(id, _ => State.ViewMode = mode)
-                .PressedWhen(() => State.ViewMode == mode);
-            if (mode != ExcelRibbonState.NormalView)
-                Gated(command, ExcelRibbonState.ViewModesFeature);
+            _pressed.Add("viewNormal", () => State.ViewMode == ExcelRibbonState.NormalView);
+            _pressed.Add("viewPageBreak", () => State.ViewMode == ExcelRibbonState.PageBreakView);
+            _pressed.Add("viewPageLayout", () => State.ViewMode == ExcelRibbonState.PageLayoutView);
+            _pressed.Add("ruler", () => State.ShowRuler);
+            _pressed.Add("formulaBar", () => _surface.ShowFormulaBar);
+            _pressed.Add("frozen", () => State.IsFrozen);
+
+            _needs.Add("viewModes", _ => Feature(ExcelRibbonState.ViewModesFeature));
+            _needs.Add("rulerFeature", _ => Feature(ExcelRibbonState.RulerFeature));
+            _needs.Add("zoomFeature", _ => Feature(ExcelRibbonState.ZoomFeature));
+            _needs.Add("zoomSelectionFeature", _ => Feature(ZoomSelectionFeature));
+
+            _menus.Add("zoom", _ => ZoomMenu());
+            _menus.Add("freeze", _ => FreezeMenu());
         }
 
         private IReadOnlyList<RibbonMenuItem> ZoomMenu()

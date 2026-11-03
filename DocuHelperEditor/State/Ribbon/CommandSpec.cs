@@ -31,6 +31,8 @@ namespace DocuHelperEditor.State.Ribbon
 
         public string Value { get; init; }
 
+        public string Color { get; init; }
+
         public string MenuStyle { get; init; }
 
         public string Unit { get; init; }

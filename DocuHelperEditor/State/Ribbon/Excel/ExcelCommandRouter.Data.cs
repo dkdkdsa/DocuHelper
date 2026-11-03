@@ -8,47 +8,40 @@ namespace DocuHelperEditor.State.Ribbon.Excel
     {
         private const string FlashFillPrompt = "고른 칸 옆에 내가 적어 둔 예시를 보고 같은 규칙을 찾아서, 아래 칸도 같은 방식으로 채워 줘. 규칙이 헷갈리면 먼저 물어봐 줘.";
 
-        private void RegisterData()
+        private void AddDataHandlers()
         {
-            AddFile("excel.data.getdata", arg => RunGetData(arg))
-                .MenuFrom(GetDataMenu);
-            AddDisabled("excel.data.fromtext", PendingReason);
-            AddFile("excel.data.refreshall", arg => RunRefresh(arg))
-                .Needs("set_workbook_options")
-                .MenuFrom(() => new[]
-                {
-                    Entry("all", "모두 새로 고침", "수식을 모두 다시 계산해요"),
-                    RibbonMenus.Separator(),
-                    Entry("external", "연결 속성…", "Excel에서 열어서 해야 해요", blocked: ExternalBlocker()),
-                });
-            AddFile("excel.data.sort.asc", _ => Sort(false)).Needs("sort_range");
-            AddFile("excel.data.sort.desc", _ => Sort(true)).Needs("sort_range");
-            Dialog("excel.data.sort", "sort_range");
-            Tool("excel.data.filter", "filter_range", _ => Sheetwide(("action", State.IsFiltered ? "remove" : "apply"), ("range", State.Region)))
-                .PressedWhen(() => State.IsFiltered);
-            Tool("excel.data.filter.clear", "filter_range", _ => Sheetwide(("action", "clear_criteria")))
-                .EnabledWhen(() => State.HasFilterCriteria, "지울 필터 조건이 없어요.");
-            Tool("excel.data.filter.reapply", "filter_range", _ => Sheetwide(("action", "reapply")))
-                .EnabledWhen(() => State.HasFilterCriteria, "다시 적용할 필터 조건이 없어요.");
-            Dialog("excel.data.texttocolumns", "split_text");
-            AddAssistant("excel.data.flashfill", FlashFillPrompt);
-            Dialog("excel.data.removeduplicates", "remove_duplicates");
-            AddFile("excel.data.validation", arg => RunValidation(arg))
-                .Needs("set_data_validation")
-                .MenuFrom(ValidationMenu);
-            AddFile("excel.data.whatif", arg => RunWhatIf(arg))
-                .MenuFrom(WhatIfMenu);
-            Group("excel.data.outline.menu",
-                ("excel.data.group", "그룹"),
-                ("excel.data.ungroup", "그룹 해제"),
-                ("excel.data.subtotal", "부분합"));
-            Tool("excel.data.group", "format_rows_columns", arg => Outline(arg, "group"))
-                .EnabledWhen(() => ToolHas("format_rows_columns", "group"), PendingReason)
-                .MenuFrom(() => OutlineMenu("행 그룹", "열 그룹"));
-            Tool("excel.data.ungroup", "format_rows_columns", arg => Outline(arg, "ungroup"))
-                .EnabledWhen(() => ToolHas("format_rows_columns", "group"), PendingReason)
-                .MenuFrom(() => OutlineMenu("행 그룹 해제", "열 그룹 해제", true));
-            Dialog("excel.data.subtotal", "add_subtotals");
+            _runs.Add("getData", RunGetData);
+            _runs.Add("refreshAll", RunRefresh);
+            _runs.Add("sortAscending", _ => Sort(false));
+            _runs.Add("sortDescending", _ => Sort(true));
+            _runs.Add("validation", RunValidation);
+            _runs.Add("whatIf", RunWhatIf);
+
+            _tools.Add("filter", _ => Sheetwide(("action", State.IsFiltered ? "remove" : "apply"), ("range", State.Region)));
+            _tools.Add("filterClear", _ => Sheetwide(("action", "clear_criteria")));
+            _tools.Add("filterReapply", _ => Sheetwide(("action", "reapply")));
+            _tools.Add("outlineGroup", arg => Outline(arg, "group"));
+            _tools.Add("outlineUngroup", arg => Outline(arg, "ungroup"));
+
+            _prompts.Add("flashFill", () => FlashFillPrompt);
+
+            _pressed.Add("filtered", () => State.IsFiltered);
+
+            _needs.Add("filterCriteriaToClear", _ => State.HasFilterCriteria ? null : "지울 필터 조건이 없어요.");
+            _needs.Add("filterCriteriaToReapply", _ => State.HasFilterCriteria ? null : "다시 적용할 필터 조건이 없어요.");
+            _needs.Add("outlineGroupable", _ => ToolHas("format_rows_columns", "group") ? null : PendingReason);
+
+            _menus.Add("getData", _ => GetDataMenu());
+            _menus.Add("refreshAll", _ => new[]
+            {
+                Entry("all", "모두 새로 고침", "수식을 모두 다시 계산해요"),
+                RibbonMenus.Separator(),
+                Entry("external", "연결 속성…", "Excel에서 열어서 해야 해요", blocked: ExternalBlocker()),
+            });
+            _menus.Add("validation", _ => ValidationMenu());
+            _menus.Add("whatIf", _ => WhatIfMenu());
+            _menus.Add("outlineGroup", _ => OutlineMenu("행 그룹", "열 그룹"));
+            _menus.Add("outlineUngroup", _ => OutlineMenu("행 그룹 해제", "열 그룹 해제", true));
         }
 
         private Task RunRefresh(string arg)
@@ -116,7 +109,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             return new[]
             {
                 Entry("scenario", "시나리오 관리자…", "Excel에서 열어서 해야 해요", blocked: ExternalBlocker()),
-                DialogEntry("dialog", "목표값 찾기…", "excel.data.whatif", "결과를 맞추려면 어떤 값이어야 하는지 찾아요", "goal_seek"),
+                DialogEntry("dialog", "목표값 찾기…", ExcelDialogIds.GoalSeek, "결과를 맞추려면 어떤 값이어야 하는지 찾아요", "goal_seek"),
                 Entry("table", "데이터 표…", "Excel에서 열어서 해야 해요", blocked: ExternalBlocker()),
             };
         }
@@ -124,7 +117,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         private Task RunWhatIf(string arg)
         {
             if (arg == "dialog")
-                State.OpenDialog("excel.data.whatif");
+                State.OpenDialog(ExcelDialogIds.GoalSeek);
             else if (arg == "scenario" || arg == "table")
                 Workspace.OpenInOriginalApp(File.Id);
 

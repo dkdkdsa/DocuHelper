@@ -34,6 +34,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Register(spec);
                 Require(spec, "pressed state", spec.Pressed, Handlers.Pressed);
                 Require(spec, "value", spec.Value, Handlers.Values);
+                Require(spec, "color", spec.Color, Handlers.Colors);
                 Require(spec, "need", spec.Need, Handlers.Needs);
                 Require(spec, "menu", spec.MenuStyle, Handlers.Menus);
             }
@@ -97,6 +98,8 @@ namespace DocuHelperEditor.State.Ribbon
             public Dictionary<string, Func<bool>> Pressed { get; init; } = new Dictionary<string, Func<bool>>(StringComparer.Ordinal);
 
             public Dictionary<string, Func<string>> Values { get; init; } = new Dictionary<string, Func<string>>(StringComparer.Ordinal);
+
+            public Dictionary<string, Func<string>> Colors { get; init; } = new Dictionary<string, Func<string>>(StringComparer.Ordinal);
 
             public Dictionary<string, Func<CommandSpec, string>> Needs { get; init; } = new Dictionary<string, Func<CommandSpec, string>>(StringComparer.Ordinal);
 
