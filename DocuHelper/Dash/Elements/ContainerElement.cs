@@ -9,6 +9,13 @@ namespace DocuHelper.Dash.Elements
 
         public override IEnumerable<Element> Nested() => Children ?? new List<Element>();
 
+        public override void Validate(DashCheck check)
+        {
+            base.Validate(check);
+            foreach (var child in Nested())
+                child?.Validate(check);
+        }
+
         public override ElementResult Resolve(DashScope scope)
         {
             var result = scope.Base(this, new ElementResult());

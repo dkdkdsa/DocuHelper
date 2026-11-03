@@ -4,6 +4,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DocuHelper.Dash.Elements;
+using DocuHelper.Dash.Logic;
 
 namespace DocuHelper.Dash
 {
@@ -58,6 +59,11 @@ namespace DocuHelper.Dash
                 ReadCommentHandling = JsonCommentHandling.Skip,
             };
             options.Converters.Add(new DashKindConverter<Element>(DashKinds.Elements, raw => new UnknownElement(raw)));
+            options.Converters.Add(new DashKindConverter<DashSource>(DashKinds.Sources, raw => new UnknownSource(raw)));
+            options.Converters.Add(new DashKindConverter<DashParam>(DashKinds.Params, raw => new UnknownParam(raw)));
+            options.Converters.Add(new DashKindConverter<DashValue>(DashKinds.Values, raw => new UnknownValue(raw)));
+            options.Converters.Add(new DashKindConverter<DashStep>(DashKinds.Steps, raw => new UnknownStep(raw)));
+            options.Converters.Add(new DashKindConverter<DashAction>(DashKinds.Actions, raw => new UnknownAction(raw)));
             return options;
         }
     }

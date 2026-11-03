@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 using DocuHelper.Dash.Runtime;
 
@@ -35,15 +36,20 @@ namespace DocuHelper.Dash.Elements
 
         public virtual IEnumerable<Element> Nested() => Array.Empty<Element>();
 
-        public virtual IEnumerable<string> Uses()
-        {
-            yield break;
-        }
+        public virtual IEnumerable<string> Uses() => DashNames.InExpression(When);
 
         public virtual void Validate(DashCheck check)
         {
+            foreach (var name in DashNames.InExpression(When))
+                check.RequireName(this, name);
         }
 
         public virtual ElementResult Resolve(DashScope scope) => scope.Base(this, new ElementResult());
+
+        protected IEnumerable<string> With(IEnumerable<string> own) => DashNames.InExpression(When)
+            .Concat(own ?? Array.Empty<string>())
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 }
