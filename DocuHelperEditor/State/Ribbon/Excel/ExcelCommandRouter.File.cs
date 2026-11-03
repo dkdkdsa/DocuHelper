@@ -12,19 +12,12 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 {
     public sealed partial class ExcelCommandRouter
     {
-        private const string PrintPendingReason = "인쇄는 아직 준비 중이에요.";
         private const int MaxPdfPages = 200;
 
-        private void RegisterFile()
+        private void AddFileHandlers()
         {
-            AddSave("excel.file.save");
-            AddSaveCopy("excel.file.saveas");
-            AddFile("excel.file.pdf", _ => ExportPdfAsync());
-            AddDisabled("excel.file.print", PrintPendingReason);
-            AddFile("excel.file.info", _ => ShowWorkbookInfo());
-            AddExternal("excel.file.openexcel");
-            AddUndo("excel.trailing.undo");
-            AddRedo("excel.trailing.redo");
+            _runs.Add("exportPdf", _ => ExportPdfAsync());
+            _runs.Add("showInfo", Run(_ => ShowWorkbookInfo()));
         }
 
         private async Task ExportPdfAsync()

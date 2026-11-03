@@ -11,13 +11,13 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private void ProvideReviewCommands()
         {
-            Provide("word.review.track.showmarkup", arg => ToggleMarkupKindAsync(arg));
-            Provide("word.refs.notes.next", arg => GoToNoteAsync(arg));
+            Provide("setMarkupKinds", arg => ToggleMarkupKindAsync(arg));
+            Provide("goToNote", arg => GoToNoteAsync(arg));
         }
 
         private Task ToggleMarkupKindAsync(string arg)
         {
-            var kind = EntryOf(_specs["word.review.track.showmarkup"], arg)?.Args["kind"]?.ToString();
+            var kind = EntryOf(Specs["word.review.track.showmarkup"], arg)?.Args["kind"]?.ToString();
             switch (kind)
             {
                 case "comments":
@@ -37,13 +37,13 @@ namespace DocuHelperEditor.State.Ribbon
             return Task.CompletedTask;
         }
 
-        private string MarkupKindOf(WordCommandSpec spec, int index)
+        private string MarkupKindOf(CommandSpec spec, int index)
         {
             var args = WordArgs.Parse(spec.Menu[index].Args) as System.Text.Json.Nodes.JsonObject;
             return args?["kind"]?.ToString();
         }
 
-        private bool? MarkupKindChecked(WordCommandSpec spec, int index) => MarkupKindOf(spec, index) switch
+        private bool? MarkupKindChecked(CommandSpec spec, int index) => MarkupKindOf(spec, index) switch
         {
             "comments" => State.ShowComments,
             "insdel" => State.ShowInsDel,
@@ -52,7 +52,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private Task GoToNoteAsync(string arg)
         {
-            var entry = EntryOf(_specs["word.refs.notes.next"], arg);
+            var entry = EntryOf(Specs["word.refs.notes.next"], arg);
             var direction = entry?.Args["direction"]?.ToString() ?? "next";
             var kind = entry?.Args["kind"]?.ToString() ?? "footnote";
             var model = Model;

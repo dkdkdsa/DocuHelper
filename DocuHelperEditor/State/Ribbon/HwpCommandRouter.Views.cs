@@ -61,11 +61,8 @@ namespace DocuHelperEditor.State.Ribbon
             _ => PendingReason,
         };
 
-        private string ViewBlocker(HwpCommandSpec spec)
+        protected override string ViewBlocker(CommandSpec spec)
         {
-            if (IsProvided(spec.Id))
-                return null;
-
             var action = spec.Action ?? string.Empty;
             if (s_features.TryGetValue(action, out var feature))
                 return State.Supports(feature) ? null : FeatureReason(feature);
@@ -73,30 +70,19 @@ namespace DocuHelperEditor.State.Ribbon
             if (!s_internal.Contains(action))
                 return PendingReason;
 
-            switch (spec.Id)
-            {
-                case "hwp.status.zoomout":
-                    return State.Zoom > HwpRibbonState.MinZoom ? null : "더 줄일 수 없어요.";
-                case "hwp.status.zoomin":
-                    return State.Zoom < HwpRibbonState.MaxZoom ? null : "더 키울 수 없어요.";
-                case "hwp.review.track.prev":
-                case "hwp.review.track.next":
-                case "hwp.status.prevchange":
-                case "hwp.status.nextchange":
-                    return File?.Changes.Count > 0 ? null : NoChangeReason;
-            }
-
-            return null;
+            return NeedBlocker(spec);
         }
 
-        private async Task RunViewAsync(HwpCommandSpec spec, string arg)
+        private Dictionary<string, Func<CommandSpec, string>> NeedHandlers() => new(StringComparer.Ordinal)
         {
-            if (_provided.TryGetValue(spec.Id, out var provided))
-            {
-                await provided(arg);
-                return;
-            }
+            ["zoomOut"] = _ => State.Zoom > HwpRibbonState.MinZoom ? null : "더 줄일 수 없어요.",
+            ["zoomIn"] = _ => State.Zoom < HwpRibbonState.MaxZoom ? null : "더 키울 수 없어요.",
+            ["changes"] = _ => File?.Changes.Count > 0 ? null : NoChangeReason,
+            ["hancomPdf"] = _ => HancomPdfBlocker(),
+        };
 
+        protected override Task RunViewAsync(CommandSpec spec, string arg)
+        {
             var args = WordArgs.Parse(spec.Args) as JsonObject ?? new JsonObject();
             switch (spec.Action)
             {
@@ -131,6 +117,7 @@ namespace DocuHelperEditor.State.Ribbon
 
             State.Touch();
             Workspace.Notify();
+            return Task.CompletedTask;
         }
 
         private void Toggle(string action, JsonObject args)
@@ -178,70 +165,7 @@ namespace DocuHelperEditor.State.Ribbon
             }
         }
 
-        private static string Text(JsonObject args, string key) => args[key] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
-
         private static int Int(JsonObject args, string key, int fallback) => AsNumber(args[key]) is double number ? (int)Math.Round(number) : fallback;
-
-        private bool IsViewPressed(HwpCommandSpec spec)
-        {
-            switch (spec.Id)
-            {
-                case "hwp.view.screen.outline":
-                    return State.PageOutline && State.Supports("outline");
-                case "hwp.view.screen.fullscreen":
-                    return State.FullScreen && State.Supports("fullscreen");
-                case "hwp.file.preview":
-                    return State.Preview && State.Supports("preview");
-                case "hwp.view.zoom.multi":
-                    return State.Multi && State.Supports("multi");
-                case "hwp.view.marks.codes":
-                    return State.ShowCodes && State.Supports("codes");
-                case "hwp.view.marks.paramarks":
-                    return State.ShowParaMarks && State.Supports("paramarks");
-                case "hwp.view.marks.transparent":
-                    return State.ShowTransparentLines && State.Supports("transparent");
-                case "hwp.view.panes.pages":
-                    return State.NavOpen && State.NavPane == "pages" && State.Supports("panes");
-                case "hwp.view.panes.outline":
-                    return State.NavOpen && State.NavPane == "outline" && State.Supports("panes");
-                case "hwp.view.rulers.horizontal":
-                    return State.Ruler && State.Supports("ruler");
-                case "hwp.view.rulers.vertical":
-                    return State.VRuler && State.Supports("vruler");
-                case "hwp.status.insert":
-                    return State.Overwrite && State.Supports("overwrite");
-                case "hwp.trailing.collapse":
-                    return State.RibbonOpen;
-            }
-
-            return false;
-        }
-
-        private string ClipboardBlocker(HwpCommandSpec spec)
-        {
-            if (IsProvided(spec.Id))
-                return null;
-
-            return spec.Action switch
-            {
-                "copy" => CopyBlocker(),
-                "cut" => CopyBlocker(),
-                "paste" => PasteBlocker(),
-                "formatPainter" => PainterBlocker(),
-                _ => PendingReason,
-            };
-        }
-
-        private async Task RunClipboardAsync(HwpCommandSpec spec, string arg)
-        {
-            if (_provided.TryGetValue(spec.Id, out var provided))
-            {
-                await provided(arg);
-                return;
-            }
-
-            await RunClipboardOperationAsync(spec, arg);
-        }
 
         private static string TextOf(WordBlockModel block)
         {

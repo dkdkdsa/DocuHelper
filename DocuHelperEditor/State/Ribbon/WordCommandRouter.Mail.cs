@@ -22,13 +22,12 @@ namespace DocuHelperEditor.State.Ribbon
 
         private void ProvideMailCommands()
         {
-            Provide("word.mail.merge.recipients", _ => ChooseRecipientsAsync());
-            Provide("word.mail.merge.recipients.existing", _ => ChooseRecipientsAsync());
-            Provide("word.mail.merge.editlist", _ => OpenRecipientsAsync());
-            Provide("word.mail.finish.merge", _ => FinishMergeAsync());
+            Provide("chooseRecipients", _ => ChooseRecipientsAsync());
+            Provide("editRecipients", _ => OpenRecipientsAsync());
+            Provide("finishMerge", _ => FinishMergeAsync());
         }
 
-        private IReadOnlyList<RibbonMenuItem> FieldMenu(WordCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> FieldMenu(CommandSpec spec)
         {
             var items = new List<RibbonMenuItem>();
             if (State.Recipients == null)
@@ -39,7 +38,7 @@ namespace DocuHelperEditor.State.Ribbon
                 items.Add(Separator());
             }
 
-            return items.Concat(Entries(spec, false)).ToList();
+            return items.Concat(Entries(spec)).ToList();
         }
 
         private MenuEntry FieldEntryOf(string arg)
@@ -48,7 +47,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return null;
 
             var args = new JsonObject { ["name"] = arg.Substring(FieldPrefix.Length) };
-            return new MenuEntry(new WordMenuSpec(arg.Substring(FieldPrefix.Length), args.ToJsonString(), null), args);
+            return new MenuEntry(new CommandMenuSpec { Label = arg.Substring(FieldPrefix.Length), Args = args.ToJsonString() }, args);
         }
 
         private Task OpenRecipientsAsync()
@@ -88,10 +87,10 @@ namespace DocuHelperEditor.State.Ribbon
 
             var fields = new[]
             {
-                new WordDialogField("file", "엑셀 파일", "choice", JsonSerializer.Serialize(sheets[0]), sheets, sheets),
-                new WordDialogField("sheet", "시트 이름(비우면 첫 시트)", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                new DialogField("file", "엑셀 파일", "choice", JsonSerializer.Serialize(sheets[0]), sheets, sheets),
+                new DialogField("sheet", "시트 이름(비우면 첫 시트)", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
             };
-            var values = await State.Dialogs.AskFieldsAsync("word.mail.recipients", new WordDialogSpec("받는 사람 목록", fields), null);
+            var values = await State.Dialogs.AskFieldsAsync("word.mail.recipients", new DialogSpec("받는 사람 목록", fields), null);
             if (values == null)
                 return;
 

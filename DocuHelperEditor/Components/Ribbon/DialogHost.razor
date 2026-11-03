@@ -1,29 +1,24 @@
-@using DocuHelperEditor.Components.Paper.Word.Dialogs
-@using DocuHelper.Docus
-@using DocuHelperEditor.State.Papers
-@using DocuHelperEditor.State.Ribbon
 @implements IDisposable
 
 @if (_request != null)
 {
-    <WordFormDialog Request="_request" Closed="CloseAsync" />
+    <FormDialog Request="_request" Closed="CloseAsync" />
 }
 
 @code {
-    private WordDialogPresenter _presenter;
-    private WordDialogRequest _request;
+    private DialogPresenter _presenter;
+    private DialogRequest _request;
 
     [Parameter]
-    public WorkspaceFile File { get; set; }
+    public DialogPresenter Presenter { get; set; }
 
     protected override void OnParametersSet()
     {
-        var presenter = (File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File)?.Dialogs : WordRibbonState.Of(File)?.Dialogs) as WordDialogPresenter;
-        if (ReferenceEquals(presenter, _presenter))
+        if (ReferenceEquals(Presenter, _presenter))
             return;
 
         Detach();
-        _presenter = presenter;
+        _presenter = Presenter;
         if (_presenter != null)
             _presenter.Requested += Show;
     }
@@ -42,7 +37,7 @@
         _request = null;
     }
 
-    private void Show(WordDialogRequest request)
+    private void Show(DialogRequest request)
     {
         _request = request;
         InvokeAsync(StateHasChanged);

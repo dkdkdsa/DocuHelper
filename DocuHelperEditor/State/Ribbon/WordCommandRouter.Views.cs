@@ -15,6 +15,7 @@ namespace DocuHelperEditor.State.Ribbon
         {
             "toggleRibbon",
             "setZoom",
+            "zoomBy",
             "openZoomDialog",
             "moveChange",
             "setView",
@@ -44,7 +45,7 @@ namespace DocuHelperEditor.State.Ribbon
             ["toggleComments"] = "comments",
         };
 
-        private string FeatureOf(WordCommandSpec spec)
+        private string FeatureOf(CommandSpec spec)
         {
             if (spec.Action == "toggleView")
             {
@@ -55,14 +56,8 @@ namespace DocuHelperEditor.State.Ribbon
             return s_features.TryGetValue(spec.Action ?? string.Empty, out var feature) ? feature : null;
         }
 
-        private string ViewBlocker(WordCommandSpec spec)
+        protected override string ViewBlocker(CommandSpec spec)
         {
-            if (spec.Id == "word.review.speech.readaloud")
-                return ReadAloudBlocker();
-
-            if (IsProvided(spec.Id))
-                return null;
-
             if (!s_internal.Contains(spec.Action ?? string.Empty))
                 return PendingReason;
 
@@ -70,35 +65,22 @@ namespace DocuHelperEditor.State.Ribbon
             if (feature != null && !State.Supports(feature))
                 return PendingReason;
 
-            switch (spec.Id)
-            {
-                case "word.view.zoom.dialog":
-                    return CanAsk(spec.Id, null) ? null : PendingReason;
-                case "word.status.zoomout":
-                    return State.Zoom > WordRibbonState.MinZoom ? null : "더 줄일 수 없어요.";
-                case "word.status.zoomin":
-                    return State.Zoom < WordRibbonState.MaxZoom ? null : "더 키울 수 없어요.";
-                case "word.status.prevchange":
-                case "word.status.nextchange":
-                    return File?.Changes.Count > 0 ? null : NoChangeReason;
-                case "word.view.show.grid":
-                    return State.View == "print" ? null : "인쇄 모양에서만 쓸 수 있어요.";
-                case "word.view.show.ruler":
-                    return State.View == "web" ? "웹 모양에서는 눈금자를 쓸 수 없어요." : null;
-            }
-
-            return null;
+            return NeedBlocker(spec);
         }
 
-        private async Task RunViewAsync(WordCommandSpec spec, string arg)
+        private Dictionary<string, Func<CommandSpec, string>> NeedHandlers() => new(StringComparer.Ordinal)
         {
-            if (_provided.TryGetValue(spec.Id, out var provided))
-            {
-                await provided(arg);
-                return;
-            }
+            ["zoomDialog"] = spec => CanAsk(spec.Id, null) ? null : PendingReason,
+            ["zoomOut"] = _ => State.Zoom > WordRibbonState.MinZoom ? null : "더 줄일 수 없어요.",
+            ["zoomIn"] = _ => State.Zoom < WordRibbonState.MaxZoom ? null : "더 키울 수 없어요.",
+            ["changes"] = _ => File?.Changes.Count > 0 ? null : NoChangeReason,
+            ["printView"] = _ => State.View == "print" ? null : "인쇄 모양에서만 쓸 수 있어요.",
+            ["notWebView"] = _ => State.View == "web" ? "웹 모양에서는 눈금자를 쓸 수 없어요." : null,
+        };
 
-            var run = _run ?? new Run(spec, arg, EntryOf(spec, arg));
+        protected override Task RunViewAsync(CommandSpec spec, string arg)
+        {
+            var run = CurrentRun ?? new Run(spec, arg, EntryOf(spec, arg));
             var node = WordArgs.Resolve(TemplateOf(run), (string name, out JsonNode value) => Lookup(run, name, out value), null);
             var args = node as JsonObject ?? new JsonObject();
             switch (spec.Action)
@@ -108,7 +90,10 @@ namespace DocuHelperEditor.State.Ribbon
                     break;
                 case "setZoom":
                 case "openZoomDialog":
-                    SetZoom(spec, arg, args);
+                    SetZoom(arg, args);
+                    break;
+                case "zoomBy":
+                    State.Zoom = (int)Math.Round((State.Zoom + Int(args, "delta", 0)) / 10.0) * 10;
                     break;
                 case "moveChange":
                     Workspace.MoveChange(Int(args, "step", 1));
@@ -159,26 +144,15 @@ namespace DocuHelperEditor.State.Ribbon
 
             State.Touch();
             Workspace.Notify();
+            return Task.CompletedTask;
         }
 
-        private void SetZoom(WordCommandSpec spec, string arg, JsonObject args)
+        private void SetZoom(string arg, JsonObject args)
         {
-            if (spec.Id == "word.status.zoomout")
+            if (CurrentRun?.Fields != null)
             {
-                State.Zoom = (int)Math.Round((State.Zoom - 10) / 10.0) * 10;
-                return;
-            }
-
-            if (spec.Id == "word.status.zoomin")
-            {
-                State.Zoom = (int)Math.Round((State.Zoom + 10) / 10.0) * 10;
-                return;
-            }
-
-            if (_run?.Fields != null)
-            {
-                var custom = Number(_run.Fields, "custom", 0);
-                var choice = Number(_run.Fields, "zoom", 0);
+                var custom = Number(CurrentRun.Fields, "custom", 0);
+                var choice = Number(CurrentRun.Fields, "zoom", 0);
                 State.Zoom = custom > 0 ? custom : choice > 0 ? choice : State.Zoom;
                 return;
             }
@@ -276,8 +250,6 @@ namespace DocuHelperEditor.State.Ribbon
             }
         }
 
-        private static string Text(JsonObject args, string key) => args[key] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
-
         private static int Int(JsonObject args, string key, int fallback)
         {
             if (args[key] is not JsonValue value)
@@ -290,67 +262,6 @@ namespace DocuHelperEditor.State.Ribbon
                 return (int)wide;
 
             return value.TryGetValue<string>(out var text) && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
-        }
-
-        private bool IsViewPressed(WordCommandSpec spec)
-        {
-            switch (spec.Id)
-            {
-                case "word.view.views.read":
-                    return State.View == "read";
-                case "word.view.views.print":
-                    return State.View == "print";
-                case "word.view.views.web":
-                    return State.View == "web";
-                case "word.view.views.outline":
-                    return State.View == "outline";
-                case "word.view.views.draft":
-                    return State.View == "draft";
-                case "word.view.move.vertical":
-                    return !State.SideBySide;
-                case "word.view.move.side":
-                    return State.SideBySide;
-                case "word.view.show.ruler":
-                    return State.Ruler && State.Supports("ruler");
-                case "word.view.show.grid":
-                    return State.Gridlines && State.Supports("grid");
-                case "word.view.show.nav":
-                    return State.NavOpen && State.Supports("nav");
-                case "word.review.comments.show":
-                    return State.ShowComments && State.Supports("comments");
-                case "word.mail.preview.preview":
-                    return State.MergePreview;
-                case "word.review.speech.readaloud":
-                    return State.ReadingAloud;
-            }
-
-            return false;
-        }
-
-        private string ClipboardBlocker(WordCommandSpec spec)
-        {
-            if (IsProvided(spec.Id))
-                return null;
-
-            return spec.Action switch
-            {
-                "copy" => CopyBlocker(),
-                "cut" => CopyBlocker(),
-                "paste" => PasteBlocker(),
-                "formatPainter" => PainterBlocker(),
-                _ => PendingReason,
-            };
-        }
-
-        private async Task RunClipboardAsync(WordCommandSpec spec, string arg)
-        {
-            if (_provided.TryGetValue(spec.Id, out var provided))
-            {
-                await provided(arg);
-                return;
-            }
-
-            await RunClipboardOperationAsync(spec, arg);
         }
     }
 }

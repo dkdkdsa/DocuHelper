@@ -151,150 +151,103 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             ("MIN", "최소값"),
         };
 
-        private void RegisterHome()
+        private void AddHomeHandlers()
         {
-            RegisterClipboard();
-            RegisterFont();
-            RegisterAlignment();
-            RegisterNumber();
-            RegisterStyles();
-            RegisterCells();
-            RegisterEditing();
-        }
+            _runs.Add("paste", PasteAsync);
+            _runs.Add("cut", _ => _surface.CopyAsync(true));
+            _runs.Add("copy", _ => _surface.CopyAsync(false));
+            _runs.Add("formatPainter", _ => TogglePainter());
+            _runs.Add("merge", _ => MergeSelection());
+            _runs.Add("conditional", RunConditional);
+            _runs.Add("tableStyle", RunTableStyle);
+            _runs.Add("cellsMenu", RunCellsMenu);
+            _runs.Add("autoSum", AutoSum);
+            _runs.Add("sortFilter", RunSortFilter);
+            _runs.Add("findSelect", Run(FindSelect));
 
-        private void RegisterClipboard()
-        {
-            AddClipboard("excel.home.paste", arg => PasteAsync(arg))
-                .MenuFrom(PasteMenu)
-                .EnabledWhen(CanPaste, "붙여넣을 내용이 없어요.");
-            AddClipboard("excel.home.cut", _ => _surface.CopyAsync(true));
-            AddClipboard("excel.home.copy", _ => _surface.CopyAsync(false)).AllowWhileLocked();
-            AddFile("excel.home.formatpainter", _ => TogglePainter())
-                .Needs("copy_range")
-                .PressedWhen(() => _surface.IsPainting);
-        }
+            _formats.Add("fontName", arg => string.IsNullOrWhiteSpace(arg) ? null : new (string, object)[] { ("font_name", arg) });
+            _formats.Add("fontSize", arg => new (string, object)[] { ("font_size", ParseSize(arg)) });
+            _formats.Add("fontGrow", _ => new (string, object)[] { ("font_size", State.NextLarger()) });
+            _formats.Add("fontShrink", _ => new (string, object)[] { ("font_size", State.NextSmaller()) });
+            _formats.Add("bold", _ => new (string, object)[] { ("bold", !State.IsBold) });
+            _formats.Add("italic", _ => new (string, object)[] { ("italic", !State.IsItalic) });
+            _formats.Add("underline", _ => new (string, object)[] { ("underline", !State.IsUnderline) });
+            _formats.Add("border", arg => string.IsNullOrEmpty(arg) ? null : new (string, object)[] { ("borders", arg) });
+            _formats.Add("fillColor", arg => PickColor(arg, "fill_color", "none", color => State.FillColor = color));
+            _formats.Add("fontColor", arg => PickColor(arg, "font_color", "auto", color => State.FontColor = color));
+            _formats.Add("valignTop", _ => new (string, object)[] { ("vertical_align", "top") });
+            _formats.Add("valignMiddle", _ => new (string, object)[] { ("vertical_align", "center") });
+            _formats.Add("valignBottom", _ => new (string, object)[] { ("vertical_align", "bottom") });
+            _formats.Add("wrap", _ => new (string, object)[] { ("wrap", !State.IsWrapped) });
+            _formats.Add("alignLeft", _ => Horizontal(SheetAlign.Left, "left"));
+            _formats.Add("alignCenter", _ => Horizontal(SheetAlign.Center, "center"));
+            _formats.Add("alignRight", _ => Horizontal(SheetAlign.Right, "right"));
+            _formats.Add("numberFormat", arg => string.IsNullOrWhiteSpace(arg) ? null : new (string, object)[] { ("number_format", arg.Trim()) });
+            _formats.Add("accounting", arg => string.IsNullOrEmpty(arg) ? null : new (string, object)[] { ("number_format", arg) });
+            _formats.Add("percent", _ => new (string, object)[] { ("number_format", State.Cell?.NumberFormat == SheetNumberFormat.Percent ? "general" : "percent") });
+            _formats.Add("comma", _ => new (string, object)[] { ("number_format", State.Cell?.NumberFormat == SheetNumberFormat.Thousands ? "general" : "thousands") });
+            _formats.Add("cellStyle", arg => string.IsNullOrEmpty(arg) ? null : new (string, object)[] { ("cell_style", arg) });
 
-        private void RegisterFont()
-        {
-            Format("excel.home.fontname", arg => string.IsNullOrWhiteSpace(arg) ? null : new (string, object)[] { ("font_name", arg) })
-                .ValueFrom(() => State.FontName)
-                .MenuFrom(() => s_fonts.Select(f => Entry(f, f, check: f == State.FontName, font: f)).ToArray());
-            Format("excel.home.fontsize", arg => new (string, object)[] { ("font_size", ParseSize(arg)) })
-                .ValueFrom(() => ExcelRibbonState.SizeText(State.FontSize))
-                .MenuFrom(SizeMenu);
-            Format("excel.home.fontgrow", _ => new (string, object)[] { ("font_size", State.NextLarger()) });
-            Format("excel.home.fontshrink", _ => new (string, object)[] { ("font_size", State.NextSmaller()) });
-            Format("excel.home.bold", _ => new (string, object)[] { ("bold", !State.IsBold) }).PressedWhen(() => State.IsBold);
-            Format("excel.home.italic", _ => new (string, object)[] { ("italic", !State.IsItalic) }).PressedWhen(() => State.IsItalic);
-            Format("excel.home.underline", _ => new (string, object)[] { ("underline", !State.IsUnderline) }).PressedWhen(() => State.IsUnderline);
-            Format("excel.home.border", arg => string.IsNullOrEmpty(arg) ? null : new (string, object)[] { ("borders", arg) })
-                .MenuFrom(() => s_borders.Select(b => Entry(b.Value, b.Label)).ToArray());
-            Format("excel.home.fillcolor", arg => PickColor(arg, "fill_color", "none", color => State.FillColor = color))
-                .ColorFrom(() => State.FillColor)
-                .MenuFrom(() => ColorMenu("채우기 없음", null, State.FillColor));
-            Format("excel.home.fontcolor", arg => PickColor(arg, "font_color", "auto", color => State.FontColor = color))
-                .ColorFrom(() => State.FontColor)
-                .MenuFrom(() => ColorMenu("자동 (검정)", "000000", State.FontColor));
-        }
+            _pressed.Add("painting", () => _surface.IsPainting);
+            _pressed.Add("bold", () => State.IsBold);
+            _pressed.Add("italic", () => State.IsItalic);
+            _pressed.Add("underline", () => State.IsUnderline);
+            _pressed.Add("valignTop", () => State.VerticalAlign == "top");
+            _pressed.Add("valignMiddle", () => State.VerticalAlign == "center");
+            _pressed.Add("valignBottom", () => State.VerticalAlign == "bottom");
+            _pressed.Add("wrap", () => State.IsWrapped);
+            _pressed.Add("alignLeft", () => State.Align == SheetAlign.Left);
+            _pressed.Add("alignCenter", () => State.Align == SheetAlign.Center);
+            _pressed.Add("alignRight", () => State.Align == SheetAlign.Right);
+            _pressed.Add("merged", () => State.IsMerged);
+            _pressed.Add("percent", () => State.Cell?.NumberFormat == SheetNumberFormat.Percent);
+            _pressed.Add("comma", () => State.Cell?.NumberFormat == SheetNumberFormat.Thousands);
 
-        private void RegisterAlignment()
-        {
-            Group("excel.home.alignment.menu",
-                ("excel.home.valign.top", "위쪽 맞춤"),
-                ("excel.home.valign.middle", "세로 가운데 맞춤"),
-                ("excel.home.valign.bottom", "아래쪽 맞춤"),
-                ("excel.home.wrap", "자동 줄 바꿈"),
-                ("excel.home.align.left", "왼쪽 맞춤"),
-                ("excel.home.align.center", "가운데 맞춤"),
-                ("excel.home.align.right", "오른쪽 맞춤"),
-                ("excel.home.merge", "병합하고 가운데 맞춤"));
-            Format("excel.home.valign.top", _ => new (string, object)[] { ("vertical_align", "top") }).PressedWhen(() => State.VerticalAlign == "top");
-            Format("excel.home.valign.middle", _ => new (string, object)[] { ("vertical_align", "center") }).PressedWhen(() => State.VerticalAlign == "center");
-            Format("excel.home.valign.bottom", _ => new (string, object)[] { ("vertical_align", "bottom") }).PressedWhen(() => State.VerticalAlign == "bottom");
-            Format("excel.home.wrap", _ => new (string, object)[] { ("wrap", !State.IsWrapped) }).PressedWhen(() => State.IsWrapped);
-            Format("excel.home.align.left", _ => Horizontal(SheetAlign.Left, "left")).PressedWhen(() => State.Align == SheetAlign.Left);
-            Format("excel.home.align.center", _ => Horizontal(SheetAlign.Center, "center")).PressedWhen(() => State.Align == SheetAlign.Center);
-            Format("excel.home.align.right", _ => Horizontal(SheetAlign.Right, "right")).PressedWhen(() => State.Align == SheetAlign.Right);
-            AddFile("excel.home.merge", _ => MergeSelection())
-                .Needs("merge_cells")
-                .PressedWhen(() => State.IsMerged)
-                .EnabledWhen(() => !State.Selection.IsSingle || State.IsMerged, "합칠 칸을 두 개 이상 골라 주세요.");
-        }
+            _values.Add("fontName", () => State.FontName);
+            _values.Add("fontSize", () => ExcelRibbonState.SizeText(State.FontSize));
+            _values.Add("numberCategory", () => State.NumberCategory);
 
-        private void RegisterNumber()
-        {
-            Group("excel.home.number.menu",
-                ("excel.home.numberformat", "표시 형식"),
-                ("excel.home.accounting", "회계 표시 형식"),
-                ("excel.home.percent", "백분율 스타일"),
-                ("excel.home.comma", "쉼표 스타일"));
-            Format("excel.home.numberformat", arg => string.IsNullOrWhiteSpace(arg) ? null : new (string, object)[] { ("number_format", arg.Trim()) })
-                .ValueFrom(() => State.NumberCategory)
-                .MenuFrom(NumberFormatMenu);
-            Format("excel.home.accounting", arg => string.IsNullOrEmpty(arg) ? null : new (string, object)[] { ("number_format", arg) })
-                .MenuFrom(() => s_currencies.Select(c => Entry(c.Value, c.Label)).ToArray());
-            Format("excel.home.percent", _ => new (string, object)[] { ("number_format", State.Cell?.NumberFormat == SheetNumberFormat.Percent ? "general" : "percent") })
-                .PressedWhen(() => State.Cell?.NumberFormat == SheetNumberFormat.Percent);
-            Format("excel.home.comma", _ => new (string, object)[] { ("number_format", State.Cell?.NumberFormat == SheetNumberFormat.Thousands ? "general" : "thousands") })
-                .PressedWhen(() => State.Cell?.NumberFormat == SheetNumberFormat.Thousands);
-        }
+            _colors.Add("fill", () => State.FillColor);
+            _colors.Add("font", () => State.FontColor);
 
-        private void RegisterStyles()
-        {
-            Group("excel.home.styles.menu",
-                ("excel.home.condformat", "조건부 서식"),
-                ("excel.home.formattable", "표 서식"),
-                ("excel.home.cellstyles", "셀 스타일"));
-            AddFile("excel.home.condformat", arg => RunConditional(arg))
-                .Needs("set_conditional_format")
-                .MenuFrom(ConditionalMenu);
-            AddFile("excel.home.formattable", arg => RunTableStyle(arg))
-                .Needs("manage_table")
-                .MenuFrom(TableStyleMenu);
-            Format("excel.home.cellstyles", arg => string.IsNullOrEmpty(arg) ? null : new (string, object)[] { ("cell_style", arg) })
-                .MenuFrom(() => CellStyleMenu());
-        }
+            _needs.Add("canPaste", _ => CanPaste() ? null : "붙여넣을 내용이 없어요.");
+            _needs.Add("multiCell", _ => !State.Selection.IsSingle || State.IsMerged ? null : "합칠 칸을 두 개 이상 골라 주세요.");
 
-        private void RegisterCells()
-        {
-            Group("excel.home.cells.menu",
-                ("excel.home.insertcells", "삽입"),
-                ("excel.home.deletecells", "삭제"),
-                ("excel.home.formatcells", "서식"));
-            AddFile("excel.home.insertcells", arg => RunCellsMenu(arg))
-                .MenuFrom(() => new[]
-                {
-                    Entry("shift:right", "셀 삽입: 오른쪽으로 밀기", "고른 칸 자리에 빈 칸을 넣어요", needs: "shift_cells"),
-                    Entry("shift:down", "셀 삽입: 아래로 밀기", "고른 칸 자리에 빈 칸을 넣어요", needs: "shift_cells"),
-                    RibbonMenus.Separator(),
-                    Entry(SheetCommands.InsertRowsAbove, "시트 행 삽입", needs: "insert_rows_columns"),
-                    Entry(SheetCommands.InsertColumnsLeft, "시트 열 삽입", needs: "insert_rows_columns"),
-                    Entry(SheetCommands.InsertRowsBelow, "아래에 행 삽입", needs: "insert_rows_columns"),
-                    Entry(SheetCommands.InsertColumnsRight, "오른쪽에 열 삽입", needs: "insert_rows_columns"),
-                    Entry("add-sheet", "시트 삽입", needs: "add_sheet"),
-                });
-            AddFile("excel.home.deletecells", arg => RunCellsMenu(arg))
-                .MenuFrom(() => new[]
-                {
-                    Entry("shift:left", "셀 삭제: 왼쪽으로 당기기", "고른 칸을 지우고 옆 칸을 당겨요", needs: "shift_cells"),
-                    Entry("shift:up", "셀 삭제: 위로 당기기", "고른 칸을 지우고 아래 칸을 당겨요", needs: "shift_cells"),
-                    RibbonMenus.Separator(),
-                    Entry(SheetCommands.DeleteRows, "시트 행 삭제", needs: "delete_rows_columns"),
-                    Entry(SheetCommands.DeleteColumns, "시트 열 삭제", needs: "delete_rows_columns"),
-                    Entry("delete-sheet", "시트 삭제", needs: "delete_sheet", blocked: State.Model.Sheets.Count(s => !s.IsHidden) <= 1 ? "시트가 하나뿐이라 지울 수 없어요." : null),
-                });
-            AddFile("excel.home.formatcells", arg => RunCellsMenu(arg))
-                .MenuFrom(FormatCellsMenu);
-        }
-
-        private void RegisterEditing()
-        {
-            AddFile("excel.home.autosum", arg => AutoSum(arg))
-                .MenuFrom(AutoSumMenu);
-            AddFile("excel.home.sortfilter", arg => RunSortFilter(arg))
-                .MenuFrom(SortFilterMenu);
-            AddView("excel.home.findselect", arg => FindSelect(arg))
-                .MenuFrom(FindSelectMenu);
+            _menus.Add("paste", _ => PasteMenu());
+            _menus.Add("fontName", _ => s_fonts.Select(f => Entry(f, f, check: f == State.FontName, font: f)).ToArray());
+            _menus.Add("fontSize", _ => SizeMenu());
+            _menus.Add("border", _ => s_borders.Select(b => Entry(b.Value, b.Label)).ToArray());
+            _menus.Add("fillColor", _ => ColorMenu("채우기 없음", null, State.FillColor));
+            _menus.Add("fontColor", _ => ColorMenu("자동 (검정)", "000000", State.FontColor));
+            _menus.Add("numberFormat", _ => NumberFormatMenu());
+            _menus.Add("currency", _ => s_currencies.Select(c => Entry(c.Value, c.Label)).ToArray());
+            _menus.Add("conditional", _ => ConditionalMenu());
+            _menus.Add("tableStyle", _ => TableStyleMenu());
+            _menus.Add("cellStyle", _ => CellStyleMenu());
+            _menus.Add("insertCells", _ => new[]
+            {
+                Entry("shift:right", "셀 삽입: 오른쪽으로 밀기", "고른 칸 자리에 빈 칸을 넣어요", needs: "shift_cells"),
+                Entry("shift:down", "셀 삽입: 아래로 밀기", "고른 칸 자리에 빈 칸을 넣어요", needs: "shift_cells"),
+                RibbonMenus.Separator(),
+                Entry(SheetCommands.InsertRowsAbove, "시트 행 삽입", needs: "insert_rows_columns"),
+                Entry(SheetCommands.InsertColumnsLeft, "시트 열 삽입", needs: "insert_rows_columns"),
+                Entry(SheetCommands.InsertRowsBelow, "아래에 행 삽입", needs: "insert_rows_columns"),
+                Entry(SheetCommands.InsertColumnsRight, "오른쪽에 열 삽입", needs: "insert_rows_columns"),
+                Entry("add-sheet", "시트 삽입", needs: "add_sheet"),
+            });
+            _menus.Add("deleteCells", _ => new[]
+            {
+                Entry("shift:left", "셀 삭제: 왼쪽으로 당기기", "고른 칸을 지우고 옆 칸을 당겨요", needs: "shift_cells"),
+                Entry("shift:up", "셀 삭제: 위로 당기기", "고른 칸을 지우고 아래 칸을 당겨요", needs: "shift_cells"),
+                RibbonMenus.Separator(),
+                Entry(SheetCommands.DeleteRows, "시트 행 삭제", needs: "delete_rows_columns"),
+                Entry(SheetCommands.DeleteColumns, "시트 열 삭제", needs: "delete_rows_columns"),
+                Entry("delete-sheet", "시트 삭제", needs: "delete_sheet", blocked: State.Model.Sheets.Count(s => !s.IsHidden) <= 1 ? "시트가 하나뿐이라 지울 수 없어요." : null),
+            });
+            _menus.Add("formatCells", _ => FormatCellsMenu());
+            _menus.Add("autoSum", _ => AutoSumMenu());
+            _menus.Add("sortFilter", _ => SortFilterMenu());
+            _menus.Add("findSelect", _ => FindSelectMenu());
         }
 
         private Task PasteAsync(string mode)
@@ -364,7 +317,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 Entry("column_widths", "열 너비 유지", "열 너비만 맞춰요", blocked: Blocked(true)),
                 Entry("transpose", "행/열 바꿔 넣기", "가로와 세로를 서로 바꿔요", blocked: Blocked(true)),
                 RibbonMenus.Separator(),
-                DialogEntry("dialog", "선택하여 붙여넣기…", "excel.home.paste", "붙여넣기 방식을 골라요", "copy_range"),
+                DialogEntry("dialog", "선택하여 붙여넣기…", ExcelDialogIds.Paste, "붙여넣기 방식을 골라요", "copy_range"),
             };
         }
 
@@ -583,9 +536,9 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             var visible = State.Model.Sheets.Count(s => !s.IsHidden);
             var items = new List<RibbonMenuItem>
             {
-                DialogEntry("dialog:row-height", "행 높이…", "excel.home.formatcells", null, "format_rows_columns"),
+                DialogEntry("dialog:row-height", "행 높이…", ExcelDialogIds.FormatCells, null, "format_rows_columns"),
                 Entry(SheetCommands.FitRows, "행 높이 자동 맞춤", needs: "format_rows_columns"),
-                DialogEntry("dialog:column-width", "열 너비…", "excel.home.formatcells", null, "format_rows_columns"),
+                DialogEntry("dialog:column-width", "열 너비…", ExcelDialogIds.FormatCells, null, "format_rows_columns"),
                 Entry(SheetCommands.FitColumns, "열 너비 자동 맞춤", needs: "format_rows_columns"),
                 RibbonMenus.Separator(),
                 RibbonMenus.Heading("숨기기"),
@@ -613,7 +566,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             items.Add(RibbonMenus.Separator());
             items.Add(Entry("excel.review.protectsheet", "시트 보호", "검토 탭의 시트 보호와 같아요", blocked: DisabledReasonOf("excel.review.protectsheet")));
             items.Add(Entry("locked", "셀 잠금", check: State.IsLocked, needs: "format_range", blocked: ToolHas("format_range", "locked") ? null : PendingReason));
-            items.Add(DialogEntry("dialog:cell-format", "셀 서식…", "excel.home.formatcells", "표시 형식, 맞춤, 글꼴, 테두리, 채우기, 보호를 한 창에서", "format_range"));
+            items.Add(DialogEntry("dialog:cell-format", "셀 서식…", ExcelDialogIds.FormatCells, "표시 형식, 맞춤, 글꼴, 테두리, 채우기, 보호를 한 창에서", "format_range"));
             return items;
         }
 
@@ -624,7 +577,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
 
             if (arg.StartsWith("dialog:", StringComparison.Ordinal))
             {
-                State.OpenDialog("excel.home.formatcells");
+                State.OpenDialog(ExcelDialogIds.FormatCells);
                 return;
             }
 
@@ -712,7 +665,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             {
                 Entry("asc", "텍스트 오름차순 정렬", needs: "sort_range"),
                 Entry("desc", "텍스트 내림차순 정렬", needs: "sort_range"),
-                DialogEntry("dialog:sort", "사용자 지정 정렬…", "excel.data.sort", "열을 여러 개 기준으로 정렬해요", "sort_range"),
+                DialogEntry("dialog:sort", "사용자 지정 정렬…", ExcelDialogIds.Sort, "열을 여러 개 기준으로 정렬해요", "sort_range"),
                 RibbonMenus.Separator(),
                 Entry("filter", "필터", check: State.IsFiltered, needs: "filter_range"),
                 Entry("clear_criteria", "지우기", needs: "filter_range", blocked: State.HasFilterCriteria ? null : "지울 필터 조건이 없어요."),

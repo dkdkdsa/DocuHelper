@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
-using static DocuHelperEditor.State.Ribbon.WordNamedDialogs;
+using static DocuHelperEditor.State.Ribbon.DialogFields;
 
 namespace DocuHelperEditor.State.Ribbon
 {
     internal static class HwpNamedDialogs
     {
-        private static readonly Dictionary<string, WordNamedDialog> s_dialogs = new(StringComparer.Ordinal)
+        internal static readonly Dictionary<string, DialogSpec> All = new(StringComparer.Ordinal)
         {
             [Key("hwp.edit.insert.table", "tableMake")] = TableMake(),
             [Key("hwp.page.look.header", "headerEdit")] = HeaderFooter("header", "머리말 고치기"),
@@ -21,10 +21,7 @@ namespace DocuHelperEditor.State.Ribbon
             [Key("hwp.edit.page.columns", "columns")] = Columns(),
         };
 
-        internal static bool TryGet(string commandId, string dialogName, out WordNamedDialog dialog) =>
-            s_dialogs.TryGetValue(Key(commandId, dialogName), out dialog);
-
-        private static WordNamedDialog TableMake() => new(
+        private static DialogSpec TableMake() => new(
             "표 만들기",
             new[]
             {
@@ -55,7 +52,7 @@ namespace DocuHelperEditor.State.Ribbon
                 };
             });
 
-        private static WordNamedDialog HeaderFooter(string part, string title) => new(
+        private static DialogSpec HeaderFooter(string part, string title) => new(
             title,
             new[]
             {
@@ -73,19 +70,19 @@ namespace DocuHelperEditor.State.Ribbon
                 ["right"] = Tokens(Text(v, "right")),
             });
 
-        private static WordNamedDialog Picture() => new(
+        private static DialogSpec Picture() => new(
             "그림 넣기",
             new[] { Text("alt", "그림 설명 (대체 글, 비워도 돼요)", string.Empty) },
             v => null,
             v => new JsonObject { ["alt"] = Text(v, "alt") });
 
-        private static WordNamedDialog FontName() => new(
+        private static DialogSpec FontName() => new(
             "글꼴 이름",
             new[] { Text("font", "글꼴 이름", "함초롬돋움") },
             v => string.IsNullOrWhiteSpace(Text(v, "font")) ? "글꼴 이름을 써 주세요." : null,
             v => new JsonObject { ["font"] = Text(v, "font").Trim() });
 
-        private static WordNamedDialog FontSize() => new(
+        private static DialogSpec FontSize() => new(
             "글자 크기",
             new[] { Number("size", "글자 크기 (1~400pt, 0.5 단위)", "10") },
             v => Num(v, "size") < 1 || Num(v, "size") > 400 || Math.Abs(Num(v, "size") * 2 - Math.Round(Num(v, "size") * 2)) > 0.0001
@@ -93,7 +90,7 @@ namespace DocuHelperEditor.State.Ribbon
                 : null,
             v => new JsonObject { ["size"] = Num(v, "size") });
 
-        private static WordNamedDialog LineSpacing() => new(
+        private static DialogSpec LineSpacing() => new(
             "줄 간격",
             new[] { Number("percent", "줄 간격 (1~500 %)", "160") },
             v => Range(v, "percent", 1, 500, "줄 간격 (%)"),
@@ -102,7 +99,7 @@ namespace DocuHelperEditor.State.Ribbon
                 ["line_spacing"] = new JsonObject { ["mode"] = "multiple", ["value"] = Num(v, "percent") / 160.0 },
             });
 
-        private static WordNamedDialog Columns() => new(
+        private static DialogSpec Columns() => new(
             "단 설정",
             new[]
             {
@@ -123,6 +120,6 @@ namespace DocuHelperEditor.State.Ribbon
                 },
             });
 
-        private static string Key(string commandId, string dialogName) => WordNamedDialogs.Key(commandId, dialogName);
+        private static string Key(string commandId, string dialogName) => DialogFields.Key(commandId, dialogName);
     }
 }

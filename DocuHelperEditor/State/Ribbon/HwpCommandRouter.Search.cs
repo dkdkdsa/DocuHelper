@@ -11,8 +11,8 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private void ProvideSearchCommands()
         {
-            Provide("hwp.edit.clipboard.selectall", _ => SelectAllAsync());
-            Provide("hwp.edit.find.find", _ => FindAsync());
+            Provide("selectAll", _ => SelectAllAsync());
+            Provide("openFind", _ => FindAsync());
         }
 
         private Task SelectAllAsync()
@@ -30,7 +30,7 @@ namespace DocuHelperEditor.State.Ribbon
             model.SelectedBlockId = last.Id;
             Workspace.SetSelection(model.Describe(last));
             Workspace.Notify();
-            _ = WordSelectionService.RestoreAsync(_scriptJs, model.Selection);
+            _ = WordSelectionService.RestoreAsync(ScriptJs, model.Selection);
             return Task.CompletedTask;
         }
 
@@ -41,11 +41,11 @@ namespace DocuHelperEditor.State.Ribbon
 
             var fields = new[]
             {
-                new WordDialogField("query", "찾을 글", "text", JsonSerializer.Serialize(State.FindQuery ?? string.Empty), System.Array.Empty<string>(), System.Array.Empty<string>()),
-                new WordDialogField("match_case", "대/소문자 구분", "bool", State.FindMatchCase ? "true" : "false", System.Array.Empty<string>(), System.Array.Empty<string>()),
-                new WordDialogField("whole_word", "단어 단위로 찾기", "bool", State.FindWholeWord ? "true" : "false", System.Array.Empty<string>(), System.Array.Empty<string>()),
+                new DialogField("query", "찾을 글", "text", JsonSerializer.Serialize(State.FindQuery ?? string.Empty), System.Array.Empty<string>(), System.Array.Empty<string>()),
+                new DialogField("match_case", "대/소문자 구분", "bool", State.FindMatchCase ? "true" : "false", System.Array.Empty<string>(), System.Array.Empty<string>()),
+                new DialogField("whole_word", "단어 단위로 찾기", "bool", State.FindWholeWord ? "true" : "false", System.Array.Empty<string>(), System.Array.Empty<string>()),
             };
-            var values = await State.Dialogs.AskFieldsAsync("hwp.edit.find.find", new WordDialogSpec("찾기", fields), null);
+            var values = await State.Dialogs.AskFieldsAsync("hwp.edit.find.find", new DialogSpec("찾기", fields), null);
             if (values == null)
                 return;
 

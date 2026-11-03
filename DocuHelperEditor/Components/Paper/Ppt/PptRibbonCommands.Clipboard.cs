@@ -10,10 +10,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 {
     public sealed partial class PptRibbonCommands
     {
-        private const string CopyId = "ppt.home.copy";
-        private const string CutId = "ppt.home.cut";
-        private const string PasteId = "ppt.home.paste";
-        private const string PainterId = "ppt.home.formatPainter";
         private const string PasteEmptyText = "붙여넣을 글자가 없어요.";
         private const string PasteLinesText = "글자가 길어서 앞부분 {0}줄만 붙였어요.";
         private const string PasteCharsText = "글자가 4000자를 넘어서 앞부분만 붙였어요.";
@@ -25,16 +21,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private FormatCopy _painter;
 
         private sealed record FormatCopy(int SlideNumber, string ShapeKey, double PointSize, bool Bold, bool Italic, bool Underline, string Align);
-
-        private void RegisterClipboard()
-        {
-            AddClipboard(CopyId, _ => CopyAsync(false)).Unless(() => NeedBlocker(PptNeed.Text));
-            AddClipboard(CutId, _ => CopyAsync(true)).Unless(() => NeedBlocker(PptNeed.Text));
-            AddClipboard(PasteId, _ => PasteAsync()).Unless(() => NeedBlocker(PptNeed.Text));
-            AddClipboard(PainterId, _ => FormatPainterAsync())
-                .Unless(() => _painter == null ? NeedBlocker(PptNeed.Text) : null)
-                .PressedWhen(() => _painter != null);
-        }
 
         public void SelectionChanged()
         {

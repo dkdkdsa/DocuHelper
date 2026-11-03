@@ -19,61 +19,28 @@ namespace DocuHelperEditor.State.Ribbon
             ("6", "10"),
         };
 
-        private static readonly Dictionary<string, (string Unit, string Hint)> s_numberFields = new Dictionary<string, (string, string)>(StringComparer.Ordinal)
+        protected override bool HidesMenu(CommandSpec spec) => IsLegacy(spec);
+
+        protected override bool HidesEntry(MenuEntry entry) => entry.Spec.Label.StartsWith('{');
+
+        private Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> MenuHandlers() => new(StringComparer.Ordinal)
         {
-            ["word.layout.para.indentleft"] = ("cm", "0.0"),
-            ["word.layout.para.indentright"] = ("cm", "0.0"),
-            ["word.layout.para.spacebefore"] = ("pt", "0"),
-            ["word.layout.para.spaceafter"] = ("pt", "8"),
+            ["fontName"] = spec => new[] { Input("글꼴 이름", string.Empty), Separator() }.Concat(Entries(spec, true)).ToList(),
+            ["fontSize"] = spec => new[] { Input("글자 크기", string.Empty, "pt"), Separator() }.Concat(Entries(spec)).ToList(),
+            ["fontColor"] = spec => ColorMenu(spec, "auto", "자동 (검정)", "000000", RibbonPalette.Standard),
+            ["highlight"] = spec => ColorMenu(spec, "none", "강조 없음", null, RibbonPalette.Highlight),
+            ["pageColor"] = spec => ColorMenu(spec, "none", "색 없음", null, RibbonPalette.Standard),
+            ["table"] = TableMenu,
+            ["markupDisplay"] = spec => Entries(spec).Select((item, i) => item with { Checked = MarkupOf(spec, i) == State.MarkupMode }).ToList(),
+            ["mergeFields"] = FieldMenu,
+            ["showMarkup"] = spec => Entries(spec).Select((item, i) => item with { Checked = MarkupKindChecked(spec, i) }).ToList(),
+            ["mergeStart"] = spec => Entries(spec).Select((item, i) => item with { Checked = MergeModeChecked(spec, i) }).ToList(),
+            ["input"] = spec => new[] { Input(spec.Label, string.Empty, spec.Unit) },
         };
 
-        private bool HasMenu(WordCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> ColorMenu(CommandSpec spec, string resetValue, string resetLabel, string swatch, IReadOnlyList<RibbonSwatch> colors)
         {
-            return spec.Menu.Count > 0
-                || s_numberFields.ContainsKey(spec.Id)
-                || s_colorOwners.Contains(spec.Id)
-                || spec.Id == "word.design.bg.pagecolor"
-                || spec.Id == "word.insert.table.table";
-        }
-
-        private IReadOnlyList<RibbonMenuItem> MenuOf(WordCommandSpec spec)
-        {
-            if (IsLegacy(spec))
-                return null;
-
-            switch (spec.Id)
-            {
-                case "word.home.font.name":
-                    return new[] { Input("글꼴 이름", string.Empty), Separator() }.Concat(Entries(spec, true)).ToList();
-                case "word.home.font.size":
-                    return new[] { Input("글자 크기", string.Empty, "pt"), Separator() }.Concat(Entries(spec, false)).ToList();
-                case "word.home.font.color":
-                    return ColorMenu(spec, "auto", "자동 (검정)", "000000", RibbonPalette.Standard);
-                case "word.home.font.highlight":
-                    return ColorMenu(spec, "none", "강조 없음", null, RibbonPalette.Highlight);
-                case "word.design.bg.pagecolor":
-                    return ColorMenu(spec, "none", "색 없음", null, RibbonPalette.Standard);
-                case "word.insert.table.table":
-                    return TableMenu(spec);
-                case "word.review.track.display":
-                    return Entries(spec, false).Select((item, i) => item with { Checked = MarkupOf(spec, i) == State.MarkupMode }).ToList();
-                case "word.mail.fields.insert":
-                    return FieldMenu(spec);
-                case "word.review.track.showmarkup":
-                    return Entries(spec, false).Select((item, i) => item with { Checked = MarkupKindChecked(spec, i) }).ToList();
-                case "word.mail.merge.start":
-                    return Entries(spec, false).Select((item, i) => item with { Checked = MergeModeChecked(spec, i) }).ToList();
-            }
-
-            if (s_numberFields.TryGetValue(spec.Id, out var field))
-                return new[] { Input(spec.Label, string.Empty, field.Unit) };
-
-            return Entries(spec, false);
-        }
-
-        private IReadOnlyList<RibbonMenuItem> ColorMenu(WordCommandSpec spec, string resetValue, string resetLabel, string swatch, IReadOnlyList<RibbonSwatch> colors)
-        {
-            _colors.TryGetValue(spec.Id, out var current);
+            Colors.TryGetValue(spec.Id, out var current);
             return new[]
             {
                 Item(resetValue, resetLabel, swatch: swatch),
@@ -82,7 +49,7 @@ namespace DocuHelperEditor.State.Ribbon
             };
         }
 
-        private IReadOnlyList<RibbonMenuItem> TableMenu(WordCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> TableMenu(CommandSpec spec)
         {
             var items = new List<RibbonMenuItem> { Heading("표 크기 고르기") };
             foreach (var (columns, rows) in s_tables)
@@ -99,43 +66,7 @@ namespace DocuHelperEditor.State.Ribbon
             return items;
         }
 
-        private List<RibbonMenuItem> Entries(WordCommandSpec spec, bool font)
-        {
-            var items = new List<RibbonMenuItem>();
-            for (var i = 0; i < spec.Menu.Count; i++)
-            {
-                var menu = spec.Menu[i];
-                if (menu.Label.StartsWith('{'))
-                    continue;
-
-                var reason = EntryReason(spec, MenuPrefix + i, new MenuEntry(menu, WordArgs.Parse(menu.Args) as System.Text.Json.Nodes.JsonObject));
-                items.Add(Item(MenuPrefix + i, menu.Label, detail: menu.Detail, font: font ? menu.Label : null, disabled: reason != null, reason: reason));
-            }
-
-            return items;
-        }
-
-        private string EntryReason(WordCommandSpec spec, string arg, MenuEntry entry)
-        {
-            if (entry.Command != null)
-                return DisabledReasonOf(entry.Command);
-
-            if (entry.Dialog != null)
-                return CanAsk(spec.Id, entry.Dialog) ? null : PendingReason;
-
-            if (entry.Picker != null && _files == null)
-                return PendingReason;
-
-            if (entry.HasClipboardImage && !_clipboard.Kinds.HasFlag(ClipboardKinds.Image))
-                return "클립보드에 그림이 없어요.";
-
-            if (spec.Class == RibbonCommandClass.Tool && NeedsFields(new Run(spec, arg, entry)) && !CanAsk(spec.Id, null))
-                return PendingReason;
-
-            return null;
-        }
-
-        private string MarkupOf(WordCommandSpec spec, int index)
+        private string MarkupOf(CommandSpec spec, int index)
         {
             var args = WordArgs.Parse(spec.Menu[index].Args) as System.Text.Json.Nodes.JsonObject;
             return args?["markup"]?.ToString();

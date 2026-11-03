@@ -14,39 +14,40 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         private const string AlternativeTextPrompt = "대체 텍스트가 없는 그림과 차트를 모두 찾아서 알려 주고, 각각 어떤 설명을 넣으면 좋을지 제안해 줘. 내가 괜찮다고 하면 넣어 줘.";
         private const string MergedPrompt = "병합한 칸과 비어 있는 열·행 때문에 표가 끊기는 곳을 모두 찾아서 알려 주고, 고치는 방법도 같이 알려 줘.";
 
-        private void RegisterReview()
+        private void AddReviewHandlers()
         {
-            AddAssistant("excel.review.spelling", SpellingPrompt);
-            AddAssistant("excel.review.thesaurus", ThesaurusPrompt)
-                .EnabledWhen(() => !string.IsNullOrWhiteSpace(State.Cell?.Text), "단어가 들어 있는 칸을 골라 주세요.");
-            AddFile("excel.review.accessibility", arg => PrefillAsync(AccessibilityText(arg)))
-                .Unless(AssistantBlocker)
-                .MenuFrom(() => new[]
-                {
-                    Entry("access", "접근성 검사"),
-                    Entry("alt", "대체 텍스트가 없는 그림과 차트 찾기"),
-                    Entry("merged", "병합한 칸과 빈 열·행 찾기"),
-                });
-            AddAssistant("excel.review.translate", TranslatePrompt)
-                .EnabledWhen(() => State.SelectionHasText, "글자가 들어 있는 칸을 골라 주세요.");
-            Dialog("excel.review.newnote", "edit_comment");
-            Tool("excel.review.shownote", "edit_comment", _ => Sheetwide(("cell", State.ActiveRef), ("action", State.Cell?.Note?.Visible == true ? "hide" : "show")))
-                .PressedWhen(() => State.Cell?.Note?.Visible == true)
-                .EnabledWhen(() => State.Cell?.Note != null, "메모가 있는 칸을 골라 주세요.");
-            Tool("excel.review.deletenote", "edit_comment", _ => Sheetwide(("cell", State.ActiveRef), ("action", "delete")))
-                .EnabledWhen(() => State.Cell?.Note != null, "메모가 있는 칸을 골라 주세요.");
-            AddView("excel.review.prevnote", _ => StepNote(-1)).EnabledWhen(() => State.HasNotes, "이 시트에는 메모가 없어요.");
-            AddView("excel.review.nextnote", _ => StepNote(1)).EnabledWhen(() => State.HasNotes, "이 시트에는 메모가 없어요.");
-            AddFile("excel.review.protectsheet", _ => ProtectSheet())
-                .Needs("protect")
-                .PressedWhen(() => State.Sheet.IsProtected)
-                .EnabledWhen(() => State.Sheet.IsProtected || State.HasDialog(ExcelDialogIds.ProtectSheet), PendingReason);
-            AddFile("excel.review.protectbook", _ => ProtectBook())
-                .Needs("protect")
-                .PressedWhen(() => State.Model.StructureLocked)
-                .EnabledWhen(() => State.Model.StructureLocked || State.HasDialog("excel.review.protectbook"), PendingReason);
-            Dialog("excel.review.allowranges", "protect")
-                .EnabledWhen(() => !State.Sheet.IsProtected, "시트 보호를 풀어야 범위를 정할 수 있어요.");
+            _prompts.Add("spelling", () => SpellingPrompt);
+            _prompts.Add("thesaurus", () => ThesaurusPrompt);
+            _prompts.Add("translate", () => TranslatePrompt);
+
+            _runs.Add("accessibility", arg => PrefillAsync(AccessibilityText(arg)));
+            _runs.Add("prevNote", _ => StepNote(-1));
+            _runs.Add("nextNote", _ => StepNote(1));
+            _runs.Add("protectSheet", _ => ProtectSheet());
+            _runs.Add("protectBook", _ => ProtectBook());
+
+            _tools.Add("showNote", _ => Sheetwide(("cell", State.ActiveRef), ("action", State.Cell?.Note?.Visible == true ? "hide" : "show")));
+            _tools.Add("deleteNote", _ => Sheetwide(("cell", State.ActiveRef), ("action", "delete")));
+
+            _pressed.Add("noteVisible", () => State.Cell?.Note?.Visible == true);
+            _pressed.Add("sheetProtected", () => State.Sheet.IsProtected);
+            _pressed.Add("bookProtected", () => State.Model.StructureLocked);
+
+            _needs.Add("cellHasWord", _ => !string.IsNullOrWhiteSpace(State.Cell?.Text) ? null : "단어가 들어 있는 칸을 골라 주세요.");
+            _needs.Add("assistantFree", _ => AssistantBlocker());
+            _needs.Add("selectionHasText", _ => State.SelectionHasText ? null : "글자가 들어 있는 칸을 골라 주세요.");
+            _needs.Add("hasNote", _ => State.Cell?.Note != null ? null : "메모가 있는 칸을 골라 주세요.");
+            _needs.Add("hasNotes", _ => State.HasNotes ? null : "이 시트에는 메모가 없어요.");
+            _needs.Add("sheetProtectable", _ => State.Sheet.IsProtected || State.HasDialog(ExcelDialogIds.ProtectSheet) ? null : PendingReason);
+            _needs.Add("bookProtectable", _ => State.Model.StructureLocked || State.HasDialog(ExcelDialogIds.ProtectBook) ? null : PendingReason);
+            _needs.Add("sheetUnprotected", _ => !State.Sheet.IsProtected ? null : "시트 보호를 풀어야 범위를 정할 수 있어요.");
+
+            _menus.Add("accessibility", _ => new[]
+            {
+                Entry("access", "접근성 검사"),
+                Entry("alt", "대체 텍스트가 없는 그림과 차트 찾기"),
+                Entry("merged", "병합한 칸과 빈 열·행 찾기"),
+            });
         }
 
         private static string AccessibilityText(string arg) => arg switch
@@ -105,7 +106,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             if (State.Model.StructureLocked)
                 Apply(EditCommand.Create("protect", Workbook(("scope", "workbook"), ("action", "unprotect"), ("structure", true))));
             else
-                State.OpenDialog("excel.review.protectbook");
+                State.OpenDialog(ExcelDialogIds.ProtectBook);
 
             return Task.CompletedTask;
         }

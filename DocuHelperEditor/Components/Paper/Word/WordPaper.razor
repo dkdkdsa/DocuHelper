@@ -1,6 +1,5 @@
 ﻿@using DocuHelperEditor.Components.Paper
 @using DocuHelperEditor.Components.Paper.Hwp
-@using DocuHelperEditor.Components.Paper.Word.Dialogs
 @using DocuHelperEditor.State.Papers
 @using DocuHelperEditor.State.Ribbon
 @using System.Globalization
@@ -34,7 +33,7 @@
             <WordPage File="File" />
         </div>
     }
-    <WordDialogHost File="File" />
+    <DialogHost Presenter="@Dialogs" />
     @if (File?.Type == DocuType.Hwp)
     {
         <HwpStatusBar File="File" />
@@ -52,6 +51,8 @@
 
     [Parameter]
     public WorkspaceFile File { get; set; }
+
+    private DialogPresenter Dialogs => (File?.Type == DocuType.Hwp ? HwpRibbonState.Of(File)?.Dialogs : WordRibbonState.Of(File)?.Dialogs) as DialogPresenter;
 
     protected override void OnParametersSet()
     {

@@ -58,63 +58,55 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             ("doughnut:", "도넛형"),
         };
 
-        private void RegisterInsert()
+        private void AddInsertHandlers()
         {
-            AddFile("excel.insert.pivot", arg => RunPivot(arg))
-                .Needs("build_pivot_summary")
-                .MenuFrom(PivotMenu);
-            AddFile("excel.insert.table", _ => RunInsertTable())
-                .Needs("manage_table")
-                .PressedWhen(() => State.IsInTable)
-                .EnabledWhen(() => !State.IsInTable, "이미 표 안에 있어요.");
-            AddFile("excel.insert.picture", arg => InsertPicture(arg))
-                .Needs("insert_drawing")
-                .MenuFrom(() => new[]
-                {
-                    Entry("device", "이 디바이스에서…", "PNG, JPG, GIF, BMP"),
-                    RibbonMenus.Separator(),
-                    Entry("online", "온라인 그림…", "인터넷 서비스라서 쓸 수 없어요", blocked: "온라인 그림과 스톡 이미지는 인터넷에 연결된 엑셀에서만 쓸 수 있어요. 내 컴퓨터의 그림을 넣어 주세요."),
-                });
-            Tool("excel.insert.shapes", "insert_drawing", arg => string.IsNullOrEmpty(arg)
-                    ? null
-                    : Sheetwide(("kind", "shape"), ("anchor", State.ActiveRef), ("shape", Workbook(("geometry", arg)))))
-                .MenuFrom(() => s_shapes.Select(s => Entry(s.Value, s.Label)).ToArray());
-            AddDisabled("excel.insert.icons", "아이콘은 인터넷에서 가져오는 그림이라 쓸 수 없어요.");
-            Dialog("excel.insert.chart.recommended", "create_chart");
-            Chart("excel.insert.chart.column", s_columnCharts);
-            Chart("excel.insert.chart.line", s_lineCharts);
-            Chart("excel.insert.chart.pie", s_pieCharts);
-            Dialog("excel.insert.link", "set_hyperlink").PressedWhen(() => State.Cell?.Hyperlink != null);
-            Dialog("excel.insert.note", "edit_comment");
-            Tool("excel.insert.textbox", "insert_drawing", _ => Sheetwide(("kind", "text_box"), ("anchor", State.ActiveRef), ("text", "텍스트를 입력하세요")));
-            Dialog(ExcelDialogIds.HeaderFooter, "set_print_setup");
-            AddExternal("excel.insert.equation")
-                .MenuFrom(() => new[] { Entry("open", "Excel에서 열기", "수식은 Excel에서 넣을 수 있어요") });
-            Dialog("excel.insert.symbol", "write_cells");
+            _runs.Add("pivot", RunPivot);
+            _runs.Add("insertTable", _ => RunInsertTable());
+            _runs.Add("insertPicture", InsertPicture);
+
+            _tools.Add("shape", arg => string.IsNullOrEmpty(arg)
+                ? null
+                : Sheetwide(("kind", "shape"), ("anchor", State.ActiveRef), ("shape", Workbook(("geometry", arg)))));
+            _tools.Add("chart", ChartArgs);
+            _tools.Add("textBox", _ => Sheetwide(("kind", "text_box"), ("anchor", State.ActiveRef), ("text", "텍스트를 입력하세요")));
+
+            _pressed.Add("inTable", () => State.IsInTable);
+            _pressed.Add("hyperlink", () => State.Cell?.Hyperlink != null);
+
+            _needs.Add("notInTable", _ => !State.IsInTable ? null : "이미 표 안에 있어요.");
+
+            _menus.Add("pivot", _ => PivotMenu());
+            _menus.Add("picture", _ => new[]
+            {
+                Entry("device", "이 디바이스에서…", "PNG, JPG, GIF, BMP"),
+                RibbonMenus.Separator(),
+                Entry("online", "온라인 그림…", "인터넷 서비스라서 쓸 수 없어요", blocked: "온라인 그림과 스톡 이미지는 인터넷에 연결된 엑셀에서만 쓸 수 있어요. 내 컴퓨터의 그림을 넣어 주세요."),
+            });
+            _menus.Add("shapes", _ => s_shapes.Select(s => Entry(s.Value, s.Label)).ToArray());
+            _menus.Add("columnCharts", _ => s_columnCharts.Select(k => Entry(k.Value, k.Label)).ToArray());
+            _menus.Add("lineCharts", _ => s_lineCharts.Select(k => Entry(k.Value, k.Label)).ToArray());
+            _menus.Add("pieCharts", _ => s_pieCharts.Select(k => Entry(k.Value, k.Label)).ToArray());
+            _menus.Add("equation", _ => new[] { Entry("open", "Excel에서 열기", "수식은 Excel에서 넣을 수 있어요") });
         }
 
-        private void Chart(string id, (string Value, string Label)[] kinds)
+        private Dictionary<string, object> ChartArgs(string arg)
         {
-            Tool(id, "create_chart", arg =>
-                {
-                    if (string.IsNullOrEmpty(arg))
-                        return null;
+            if (string.IsNullOrEmpty(arg))
+                return null;
 
-                    var parts = arg.Split(':');
-                    var args = Sheetwide(("data_range", State.Region), ("type", parts[0]));
-                    if (parts.Length > 1 && parts[1].Length > 0)
-                        args["subtype"] = parts[1];
+            var parts = arg.Split(':');
+            var args = Sheetwide(("data_range", State.Region), ("type", parts[0]));
+            if (parts.Length > 1 && parts[1].Length > 0)
+                args["subtype"] = parts[1];
 
-                    return args;
-                })
-                .MenuFrom(() => kinds.Select(k => Entry(k.Value, k.Label)).ToArray());
+            return args;
         }
 
         private IReadOnlyList<RibbonMenuItem> PivotMenu()
         {
             return new[]
             {
-                DialogEntry("dialog", "표 또는 범위로 요약표 만들기…", "excel.insert.pivot", "행 기준으로 합계나 개수를 모아서 보여 줘요"),
+                DialogEntry("dialog", "표 또는 범위로 요약표 만들기…", ExcelDialogIds.PivotSummary, "행 기준으로 합계나 개수를 모아서 보여 줘요"),
                 RibbonMenus.Separator(),
                 Entry("assistant", "추천 요약표", "도우미가 표를 보고 알맞은 요약표를 만들어요", blocked: AssistantBlocker()),
                 Entry("external", "외부 데이터 원본에서…", "Excel에서 열어서 해야 해요", blocked: ExternalBlocker()),
@@ -126,7 +118,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             switch (arg)
             {
                 case "dialog":
-                    State.OpenDialog("excel.insert.pivot");
+                    State.OpenDialog(ExcelDialogIds.PivotSummary);
                     return Task.CompletedTask;
                 case "assistant":
                     return PrefillAsync("이 표를 보고 알맞은 요약표를 만들어 줘. 어떤 항목을 행으로 놓고 무엇을 합계 낼지 먼저 알려 주고, 내가 괜찮다고 하면 새 시트에 수식으로 만들어 줘.");

@@ -24,10 +24,10 @@ namespace DocuHelperEditor.State.Ribbon
 
         private void ProvideFileCommands()
         {
-            Provide("word.file.info", _ => ShowDocumentInfoAsync());
-            Provide("word.review.proofing.wordcount", _ => ShowWordCountAsync());
-            Provide("word.file.pdf", _ => ExportPdfAsync());
-            Provide("word.file.print", _ => PrintAsync());
+            Provide("showInfo", _ => ShowDocumentInfoAsync());
+            Provide("showWordCount", _ => ShowWordCountAsync());
+            Provide("exportPdf", _ => ExportPdfAsync());
+            Provide("print", _ => PrintAsync());
         }
 
         private Task ShowWordCountAsync()
@@ -51,7 +51,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return;
             }
 
-            var path = await _files.PickSaveFileAsync(Path.GetFileNameWithoutExtension(File.Name) + ".pdf");
+            var path = await FileDialogs.PickSaveFileAsync(Path.GetFileNameWithoutExtension(File.Name) + ".pdf");
             if (string.IsNullOrEmpty(path))
                 return;
 
@@ -92,9 +92,9 @@ namespace DocuHelperEditor.State.Ribbon
                 return;
 
             var fields = s_properties
-                .Select(p => new WordDialogField(p.Name, p.Label, "text", JsonSerializer.Serialize(WordDocumentProperties.Get(word, p.Name) ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()))
+                .Select(p => new DialogField(p.Name, p.Label, "text", JsonSerializer.Serialize(WordDocumentProperties.Get(word, p.Name) ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()))
                 .ToArray();
-            var values = await State.Dialogs.AskFieldsAsync("word.file.info", new WordDialogSpec("문서 정보", fields), null);
+            var values = await State.Dialogs.AskFieldsAsync("word.file.info", new DialogSpec("문서 정보", fields), null);
             if (values == null)
                 return;
 

@@ -81,7 +81,7 @@
     public RibbonRouter Router { get; set; }
 
     [Parameter]
-    public IWordDialogPresenter Dialogs { get; set; }
+    public IDialogPresenter Dialogs { get; set; }
 
     private string Label => $"{Item.Label}, 가로 {Cm(Item.WidthPt)}cm, 세로 {Cm(Item.HeightPt)}cm";
 
@@ -125,10 +125,10 @@
     {
         var fields = new[]
         {
-            new WordDialogField("width", "가로 (cm)", "number", Json(Cm(Item.WidthPt)), Array.Empty<string>(), Array.Empty<string>()),
-            new WordDialogField("height", "세로 (cm)", "number", Json(Cm(Item.HeightPt)), Array.Empty<string>(), Array.Empty<string>()),
+            new DialogField("width", "가로 (cm)", "number", Json(Cm(Item.WidthPt)), Array.Empty<string>(), Array.Empty<string>()),
+            new DialogField("height", "세로 (cm)", "number", Json(Cm(Item.HeightPt)), Array.Empty<string>(), Array.Empty<string>()),
         };
-        var values = await Dialogs.AskFieldsAsync("word.object.size", new WordDialogSpec("크기", fields, ValidateSize), null);
+        var values = await Dialogs.AskFieldsAsync("word.object.size", new DialogSpec("크기", fields, ValidateSize), null);
         if (values == null)
             return;
 
@@ -166,8 +166,8 @@
 
     private async Task AltAsync()
     {
-        var fields = new[] { new WordDialogField("alt", "대체 텍스트 (글을 읽어 줄 때 쓰여요)", "text", Json(Item.Alt ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()) };
-        var values = await Dialogs.AskFieldsAsync("word.object.alt", new WordDialogSpec("대체 텍스트", fields), null);
+        var fields = new[] { new DialogField("alt", "대체 텍스트 (글을 읽어 줄 때 쓰여요)", "text", Json(Item.Alt ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()) };
+        var values = await Dialogs.AskFieldsAsync("word.object.alt", new DialogSpec("대체 텍스트", fields), null);
         if (values == null)
             return;
 
@@ -177,8 +177,8 @@
     private async Task WrapAsync()
     {
         var current = Item.Inline ? "inline" : Item.Wrap;
-        var fields = new[] { new WordDialogField("wrap", "글과의 배치", "choice", Json(current), s_wraps, s_wrapLabels) };
-        var values = await Dialogs.AskFieldsAsync("word.object.wrap", new WordDialogSpec("배치", fields), null);
+        var fields = new[] { new DialogField("wrap", "글과의 배치", "choice", Json(current), s_wraps, s_wrapLabels) };
+        var values = await Dialogs.AskFieldsAsync("word.object.wrap", new DialogSpec("배치", fields), null);
         var wrap = values?["wrap"]?.GetValue<string>();
         if (wrap == null)
             return;

@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DocuHelperEditor.Services;
 using Microsoft.JSInterop;
 
 namespace DocuHelperEditor.State.Ribbon.Excel
 {
-    public sealed partial class ExcelCommandRouter : RibbonRouter
+    public sealed partial class ExcelCommandRouter : SpecRouter
     {
         private const char GroupSeparator = '|';
 
@@ -34,6 +35,15 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         private readonly IClipboardService _clipboard;
         private readonly IFileDialogService _dialogs;
         private readonly IPrintService _prints;
+        private readonly Dictionary<string, Func<string, (string Key, object Value)[]>> _formats = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<string, Dictionary<string, object>>> _tools = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<string, Task>> _runs = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<string>> _prompts = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<bool>> _pressed = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<string>> _values = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<string>> _colors = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<CommandSpec, string>> _needs = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> _menus = new(StringComparer.Ordinal);
 
         public ExcelCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService dialogs, IPrintService prints, IExcelSurface surface)
             : base(workspace, assistant, js)
@@ -43,15 +53,24 @@ namespace DocuHelperEditor.State.Ribbon.Excel
             _dialogs = dialogs;
             _prints = prints;
             State = new ExcelRibbonState(surface);
-            RegisterHome();
-            RegisterInsert();
-            RegisterLayout();
-            RegisterFormula();
-            RegisterData();
-            RegisterReview();
-            RegisterView();
+            AddHomeHandlers();
+            AddInsertHandlers();
+            AddLayoutHandlers();
+            AddFormulaHandlers();
+            AddDataHandlers();
+            AddReviewHandlers();
+            AddViewHandlers();
+            AddFileHandlers();
+            Load(ExcelCommandTable.All, new CommandHandlers
+            {
+                Pressed = _pressed,
+                Values = _values,
+                Colors = _colors,
+                Needs = _needs,
+                Menus = _menus,
+            });
+            RegisterFeatures();
             RegisterDialogs();
-            RegisterFile();
         }
 
         public ExcelRibbonState State { get; }
@@ -82,6 +101,83 @@ namespace DocuHelperEditor.State.Ribbon.Excel
         }
 
         protected override void RefreshSelection() => _surface.Refocus();
+
+        protected override void Register(CommandSpec spec)
+        {
+            if (spec.Action == "alias")
+            {
+                Alias(spec.Id, spec.Args);
+                return;
+            }
+
+            var command = Create(spec);
+            if (spec.Need != null)
+                command.Unless(() => NeedBlocker(spec));
+
+            if (spec.Pressed != null)
+                command.PressedWhen(Handlers.Pressed[spec.Pressed]);
+
+            if (spec.Value != null)
+                command.ValueFrom(Handlers.Values[spec.Value]);
+
+            if (spec.Color != null)
+                command.ColorFrom(Handlers.Colors[spec.Color]);
+
+            if (spec.MenuStyle != null)
+            {
+                var menu = Handlers.Menus[spec.MenuStyle];
+                command.MenuFrom(() => menu(spec));
+            }
+
+            if (spec.WhileLocked)
+                command.AllowWhileLocked();
+        }
+
+        private RibbonCommand Create(CommandSpec spec)
+        {
+            switch (spec.Class)
+            {
+                case RibbonCommandClass.Tool:
+                    return spec.Tool == "format_range" ? Format(spec.Id, _formats[spec.Action]) : Tool(spec.Id, spec.Tool, _tools[spec.Action]);
+                case RibbonCommandClass.Clipboard:
+                    return AddClipboard(spec.Id, _runs[spec.Action]);
+                case RibbonCommandClass.Assistant:
+                    return AddAssistant(spec.Id, _prompts[spec.Action]);
+                case RibbonCommandClass.External:
+                    return AddExternal(spec.Id);
+                case RibbonCommandClass.Disabled:
+                    return AddDisabled(spec.Id, spec.Reason);
+                case RibbonCommandClass.View:
+                    return spec.Action == "dialog" ? Dialog(spec.Id, spec.Tool) : AddView(spec.Id, _runs[spec.Action]);
+                default:
+                    return CreateFile(spec);
+            }
+        }
+
+        private RibbonCommand CreateFile(CommandSpec spec)
+        {
+            switch (spec.Action)
+            {
+                case "undo":
+                case "redo":
+                case "save":
+                case "saveAs":
+                    return RegisterFile(spec);
+                case "group":
+                    return Group(spec.Id, spec.Menu.Select(m => (Child: (string)JsonNode.Parse(m.Args)["command"], Title: m.Label)).ToArray());
+                default:
+                    return AddFile(spec.Id, _runs[spec.Action]).Needs(spec.Tool);
+            }
+        }
+
+        private static Func<string, Task> Run(Action<string> run)
+        {
+            return arg =>
+            {
+                run(arg);
+                return Task.CompletedTask;
+            };
+        }
 
         private bool ToolReady(string tool)
         {
@@ -151,10 +247,7 @@ namespace DocuHelperEditor.State.Ribbon.Excel
                 .Unless(Editable);
         }
 
-        private RibbonCommand Gated(RibbonCommand command, string feature)
-        {
-            return command.EnabledWhen(() => State.HasFeature(feature), PendingReason);
-        }
+        private string Feature(string feature) => State.HasFeature(feature) ? null : PendingReason;
 
         private string Editable() => File == null ? NoFileReason : IsLocked ? LockedReason : null;
 

@@ -3,14 +3,15 @@ using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using DocuHelper.Editors;
 using DocuHelper.Tools;
+using DocuHelperEditor.State.Ribbon;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
 {
     public sealed partial class PptRibbonCommands
     {
-        private Func<IReadOnlyDictionary<string, JsonNode>, string> ValidatorOf(PptCommandSpec spec, PptMenuSpec entry, string arg)
+        private Func<IReadOnlyDictionary<string, JsonNode>, string> ValidatorOf(CommandSpec spec, CommandMenuSpec entry, string arg)
         {
-            if (KindOf(spec, entry) != PptCommandKind.Tool)
+            if (KindOf(spec, entry) != RibbonCommandClass.Tool)
                 return null;
 
             return values =>

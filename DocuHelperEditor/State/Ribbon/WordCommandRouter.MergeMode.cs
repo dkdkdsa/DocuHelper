@@ -8,12 +8,12 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private void ProvideMergeModeCommands()
         {
-            Provide("word.mail.merge.start", arg => SetMergeModeAsync(arg));
+            Provide("startMerge", arg => SetMergeModeAsync(arg));
         }
 
         private Task SetMergeModeAsync(string arg)
         {
-            var mode = EntryOf(_specs["word.mail.merge.start"], arg)?.Args["mode"]?.ToString()
+            var mode = EntryOf(Specs["word.mail.merge.start"], arg)?.Args["mode"]?.ToString()
                 ?? (State.MergeMode == "letter" ? "none" : "letter");
             State.MergeMode = mode;
             State.Touch();
@@ -24,7 +24,7 @@ namespace DocuHelperEditor.State.Ribbon
             return Task.CompletedTask;
         }
 
-        private bool? MergeModeChecked(WordCommandSpec spec, int index)
+        private bool? MergeModeChecked(CommandSpec spec, int index)
         {
             var mode = WordArgs.Parse(spec.Menu[index].Args) is System.Text.Json.Nodes.JsonObject args ? args["mode"]?.ToString() : null;
             return mode == null ? null : mode == State.MergeMode;

@@ -17,7 +17,7 @@ using static DocuHelperEditor.State.Ribbon.RibbonMenus;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
 {
-    public sealed partial class PptRibbonCommands : RibbonRouter
+    public sealed partial class PptRibbonCommands : SpecRouter
     {
         public const string UndoId = "ppt.trailing.undo";
         public const string RedoId = "ppt.trailing.redo";
@@ -33,7 +33,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private const string NoTextReason = "글자를 고칠 글상자를 먼저 골라 주세요.";
         private const string TwoShapesReason = "도형을 둘 이상 골라야 해요.";
         private const string ThreeShapesReason = "도형을 셋 이상 골라야 해요.";
-        private const string PrintReason = "인쇄와 PDF 저장은 아직 준비 중이에요.";
         private const double DefaultPointSize = 18;
 
         private static readonly double[] s_fontSizes = { 8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96 };
@@ -49,25 +48,14 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             "strike", "bullet", "number", "hidden", "useTimings", "mediaControls", "advanceOnClick",
         };
 
-        private static readonly string[] s_newSlideIds = { "ppt.home.newSlide", "ppt.insert.newSlide" };
-
-        private static readonly string[] s_external =
-        {
-            "ppt.view.slideMaster", "ppt.view.handoutMaster", "ppt.view.notesMaster", "ppt.file.openOriginal",
-        };
-
-        private static readonly string[] s_print =
-        {
-            "ppt.file.printHandout",
-        };
-
         private static readonly Regex s_hex = new("^[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
 
         private readonly PptRibbonState _state;
         private readonly IClipboardService _clipboard;
         private readonly IPrintService _prints;
         private readonly IFileDialogService _dialogs;
-        private readonly Dictionary<string, PptCommandSpec> _specs = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Action<CommandSpec>> _builtIns;
+        private readonly Dictionary<string, MenuLook> _looks;
         private readonly Dictionary<string, (Tool Instance, PptToolSchema Schema)> _schemas = new(StringComparer.Ordinal);
         private readonly Dictionary<string, JsonNode> _fields = new(StringComparer.Ordinal);
         private string _pickedName;
@@ -80,20 +68,31 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             _state = state;
             _clipboard = clipboard;
             _prints = prints;
-            foreach (var spec in PptCommandData.All)
+            _builtIns = BuiltInHandlers();
+            _looks = MenuLooks();
+            Load(PptCommandData.All, new CommandHandlers
             {
-                _specs[spec.Id] = spec;
-                Register(spec);
-            }
+                Pressed = null,
+                Values = ValueHandlers(),
+                Needs = NeedHandlers(),
+                Menus = null,
+            });
 
-            RegisterBuiltIn();
+            Provide("showInfo", _ =>
+            {
+                Notify(DocumentInfoText());
+                return Task.CompletedTask;
+            });
+            Provide("exportPdf", _ => ExportPdfAsync());
+            Provide("print", _ => PrintAsync());
+            ReportMissing("PPT", PptRibbonData.Tabs, PptRibbonData.FileItems);
         }
 
         public override async Task InvokeAsync(string id, string arg)
         {
             var target = id;
-            var spec = id != null && _specs.TryGetValue(id, out var found) ? found : null;
-            PptMenuSpec entry = null;
+            var spec = id != null && Specs.TryGetValue(id, out var found) ? found : null;
+            CommandMenuSpec entry = null;
             if (spec != null)
             {
                 if (arg == QuickEntry)
@@ -102,7 +101,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 }
                 else if (arg != null && arg.StartsWith(EntryPrefix, StringComparison.Ordinal)
                     && int.TryParse(arg.AsSpan(EntryPrefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out var index)
-                    && spec.Menu != null && index >= 0 && index < spec.Menu.Count)
+                    && index >= 0 && index < spec.Menu.Count)
                 {
                     target = EntryId(spec, index);
                     entry = spec.Menu[index];
@@ -145,20 +144,33 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             _state.ActivateSlide?.Invoke(index);
         }
 
-        private static string EntryId(PptCommandSpec spec, int index) =>
+        private static string EntryId(CommandSpec spec, int index) =>
             spec.Id + "#" + index.ToString(CultureInfo.InvariantCulture);
 
-        private void Register(PptCommandSpec spec)
+        protected override void Register(CommandSpec spec)
         {
-            switch (spec.Kind)
+            if (spec.MenuStyle != null && !_looks.ContainsKey(spec.MenuStyle))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown menu '{spec.MenuStyle}'.");
+
+            switch (spec.Class)
             {
-                case PptCommandKind.Tool:
+                case RibbonCommandClass.Tool when spec.Action != null:
+                case RibbonCommandClass.Clipboard:
+                    _builtIns[spec.Action](spec);
+                    break;
+                case RibbonCommandClass.Tool:
                     Decorate(AddTool(spec.Id, arg => BuildTool(spec, null, arg)).Unless(() => ToolBlocker(spec, null)), spec);
                     break;
-                case PptCommandKind.View:
+                case RibbonCommandClass.File:
+                    RegisterFile(spec);
+                    break;
+                case RibbonCommandClass.External:
+                    AddExternal(spec.Id);
+                    break;
+                case RibbonCommandClass.View:
                     Decorate(AddView(spec.Id, _ => ApplyView(spec.Args)).EnabledWhen(() => CanApplyView(spec.Args), PendingReason), spec);
                     break;
-                case PptCommandKind.Assistant:
+                case RibbonCommandClass.Assistant:
                     Decorate(AddAssistant(spec.Id, () => Phrase(spec.Prompt)).Unless(() => DialogBlocker(spec.Dialog)), spec);
                     break;
                 default:
@@ -166,24 +178,21 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                     break;
             }
 
-            if (spec.Menu == null)
-                return;
-
             for (var i = 0; i < spec.Menu.Count; i++)
                 RegisterEntry(spec, spec.Menu[i], EntryId(spec, i));
         }
 
-        private void RegisterEntry(PptCommandSpec spec, PptMenuSpec entry, string id)
+        private void RegisterEntry(CommandSpec spec, CommandMenuSpec entry, string id)
         {
             switch (KindOf(spec, entry))
             {
-                case PptCommandKind.Assistant:
+                case RibbonCommandClass.Assistant:
                     AddAssistant(id, () => Phrase(entry.Prompt)).Unless(() => DialogBlocker(entry.Dialog));
                     break;
-                case PptCommandKind.Disabled:
+                case RibbonCommandClass.Disabled:
                     AddDisabled(id, entry.Reason);
                     break;
-                case PptCommandKind.View:
+                case RibbonCommandClass.View:
                     AddView(id, _ => ApplyView(entry.Args)).EnabledWhen(() => CanApplyView(entry.Args), PendingReason);
                     break;
                 default:
@@ -192,60 +201,54 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             }
         }
 
-        private static PptCommandKind KindOf(PptCommandSpec spec, PptMenuSpec entry)
+        private static RibbonCommandClass KindOf(CommandSpec spec, CommandMenuSpec entry)
         {
-            if (entry.Kind != PptCommandKind.Tool)
-                return entry.Kind;
+            if (entry.Class != RibbonCommandClass.Tool)
+                return entry.Class;
 
             if (!string.IsNullOrEmpty(entry.Prompt))
-                return PptCommandKind.Assistant;
+                return RibbonCommandClass.Assistant;
 
             if (entry.Tool != null)
-                return PptCommandKind.Tool;
+                return RibbonCommandClass.Tool;
 
-            return spec.Kind == PptCommandKind.View ? PptCommandKind.View : PptCommandKind.Tool;
+            return spec.Class == RibbonCommandClass.View ? RibbonCommandClass.View : RibbonCommandClass.Tool;
         }
 
-        private void Decorate(RibbonCommand command, PptCommandSpec spec)
+        private void Decorate(RibbonCommand command, CommandSpec spec)
         {
             if (spec.Pressed != null)
                 command.PressedWhen(() => PressedOf(spec.Pressed));
 
-            switch (spec.Id)
-            {
-                case "ppt.home.fontSize":
-                    command.ValueFrom(() => _state.Selection.PointSize > 0 ? _state.Selection.PointSize.ToString("0.##", CultureInfo.InvariantCulture) : null);
-                    break;
-                case "ppt.home.fontColor":
-                    command.ColorFrom(() => _state.FontColor);
-                    break;
-            }
+            if (spec.Value != null)
+                command.ValueFrom(Handlers.Values[spec.Value]);
 
-            if (spec.Menu != null && spec.Menu.Count > 0)
+            if (spec.ColorOwner)
+                command.ColorFrom(() => _state.FontColor);
+
+            if (spec.Menu.Count > 0)
                 command.MenuFrom(() => MenuOf(spec));
             else if (spec.Dialog != null && ColorFieldOf(spec.Dialog) != null)
                 command.MenuFrom(ColorMenu);
         }
 
-        private void RegisterBuiltIn()
+        private Dictionary<string, Action<CommandSpec>> BuiltInHandlers() => new(StringComparer.Ordinal)
         {
-            AddUndo(UndoId);
-            AddRedo(RedoId);
-            AddSave("ppt.file.save");
-            AddSaveCopy("ppt.file.saveAs");
-            RegisterFile();
-            RegisterSymbol();
-            RegisterPrint();
-            foreach (var id in s_print)
-                AddDisabled(id, PrintReason);
+            ["insertSymbol"] = RegisterSymbol,
+            ["copy"] = spec => AddClipboard(spec.Id, _ => CopyAsync(false)).Unless(() => NeedBlocker(spec)),
+            ["cut"] = spec => AddClipboard(spec.Id, _ => CopyAsync(true)).Unless(() => NeedBlocker(spec)),
+            ["paste"] = spec => AddClipboard(spec.Id, _ => PasteAsync()).Unless(() => NeedBlocker(spec)),
+            ["formatPainter"] = spec => AddClipboard(spec.Id, _ => FormatPainterAsync())
+                .Unless(() => _painter == null ? NeedBlocker(spec) : null)
+                .PressedWhen(() => _painter != null),
+        };
 
-            foreach (var id in s_external)
-                AddExternal(id);
+        private Dictionary<string, Func<string>> ValueHandlers() => new(StringComparer.Ordinal)
+        {
+            ["fontSize"] = () => _state.Selection.PointSize > 0 ? _state.Selection.PointSize.ToString("0.##", CultureInfo.InvariantCulture) : null,
+        };
 
-            RegisterClipboard();
-        }
-
-        private string ToolBlocker(PptCommandSpec spec, PptMenuSpec entry)
+        private string ToolBlocker(CommandSpec spec, CommandMenuSpec entry)
         {
             if (File?.Docu == null)
                 return SampleReason;
@@ -258,9 +261,9 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 && !s_knownStates.Contains(spec.Pressed) && !_state.Renders("state:" + spec.Pressed))
                 return StateUnknownReason;
 
-            var reason = NeedBlocker(spec.Need);
+            var reason = NeedBlocker(spec);
             if (reason == null && entry != null)
-                reason = NeedBlocker(entry.Need);
+                reason = NeedBlocker(entry.Need, spec);
 
             if (reason != null)
                 return reason;
@@ -271,7 +274,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return null;
         }
 
-        private string DialogBlocker(string dialog)
+        private string DialogBlocker(DialogSpec dialog)
         {
             if (dialog == null || ColorFieldOf(dialog) != null)
                 return null;
@@ -279,29 +282,18 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return _state.Dialogs == null ? PendingReason : null;
         }
 
-        private string NeedBlocker(PptNeed need)
+        private Dictionary<string, Func<CommandSpec, string>> NeedHandlers() => new(StringComparer.Ordinal)
         {
-            var selection = _state.Selection;
-            switch (need)
-            {
-                case PptNeed.Slide:
-                    return selection.HasSlide ? null : NoSlideReason;
-                case PptNeed.Shape:
-                    return selection.HasShape ? null : NoShapeReason;
-                case PptNeed.Text:
-                    return selection.HasText ? null : NoTextReason;
-                case PptNeed.Shapes2:
-                    return selection.ShapeCount >= 2 ? null : TwoShapesReason;
-                case PptNeed.Shapes3:
-                    return selection.ShapeCount >= 3 ? null : ThreeShapesReason;
-                case PptNeed.ClipboardImage:
-                    return PendingReason;
-                default:
-                    return null;
-            }
-        }
+            ["slide"] = _ => _state.Selection.HasSlide ? null : NoSlideReason,
+            ["shape"] = _ => _state.Selection.HasShape ? null : NoShapeReason,
+            ["text"] = _ => _state.Selection.HasText ? null : NoTextReason,
+            ["shapes2"] = _ => _state.Selection.ShapeCount >= 2 ? null : TwoShapesReason,
+            ["shapes3"] = _ => _state.Selection.ShapeCount >= 3 ? null : ThreeShapesReason,
+            ["clipboardImage"] = _ => PendingReason,
+            ["realSlides"] = _ => PrintBlocker(),
+        };
 
-        private (string Tool, JsonObject Template) PlanOf(PptCommandSpec spec, PptMenuSpec entry, bool off)
+        private (string Tool, JsonObject Template) PlanOf(CommandSpec spec, CommandMenuSpec entry, bool off)
         {
             var tool = entry?.Tool ?? spec.Tool;
             var template = entry?.Tool != null ? new JsonObject() : PptArgs.ParseObject(spec.Args);
@@ -318,23 +310,22 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return legacy != null && Ready(legacy.Value.Tool, legacy.Value.Template) ? legacy.Value : (tool, template);
         }
 
-        private static (string Tool, JsonObject Template)? LegacyPlan(PptCommandSpec spec, PptMenuSpec entry, bool off)
+        private static (string Tool, JsonObject Template)? LegacyPlan(CommandSpec spec, CommandMenuSpec entry, bool off)
         {
             if (entry != null)
                 return null;
 
-            switch (spec.Id)
+            switch (spec.Legacy)
             {
-                case "ppt.home.fontGrow":
+                case "fontGrow":
                     return ("set_font", PptArgs.ParseObject("""{"slide":"{slide}","shape":"{shape}","size":"{sizeUp}"}"""));
-                case "ppt.home.fontShrink":
+                case "fontShrink":
                     return ("set_font", PptArgs.ParseObject("""{"slide":"{slide}","shape":"{shape}","size":"{sizeDown}"}"""));
-                case "ppt.home.alignLeft":
+                case "alignLeft":
                     return ("set_font", AlignArgs("left"));
-                case "ppt.home.alignCenter":
+                case "alignCenter":
                     return ("set_font", AlignArgs(off ? "left" : "center"));
-                case "ppt.home.newSlide":
-                case "ppt.insert.newSlide":
+                case "addSlide":
                     return ("add_slide", PptArgs.ParseObject("""{"after":"{slide}","layout":"title_content"}"""));
                 default:
                     return null;
@@ -383,13 +374,13 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return cached.Schema;
         }
 
-        private EditCommand BuildTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
+        private EditCommand BuildTool(CommandSpec spec, CommandMenuSpec entry, string arg)
         {
             _state.CommitDraft?.Invoke();
             return PlanTool(spec, entry, arg);
         }
 
-        private EditCommand PlanTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
+        private EditCommand PlanTool(CommandSpec spec, CommandMenuSpec entry, string arg)
         {
             var selection = _state.Selection;
             var off = entry == null && spec.ArgsOff != null && IsOn(spec.Id);
@@ -559,7 +550,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return Task.CompletedTask;
         }
 
-        private async Task<bool> GatherAsync(PptCommandSpec spec, PptMenuSpec entry, string target, string arg)
+        private async Task<bool> GatherAsync(CommandSpec spec, CommandMenuSpec entry, string target, string arg)
         {
             var dialog = entry?.Dialog ?? spec.Dialog;
             if (dialog != null)
@@ -577,7 +568,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 }
                 else
                 {
-                    var values = await _state.Dialogs.ShowAsync(target, dialog, ValidatorOf(spec, entry, arg));
+                    var values = await _state.Dialogs.AskFieldsAsync(target, dialog with { Validate = ValidatorOf(spec, entry, arg) }, null);
                     if (values == null)
                         return false;
 
@@ -625,26 +616,17 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return true;
         }
 
-        private IReadOnlyList<RibbonMenuItem> MenuOf(PptCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> MenuOf(CommandSpec spec)
         {
             var items = new List<RibbonMenuItem>();
-            if (Array.IndexOf(s_newSlideIds, spec.Id) >= 0)
-            {
-                var detail = SchemaOf("add_slide")?.Allows("layout", "same_as_current") == true ? "지금 슬라이드와 같은 모양" : "제목과 내용";
-                items.Add(Item(QuickEntry, "기본 모양으로 추가", detail: detail, disabled: IsDisabled(spec.Id), reason: DisabledReasonOf(spec.Id)));
-                items.Add(Separator());
-            }
-
+            var look = spec.MenuStyle == null ? null : _looks[spec.MenuStyle];
             var current = ValueOf(spec.Id);
-            if (spec.Id == "ppt.home.fontSize")
-            {
-                items.Add(Input("글자 크기", current ?? string.Empty, "pt"));
-                items.Add(Separator());
-            }
+            if (look != null)
+                items.AddRange(look.Head(spec, current));
 
             var visible = VisibleEntries(spec);
             var grouped = visible.Count > 0 && LongestRun(spec, visible) >= 3;
-            var checkable = spec.Id == "ppt.home.fontName" || spec.Id == "ppt.home.fontSize";
+            var checkable = look?.Checks == true;
             string previous = null;
             foreach (var index in visible)
             {
@@ -659,7 +641,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                     entry.Label,
                     detail: grouped ? null : entry.Detail,
                     swatch: entry.Swatch,
-                    font: spec.Id == "ppt.home.fontName" && entry.Detail == "글꼴" ? entry.Label : null,
+                    font: look?.Fonts == true && entry.Detail == "글꼴" ? entry.Label : null,
                     check: checkable ? entry.Label == current : null,
                     disabled: IsDisabled(id),
                     reason: DisabledReasonOf(id)));
@@ -668,7 +650,24 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return items;
         }
 
-        private List<int> VisibleEntries(PptCommandSpec spec)
+        private Dictionary<string, MenuLook> MenuLooks() => new(StringComparer.Ordinal)
+        {
+            ["newSlide"] = new MenuLook(NewSlideHead, false, false),
+            ["fontSize"] = new MenuLook((_, current) => new[] { Input("글자 크기", current ?? string.Empty, "pt"), Separator() }, true, false),
+            ["fontName"] = new MenuLook((_, _) => Array.Empty<RibbonMenuItem>(), true, true),
+        };
+
+        private IEnumerable<RibbonMenuItem> NewSlideHead(CommandSpec spec, string current)
+        {
+            var detail = SchemaOf("add_slide")?.Allows("layout", "same_as_current") == true ? "지금 슬라이드와 같은 모양" : "제목과 내용";
+            return new[]
+            {
+                Item(QuickEntry, "기본 모양으로 추가", detail: detail, disabled: IsDisabled(spec.Id), reason: DisabledReasonOf(spec.Id)),
+                Separator(),
+            };
+        }
+
+        private List<int> VisibleEntries(CommandSpec spec)
         {
             var effect = EffectOf(spec);
             var visible = new List<int>();
@@ -684,7 +683,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return visible;
         }
 
-        private string EffectOf(PptCommandSpec spec)
+        private string EffectOf(CommandSpec spec)
         {
             var selection = _state.Selection;
             if (spec.Id.StartsWith("ppt.trans.", StringComparison.Ordinal))
@@ -696,10 +695,10 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return null;
         }
 
-        private static bool HasOnlyEffectEntries(PptCommandSpec spec) =>
-            spec.Menu != null && spec.Menu.Count > 0 && spec.Menu.All(e => e.Effects != null);
+        private static bool HasOnlyEffectEntries(CommandSpec spec) =>
+            spec.Menu.Count > 0 && spec.Menu.All(e => e.Effects != null);
 
-        private static int LongestRun(PptCommandSpec spec, List<int> visible)
+        private static int LongestRun(CommandSpec spec, List<int> visible)
         {
             var longest = 0;
             var run = 0;
@@ -733,13 +732,9 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return s_hex.IsMatch(arg) ? "#" + arg.ToUpperInvariant() : null;
         }
 
-        private static string ColorFieldOf(string dialog)
-        {
-            var fields = (JsonNode.Parse(dialog) as JsonObject)?["fields"] as JsonArray;
-            if (fields == null || fields.Count != 1 || fields[0] is not JsonObject only)
-                return null;
+        private static string ColorFieldOf(DialogSpec dialog) =>
+            dialog.Fields.Count == 1 && dialog.Fields[0].Type == "color" ? dialog.Fields[0].Name : null;
 
-            return only["type"]?.GetValue<string>() == "color" ? only["name"]?.GetValue<string>() : null;
-        }
+        private sealed record MenuLook(Func<CommandSpec, string, IEnumerable<RibbonMenuItem>> Head, bool Checks, bool Fonts);
     }
 }
