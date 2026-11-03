@@ -549,8 +549,21 @@ namespace DocuHelperEditor.State
             foreach (var file in _files.Where(f => f.Docu != null && !_workspace.Docus.Contains(f.Docu)).ToList())
                 Detach(file);
 
+            RefreshDashes(null);
             Notify();
         }
+
+        private void RefreshDashes(Docu source)
+        {
+            if (source is DashDocu)
+                return;
+
+            foreach (var file in _files.Where(f => f.Docu is DashDocu dash && (source == null || Uses(dash, source))).ToList())
+                Refresh(file);
+        }
+
+        private static bool Uses(DashDocu dash, Docu source) =>
+            dash.Document?.Sources.Any(item => item != null && string.Equals(Path.GetFileName(item.File ?? string.Empty), source.Name, StringComparison.OrdinalIgnoreCase)) == true;
 
         private void Attach(Docu docu)
         {
@@ -593,6 +606,7 @@ namespace DocuHelperEditor.State
             if (file.IsDirty)
                 HasSavedAll = false;
 
+            RefreshDashes(docu);
             Notify();
         }
 
