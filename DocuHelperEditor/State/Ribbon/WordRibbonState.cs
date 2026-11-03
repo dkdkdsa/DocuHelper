@@ -7,7 +7,7 @@ using DocuHelperEditor.State.Papers;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    public sealed class WordRibbonState
+    public sealed class WordRibbonState : IDocumentRibbonState
     {
         public const int MinZoom = 50;
         public const int MaxZoom = 200;

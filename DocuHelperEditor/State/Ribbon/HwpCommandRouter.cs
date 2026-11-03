@@ -1,67 +1,36 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using DocuHelper.Editors;
 using DocuHelperEditor.Services;
 using DocuHelperEditor.State.Papers;
 using Microsoft.JSInterop;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    public sealed partial class HwpCommandRouter : RibbonRouter
+    public sealed partial class HwpCommandRouter : DocumentCommandRouter<HwpRibbonState>
     {
-        private const string SelectParagraphReason = "고칠 문단을 먼저 눌러 골라 주세요.";
-        private const string SelectTextReason = "글자를 먼저 골라 주세요.";
-        private const string SelectWordReason = "바꿀 낱말이 있는 문단을 먼저 눌러 골라 주세요.";
-        private const string NoChangeReason = "도우미가 바꾼 곳이 없어요.";
-        private const string MenuPrefix = "menu:";
-        private const string SelectedTextMarker = "{선택한 글}";
         private const string ReturnFocusSelector = "[role='tablist'] [aria-selected='true']";
 
-        private readonly Dictionary<string, CommandSpec> _specs = new Dictionary<string, CommandSpec>(StringComparer.Ordinal);
-        private readonly Dictionary<string, Func<string, Task>> _provided = new Dictionary<string, Func<string, Task>>(StringComparer.Ordinal);
-        private readonly Dictionary<string, Func<bool>> _pressed;
-        private readonly Dictionary<string, Func<string>> _values;
-        private readonly Dictionary<string, Func<CommandSpec, CommandMenuSpec, JsonObject, bool?>> _checks;
-        private readonly Dictionary<string, Func<CommandSpec, string>> _needs;
-        private readonly Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> _menus;
-        private readonly Dictionary<string, Action<Run, JsonObject>> _finishes;
-        private readonly Dictionary<string, JsonNode> _templates = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
-        private readonly Dictionary<string, IReadOnlyList<string>> _names = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-        private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
-        private readonly IClipboardService _clipboard;
-        private readonly IFileDialogService _files;
-        private readonly IJSRuntime _scriptJs;
         private readonly SettingsStore _settings;
-        private Run _run;
-        private HashSet<string> _tablesBefore;
         private HwpSelectionInfo _info;
         private PaperModel _infoPaper;
         private string _infoBlock;
         private bool _infoRead;
 
         public HwpCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService files, SettingsStore settings, HwpRibbonState state)
-            : base(workspace, assistant, js)
+            : base(workspace, assistant, js, clipboard, files, state)
         {
-            _clipboard = clipboard;
-            _files = files;
             _settings = settings;
-            _scriptJs = js;
-            State = state;
-            _pressed = PressedHandlers();
-            _values = ValueHandlers();
-            _checks = CheckHandlers();
-            _needs = NeedHandlers();
-            _menus = MenuHandlers();
-            _finishes = FinishHandlers();
-
-            foreach (var spec in HwpCommandTable.All)
+            Load(HwpCommandTable.All, new CommandHandlers
             {
-                _specs[spec.Id] = spec;
-                Register(spec);
-            }
+                Pressed = PressedHandlers(),
+                Values = ValueHandlers(),
+                Checks = CheckHandlers(),
+                Needs = NeedHandlers(),
+                Menus = MenuHandlers(),
+                Finishes = FinishHandlers(),
+            });
 
             Provide("showInfo", _ =>
             {
@@ -71,6 +40,18 @@ namespace DocuHelperEditor.State.Ribbon
             ProvideSearchCommands();
         }
 
+        protected override string SelectWordReason => "바꿀 낱말이 있는 문단을 먼저 눌러 골라 주세요.";
+
+        protected override void RefreshSelection()
+        {
+            _infoRead = false;
+            base.RefreshSelection();
+        }
+
+        protected override string GateBlocker(IReadOnlyList<string> gates, string reason) => HwpCapabilityGate.Blocker(gates, reason, ToolHas);
+
+        protected override bool PicksImage(MenuEntry entry) => entry?.Picker == "image" || entry?.Dialog == "pickPicture";
+
         private string DocumentInfoText()
         {
             var hwp = File?.Docu as DocuHelper.Docus.HwpDocu;
@@ -79,95 +60,6 @@ namespace DocuHelperEditor.State.Ribbon
             var lost = hwp == null ? null : DocuHelper.Importers.Hwp.HwpLimits.Names(hwp);
             return $"‘{File?.Name}’은 {pages}쪽, {words:N0}단어예요. 저장하면 빠지는 것은 {lost ?? "없어요"}.";
         }
-
-        public HwpRibbonState State { get; }
-
-        private void Provide(string action, Func<string, Task> run)
-        {
-            if (string.IsNullOrWhiteSpace(action) || run == null)
-                throw new ArgumentException("A provided ribbon command needs an action and a handler.");
-
-            if (!_specs.Values.Any(s => s.Action == action))
-                throw new ArgumentException($"No ribbon command uses the action '{action}'.", nameof(action));
-
-            _provided[action] = run;
-            RaiseChanged();
-        }
-
-        private bool IsProvided(CommandSpec spec) => spec.Action != null && _provided.ContainsKey(spec.Action);
-
-        public override bool IsOn(string id)
-        {
-            return _specs.TryGetValue(id ?? string.Empty, out var spec) ? IsPressed(spec) : base.IsOn(id);
-        }
-
-        public override async Task InvokeAsync(string id, string arg)
-        {
-            if (!_specs.TryGetValue(id ?? string.Empty, out var spec) || base.IsDisabled(id))
-            {
-                await base.InvokeAsync(id, arg);
-                return;
-            }
-
-            var entry = EntryOf(spec, arg);
-            var target = entry?.Command;
-            if (target != null)
-            {
-                await InvokeAsync(target, null);
-                return;
-            }
-
-            _run = new Run(spec, arg, entry);
-            try
-            {
-                if (!await GatherAsync(_run))
-                    return;
-
-                await base.InvokeAsync(id, arg);
-            }
-            catch (ClipboardException e)
-            {
-                Notify(e.Message);
-                RaiseChanged();
-            }
-            finally
-            {
-                _run = null;
-            }
-        }
-
-        protected override void RefreshSelection()
-        {
-            _infoRead = false;
-            var model = Model;
-            if (model == null)
-                return;
-
-            _ = WordSelectionService.RestoreAsync(_scriptJs, model.Selection);
-
-            var before = _tablesBefore;
-            _tablesBefore = null;
-            if (before != null)
-            {
-                var created = model.Blocks.FirstOrDefault(b => b.IsTable && !before.Contains(b.Id));
-                if (created != null)
-                {
-                    model.SelectedBlockId = created.Id;
-                    Workspace.SetSelection(model.Describe(created));
-                    return;
-                }
-            }
-
-            var block = model.SelectedBlock;
-            if (block != null)
-                Workspace.SetSelection(model.Describe(block));
-            else
-                Workspace.Notify();
-        }
-
-        private WordPaperModel Model => File?.Paper as WordPaperModel;
-
-        private WordBlockModel Block => Model?.SelectedBlock;
 
         private HwpSelectionInfo Info
         {
@@ -195,105 +87,10 @@ namespace DocuHelperEditor.State.Ribbon
             }
         }
 
-        private bool HasTool(string tool)
-        {
-            return File != null
-                && Workspace.Workspace.Editors.TryGetValue(File.Type, out var editor)
-                && editor.Tools.ContainsKey(tool);
-        }
-
-        private bool ToolHas(string tool, string text)
-        {
-            return File != null
-                && Workspace.Workspace.Editors.TryGetValue(File.Type, out var editor)
-                && editor.Tools.TryGetValue(tool, out var found)
-                && found.InputSchema.Contains(text, StringComparison.Ordinal);
-        }
-
-        private string GateBlocker(IReadOnlyList<string> gates, string reason) => HwpCapabilityGate.Blocker(gates, reason, ToolHas);
-
-        private void Register(CommandSpec spec)
-        {
-            RibbonCommand command;
-            switch (spec.Class)
-            {
-                case RibbonCommandClass.Tool:
-                    command = AddTools(spec.Id, arg => BuildEdits(spec, arg)).Unless(() => ToolBlocker(spec));
-                    break;
-                case RibbonCommandClass.View:
-                    command = AddView(spec.Id, arg => RunViewAsync(spec, arg)).Unless(() => ViewBlocker(spec));
-                    break;
-                case RibbonCommandClass.Clipboard:
-                    command = AddClipboard(spec.Id, arg => RunClipboardAsync(spec, arg)).Unless(() => ClipboardBlocker(spec));
-                    break;
-                case RibbonCommandClass.Assistant:
-                    command = AddAssistant(spec.Id, () => PromptOf(spec)).Unless(() => AssistantBlocker(spec));
-                    break;
-                case RibbonCommandClass.External:
-                    command = AddExternal(spec.Id).AllowWhileLocked();
-                    break;
-                case RibbonCommandClass.Disabled:
-                    command = AddDisabled(spec.Id, spec.Reason);
-                    break;
-                default:
-                    command = RegisterFile(spec);
-                    break;
-            }
-
-            if (spec.Menu.Count > 0 || spec.ColorOwner)
-                command.MenuFrom(() => MenuOf(spec));
-
-            if (spec.ColorOwner)
-                command.ColorFrom(() => _colors.TryGetValue(spec.Id, out var color) ? color : null);
-
-            if (spec.Value != null)
-                command.ValueFrom(_values[spec.Value]);
-
-            if (spec.Pressed != null && !_pressed.ContainsKey(spec.Pressed))
-                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown pressed state '{spec.Pressed}'.");
-
-            if (spec.Need != null && !_needs.ContainsKey(spec.Need))
-                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown need '{spec.Need}'.");
-
-            if (spec.MenuStyle != null && !_menus.ContainsKey(spec.MenuStyle))
-                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown menu '{spec.MenuStyle}'.");
-
-            if (spec.Finish != null && !_finishes.ContainsKey(spec.Finish))
-                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown finish '{spec.Finish}'.");
-        }
-
-        private RibbonCommand RegisterFile(CommandSpec spec)
-        {
-            var command = spec.Action switch
-            {
-                "undo" => AddUndo(spec.Id),
-                "redo" => AddRedo(spec.Id),
-                "save" => AddSave(spec.Id),
-                "saveAs" => AddSaveCopy(spec.Id),
-                "revertAll" => AddFile(spec.Id, _ => Workspace.RevertAllAsync(File.Id)).EnabledWhen(() => File.Changes.Count > 0, NoChangeReason),
-                _ => AddFile(spec.Id, arg => RunProvidedAsync(spec, arg)).Unless(() => FileBlocker(spec)),
-            };
-
-            return spec.WhileLocked ? command.AllowWhileLocked() : command;
-        }
-
-        private string FileBlocker(CommandSpec spec)
-        {
-            if (IsProvided(spec))
-                return null;
-
-            return spec.Need == null ? PendingReason : _needs[spec.Need](spec);
-        }
-
         private string HancomPdfBlocker()
         {
             var hancom = Workspace.Workspace.Editors.TryGetValue(DocuHelper.Docus.DocuType.Hwp, out var editor) && editor is DocuHelper.Editors.HwpEditor hwp && hwp.CanWriteHwp;
             return hancom ? PendingReason : "이 컴퓨터에 한글이 없어서 PDF로 저장할 수 없어요.";
-        }
-
-        private Task RunProvidedAsync(CommandSpec spec, string arg)
-        {
-            return spec.Action != null && _provided.TryGetValue(spec.Action, out var run) ? run(arg) : Task.CompletedTask;
         }
 
         private Dictionary<string, Func<string>> ValueHandlers() => new(StringComparer.Ordinal)
@@ -304,66 +101,35 @@ namespace DocuHelperEditor.State.Ribbon
             ["lineSpacing"] = () => Info == null || Block == null ? null : Info.LineSpacingPercent is int percent ? percent + " %" : string.Empty,
         };
 
-        private string PromptOf(CommandSpec spec)
+        protected override JsonNode CurrentNode(string name)
         {
-            var text = WordSelectionService.SelectedText(Model);
-            var prompt = _run?.Entry?.Prompt ?? (text.Length > 0 && spec.SelectionPrompt != null ? spec.SelectionPrompt : spec.Prompt) ?? string.Empty;
-            return prompt.Replace(SelectedTextMarker, text, StringComparison.Ordinal);
-        }
-
-        private string AssistantBlocker(CommandSpec spec)
-        {
-            if (spec.Prompt != null && spec.Prompt.Contains(SelectedTextMarker, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(WordSelectionService.SelectedText(Model)))
-                return SelectWordReason;
+            var info = Info;
+            var block = Block;
+            switch (name)
+            {
+                case "font":
+                    return info?.Font == null ? null : JsonValue.Create(info.Font);
+                case "size":
+                    return info?.SizePt == null ? null : JsonValue.Create(info.SizePt.Value);
+                case "bold":
+                    return block == null ? null : JsonValue.Create(block.IsBold);
+                case "italic":
+                    return block == null ? null : JsonValue.Create(block.IsItalic);
+                case "align":
+                    return info?.Align == null ? null : JsonValue.Create(info.Align);
+                case "style":
+                    return info?.Style == null ? null : JsonValue.Create(info.Style);
+                case "firstLineCm":
+                    return info == null ? null : JsonValue.Create(info.FirstLineCm);
+                case "hangingCm":
+                    return info == null ? null : JsonValue.Create(info.HangingCm);
+                case "lineSpacingPercent":
+                    return info?.LineSpacingPercent == null ? null : JsonValue.Create(info.LineSpacingPercent.Value);
+                case "spacingPt":
+                    return info?.SpacingPt == null ? null : JsonValue.Create(info.SpacingPt.Value);
+            }
 
             return null;
-        }
-
-        private sealed class Run
-        {
-            public Run(CommandSpec spec, string arg, MenuEntry entry)
-            {
-                Spec = spec;
-                Arg = arg;
-                Entry = entry;
-            }
-
-            public CommandSpec Spec { get; }
-
-            public string Arg { get; }
-
-            public MenuEntry Entry { get; }
-
-            public IReadOnlyDictionary<string, JsonNode> Fields { get; set; }
-
-            public JsonObject Over { get; set; }
-
-            public string Picked { get; set; }
-
-            public string ClipboardText { get; set; }
-        }
-
-        private sealed class MenuEntry
-        {
-            public MenuEntry(CommandMenuSpec spec, JsonObject args)
-            {
-                Spec = spec;
-                Args = args ?? new JsonObject();
-            }
-
-            public CommandMenuSpec Spec { get; }
-
-            public JsonObject Args { get; }
-
-            public string Command => Text("command");
-
-            public string Dialog => Text("dialog");
-
-            public string Picker => Text("picker");
-
-            public string Prompt => Text("prompt");
-
-            private string Text(string key) => Args[key] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
         }
     }
 }

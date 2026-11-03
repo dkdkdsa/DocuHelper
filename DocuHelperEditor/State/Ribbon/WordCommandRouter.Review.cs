@@ -17,7 +17,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private Task ToggleMarkupKindAsync(string arg)
         {
-            var kind = EntryOf(_specs["word.review.track.showmarkup"], arg)?.Args["kind"]?.ToString();
+            var kind = EntryOf(Specs["word.review.track.showmarkup"], arg)?.Args["kind"]?.ToString();
             switch (kind)
             {
                 case "comments":
@@ -52,7 +52,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private Task GoToNoteAsync(string arg)
         {
-            var entry = EntryOf(_specs["word.refs.notes.next"], arg);
+            var entry = EntryOf(Specs["word.refs.notes.next"], arg);
             var direction = entry?.Args["direction"]?.ToString() ?? "next";
             var kind = entry?.Args["kind"]?.ToString() ?? "footnote";
             var model = Model;

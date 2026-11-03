@@ -38,7 +38,7 @@ namespace DocuHelperEditor.State.Ribbon
                 items.Add(Separator());
             }
 
-            return items.Concat(Entries(spec, false)).ToList();
+            return items.Concat(Entries(spec)).ToList();
         }
 
         private MenuEntry FieldEntryOf(string arg)

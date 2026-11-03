@@ -13,7 +13,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private Task SetMergeModeAsync(string arg)
         {
-            var mode = EntryOf(_specs["word.mail.merge.start"], arg)?.Args["mode"]?.ToString()
+            var mode = EntryOf(Specs["word.mail.merge.start"], arg)?.Args["mode"]?.ToString()
                 ?? (State.MergeMode == "letter" ? "none" : "letter");
             State.MergeMode = mode;
             State.Touch();

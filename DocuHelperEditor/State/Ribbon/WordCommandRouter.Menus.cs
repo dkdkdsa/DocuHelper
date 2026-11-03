@@ -19,37 +19,28 @@ namespace DocuHelperEditor.State.Ribbon
             ("6", "10"),
         };
 
-        private bool HasMenu(CommandSpec spec)
-        {
-            return spec.Menu.Count > 0 || spec.MenuStyle != null || spec.ColorOwner;
-        }
+        protected override bool HidesMenu(CommandSpec spec) => IsLegacy(spec);
 
-        private IReadOnlyList<RibbonMenuItem> MenuOf(CommandSpec spec)
-        {
-            if (IsLegacy(spec))
-                return null;
-
-            return spec.MenuStyle == null ? Entries(spec, false) : _menus[spec.MenuStyle](spec);
-        }
+        protected override bool HidesEntry(MenuEntry entry) => entry.Spec.Label.StartsWith('{');
 
         private Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> MenuHandlers() => new(StringComparer.Ordinal)
         {
             ["fontName"] = spec => new[] { Input("글꼴 이름", string.Empty), Separator() }.Concat(Entries(spec, true)).ToList(),
-            ["fontSize"] = spec => new[] { Input("글자 크기", string.Empty, "pt"), Separator() }.Concat(Entries(spec, false)).ToList(),
+            ["fontSize"] = spec => new[] { Input("글자 크기", string.Empty, "pt"), Separator() }.Concat(Entries(spec)).ToList(),
             ["fontColor"] = spec => ColorMenu(spec, "auto", "자동 (검정)", "000000", RibbonPalette.Standard),
             ["highlight"] = spec => ColorMenu(spec, "none", "강조 없음", null, RibbonPalette.Highlight),
             ["pageColor"] = spec => ColorMenu(spec, "none", "색 없음", null, RibbonPalette.Standard),
             ["table"] = TableMenu,
-            ["markupDisplay"] = spec => Entries(spec, false).Select((item, i) => item with { Checked = MarkupOf(spec, i) == State.MarkupMode }).ToList(),
+            ["markupDisplay"] = spec => Entries(spec).Select((item, i) => item with { Checked = MarkupOf(spec, i) == State.MarkupMode }).ToList(),
             ["mergeFields"] = FieldMenu,
-            ["showMarkup"] = spec => Entries(spec, false).Select((item, i) => item with { Checked = MarkupKindChecked(spec, i) }).ToList(),
-            ["mergeStart"] = spec => Entries(spec, false).Select((item, i) => item with { Checked = MergeModeChecked(spec, i) }).ToList(),
+            ["showMarkup"] = spec => Entries(spec).Select((item, i) => item with { Checked = MarkupKindChecked(spec, i) }).ToList(),
+            ["mergeStart"] = spec => Entries(spec).Select((item, i) => item with { Checked = MergeModeChecked(spec, i) }).ToList(),
             ["input"] = spec => new[] { Input(spec.Label, string.Empty, spec.Unit) },
         };
 
         private IReadOnlyList<RibbonMenuItem> ColorMenu(CommandSpec spec, string resetValue, string resetLabel, string swatch, IReadOnlyList<RibbonSwatch> colors)
         {
-            _colors.TryGetValue(spec.Id, out var current);
+            Colors.TryGetValue(spec.Id, out var current);
             return new[]
             {
                 Item(resetValue, resetLabel, swatch: swatch),
@@ -73,42 +64,6 @@ namespace DocuHelperEditor.State.Ribbon
             }
 
             return items;
-        }
-
-        private List<RibbonMenuItem> Entries(CommandSpec spec, bool font)
-        {
-            var items = new List<RibbonMenuItem>();
-            for (var i = 0; i < spec.Menu.Count; i++)
-            {
-                var menu = spec.Menu[i];
-                if (menu.Label.StartsWith('{'))
-                    continue;
-
-                var reason = EntryReason(spec, MenuPrefix + i, new MenuEntry(menu, WordArgs.Parse(menu.Args) as System.Text.Json.Nodes.JsonObject));
-                items.Add(Item(MenuPrefix + i, menu.Label, detail: menu.Detail, font: font ? menu.Label : null, disabled: reason != null, reason: reason));
-            }
-
-            return items;
-        }
-
-        private string EntryReason(CommandSpec spec, string arg, MenuEntry entry)
-        {
-            if (entry.Command != null)
-                return DisabledReasonOf(entry.Command);
-
-            if (entry.Dialog != null)
-                return CanAsk(spec.Id, entry.Dialog) ? null : PendingReason;
-
-            if (entry.Picker != null && _files == null)
-                return PendingReason;
-
-            if (entry.HasClipboardImage && !_clipboard.Kinds.HasFlag(ClipboardKinds.Image))
-                return "클립보드에 그림이 없어요.";
-
-            if (spec.Class == RibbonCommandClass.Tool && NeedsFields(new Run(spec, arg, entry)) && !CanAsk(spec.Id, null))
-                return PendingReason;
-
-            return null;
         }
 
         private string MarkupOf(CommandSpec spec, int index)

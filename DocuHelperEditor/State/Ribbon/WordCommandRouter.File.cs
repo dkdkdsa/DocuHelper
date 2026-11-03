@@ -51,7 +51,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return;
             }
 
-            var path = await _files.PickSaveFileAsync(Path.GetFileNameWithoutExtension(File.Name) + ".pdf");
+            var path = await FileDialogs.PickSaveFileAsync(Path.GetFileNameWithoutExtension(File.Name) + ".pdf");
             if (string.IsNullOrEmpty(path))
                 return;
 

@@ -61,11 +61,8 @@ namespace DocuHelperEditor.State.Ribbon
             _ => PendingReason,
         };
 
-        private string ViewBlocker(CommandSpec spec)
+        protected override string ViewBlocker(CommandSpec spec)
         {
-            if (IsProvided(spec))
-                return null;
-
             var action = spec.Action ?? string.Empty;
             if (s_features.TryGetValue(action, out var feature))
                 return State.Supports(feature) ? null : FeatureReason(feature);
@@ -73,7 +70,7 @@ namespace DocuHelperEditor.State.Ribbon
             if (!s_internal.Contains(action))
                 return PendingReason;
 
-            return spec.Need == null ? null : _needs[spec.Need](spec);
+            return NeedBlocker(spec);
         }
 
         private Dictionary<string, Func<CommandSpec, string>> NeedHandlers() => new(StringComparer.Ordinal)
@@ -84,14 +81,8 @@ namespace DocuHelperEditor.State.Ribbon
             ["hancomPdf"] = _ => HancomPdfBlocker(),
         };
 
-        private async Task RunViewAsync(CommandSpec spec, string arg)
+        protected override Task RunViewAsync(CommandSpec spec, string arg)
         {
-            if (IsProvided(spec))
-            {
-                await RunProvidedAsync(spec, arg);
-                return;
-            }
-
             var args = WordArgs.Parse(spec.Args) as JsonObject ?? new JsonObject();
             switch (spec.Action)
             {
@@ -126,6 +117,7 @@ namespace DocuHelperEditor.State.Ribbon
 
             State.Touch();
             Workspace.Notify();
+            return Task.CompletedTask;
         }
 
         private void Toggle(string action, JsonObject args)
@@ -173,35 +165,7 @@ namespace DocuHelperEditor.State.Ribbon
             }
         }
 
-        private static string Text(JsonObject args, string key) => args[key] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
-
         private static int Int(JsonObject args, string key, int fallback) => AsNumber(args[key]) is double number ? (int)Math.Round(number) : fallback;
-
-        private string ClipboardBlocker(CommandSpec spec)
-        {
-            if (IsProvided(spec))
-                return null;
-
-            return spec.Action switch
-            {
-                "copy" => CopyBlocker(),
-                "cut" => CopyBlocker(),
-                "paste" => PasteBlocker(),
-                "formatPainter" => PainterBlocker(),
-                _ => PendingReason,
-            };
-        }
-
-        private async Task RunClipboardAsync(CommandSpec spec, string arg)
-        {
-            if (IsProvided(spec))
-            {
-                await RunProvidedAsync(spec, arg);
-                return;
-            }
-
-            await RunClipboardOperationAsync(spec, arg);
-        }
 
         private static string TextOf(WordBlockModel block)
         {

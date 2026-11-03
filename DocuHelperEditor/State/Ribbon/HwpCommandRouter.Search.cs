@@ -30,7 +30,7 @@ namespace DocuHelperEditor.State.Ribbon
             model.SelectedBlockId = last.Id;
             Workspace.SetSelection(model.Describe(last));
             Workspace.Notify();
-            _ = WordSelectionService.RestoreAsync(_scriptJs, model.Selection);
+            _ = WordSelectionService.RestoreAsync(ScriptJs, model.Selection);
             return Task.CompletedTask;
         }
 

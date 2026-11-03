@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    internal sealed record CommandSpec
+    public sealed record CommandSpec
     {
         public string Id { get; init; }
 

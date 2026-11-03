@@ -56,11 +56,8 @@ namespace DocuHelperEditor.State.Ribbon
             return s_features.TryGetValue(spec.Action ?? string.Empty, out var feature) ? feature : null;
         }
 
-        private string ViewBlocker(CommandSpec spec)
+        protected override string ViewBlocker(CommandSpec spec)
         {
-            if (IsProvided(spec))
-                return ProvidedBlocker(spec);
-
             if (!s_internal.Contains(spec.Action ?? string.Empty))
                 return PendingReason;
 
@@ -68,7 +65,7 @@ namespace DocuHelperEditor.State.Ribbon
             if (feature != null && !State.Supports(feature))
                 return PendingReason;
 
-            return spec.Need == null ? null : _needs[spec.Need](spec);
+            return NeedBlocker(spec);
         }
 
         private Dictionary<string, Func<CommandSpec, string>> NeedHandlers() => new(StringComparer.Ordinal)
@@ -81,15 +78,9 @@ namespace DocuHelperEditor.State.Ribbon
             ["notWebView"] = _ => State.View == "web" ? "웹 모양에서는 눈금자를 쓸 수 없어요." : null,
         };
 
-        private async Task RunViewAsync(CommandSpec spec, string arg)
+        protected override Task RunViewAsync(CommandSpec spec, string arg)
         {
-            if (IsProvided(spec))
-            {
-                await RunProvidedAsync(spec, arg);
-                return;
-            }
-
-            var run = _run ?? new Run(spec, arg, EntryOf(spec, arg));
+            var run = CurrentRun ?? new Run(spec, arg, EntryOf(spec, arg));
             var node = WordArgs.Resolve(TemplateOf(run), (string name, out JsonNode value) => Lookup(run, name, out value), null);
             var args = node as JsonObject ?? new JsonObject();
             switch (spec.Action)
@@ -153,14 +144,15 @@ namespace DocuHelperEditor.State.Ribbon
 
             State.Touch();
             Workspace.Notify();
+            return Task.CompletedTask;
         }
 
         private void SetZoom(string arg, JsonObject args)
         {
-            if (_run?.Fields != null)
+            if (CurrentRun?.Fields != null)
             {
-                var custom = Number(_run.Fields, "custom", 0);
-                var choice = Number(_run.Fields, "zoom", 0);
+                var custom = Number(CurrentRun.Fields, "custom", 0);
+                var choice = Number(CurrentRun.Fields, "zoom", 0);
                 State.Zoom = custom > 0 ? custom : choice > 0 ? choice : State.Zoom;
                 return;
             }
@@ -258,8 +250,6 @@ namespace DocuHelperEditor.State.Ribbon
             }
         }
 
-        private static string Text(JsonObject args, string key) => args[key] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
-
         private static int Int(JsonObject args, string key, int fallback)
         {
             if (args[key] is not JsonValue value)
@@ -272,32 +262,6 @@ namespace DocuHelperEditor.State.Ribbon
                 return (int)wide;
 
             return value.TryGetValue<string>(out var text) && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
-        }
-
-        private string ClipboardBlocker(CommandSpec spec)
-        {
-            if (IsProvided(spec))
-                return null;
-
-            return spec.Action switch
-            {
-                "copy" => CopyBlocker(),
-                "cut" => CopyBlocker(),
-                "paste" => PasteBlocker(),
-                "formatPainter" => PainterBlocker(),
-                _ => PendingReason,
-            };
-        }
-
-        private async Task RunClipboardAsync(CommandSpec spec, string arg)
-        {
-            if (IsProvided(spec))
-            {
-                await RunProvidedAsync(spec, arg);
-                return;
-            }
-
-            await RunClipboardOperationAsync(spec, arg);
         }
     }
 }

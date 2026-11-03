@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    internal sealed record CommandMenuSpec
+    public sealed record CommandMenuSpec
     {
         public RibbonMenuKind Kind { get; init; }
 
