@@ -20,26 +20,14 @@ namespace DocuHelperEditor.State.Ribbon
         private const string SelectedTextMarker = "{선택한 글}";
         private const string ReturnFocusSelector = "[role='tablist'] [aria-selected='true']";
 
-        private static readonly HashSet<string> s_always = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "hwp.file.pdf",
-            "hwp.file.print",
-            "hwp.file.info",
-        };
-
-        private static readonly HashSet<string> s_colorOwners = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "hwp.fmt.color",
-            "hwp.format.char.shade",
-        };
-
-        private static readonly HashSet<string> s_confirmed = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "hwp.page.section.erase",
-        };
-
         private readonly Dictionary<string, CommandSpec> _specs = new Dictionary<string, CommandSpec>(StringComparer.Ordinal);
         private readonly Dictionary<string, Func<string, Task>> _provided = new Dictionary<string, Func<string, Task>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<bool>> _pressed;
+        private readonly Dictionary<string, Func<string>> _values;
+        private readonly Dictionary<string, Func<CommandSpec, CommandMenuSpec, JsonObject, bool?>> _checks;
+        private readonly Dictionary<string, Func<CommandSpec, string>> _needs;
+        private readonly Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> _menus;
+        private readonly Dictionary<string, Action<Run, JsonObject>> _finishes;
         private readonly Dictionary<string, JsonNode> _templates = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
         private readonly Dictionary<string, IReadOnlyList<string>> _names = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -62,6 +50,12 @@ namespace DocuHelperEditor.State.Ribbon
             _settings = settings;
             _scriptJs = js;
             State = state;
+            _pressed = PressedHandlers();
+            _values = ValueHandlers();
+            _checks = CheckHandlers();
+            _needs = NeedHandlers();
+            _menus = MenuHandlers();
+            _finishes = FinishHandlers();
 
             foreach (var spec in HwpCommandTable.All)
             {
@@ -69,7 +63,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Register(spec);
             }
 
-            Provide("hwp.file.info", _ =>
+            Provide("showInfo", _ =>
             {
                 Notify(DocumentInfoText());
                 return Task.CompletedTask;
@@ -88,19 +82,19 @@ namespace DocuHelperEditor.State.Ribbon
 
         public HwpRibbonState State { get; }
 
-        public void Provide(string id, Func<string, Task> run)
+        private void Provide(string action, Func<string, Task> run)
         {
-            if (string.IsNullOrWhiteSpace(id) || run == null)
-                throw new ArgumentException("A provided ribbon command needs an id and a handler.");
+            if (string.IsNullOrWhiteSpace(action) || run == null)
+                throw new ArgumentException("A provided ribbon command needs an action and a handler.");
 
-            if (!_specs.ContainsKey(id))
-                throw new ArgumentException($"Ribbon command '{id}' is not registered.", nameof(id));
+            if (!_specs.Values.Any(s => s.Action == action))
+                throw new ArgumentException($"No ribbon command uses the action '{action}'.", nameof(action));
 
-            _provided[id] = run;
+            _provided[action] = run;
             RaiseChanged();
         }
 
-        public bool IsProvided(string id) => id != null && _provided.ContainsKey(id);
+        private bool IsProvided(CommandSpec spec) => spec.Action != null && _provided.ContainsKey(spec.Action);
 
         public override bool IsOn(string id)
         {
@@ -246,70 +240,69 @@ namespace DocuHelperEditor.State.Ribbon
                     break;
             }
 
-            if (spec.Menu.Count > 0 || s_colorOwners.Contains(spec.Id))
+            if (spec.Menu.Count > 0 || spec.ColorOwner)
                 command.MenuFrom(() => MenuOf(spec));
 
-            if (s_colorOwners.Contains(spec.Id))
+            if (spec.ColorOwner)
                 command.ColorFrom(() => _colors.TryGetValue(spec.Id, out var color) ? color : null);
 
-            var value = FieldValue(spec.Id);
-            if (value != null)
-                command.ValueFrom(value);
+            if (spec.Value != null)
+                command.ValueFrom(_values[spec.Value]);
+
+            if (spec.Pressed != null && !_pressed.ContainsKey(spec.Pressed))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown pressed state '{spec.Pressed}'.");
+
+            if (spec.Need != null && !_needs.ContainsKey(spec.Need))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown need '{spec.Need}'.");
+
+            if (spec.MenuStyle != null && !_menus.ContainsKey(spec.MenuStyle))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown menu '{spec.MenuStyle}'.");
+
+            if (spec.Finish != null && !_finishes.ContainsKey(spec.Finish))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown finish '{spec.Finish}'.");
         }
 
         private RibbonCommand RegisterFile(CommandSpec spec)
         {
-            switch (spec.Id)
+            var command = spec.Action switch
             {
-                case "hwp.fmt.undo":
-                    return AddUndo(spec.Id);
-                case "hwp.fmt.redo":
-                    return AddRedo(spec.Id);
-                case "hwp.file.save":
-                    return AddSave(spec.Id);
-                case "hwp.file.saveas":
-                    return AddSaveCopy(spec.Id).AllowWhileLocked();
-                case "hwp.status.revertall":
-                    return AddFile(spec.Id, _ => Workspace.RevertAllAsync(File.Id)).EnabledWhen(() => File.Changes.Count > 0, NoChangeReason);
-                default:
-                    var command = AddFile(spec.Id, arg => RunProvidedAsync(spec, arg)).Unless(() => FileBlocker(spec.Id));
-                    return s_always.Contains(spec.Id) ? command.AllowWhileLocked() : command;
-            }
+                "undo" => AddUndo(spec.Id),
+                "redo" => AddRedo(spec.Id),
+                "save" => AddSave(spec.Id),
+                "saveAs" => AddSaveCopy(spec.Id),
+                "revertAll" => AddFile(spec.Id, _ => Workspace.RevertAllAsync(File.Id)).EnabledWhen(() => File.Changes.Count > 0, NoChangeReason),
+                _ => AddFile(spec.Id, arg => RunProvidedAsync(spec, arg)).Unless(() => FileBlocker(spec)),
+            };
+
+            return spec.WhileLocked ? command.AllowWhileLocked() : command;
         }
 
-        private string FileBlocker(string id)
+        private string FileBlocker(CommandSpec spec)
         {
-            if (IsProvided(id))
+            if (IsProvided(spec))
                 return null;
 
-            if (id != "hwp.file.pdf")
-                return PendingReason;
+            return spec.Need == null ? PendingReason : _needs[spec.Need](spec);
+        }
 
+        private string HancomPdfBlocker()
+        {
             var hancom = Workspace.Workspace.Editors.TryGetValue(DocuHelper.Docus.DocuType.Hwp, out var editor) && editor is DocuHelper.Editors.HwpEditor hwp && hwp.CanWriteHwp;
             return hancom ? PendingReason : "이 컴퓨터에 한글이 없어서 PDF로 저장할 수 없어요.";
         }
 
         private Task RunProvidedAsync(CommandSpec spec, string arg)
         {
-            return _provided.TryGetValue(spec.Id, out var run) ? run(arg) : Task.CompletedTask;
+            return spec.Action != null && _provided.TryGetValue(spec.Action, out var run) ? run(arg) : Task.CompletedTask;
         }
 
-        private Func<string> FieldValue(string id)
+        private Dictionary<string, Func<string>> ValueHandlers() => new(StringComparer.Ordinal)
         {
-            switch (id)
-            {
-                case "hwp.edit.format.style":
-                    return () => Info?.Style;
-                case "hwp.fmt.font":
-                    return () => Info == null || Block == null ? null : Info.Font ?? string.Empty;
-                case "hwp.fmt.size":
-                    return () => Info == null || Block == null ? null : Info.SizePt is double size ? HwpSelectionInfo.SizeText(size) : string.Empty;
-                case "hwp.fmt.linespacing":
-                    return () => Info == null || Block == null ? null : Info.LineSpacingPercent is int percent ? percent + " %" : string.Empty;
-            }
-
-            return null;
-        }
+            ["style"] = () => Info?.Style,
+            ["fontName"] = () => Info == null || Block == null ? null : Info.Font ?? string.Empty,
+            ["fontSize"] = () => Info == null || Block == null ? null : Info.SizePt is double size ? HwpSelectionInfo.SizeText(size) : string.Empty,
+            ["lineSpacing"] = () => Info == null || Block == null ? null : Info.LineSpacingPercent is int percent ? percent + " %" : string.Empty,
+        };
 
         private string PromptOf(CommandSpec spec)
         {

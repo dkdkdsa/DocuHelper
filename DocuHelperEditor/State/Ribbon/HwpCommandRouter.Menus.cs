@@ -10,22 +10,17 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private IReadOnlyList<RibbonMenuItem> MenuOf(CommandSpec spec)
         {
-            switch (spec.Id)
-            {
-                case "hwp.fmt.font":
-                    return Prefixed(spec, Input("글꼴 이름", string.Empty), Separator());
-                case "hwp.fmt.size":
-                    return Prefixed(spec, Input("글자 크기", string.Empty, "pt"), Separator());
-                case "hwp.fmt.linespacing":
-                    return Prefixed(spec, Input("줄 간격", string.Empty, "%"), Separator());
-                case "hwp.fmt.color":
-                    return Prefixed(spec, Item("auto", "자동 (검정)", swatch: "000000"), Separator());
-                case "hwp.format.char.shade":
-                    return Prefixed(spec, Item("none", "형광펜 없음"), Separator());
-            }
-
-            return Entries(spec);
+            return spec.MenuStyle == null ? Entries(spec) : _menus[spec.MenuStyle](spec);
         }
+
+        private Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> MenuHandlers() => new(StringComparer.Ordinal)
+        {
+            ["fontName"] = spec => Prefixed(spec, Input("글꼴 이름", string.Empty), Separator()),
+            ["fontSize"] = spec => Prefixed(spec, Input("글자 크기", string.Empty, "pt"), Separator()),
+            ["lineSpacing"] = spec => Prefixed(spec, Input("줄 간격", string.Empty, "%"), Separator()),
+            ["fontColor"] = spec => Prefixed(spec, Item("auto", "자동 (검정)", swatch: "000000"), Separator()),
+            ["shade"] = spec => Prefixed(spec, Item("none", "형광펜 없음"), Separator()),
+        };
 
         private IReadOnlyList<RibbonMenuItem> Prefixed(CommandSpec spec, params RibbonMenuItem[] head) => head.Concat(Entries(spec)).ToList();
 
@@ -96,23 +91,18 @@ namespace DocuHelperEditor.State.Ribbon
 
         private bool? CheckOf(CommandSpec spec, MenuEntry entry)
         {
-            var info = Info;
-            if (info == null || Block == null)
+            if (Info == null || Block == null || spec.Value == null || !_checks.TryGetValue(spec.Value, out var check))
                 return null;
 
-            switch (spec.Id)
-            {
-                case "hwp.edit.format.style":
-                    return info.Style == entry.Spec.Label;
-                case "hwp.fmt.font":
-                    return info.Font == entry.Spec.Label;
-                case "hwp.fmt.size":
-                    return info.SizePt is double size && AsNumber(entry.Args["size"]) is double listed && Math.Abs(size - listed) < 0.01;
-                case "hwp.fmt.linespacing":
-                    return AsNumber(entry.Args["value"]) is double percent ? info.LineSpacingPercent == (int)percent : null;
-            }
-
-            return null;
+            return check(spec, entry.Spec, entry.Args);
         }
+
+        private Dictionary<string, Func<CommandSpec, CommandMenuSpec, JsonObject, bool?>> CheckHandlers() => new(StringComparer.Ordinal)
+        {
+            ["style"] = (_, menu, _) => Info.Style == menu.Label,
+            ["fontName"] = (_, menu, _) => Info.Font == menu.Label,
+            ["fontSize"] = (_, _, args) => Info.SizePt is double size && AsNumber(args["size"]) is double listed && Math.Abs(size - listed) < 0.01,
+            ["lineSpacing"] = (_, _, args) => AsNumber(args["value"]) is double percent ? Info.LineSpacingPercent == (int)percent : null,
+        };
     }
 }

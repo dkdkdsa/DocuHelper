@@ -22,7 +22,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private void ProvideSpeechCommands()
         {
-            Provide("word.review.speech.readaloud", _ => ToggleReadAloudAsync());
+            Provide("readAloud", _ => ToggleReadAloudAsync(), ReadAloudBlocker);
         }
 
         private string ReadAloudBlocker()

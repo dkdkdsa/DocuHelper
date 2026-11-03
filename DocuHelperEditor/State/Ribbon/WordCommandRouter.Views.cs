@@ -15,6 +15,7 @@ namespace DocuHelperEditor.State.Ribbon
         {
             "toggleRibbon",
             "setZoom",
+            "zoomBy",
             "openZoomDialog",
             "moveChange",
             "setView",
@@ -57,11 +58,8 @@ namespace DocuHelperEditor.State.Ribbon
 
         private string ViewBlocker(CommandSpec spec)
         {
-            if (spec.Id == "word.review.speech.readaloud")
-                return ReadAloudBlocker();
-
-            if (IsProvided(spec.Id))
-                return null;
+            if (IsProvided(spec))
+                return ProvidedBlocker(spec);
 
             if (!s_internal.Contains(spec.Action ?? string.Empty))
                 return PendingReason;
@@ -70,31 +68,24 @@ namespace DocuHelperEditor.State.Ribbon
             if (feature != null && !State.Supports(feature))
                 return PendingReason;
 
-            switch (spec.Id)
-            {
-                case "word.view.zoom.dialog":
-                    return CanAsk(spec.Id, null) ? null : PendingReason;
-                case "word.status.zoomout":
-                    return State.Zoom > WordRibbonState.MinZoom ? null : "더 줄일 수 없어요.";
-                case "word.status.zoomin":
-                    return State.Zoom < WordRibbonState.MaxZoom ? null : "더 키울 수 없어요.";
-                case "word.status.prevchange":
-                case "word.status.nextchange":
-                    return File?.Changes.Count > 0 ? null : NoChangeReason;
-                case "word.view.show.grid":
-                    return State.View == "print" ? null : "인쇄 모양에서만 쓸 수 있어요.";
-                case "word.view.show.ruler":
-                    return State.View == "web" ? "웹 모양에서는 눈금자를 쓸 수 없어요." : null;
-            }
-
-            return null;
+            return spec.Need == null ? null : _needs[spec.Need](spec);
         }
+
+        private Dictionary<string, Func<CommandSpec, string>> NeedHandlers() => new(StringComparer.Ordinal)
+        {
+            ["zoomDialog"] = spec => CanAsk(spec.Id, null) ? null : PendingReason,
+            ["zoomOut"] = _ => State.Zoom > WordRibbonState.MinZoom ? null : "더 줄일 수 없어요.",
+            ["zoomIn"] = _ => State.Zoom < WordRibbonState.MaxZoom ? null : "더 키울 수 없어요.",
+            ["changes"] = _ => File?.Changes.Count > 0 ? null : NoChangeReason,
+            ["printView"] = _ => State.View == "print" ? null : "인쇄 모양에서만 쓸 수 있어요.",
+            ["notWebView"] = _ => State.View == "web" ? "웹 모양에서는 눈금자를 쓸 수 없어요." : null,
+        };
 
         private async Task RunViewAsync(CommandSpec spec, string arg)
         {
-            if (_provided.TryGetValue(spec.Id, out var provided))
+            if (IsProvided(spec))
             {
-                await provided(arg);
+                await RunProvidedAsync(spec, arg);
                 return;
             }
 
@@ -108,7 +99,10 @@ namespace DocuHelperEditor.State.Ribbon
                     break;
                 case "setZoom":
                 case "openZoomDialog":
-                    SetZoom(spec, arg, args);
+                    SetZoom(arg, args);
+                    break;
+                case "zoomBy":
+                    State.Zoom = (int)Math.Round((State.Zoom + Int(args, "delta", 0)) / 10.0) * 10;
                     break;
                 case "moveChange":
                     Workspace.MoveChange(Int(args, "step", 1));
@@ -161,20 +155,8 @@ namespace DocuHelperEditor.State.Ribbon
             Workspace.Notify();
         }
 
-        private void SetZoom(CommandSpec spec, string arg, JsonObject args)
+        private void SetZoom(string arg, JsonObject args)
         {
-            if (spec.Id == "word.status.zoomout")
-            {
-                State.Zoom = (int)Math.Round((State.Zoom - 10) / 10.0) * 10;
-                return;
-            }
-
-            if (spec.Id == "word.status.zoomin")
-            {
-                State.Zoom = (int)Math.Round((State.Zoom + 10) / 10.0) * 10;
-                return;
-            }
-
             if (_run?.Fields != null)
             {
                 var custom = Number(_run.Fields, "custom", 0);
@@ -292,44 +274,9 @@ namespace DocuHelperEditor.State.Ribbon
             return value.TryGetValue<string>(out var text) && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
         }
 
-        private bool IsViewPressed(CommandSpec spec)
-        {
-            switch (spec.Id)
-            {
-                case "word.view.views.read":
-                    return State.View == "read";
-                case "word.view.views.print":
-                    return State.View == "print";
-                case "word.view.views.web":
-                    return State.View == "web";
-                case "word.view.views.outline":
-                    return State.View == "outline";
-                case "word.view.views.draft":
-                    return State.View == "draft";
-                case "word.view.move.vertical":
-                    return !State.SideBySide;
-                case "word.view.move.side":
-                    return State.SideBySide;
-                case "word.view.show.ruler":
-                    return State.Ruler && State.Supports("ruler");
-                case "word.view.show.grid":
-                    return State.Gridlines && State.Supports("grid");
-                case "word.view.show.nav":
-                    return State.NavOpen && State.Supports("nav");
-                case "word.review.comments.show":
-                    return State.ShowComments && State.Supports("comments");
-                case "word.mail.preview.preview":
-                    return State.MergePreview;
-                case "word.review.speech.readaloud":
-                    return State.ReadingAloud;
-            }
-
-            return false;
-        }
-
         private string ClipboardBlocker(CommandSpec spec)
         {
-            if (IsProvided(spec.Id))
+            if (IsProvided(spec))
                 return null;
 
             return spec.Action switch
@@ -344,9 +291,9 @@ namespace DocuHelperEditor.State.Ribbon
 
         private async Task RunClipboardAsync(CommandSpec spec, string arg)
         {
-            if (_provided.TryGetValue(spec.Id, out var provided))
+            if (IsProvided(spec))
             {
-                await provided(arg);
+                await RunProvidedAsync(spec, arg);
                 return;
             }
 

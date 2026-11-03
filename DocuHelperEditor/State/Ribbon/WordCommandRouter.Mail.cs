@@ -22,10 +22,9 @@ namespace DocuHelperEditor.State.Ribbon
 
         private void ProvideMailCommands()
         {
-            Provide("word.mail.merge.recipients", _ => ChooseRecipientsAsync());
-            Provide("word.mail.merge.recipients.existing", _ => ChooseRecipientsAsync());
-            Provide("word.mail.merge.editlist", _ => OpenRecipientsAsync());
-            Provide("word.mail.finish.merge", _ => FinishMergeAsync());
+            Provide("chooseRecipients", _ => ChooseRecipientsAsync());
+            Provide("editRecipients", _ => OpenRecipientsAsync());
+            Provide("finishMerge", _ => FinishMergeAsync());
         }
 
         private IReadOnlyList<RibbonMenuItem> FieldMenu(CommandSpec spec)

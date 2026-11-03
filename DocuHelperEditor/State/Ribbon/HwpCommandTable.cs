@@ -83,6 +83,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"{align}","indent_left_cm":"{left_pt/28.3465}","indent_right_cm":"{right_pt/28.3465}","first_line_cm":"{first_pt/28.3465}","hanging_cm":"{first_pt/28.3465}","line_spacing":{"mode":"multiple","value":"{line_value/160}"},"space_before_pt":"{space_before_pt}","space_after_pt":"{space_after_pt}","keep_with_next":"{keep_with_next}","page_break_before":"{page_break_before}"}""",
+                Finish = "paragraph",
                 Dialog = new DialogSpec("문단 모양", new[]
                 {
                     new DialogField("align", "정렬", "choice", "\"{cur.align}\"", new string[] { "justify", "left", "center", "right", "distribute", "divide" }, new string[] { "양쪽", "왼쪽", "가운데", "오른쪽", "배분", "나눔" }),
@@ -104,6 +105,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","style":"{value}"}""",
+                Value = "style",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "바탕글", Args = """{"style":"바탕글"}""", Detail = "모든 문단의 기본 스타일" },
@@ -145,6 +147,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "set_page_setup",
                 Args = """{"scope":"document","orientation":"portrait"}""",
+                Pressed = "portrait",
             },
             new CommandSpec
             {
@@ -153,6 +156,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "set_page_setup",
                 Args = """{"scope":"document","orientation":"landscape"}""",
+                Pressed = "landscape",
             },
             new CommandSpec
             {
@@ -326,6 +330,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "쪽 윤곽",
                 Class = RibbonCommandClass.View,
                 Action = "togglePageOutline",
+                Pressed = "pageOutline",
             },
             new CommandSpec
             {
@@ -333,6 +338,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "전체 화면",
                 Class = RibbonCommandClass.View,
                 Action = "toggleFullScreen",
+                Pressed = "fullScreen",
             },
             new CommandSpec
             {
@@ -354,6 +360,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "여러 쪽",
                 Class = RibbonCommandClass.View,
                 Action = "toggleMulti",
+                Pressed = "multiPage",
             },
             new CommandSpec
             {
@@ -369,6 +376,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "조판 부호",
                 Class = RibbonCommandClass.View,
                 Action = "toggleCodes",
+                Pressed = "codes",
             },
             new CommandSpec
             {
@@ -376,6 +384,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "문단 부호",
                 Class = RibbonCommandClass.View,
                 Action = "toggleParaMarks",
+                Pressed = "paraMarks",
             },
             new CommandSpec
             {
@@ -383,6 +392,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "투명 선",
                 Class = RibbonCommandClass.View,
                 Action = "toggleTransparentLines",
+                Pressed = "transparentLines",
             },
             new CommandSpec
             {
@@ -391,6 +401,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.View,
                 Action = "showPane",
                 Args = """{"pane":"pages"}""",
+                Pressed = "pagesPane",
             },
             new CommandSpec
             {
@@ -399,6 +410,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.View,
                 Action = "showPane",
                 Args = """{"pane":"outline"}""",
+                Pressed = "outlinePane",
             },
             new CommandSpec
             {
@@ -406,6 +418,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "가로 눈금자",
                 Class = RibbonCommandClass.View,
                 Action = "toggleRuler",
+                Pressed = "ruler",
             },
             new CommandSpec
             {
@@ -413,6 +426,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "세로 눈금자",
                 Class = RibbonCommandClass.View,
                 Action = "toggleVRuler",
+                Pressed = "verticalRuler",
             },
             new CommandSpec
             {
@@ -549,6 +563,8 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_text",
                 Args = """{"targets":"{targets}","font":"{value}"}""",
+                Value = "fontName",
+                MenuStyle = "fontName",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "함초롬바탕", Args = """{"font":"함초롬바탕"}""", Font = "함초롬바탕" },
@@ -581,6 +597,8 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_text",
                 Args = """{"targets":"{targets}","size":"{value}"}""",
+                Value = "fontSize",
+                MenuStyle = "fontSize",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "8 pt", Args = """{"size":8.0}""" },
@@ -620,6 +638,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_text",
                 Args = """{"targets":"{targets}","bold":"{toggle}"}""",
+                Pressed = "bold",
             },
             new CommandSpec
             {
@@ -628,6 +647,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_text",
                 Args = """{"targets":"{targets}","italic":"{toggle}"}""",
+                Pressed = "italic",
             },
             new CommandSpec
             {
@@ -636,6 +656,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_text",
                 Args = """{"targets":"{targets}","underline":"{toggle ? single : none}"}""",
+                Pressed = "underline",
             },
             new CommandSpec
             {
@@ -644,6 +665,8 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_text",
                 Args = """{"targets":"{targets}","color":"{color}"}""",
+                MenuStyle = "fontColor",
+                ColorOwner = true,
                 Menu = new[]
                 {
                     new CommandMenuSpec { Kind = RibbonMenuKind.Swatches, Label = "글자 색", Detail = "RibbonPalette.Standard 20색 + 맨 위 ‘자동(검정)’", Palette = "Standard" },
@@ -656,6 +679,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"justify"}""",
+                Pressed = "alignJustify",
             },
             new CommandSpec
             {
@@ -664,6 +688,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"left"}""",
+                Pressed = "alignLeft",
             },
             new CommandSpec
             {
@@ -672,6 +697,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"center"}""",
+                Pressed = "alignCenter",
             },
             new CommandSpec
             {
@@ -680,6 +706,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"right"}""",
+                Pressed = "alignRight",
             },
             new CommandSpec
             {
@@ -688,6 +715,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"distribute"}""",
+                Pressed = "alignDistribute",
             },
             new CommandSpec
             {
@@ -698,6 +726,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"ids":"{ids}","align":"divide"}""",
                 Reason = "문단을 골라야 나눔 정렬을 쓸 수 있어요.",
                 Gates = new[] { "ParaDivide" },
+                Pressed = "alignDivide",
             },
             new CommandSpec
             {
@@ -706,6 +735,8 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","line_spacing":{"mode":"multiple","value":"{value/160}"}}""",
+                Value = "lineSpacing",
+                MenuStyle = "lineSpacing",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "100 %", Args = """{"value":100}""" },
@@ -735,6 +766,8 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"targets":"{targets}","highlight":"{color}"}""",
                 Reason = "형광펜은 아직 한글 파일에 저장되지 않아서 쓸 수 없어요. 저장하면 사라지거든요.",
                 Gates = new[] { "CharShade" },
+                MenuStyle = "shade",
+                ColorOwner = true,
                 Menu = new[]
                 {
                     new CommandMenuSpec { Kind = RibbonMenuKind.Swatches, Label = "형광펜 색", Detail = "RibbonPalette.Highlight 15색 + 맨 위 ‘없음’", Palette = "Highlight" },
@@ -775,6 +808,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","indent_step":-1}""",
+                ListStep = -1,
             },
             new CommandSpec
             {
@@ -783,6 +817,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","indent_step":1}""",
+                ListStep = 1,
             },
             new CommandSpec
             {
@@ -791,6 +826,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","first_line_cm":"{cur.firstLineCm+0.35}"}""",
+                Pressed = "firstLineIn",
             },
             new CommandSpec
             {
@@ -799,6 +835,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","hanging_cm":"{cur.hangingCm+0.35}"}""",
+                Pressed = "firstLineOut",
             },
             new CommandSpec
             {
@@ -832,6 +869,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "set_list",
                 Args = """{"ids":"{ids}","type":"bullet","bullet":"{value}"}""",
+                Pressed = "bullets",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "없음", Args = """{"type":"none"}""", Detail = "글머리표를 없애요" },
@@ -854,6 +892,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "set_list",
                 Args = """{"ids":"{ids}","type":"number","number_format":"{value}"}""",
+                Pressed = "numbers",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "없음", Args = """{"type":"none"}""", Detail = "번호를 없애요" },
@@ -927,6 +966,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "set_page_setup",
                 Args = """{"scope":"document","size":"{size}","width_cm":"{width_mm/10}","height_cm":"{height_mm/10}","orientation":"{orientation}","margins":{"top_cm":"{(top_mm+header_mm)/10}","header_cm":"{top_mm/10}","bottom_cm":"{(bottom_mm+footer_mm)/10}","footer_cm":"{bottom_mm/10}","left_cm":"{left_mm/10}","right_cm":"{right_mm/10}"}}""",
+                Finish = "paper",
                 Dialog = new DialogSpec("편집 용지", new[]
                 {
                     new DialogField("size", "용지 종류", "choice", "\"A4\"", new string[] { "A3", "A4", "A5", "B4", "B5", "Letter", "Legal", "Tabloid", "Executive", "custom" }, Array.Empty<string>()),
@@ -1005,6 +1045,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"page_number":{"position":"{top|bottom}","align":"{left|center|right|outside|inside}","style":"{plain|dash}","format":"{format}","start_at":"{start_at}"}}""",
                 Reason = "쪽 번호는 아직 한글 파일에 저장되지 않아요. 한글에서 매겨 주세요.",
                 Gates = new[] { "HeaderFooter", "PageNumber" },
+                Finish = "pageNumber",
                 Dialog = new DialogSpec("쪽 번호 매기기", new[]
                 {
                     new DialogField("position", "번호 위치", "choice", "\"가운데 아래\"", new string[] { "없음", "왼쪽 위", "가운데 위", "오른쪽 위", "왼쪽 아래", "가운데 아래", "오른쪽 아래", "바깥쪽 위", "바깥쪽 아래", "안쪽 위", "안쪽 아래" }, Array.Empty<string>()),
@@ -1089,6 +1130,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "delete_paragraphs",
                 Args = """{"ids":"{page blocks}"}""",
+                Confirm = true,
                 Dialog = new DialogSpec("쪽 지우기", Array.Empty<DialogField>()),
             },
             new CommandSpec
@@ -1188,6 +1230,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.View,
                 Action = "moveChange",
                 Args = """{"delta":-1}""",
+                Need = "changes",
             },
             new CommandSpec
             {
@@ -1196,6 +1239,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.View,
                 Action = "moveChange",
                 Args = """{"delta":1}""",
+                Need = "changes",
             },
             new CommandSpec
             {
@@ -1304,6 +1348,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "다른 이름으로 저장하기",
                 Class = RibbonCommandClass.File,
                 Action = "saveAs",
+                WhileLocked = true,
             },
             new CommandSpec
             {
@@ -1311,6 +1356,8 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "PDF로 저장하기",
                 Class = RibbonCommandClass.File,
                 Action = "exportPdf",
+                Need = "hancomPdf",
+                WhileLocked = true,
             },
             new CommandSpec
             {
@@ -1318,6 +1365,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "인쇄",
                 Class = RibbonCommandClass.File,
                 Action = "print",
+                WhileLocked = true,
             },
             new CommandSpec
             {
@@ -1325,6 +1373,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "미리 보기",
                 Class = RibbonCommandClass.View,
                 Action = "togglePreview",
+                Pressed = "preview",
             },
             new CommandSpec
             {
@@ -1332,6 +1381,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "문서 정보",
                 Class = RibbonCommandClass.File,
                 Action = "showInfo",
+                WhileLocked = true,
             },
             new CommandSpec
             {
@@ -1347,6 +1397,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "도구 상자 접기",
                 Class = RibbonCommandClass.View,
                 Action = "toggleRibbon",
+                Pressed = "ribbonOpen",
             },
             new CommandSpec
             {
@@ -1378,6 +1429,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "삽입/수정 바꾸기",
                 Class = RibbonCommandClass.View,
                 Action = "toggleOverwrite",
+                Pressed = "overwrite",
             },
             new CommandSpec
             {
@@ -1386,6 +1438,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.View,
                 Action = "moveChange",
                 Args = """{"delta":-1}""",
+                Need = "changes",
             },
             new CommandSpec
             {
@@ -1394,6 +1447,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.View,
                 Action = "moveChange",
                 Args = """{"delta":1}""",
+                Need = "changes",
             },
             new CommandSpec
             {
@@ -1409,6 +1463,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.View,
                 Action = "zoomBy",
                 Args = """{"delta":-10}""",
+                Need = "zoomOut",
             },
             new CommandSpec
             {
@@ -1417,6 +1472,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.View,
                 Action = "zoomBy",
                 Args = """{"delta":10}""",
+                Need = "zoomIn",
             },
             new CommandSpec
             {

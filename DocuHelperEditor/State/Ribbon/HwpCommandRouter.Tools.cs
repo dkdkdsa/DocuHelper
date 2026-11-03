@@ -21,12 +21,6 @@ namespace DocuHelperEditor.State.Ribbon
 
         private static readonly HashSet<string> s_gridKeys = new HashSet<string>(StringComparer.Ordinal) { "rows", "columns" };
 
-        private static readonly Dictionary<string, int> s_levelSteps = new Dictionary<string, int>(StringComparer.Ordinal)
-        {
-            ["hwp.format.para.indentless"] = -1,
-            ["hwp.format.para.indentmore"] = 1,
-        };
-
         private string ToolBlocker(CommandSpec spec)
         {
             var gate = GateBlocker(spec.Gates, spec.Reason);
@@ -40,7 +34,7 @@ namespace DocuHelperEditor.State.Ribbon
             if (need != null)
                 return need;
 
-            if (s_confirmed.Contains(spec.Id) && !CanAsk(spec.Id, null))
+            if (spec.Confirm && !CanAsk(spec.Id, null))
                 return PendingReason;
 
             if (spec.Dialog != null && spec.Menu.Count == 0 && !CanAsk(spec.Id, null))
@@ -63,57 +57,64 @@ namespace DocuHelperEditor.State.Ribbon
 
         private void FixDialogArgs(CommandSpec spec, Run run, JsonObject args)
         {
-            if (run.Fields == null)
-                return;
+            if (run.Fields != null && spec.Finish != null)
+                _finishes[spec.Finish](run, args);
+        }
 
-            switch (spec.Id)
+        private Dictionary<string, Action<Run, JsonObject>> FinishHandlers() => new(StringComparer.Ordinal)
+        {
+            ["paragraph"] = FinishParagraph,
+            ["paper"] = FinishPaper,
+            ["pageNumber"] = FinishPageNumber,
+        };
+
+        private void FinishParagraph(Run run, JsonObject args)
+        {
+            if (args["line_spacing"] is JsonObject spacing && spacing["value"] == null)
+                args.Remove("line_spacing");
+
+            args.Remove("page_break_before");
+
+            switch (FieldText(run, "first_mode"))
             {
-                case "hwp.edit.format.para":
-                    if (args["line_spacing"] is JsonObject spacing && spacing["value"] == null)
-                        args.Remove("line_spacing");
-
-                    args.Remove("page_break_before");
-
-                    switch (FieldText(run, "first_mode"))
-                    {
-                        case "indent":
-                            args.Remove("hanging_cm");
-                            break;
-                        case "outdent":
-                            args.Remove("first_line_cm");
-                            break;
-                        default:
-                            args.Remove("first_line_cm");
-                            args.Remove("hanging_cm");
-                            break;
-                    }
-
+                case "indent":
+                    args.Remove("hanging_cm");
                     break;
-                case "hwp.page.setup.paper":
-                    if (FieldText(run, "size") == "custom")
-                    {
-                        args["size"] = "custom";
-                    }
-                    else
-                    {
-                        args.Remove("width_cm");
-                        args.Remove("height_cm");
-                    }
-
+                case "outdent":
+                    args.Remove("first_line_cm");
                     break;
-                case "hwp.page.look.pagenumber":
-                    var position = FieldText(run, "position") ?? string.Empty;
-                    var align = PageNumberAlign(position);
-                    args["page_number"] = new JsonObject
-                    {
-                        ["position"] = position.StartsWith("없음", StringComparison.Ordinal) ? "none" : position.EndsWith("위", StringComparison.Ordinal) ? "top" : "bottom",
-                        ["align"] = align,
-                        ["style"] = FieldBool(run, "dash") ? "dash" : "plain",
-                        ["format"] = PageNumberFormat(FieldText(run, "format")),
-                        ["start_at"] = args["page_number"]?["start_at"]?.DeepClone() ?? JsonValue.Create(1),
-                    };
+                default:
+                    args.Remove("first_line_cm");
+                    args.Remove("hanging_cm");
                     break;
             }
+        }
+
+        private void FinishPaper(Run run, JsonObject args)
+        {
+            if (FieldText(run, "size") == "custom")
+            {
+                args["size"] = "custom";
+            }
+            else
+            {
+                args.Remove("width_cm");
+                args.Remove("height_cm");
+            }
+        }
+
+        private void FinishPageNumber(Run run, JsonObject args)
+        {
+            var position = FieldText(run, "position") ?? string.Empty;
+            var align = PageNumberAlign(position);
+            args["page_number"] = new JsonObject
+            {
+                ["position"] = position.StartsWith("없음", StringComparison.Ordinal) ? "none" : position.EndsWith("위", StringComparison.Ordinal) ? "top" : "bottom",
+                ["align"] = align,
+                ["style"] = FieldBool(run, "dash") ? "dash" : "plain",
+                ["format"] = PageNumberFormat(FieldText(run, "format")),
+                ["start_at"] = args["page_number"]?["start_at"]?.DeepClone() ?? JsonValue.Create(1),
+            };
         }
 
         private string FieldText(Run run, string name) =>
@@ -140,8 +141,8 @@ namespace DocuHelperEditor.State.Ribbon
 
         private IReadOnlyList<EditCommand> BuildEdits(CommandSpec spec, string arg)
         {
-            if (s_levelSteps.TryGetValue(spec.Id, out var step) && Block != null && Block.ListKind != WordListKind.None && HasTool("set_list"))
-                return new[] { EditCommand.Create("set_list", new { ids = new[] { Block.Id }, level_delta = step }) };
+            if (spec.ListStep != 0 && Block != null && Block.ListKind != WordListKind.None && HasTool("set_list"))
+                return new[] { EditCommand.Create("set_list", new { ids = new[] { Block.Id }, level_delta = spec.ListStep }) };
 
             var run = _run ?? new Run(spec, arg, EntryOf(spec, arg));
             var node = WordArgs.Resolve(TemplateOf(run), (string name, out JsonNode value) => Lookup(run, name, out value), null);
@@ -164,7 +165,7 @@ namespace DocuHelperEditor.State.Ribbon
 
             FixDialogArgs(spec, run, args);
 
-            if (s_colorOwners.Contains(spec.Id))
+            if (spec.ColorOwner)
                 RememberColor(spec.Id, arg);
 
             return new[] { EditCommand.Create(spec.Tool, args) };
@@ -526,7 +527,7 @@ namespace DocuHelperEditor.State.Ribbon
                 run.Over = over;
             }
 
-            if (NeedsFields(run) || s_confirmed.Contains(spec.Id))
+            if (NeedsFields(run) || spec.Confirm)
             {
                 if (State.Dialogs == null)
                     return false;
@@ -566,45 +567,40 @@ namespace DocuHelperEditor.State.Ribbon
             return defaults;
         }
 
-        private bool IsPressed(CommandSpec spec)
-        {
-            var block = Block;
-            var info = Info;
-            switch (spec.Id)
-            {
-                case "hwp.fmt.bold":
-                    return WordSelectionService.Pressed(Model, File?.Docu).Bold;
-                case "hwp.fmt.italic":
-                    return WordSelectionService.Pressed(Model, File?.Docu).Italic;
-                case "hwp.fmt.underline":
-                    return WordSelectionService.Pressed(Model, File?.Docu).Underline;
-                case "hwp.fmt.alignjustify":
-                    return block != null && !block.IsTable && info?.Align == "justify";
-                case "hwp.fmt.alignleft":
-                    return block != null && !block.IsTable && info?.Align == "left";
-                case "hwp.fmt.aligncenter":
-                    return block != null && !block.IsTable && info?.Align == "center";
-                case "hwp.fmt.alignright":
-                    return block != null && !block.IsTable && info?.Align == "right";
-                case "hwp.fmt.aligndistribute":
-                    return block != null && !block.IsTable && info?.Align == "distribute";
-                case "hwp.fmt.aligndivide":
-                    return block != null && !block.IsTable && info?.Align == "divide";
-                case "hwp.format.bullets.bullets":
-                    return block?.ListKind == WordListKind.Bullet;
-                case "hwp.format.bullets.numbers":
-                    return block?.ListKind == WordListKind.Number;
-                case "hwp.format.para.firstin":
-                    return info?.FirstLineCm > 0;
-                case "hwp.format.para.firstout":
-                    return info?.HangingCm > 0;
-                case "hwp.edit.page.portrait":
-                    return info != null && !info.Landscape;
-                case "hwp.edit.page.landscape":
-                    return info?.Landscape == true;
-            }
+        private bool IsPressed(CommandSpec spec) => spec.Pressed != null && _pressed[spec.Pressed]();
 
-            return IsViewPressed(spec);
-        }
+        private bool IsAligned(string align) => Block is { IsTable: false } && Info?.Align == align;
+
+        private Dictionary<string, Func<bool>> PressedHandlers() => new(StringComparer.Ordinal)
+        {
+            ["bold"] = () => WordSelectionService.Pressed(Model, File?.Docu).Bold,
+            ["italic"] = () => WordSelectionService.Pressed(Model, File?.Docu).Italic,
+            ["underline"] = () => WordSelectionService.Pressed(Model, File?.Docu).Underline,
+            ["alignJustify"] = () => IsAligned("justify"),
+            ["alignLeft"] = () => IsAligned("left"),
+            ["alignCenter"] = () => IsAligned("center"),
+            ["alignRight"] = () => IsAligned("right"),
+            ["alignDistribute"] = () => IsAligned("distribute"),
+            ["alignDivide"] = () => IsAligned("divide"),
+            ["bullets"] = () => Block?.ListKind == WordListKind.Bullet,
+            ["numbers"] = () => Block?.ListKind == WordListKind.Number,
+            ["firstLineIn"] = () => Info?.FirstLineCm > 0,
+            ["firstLineOut"] = () => Info?.HangingCm > 0,
+            ["portrait"] = () => Info is { Landscape: false },
+            ["landscape"] = () => Info?.Landscape == true,
+            ["pageOutline"] = () => State.PageOutline && State.Supports("outline"),
+            ["fullScreen"] = () => State.FullScreen && State.Supports("fullscreen"),
+            ["preview"] = () => State.Preview && State.Supports("preview"),
+            ["multiPage"] = () => State.Multi && State.Supports("multi"),
+            ["codes"] = () => State.ShowCodes && State.Supports("codes"),
+            ["paraMarks"] = () => State.ShowParaMarks && State.Supports("paramarks"),
+            ["transparentLines"] = () => State.ShowTransparentLines && State.Supports("transparent"),
+            ["pagesPane"] = () => State.NavOpen && State.NavPane == "pages" && State.Supports("panes"),
+            ["outlinePane"] = () => State.NavOpen && State.NavPane == "outline" && State.Supports("panes"),
+            ["ruler"] = () => State.Ruler && State.Supports("ruler"),
+            ["verticalRuler"] = () => State.VRuler && State.Supports("vruler"),
+            ["overwrite"] = () => State.Overwrite && State.Supports("overwrite"),
+            ["ribbonOpen"] = () => State.RibbonOpen,
+        };
     }
 }

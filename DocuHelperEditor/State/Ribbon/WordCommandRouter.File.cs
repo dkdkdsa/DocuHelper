@@ -24,10 +24,10 @@ namespace DocuHelperEditor.State.Ribbon
 
         private void ProvideFileCommands()
         {
-            Provide("word.file.info", _ => ShowDocumentInfoAsync());
-            Provide("word.review.proofing.wordcount", _ => ShowWordCountAsync());
-            Provide("word.file.pdf", _ => ExportPdfAsync());
-            Provide("word.file.print", _ => PrintAsync());
+            Provide("showInfo", _ => ShowDocumentInfoAsync());
+            Provide("showWordCount", _ => ShowWordCountAsync());
+            Provide("exportPdf", _ => ExportPdfAsync());
+            Provide("print", _ => PrintAsync());
         }
 
         private Task ShowWordCountAsync()

@@ -11,8 +11,8 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private void ProvideSearchCommands()
         {
-            Provide("hwp.edit.clipboard.selectall", _ => SelectAllAsync());
-            Provide("hwp.edit.find.find", _ => FindAsync());
+            Provide("selectAll", _ => SelectAllAsync());
+            Provide("openFind", _ => FindAsync());
         }
 
         private Task SelectAllAsync()

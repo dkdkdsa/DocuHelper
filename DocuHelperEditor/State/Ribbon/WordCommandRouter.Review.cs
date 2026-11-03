@@ -11,8 +11,8 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private void ProvideReviewCommands()
         {
-            Provide("word.review.track.showmarkup", arg => ToggleMarkupKindAsync(arg));
-            Provide("word.refs.notes.next", arg => GoToNoteAsync(arg));
+            Provide("setMarkupKinds", arg => ToggleMarkupKindAsync(arg));
+            Provide("goToNote", arg => GoToNoteAsync(arg));
         }
 
         private Task ToggleMarkupKindAsync(string arg)

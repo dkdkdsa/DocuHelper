@@ -39,6 +39,21 @@ namespace DocuHelperEditor.Components.Dev
                 var name = router.GetType().Name + "-" + router.File.Type;
                 System.IO.File.WriteAllText(Path.Combine(dir, name + ".json"), Commands(router).ToJsonString(s_options), new UTF8Encoding(false));
                 written.Add(name);
+                if (router.File.Paper is DocuHelperEditor.State.Papers.WordPaperModel model)
+                {
+                    var before = model.SelectedBlockId;
+                    foreach (var (variant, block) in new[] { ("para", model.Blocks.FirstOrDefault(b => !b.IsTable && !string.IsNullOrWhiteSpace(b.Text))), ("table", model.Blocks.FirstOrDefault(b => b.IsTable)) })
+                    {
+                        if (block == null)
+                            continue;
+
+                        model.SelectedBlockId = block.Id;
+                        System.IO.File.WriteAllText(Path.Combine(dir, name + "-" + variant + ".json"), Commands(router).ToJsonString(s_options), new UTF8Encoding(false));
+                        written.Add(name + "-" + variant);
+                    }
+
+                    model.SelectedBlockId = before;
+                }
             }
 
             System.IO.File.WriteAllText(Path.Combine(dir, "dialogs.json"), Dialogs().ToJsonString(s_options), new UTF8Encoding(false));

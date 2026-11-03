@@ -19,21 +19,9 @@ namespace DocuHelperEditor.State.Ribbon
             ("6", "10"),
         };
 
-        private static readonly Dictionary<string, (string Unit, string Hint)> s_numberFields = new Dictionary<string, (string, string)>(StringComparer.Ordinal)
-        {
-            ["word.layout.para.indentleft"] = ("cm", "0.0"),
-            ["word.layout.para.indentright"] = ("cm", "0.0"),
-            ["word.layout.para.spacebefore"] = ("pt", "0"),
-            ["word.layout.para.spaceafter"] = ("pt", "8"),
-        };
-
         private bool HasMenu(CommandSpec spec)
         {
-            return spec.Menu.Count > 0
-                || s_numberFields.ContainsKey(spec.Id)
-                || s_colorOwners.Contains(spec.Id)
-                || spec.Id == "word.design.bg.pagecolor"
-                || spec.Id == "word.insert.table.table";
+            return spec.Menu.Count > 0 || spec.MenuStyle != null || spec.ColorOwner;
         }
 
         private IReadOnlyList<RibbonMenuItem> MenuOf(CommandSpec spec)
@@ -41,35 +29,23 @@ namespace DocuHelperEditor.State.Ribbon
             if (IsLegacy(spec))
                 return null;
 
-            switch (spec.Id)
-            {
-                case "word.home.font.name":
-                    return new[] { Input("글꼴 이름", string.Empty), Separator() }.Concat(Entries(spec, true)).ToList();
-                case "word.home.font.size":
-                    return new[] { Input("글자 크기", string.Empty, "pt"), Separator() }.Concat(Entries(spec, false)).ToList();
-                case "word.home.font.color":
-                    return ColorMenu(spec, "auto", "자동 (검정)", "000000", RibbonPalette.Standard);
-                case "word.home.font.highlight":
-                    return ColorMenu(spec, "none", "강조 없음", null, RibbonPalette.Highlight);
-                case "word.design.bg.pagecolor":
-                    return ColorMenu(spec, "none", "색 없음", null, RibbonPalette.Standard);
-                case "word.insert.table.table":
-                    return TableMenu(spec);
-                case "word.review.track.display":
-                    return Entries(spec, false).Select((item, i) => item with { Checked = MarkupOf(spec, i) == State.MarkupMode }).ToList();
-                case "word.mail.fields.insert":
-                    return FieldMenu(spec);
-                case "word.review.track.showmarkup":
-                    return Entries(spec, false).Select((item, i) => item with { Checked = MarkupKindChecked(spec, i) }).ToList();
-                case "word.mail.merge.start":
-                    return Entries(spec, false).Select((item, i) => item with { Checked = MergeModeChecked(spec, i) }).ToList();
-            }
-
-            if (s_numberFields.TryGetValue(spec.Id, out var field))
-                return new[] { Input(spec.Label, string.Empty, field.Unit) };
-
-            return Entries(spec, false);
+            return spec.MenuStyle == null ? Entries(spec, false) : _menus[spec.MenuStyle](spec);
         }
+
+        private Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> MenuHandlers() => new(StringComparer.Ordinal)
+        {
+            ["fontName"] = spec => new[] { Input("글꼴 이름", string.Empty), Separator() }.Concat(Entries(spec, true)).ToList(),
+            ["fontSize"] = spec => new[] { Input("글자 크기", string.Empty, "pt"), Separator() }.Concat(Entries(spec, false)).ToList(),
+            ["fontColor"] = spec => ColorMenu(spec, "auto", "자동 (검정)", "000000", RibbonPalette.Standard),
+            ["highlight"] = spec => ColorMenu(spec, "none", "강조 없음", null, RibbonPalette.Highlight),
+            ["pageColor"] = spec => ColorMenu(spec, "none", "색 없음", null, RibbonPalette.Standard),
+            ["table"] = TableMenu,
+            ["markupDisplay"] = spec => Entries(spec, false).Select((item, i) => item with { Checked = MarkupOf(spec, i) == State.MarkupMode }).ToList(),
+            ["mergeFields"] = FieldMenu,
+            ["showMarkup"] = spec => Entries(spec, false).Select((item, i) => item with { Checked = MarkupKindChecked(spec, i) }).ToList(),
+            ["mergeStart"] = spec => Entries(spec, false).Select((item, i) => item with { Checked = MergeModeChecked(spec, i) }).ToList(),
+            ["input"] = spec => new[] { Input(spec.Label, string.Empty, spec.Unit) },
+        };
 
         private IReadOnlyList<RibbonMenuItem> ColorMenu(CommandSpec spec, string resetValue, string resetLabel, string swatch, IReadOnlyList<RibbonSwatch> colors)
         {

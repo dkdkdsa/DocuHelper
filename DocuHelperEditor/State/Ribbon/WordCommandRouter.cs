@@ -21,21 +21,13 @@ namespace DocuHelperEditor.State.Ribbon
         private const string GridPrefix = "grid:";
         private const string NoChangeReason = "도우미가 바꾼 곳이 없어요.";
 
-        private static readonly HashSet<string> s_always = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "word.file.pdf",
-            "word.file.print",
-            "word.file.info",
-        };
-
-        private static readonly HashSet<string> s_colorOwners = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "word.home.font.color",
-            "word.home.font.highlight",
-        };
-
         private readonly Dictionary<string, CommandSpec> _specs = new Dictionary<string, CommandSpec>(StringComparer.Ordinal);
         private readonly Dictionary<string, Func<string, Task>> _provided = new Dictionary<string, Func<string, Task>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<string>> _providedBlockers = new Dictionary<string, Func<string>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Func<bool>> _pressed;
+        private readonly Dictionary<string, Func<string>> _values;
+        private readonly Dictionary<string, Func<CommandSpec, string>> _needs;
+        private readonly Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> _menus;
         private readonly Dictionary<string, JsonNode> _templates = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
         private readonly Dictionary<string, IReadOnlyList<string>> _names = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _colors = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -56,6 +48,10 @@ namespace DocuHelperEditor.State.Ribbon
             _speech = speech;
             _prints = prints;
             State = state;
+            _pressed = PressedHandlers();
+            _values = ValueHandlers();
+            _needs = NeedHandlers();
+            _menus = MenuHandlers();
 
             foreach (var spec in WordCommandTable.All)
             {
@@ -73,19 +69,24 @@ namespace DocuHelperEditor.State.Ribbon
 
         public WordRibbonState State { get; }
 
-        public void Provide(string id, Func<string, Task> run)
+        private void Provide(string action, Func<string, Task> run, Func<string> blocker = null)
         {
-            if (string.IsNullOrWhiteSpace(id) || run == null)
-                throw new ArgumentException("A provided ribbon command needs an id and a handler.");
+            if (string.IsNullOrWhiteSpace(action) || run == null)
+                throw new ArgumentException("A provided ribbon command needs an action and a handler.");
 
-            if (!_specs.ContainsKey(id))
-                throw new ArgumentException($"Ribbon command '{id}' is not registered.", nameof(id));
+            if (!_specs.Values.Any(s => s.Action == action))
+                throw new ArgumentException($"No ribbon command uses the action '{action}'.", nameof(action));
 
-            _provided[id] = run;
+            _provided[action] = run;
+            if (blocker != null)
+                _providedBlockers[action] = blocker;
+
             RaiseChanged();
         }
 
-        public bool IsProvided(string id) => id != null && _provided.ContainsKey(id);
+        private bool IsProvided(CommandSpec spec) => spec.Action != null && _provided.ContainsKey(spec.Action);
+
+        private string ProvidedBlocker(CommandSpec spec) => _providedBlockers.TryGetValue(spec.Action, out var blocker) ? blocker() : null;
 
         public override bool IsOn(string id)
         {
@@ -203,42 +204,47 @@ namespace DocuHelperEditor.State.Ribbon
             if (menu)
                 command.MenuFrom(() => MenuOf(spec));
 
-            if (s_colorOwners.Contains(spec.Id))
+            if (spec.ColorOwner)
                 command.ColorFrom(() => _colors.TryGetValue(spec.Id, out var color) ? color : null);
 
-            if (spec.Id == "word.review.track.display")
-                command.ValueFrom(() => MarkupLabel(State.MarkupMode));
+            if (spec.Value != null)
+                command.ValueFrom(_values[spec.Value]);
 
-            if (spec.Id == "word.home.font.name")
-                command.ValueFrom(() => WordSelectionService.FontNameOf(Model, Model?.Selection));
+            if (spec.Pressed != null && !_pressed.ContainsKey(spec.Pressed))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown pressed state '{spec.Pressed}'.");
 
-            if (spec.Id == "word.home.font.size")
-                command.ValueFrom(() => WordSelectionService.FontSizeOf(Model, Model?.Selection));
+            if (spec.Need != null && !_needs.ContainsKey(spec.Need))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown need '{spec.Need}'.");
+
+            if (spec.MenuStyle != null && !_menus.ContainsKey(spec.MenuStyle))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown menu '{spec.MenuStyle}'.");
         }
+
+        private Dictionary<string, Func<string>> ValueHandlers() => new(StringComparer.Ordinal)
+        {
+            ["markup"] = () => MarkupLabel(State.MarkupMode),
+            ["fontName"] = () => WordSelectionService.FontNameOf(Model, Model?.Selection),
+            ["fontSize"] = () => WordSelectionService.FontSizeOf(Model, Model?.Selection),
+        };
 
         private RibbonCommand RegisterFile(CommandSpec spec)
         {
-            switch (spec.Id)
+            var command = spec.Action switch
             {
-                case "word.trailing.undo":
-                    return AddUndo(spec.Id).AllowWhileLocked();
-                case "word.trailing.redo":
-                    return AddRedo(spec.Id).AllowWhileLocked();
-                case "word.file.save":
-                    return AddSave(spec.Id);
-                case "word.file.saveas":
-                    return AddSaveCopy(spec.Id).AllowWhileLocked();
-                case "word.status.revertall":
-                    return AddFile(spec.Id, _ => Workspace.RevertAllAsync(File.Id)).EnabledWhen(() => File.Changes.Count > 0, NoChangeReason);
-                default:
-                    var command = AddFile(spec.Id, arg => RunProvidedAsync(spec, arg)).Unless(() => IsProvided(spec.Id) ? null : PendingReason);
-                    return s_always.Contains(spec.Id) ? command.AllowWhileLocked() : command;
-            }
+                "undo" => AddUndo(spec.Id),
+                "redo" => AddRedo(spec.Id),
+                "save" => AddSave(spec.Id),
+                "saveAs" => AddSaveCopy(spec.Id),
+                "revertAll" => AddFile(spec.Id, _ => Workspace.RevertAllAsync(File.Id)).EnabledWhen(() => File.Changes.Count > 0, NoChangeReason),
+                _ => AddFile(spec.Id, arg => RunProvidedAsync(spec, arg)).Unless(() => IsProvided(spec) ? null : PendingReason),
+            };
+
+            return spec.WhileLocked ? command.AllowWhileLocked() : command;
         }
 
         private Task RunProvidedAsync(CommandSpec spec, string arg)
         {
-            return _provided.TryGetValue(spec.Id, out var run) ? run(arg) : Task.CompletedTask;
+            return spec.Action != null && _provided.TryGetValue(spec.Action, out var run) ? run(arg) : Task.CompletedTask;
         }
 
         private string PromptOf(CommandSpec spec)

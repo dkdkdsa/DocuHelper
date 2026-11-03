@@ -8,7 +8,7 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private void ProvideMergeModeCommands()
         {
-            Provide("word.mail.merge.start", arg => SetMergeModeAsync(arg));
+            Provide("startMerge", arg => SetMergeModeAsync(arg));
         }
 
         private Task SetMergeModeAsync(string arg)

@@ -29,6 +29,26 @@ namespace DocuHelperEditor.State.Ribbon
 
         public string Pressed { get; init; }
 
+        public string Value { get; init; }
+
+        public string MenuStyle { get; init; }
+
+        public string Unit { get; init; }
+
+        public string Legacy { get; init; }
+
+        public string Finish { get; init; }
+
+        public int ListStep { get; init; }
+
+        public bool ColorOwner { get; init; }
+
+        public bool CellsOnly { get; init; }
+
+        public bool Confirm { get; init; }
+
+        public bool WhileLocked { get; init; }
+
         public IReadOnlyList<string> Gates { get; init; } = Array.Empty<string>();
 
         public IReadOnlyList<CommandMenuSpec> Menu { get; init; } = Array.Empty<CommandMenuSpec>();

@@ -15,23 +15,9 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private static readonly HashSet<string> s_blockTargets = new HashSet<string>(StringComparer.Ordinal) { "targets", "targets[0]", "ids" };
 
-        private static readonly HashSet<string> s_legacy = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "word.home.font.bold",
-            "word.home.font.italic",
-            "word.home.font.underline",
-            "word.home.para.bullets",
-            "word.home.para.numbers",
-            "word.home.para.alignleft",
-            "word.home.para.aligncenter",
-            "word.home.styles.normal",
-            "word.home.styles.heading1",
-            "word.home.styles.heading2",
-        };
-
         private bool IsLegacy(CommandSpec spec)
         {
-            if (!s_legacy.Contains(spec.Id))
+            if (spec.Legacy == null)
                 return false;
 
             if (spec.Tool == "format_paragraph")
@@ -88,14 +74,14 @@ namespace DocuHelperEditor.State.Ribbon
             if (block == null)
                 return SelectParagraphReason;
 
-            switch (spec.Id)
+            switch (spec.Legacy)
             {
-                case "word.home.font.bold":
-                case "word.home.font.italic":
-                case "word.home.font.underline":
+                case "bold":
+                case "italic":
+                case "underline":
                     return null;
-                case "word.home.para.bullets":
-                case "word.home.para.numbers":
+                case "bullets":
+                case "numbers":
                     return block.IsTable ? "표에서는 쓸 수 없어요." : block.Kind == WordBlockKind.Body ? null : "본문 문단에서만 쓸 수 있어요.";
                 default:
                     return block.IsTable ? "표에서는 쓸 수 없어요." : null;
@@ -107,7 +93,7 @@ namespace DocuHelperEditor.State.Ribbon
             if (IsLegacy(spec))
                 return LegacyEdits(spec);
 
-            if ((spec.Tool == "edit_table" || spec.Id == "word.table.cell.bold") && Model?.Selection?.Cells == null)
+            if ((spec.Tool == "edit_table" || spec.CellsOnly) && Model?.Selection?.Cells == null)
             {
                 Notify("표 칸을 먼저 눌러 골라 주세요.");
                 return null;
@@ -125,7 +111,7 @@ namespace DocuHelperEditor.State.Ribbon
             if (spec.Tool == "insert_table")
                 _tablesBefore = Model?.Blocks.Where(b => b.IsTable).Select(b => b.Id).ToHashSet() ?? new HashSet<string>();
 
-            if (s_colorOwners.Contains(spec.Id) && arg != null)
+            if (spec.ColorOwner && arg != null)
                 _colors[spec.Id] = arg.TrimStart('#').ToUpperInvariant();
 
             return new[] { EditCommand.Create(spec.Tool, args) };
@@ -571,27 +557,27 @@ namespace DocuHelperEditor.State.Ribbon
             if (block == null)
                 return null;
 
-            switch (spec.Id)
+            switch (spec.Legacy)
             {
-                case "word.home.font.bold":
+                case "bold":
                     return One(new { id = block.Id, bold = !block.IsBold });
-                case "word.home.font.italic":
+                case "italic":
                     return One(new { id = block.Id, italic = !block.IsItalic });
-                case "word.home.font.underline":
+                case "underline":
                     return One(new { id = block.Id, underline = !block.IsUnderline });
-                case "word.home.para.bullets":
+                case "bullets":
                     return One(new { id = block.Id, style = block.ListStyle == WordListKind.Bullet ? "body" : "bullet" });
-                case "word.home.para.numbers":
+                case "numbers":
                     return One(new { id = block.Id, style = block.ListStyle == WordListKind.Number ? "body" : "number" });
-                case "word.home.para.alignleft":
+                case "alignLeft":
                     return block.Alignment == WordAlignment.Left ? null : One(new { id = block.Id, align = "left" });
-                case "word.home.para.aligncenter":
+                case "alignCenter":
                     return One(new { id = block.Id, align = block.Alignment == WordAlignment.Center ? "left" : "center" });
-                case "word.home.styles.normal":
+                case "normal":
                     return block.Kind == WordBlockKind.Body ? null : One(new { id = block.Id, style = "body" });
-                case "word.home.styles.heading1":
+                case "heading1":
                     return block.Kind == WordBlockKind.Heading1 ? null : One(new { id = block.Id, style = "heading1" });
-                case "word.home.styles.heading2":
+                case "heading2":
                     return block.Kind == WordBlockKind.Heading2 ? null : One(new { id = block.Id, style = "heading2" });
             }
 
@@ -604,36 +590,34 @@ namespace DocuHelperEditor.State.Ribbon
 
         private WordCharPressed FormatPressed() => WordSelectionService.Pressed(Model, File?.Docu);
 
-        private bool IsPressed(CommandSpec spec)
-        {
-            var block = Block;
-            switch (spec.Id)
-            {
-                case "word.home.font.bold":
-                    return FormatPressed().Bold;
-                case "word.home.font.italic":
-                    return FormatPressed().Italic;
-                case "word.home.font.underline":
-                    return FormatPressed().Underline;
-                case "word.home.font.strike":
-                    return FormatPressed().Strike;
-                case "word.home.para.bullets":
-                    return block?.ListKind == WordListKind.Bullet;
-                case "word.home.para.numbers":
-                    return block?.ListKind == WordListKind.Number;
-                case "word.home.para.alignleft":
-                    return block != null && !block.IsTable && block.Alignment == WordAlignment.Left;
-                case "word.home.para.aligncenter":
-                    return block != null && !block.IsTable && block.Alignment == WordAlignment.Center;
-                case "word.home.styles.normal":
-                    return block != null && !block.IsTable && !block.IsHeading;
-                case "word.home.styles.heading1":
-                    return block?.Kind == WordBlockKind.Heading1;
-                case "word.home.styles.heading2":
-                    return block?.Kind == WordBlockKind.Heading2;
-            }
+        private bool IsPressed(CommandSpec spec) => spec.Pressed != null && _pressed[spec.Pressed]();
 
-            return IsViewPressed(spec);
-        }
+        private Dictionary<string, Func<bool>> PressedHandlers() => new(StringComparer.Ordinal)
+        {
+            ["bold"] = () => FormatPressed().Bold,
+            ["italic"] = () => FormatPressed().Italic,
+            ["underline"] = () => FormatPressed().Underline,
+            ["strike"] = () => FormatPressed().Strike,
+            ["bullets"] = () => Block?.ListKind == WordListKind.Bullet,
+            ["numbers"] = () => Block?.ListKind == WordListKind.Number,
+            ["alignLeft"] = () => Block is { IsTable: false } block && block.Alignment == WordAlignment.Left,
+            ["alignCenter"] = () => Block is { IsTable: false } block && block.Alignment == WordAlignment.Center,
+            ["normal"] = () => Block is { IsTable: false, IsHeading: false },
+            ["heading1"] = () => Block?.Kind == WordBlockKind.Heading1,
+            ["heading2"] = () => Block?.Kind == WordBlockKind.Heading2,
+            ["readView"] = () => State.View == "read",
+            ["printView"] = () => State.View == "print",
+            ["webView"] = () => State.View == "web",
+            ["outlineView"] = () => State.View == "outline",
+            ["draftView"] = () => State.View == "draft",
+            ["verticalPages"] = () => !State.SideBySide,
+            ["sidePages"] = () => State.SideBySide,
+            ["ruler"] = () => State.Ruler && State.Supports("ruler"),
+            ["gridlines"] = () => State.Gridlines && State.Supports("grid"),
+            ["navPane"] = () => State.NavOpen && State.Supports("nav"),
+            ["comments"] = () => State.ShowComments && State.Supports("comments"),
+            ["mergePreview"] = () => State.MergePreview,
+            ["readAloud"] = () => State.ReadingAloud,
+        };
     }
 }

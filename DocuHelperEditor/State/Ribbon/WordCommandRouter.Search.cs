@@ -8,7 +8,7 @@ namespace DocuHelperEditor.State.Ribbon
     {
         private void ProvideSearchCommands()
         {
-            Provide("word.home.editing.findadv", _ => AdvancedFindAsync());
+            Provide("advancedFind", _ => AdvancedFindAsync());
         }
 
         private async Task AdvancedFindAsync()
