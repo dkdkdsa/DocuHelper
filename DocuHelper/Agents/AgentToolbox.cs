@@ -33,7 +33,7 @@ namespace DocuHelper.Agents
             {
               "type": "object",
               "properties": {
-                "name": {"type": "string", "description": "New file name ending in .xlsx, .docx, .hwpx, .pptx or .dash, e.g. \"7월 회의 보고서.docx\". Use .hwpx for a Hancom 한글 document and .dash for a dashboard (현황판) built from other files."},
+                "name": {"type": "string", "description": "New file name ending in .xlsx, .docx, .hwpx, .pptx or .dash, e.g. \"7월 회의 보고서.docx\". Use .hwpx for a Hancom 한글 document and .dash for a dashboard (대시보드) built from other files."},
                 "label": {"type": "string"},
                 "step": {"type": "string"}
               },
@@ -539,7 +539,7 @@ namespace DocuHelper.Agents
             DocuType.Excel => "Excel",
             DocuType.Word => "Word",
             DocuType.Hwp => "한글",
-            DocuType.Dash => "dashboard (현황판)",
+            DocuType.Dash => "dashboard (대시보드)",
             _ => "PowerPoint",
         };
 

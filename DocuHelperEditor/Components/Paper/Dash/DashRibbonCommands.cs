@@ -19,7 +19,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
 
         private const string ModePrefix = "mode:";
         private const string EntryPrefix = "m:";
-        private const string NoModelReason = "현황판을 아직 읽지 못했어요.";
+        private const string NoModelReason = "대시보드를 아직 읽지 못했어요.";
 
         private readonly DashViewState _state;
         private readonly IClipboardService _clipboard;
@@ -232,7 +232,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
                 return NoModelReason;
 
             var elements = document.Walk().Count() - 1;
-            return $"현황판 · 요소 {elements.ToString(CultureInfo.InvariantCulture)}개 · 원본 {document.Sources.Count.ToString(CultureInfo.InvariantCulture)}개 · 조절값 {document.Params.Count.ToString(CultureInfo.InvariantCulture)}개 · 값과 표 {document.Values.Count.ToString(CultureInfo.InvariantCulture)}개";
+            return $"대시보드 · 요소 {elements.ToString(CultureInfo.InvariantCulture)}개 · 원본 {document.Sources.Count.ToString(CultureInfo.InvariantCulture)}개 · 조절값 {document.Params.Count.ToString(CultureInfo.InvariantCulture)}개 · 값과 표 {document.Values.Count.ToString(CultureInfo.InvariantCulture)}개";
         }
     }
 }

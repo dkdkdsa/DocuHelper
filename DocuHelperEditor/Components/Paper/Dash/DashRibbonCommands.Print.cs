@@ -6,7 +6,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
 {
     public sealed partial class DashRibbonCommands
     {
-        private const string NoPageReason = "현황판을 아직 그리지 못했어요.";
+        private const string NoPageReason = "대시보드를 아직 그리지 못했어요.";
 
         public Task ExportPdfFromPageAsync() => ExportPdfAsync();
 

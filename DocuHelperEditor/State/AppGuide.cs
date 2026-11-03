@@ -20,7 +20,7 @@ namespace DocuHelperEditor.State
             - The start screen asks 어떤 작업 폴더를 열까요?: pick a folder under 최근에 연 작업 폴더, use 새 작업 폴더 만들기 (type a name, then 만들고 열기) or 이미 있는 폴더 열기 → 폴더 고르기. The 다른 작업 폴더 열기 icon above the file list goes back there; it refuses while the assistant works or a file is unsaved.
             - The app keeps saved versions and conversations in a hidden .문서도우미 folder inside the working folder.
             - Click a file in the list to open it as a tab. Right-click (or Shift+F10) a file for 탐색기에서 보기, 다른 곳에 저장하기 (exports a copy), 이름 바꾸기 (also F2) and 작업 폴더에서 빼기 (moves it to the recycle bin). The words under a name tell its state, such as 도우미가 고치는 중, 도우미가 N곳 고침, 저장 전 or 방금 저장함.
-            - 새 파일 at the bottom left opens 새 파일 만들기 with five kinds: 엑셀 (표와 계산), 워드 (글과 보고서), 한글 (공문과 안내문), 파워포인트 (발표 자료) and 현황판 (바꿔 보는 한 장). Type a name, then 만들기. New 한글 files are .hwpx unless the settings say .hwp.
+            - 새 파일 at the bottom left opens 새 파일 만들기 with five kinds: 엑셀 (표와 계산), 워드 (글과 보고서), 한글 (공문과 안내문), 파워포인트 (발표 자료) and 대시보드 (바꿔 보는 한 장). Type a name, then 만들기. New 한글 files are .hwpx unless the settings say .hwp.
             - 파일 넣기 at the bottom right, or dragging files onto the window, copies Excel, Word, 한글, PowerPoint and dashboard files into the working folder; the originals stay where they were and a taken name becomes 이름 (2). Pictures, PDFs and text files dragged onto the window are attached to the next message to the assistant instead. PDFs cannot be edited.
             - The 파일 목록 접기 icon folds the file list into a thin strip.
 

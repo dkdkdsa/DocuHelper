@@ -27,11 +27,11 @@ namespace DocuHelper.Dash
             }
             catch (JsonException e)
             {
-                throw new InvalidDataException("현황판 파일을 읽지 못했어요. 내용이 망가졌을 수 있어요.", e);
+                throw new InvalidDataException("대시보드 파일을 읽지 못했어요. 내용이 망가졌을 수 있어요.", e);
             }
 
             if (document == null || !string.Equals(document.Kind, DashDocument.FileKind, StringComparison.Ordinal))
-                throw new InvalidDataException("현황판 파일이 아니에요.");
+                throw new InvalidDataException("대시보드 파일이 아니에요.");
 
             document.Normalize();
             return document;

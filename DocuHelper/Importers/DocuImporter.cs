@@ -18,6 +18,6 @@ namespace DocuHelper.Importers
         public abstract Docu Create(string filePath, byte[] content);
 
         public static string ExplainUnsupported(string filePath) =>
-            "엑셀, 워드, 파워포인트, 한글 파일(.xlsx, .xls, .docx, .doc, .pptx, .ppt, .hwp, .hwpx)과 현황판(.dash)만 넣을 수 있어요.";
+            "엑셀, 워드, 파워포인트, 한글 파일(.xlsx, .xls, .docx, .doc, .pptx, .ppt, .hwp, .hwpx)과 대시보드(.dash)만 넣을 수 있어요.";
     }
 }

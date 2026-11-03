@@ -64,7 +64,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
                     L("dash.data.table", "새 표", "table"),
                     L("dash.data.formula", "새 값", "sigma", tip: "새 값\n엑셀 수식으로 값을 셈해요"))),
             Tab("view", "보기",
-                Grid("현황판 보기",
+                Grid("대시보드 보기",
                     L("dash.view.show", "보기", "read", toggle: true, tip: "보기\n보는 사람처럼 단추와 슬라이더를 눌러 봐요"),
                     L("dash.view.edit", "고치기", "normal", toggle: true, tip: "고치기\n글자, 그래프, 조절 장치를 놓고 옮겨요"),
                     L("dash.view.data", "데이터", "table", toggle: true, tip: "데이터\n원본 표를 보면서 계산 순서를 만들어요")),

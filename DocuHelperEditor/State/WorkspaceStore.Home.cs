@@ -258,7 +258,7 @@ namespace DocuHelperEditor.State
                 DocuType.Excel => "새 엑셀 파일",
                 DocuType.Word => "새 워드 파일",
                 DocuType.Hwp => "새 한글 파일",
-                DocuType.Dash => "새 현황판",
+                DocuType.Dash => "새 대시보드",
                 _ => "새 파워포인트 파일",
             };
 

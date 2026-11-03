@@ -22,7 +22,7 @@ namespace DocuHelperEditor.State.Ribbon
                 "The 표 디자인 tab appears only while the cursor is in a table.");
             yield return Page("hwp_menus", "한글 메뉴", "한글", HwpRibbon.FileItems, HwpRibbon.Tabs, HwpCommandTable.All, null);
             yield return Page("ppt_menus", "PPT 메뉴", "PowerPoint", PptRibbonData.FileItems, PptRibbonData.Tabs, PptCommandData.All, null);
-            yield return Page("dashboard_menus", "현황판 메뉴", "dashboard (현황판)", DashRibbonData.FileItems, DashRibbonData.Tabs, DashCommandData.All, null);
+            yield return Page("dashboard_menus", "대시보드 메뉴", "dashboard (대시보드)", DashRibbonData.FileItems, DashRibbonData.Tabs, DashCommandData.All, null);
         }
 
         private static AgentGuidePage Page(string topic, string title, string kind, IReadOnlyList<RibbonFileItem> fileItems, IReadOnlyList<RibbonTab> tabs, IReadOnlyList<CommandSpec> specs, string note)

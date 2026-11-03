@@ -15,7 +15,7 @@ namespace DocuHelper.Agents
             Add(new AgentGuidePage
             {
                 Topic = DashboardTopic,
-                Title = "현황판 만들기",
+                Title = "대시보드 만들기",
                 Summary = "how to build a dashboard (.dash): every item as it is written in the file, a worked example, layout and the final check. Read it before you build or rebuild one.",
                 Text = ClaudePrompt.DashGuide,
             });

@@ -29,8 +29,8 @@ namespace DocuHelper.Editors
 
             var count = dash.Document.Walk().Count() - 1;
             return count == 0
-                ? "현황판 한 장 · 아직 비어 있음"
-                : $"현황판 한 장 · 요소 {count.ToString(CultureInfo.InvariantCulture)}개";
+                ? "대시보드 한 장 · 아직 비어 있음"
+                : $"대시보드 한 장 · 요소 {count.ToString(CultureInfo.InvariantCulture)}개";
         }
 
         public override Docu CreateBlank(string filePath) => new DashDocu(filePath, DashFile.Write(DashDocument.Blank()));

@@ -19,7 +19,7 @@ namespace DocuHelper.Agents
 
             Steps
             1. Read every source file with its own tool (read_sheet, read_document, read_slides) and note the sheet name, the header row and the exact column names. Dates must be real dates and amounts real numbers.
-            2. create_file with a name such as "6월 매출 현황판.dash"; the dashboard tools arrive on your next step.
+            2. create_file with a name such as "6월 매출 대시보드.dash"; the dashboard tools arrive on your next step.
             3. add_dash_item, one item per call and each with a label: sources, then params, then values, then elements. Check every table with preview_dash before an element uses it.
             4. Call read_dash at the end and fix every problem it lists. In finish, say which files the dashboard reads and what the viewer can change.
 
@@ -46,7 +46,7 @@ namespace DocuHelper.Agents
             {"type":"pick","name":"1등 거래처","table":"거래처별","row":1,"column":"거래처"} takes one cell; {"type":"fixed","name":"기준","number":50000000} or "text".
             Formats: man (5,297만 원), won (52,970,000원), gun (247건), pct (106%; pct:1 for one decimal), num (1,234), day:6 (a day number shown as 6월 8일), date, text.
             Elements (kind element), each with its own style; page children need x, y, w and h:
-            {"type":"text","name":"제목","style":{"x":48,"y":34,"w":640,"h":46,"fontSize":30,"fontWeight":700},"text":"6월 매출 현황판"}
+            {"type":"text","name":"제목","style":{"x":48,"y":34,"w":640,"h":46,"fontSize":30,"fontWeight":700},"text":"6월 매출 대시보드"}
             {"type":"text","style":{"x":48,"y":84,"w":640,"h":26,"fontSize":15,"color":"#4A5570"},"text":"«기간» · 거래처 «거래처»"}
             {"type":"shape","shape":"round","style":{"x":48,"y":128,"w":330,"h":132,"fill":"#F7F8FA","radius":12}} (rect, round, ellipse or pill; it can hold text too)
             {"type":"line","style":{"x":48,"y":118,"w":1027,"h":2,"line":"#D8DCE3"}}

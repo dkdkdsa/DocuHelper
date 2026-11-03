@@ -9,7 +9,7 @@ namespace DocuHelper.Tools.Dash
         public override ToolResult Execute(Docu docu, ToolInput input)
         {
             if (docu is not DashDocu dash || dash.Document == null)
-                return ToolResult.Fail("현황판 파일에서만 쓸 수 있어요.");
+                return ToolResult.Fail("대시보드 파일에서만 쓸 수 있어요.");
 
             return Run(dash, dash.Document, input);
         }

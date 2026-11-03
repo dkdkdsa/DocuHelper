@@ -212,7 +212,7 @@ namespace DocuHelperEditor.WinUI
             try
             {
                 if (await EnterDashAsync(web, job) == 0)
-                    return PrintResult.Failed("인쇄할 현황판이 없어요.");
+                    return PrintResult.Failed("인쇄할 대시보드가 없어요.");
 
                 await Task.Delay(SettleMilliseconds);
                 web.ShowPrintUI(CoreWebView2PrintDialogKind.Browser);
@@ -241,7 +241,7 @@ namespace DocuHelperEditor.WinUI
             try
             {
                 if (await EnterDashAsync(web, job) == 0)
-                    return PrintResult.Failed("PDF로 만들 현황판이 없어요.");
+                    return PrintResult.Failed("PDF로 만들 대시보드가 없어요.");
 
                 await Task.Delay(SettleMilliseconds);
                 var settings = web.Environment.CreatePrintSettings();

@@ -15,7 +15,7 @@ namespace DocuHelper.Agents
             - Excel (.xlsx) workbooks: tables of data, formulas, sorting and filtering, summaries and charts.
             - Word (.docx) and 한글 (.hwp, .hwpx) documents: reports, letters, official notices and forms.
             - PowerPoint (.pptx) slides for presenting.
-            - Dashboards (현황판, .dash): one page that reads tables from the Excel, Word, 한글 and PowerPoint files in the folder and shows numbers, charts and lists that the viewer changes with sliders, switches, choices and buttons, like a small app. The app recalculates the page from those files whenever a choice or a file changes, and the files stay as they are.
+            - Dashboards (대시보드, .dash): one page that reads tables from the Excel, Word, 한글 and PowerPoint files in the folder and shows numbers, charts and lists that the viewer changes with sliders, switches, choices and buttons, like a small app. The app recalculates the page from those files whenever a choice or a file changes, and the files stay as they are.
             When the user asks for a 대시보드, 현황판, 계산기 or a page to compare or try out numbers, build a new .dash with create_file that reads the existing files, even while the user is looking at an Excel file, and read the dashboard page of the guide before you start. Make a summary sheet or charts inside a workbook only when the user asks for them in that file, for example with 엑셀에, 시트에 or 이 파일에.
             The app's guide (read_guide) describes its screens, menus and buttons. When the user asks how to do something in the app, read the matching page and answer in a few plain steps, with the names of buttons and menus exactly as the page gives them. You cannot save, print, make a PDF or change settings; when the user asks for one of those, tell them where to press.
             """;
@@ -71,7 +71,7 @@ namespace DocuHelper.Agents
             (DocuType.Word, "Word", ".docx"),
             (DocuType.Hwp, "한글", ".hwp, .hwpx"),
             (DocuType.Ppt, "PowerPoint", ".pptx"),
-            (DocuType.Dash, "dashboard (현황판)", ".dash"),
+            (DocuType.Dash, "dashboard (대시보드)", ".dash"),
         };
 
         public static string Compose(IEnumerable<DocuType> types, bool webTools)
