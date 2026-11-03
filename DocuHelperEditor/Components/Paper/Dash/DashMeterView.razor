@@ -1,0 +1,35 @@
+@using DocuHelper.Dash.Runtime
+
+<div class="meter" style="@DashCss.Text(Result.Style, Context.PageWidth)" role="meter" aria-label="@Name" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percent" aria-valuetext="@Result.Text">
+    <div class="track">
+        <div class="fill" style="width: @DashCss.Num(Fill)%; background: @Color"></div>
+        @if (Over)
+        {
+            <span class="notch" style="background: @Color"></span>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(Result.Text))
+    {
+        <span class="text">@Result.Text</span>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public MeterResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private string Name => string.IsNullOrWhiteSpace(Result.Source?.Name) ? "진행 막대" : Result.Source.Name;
+
+    private double Ratio => double.IsNaN(Result.Ratio) ? 0 : Math.Max(Result.Ratio, 0);
+
+    private bool Over => Ratio > 1;
+
+    private double Fill => Math.Min(Ratio, 1) * 100;
+
+    private int Percent => (int)Math.Round(Fill);
+
+    private string Color => DashCss.Color(Result.Color) ?? "var(--docx)";
+}

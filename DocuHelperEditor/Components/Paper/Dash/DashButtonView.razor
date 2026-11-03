@@ -1,0 +1,42 @@
+@using DocuHelper.Dash.Runtime
+
+<div class="host" style="@HostStyle" inert="@Inert">
+    <ActionButton Kind="Appearance" tabindex="@TabIndex" OnClick="ClickAsync">@Result.Label</ActionButton>
+</div>
+
+@code {
+    [Parameter]
+    public ButtonResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private bool Inert => !Context.CanInteract;
+
+    private string TabIndex => Context.CanInteract ? null : "-1";
+
+    private ButtonKind Appearance => Result.Look switch
+    {
+        "line" => ButtonKind.Secondary,
+        "ghost" => ButtonKind.Ghost,
+        _ => ButtonKind.Primary,
+    };
+
+    private string HostStyle
+    {
+        get
+        {
+            var css = DashCss.Text(Result.Style, Context.PageWidth);
+            if (Result.Style?.FontWeight == null)
+                css += "font-weight:700;";
+
+            if (Result.Style?.Radius is double radius)
+                css += "--radius-button:" + DashCss.Cq(radius, Context.PageWidth) + ";";
+
+            return css;
+        }
+    }
+
+    private Task ClickAsync() =>
+        Context.CanInteract && Result.Action != null ? Context.RunAction(Result.Action, null) : Task.CompletedTask;
+}

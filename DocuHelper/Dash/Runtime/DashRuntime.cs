@@ -250,7 +250,7 @@ namespace DocuHelper.Dash.Runtime
                 return result;
 
             using var host = new DashFormulaHost();
-            AddConstants(host);
+            AddConstants(host, DashNames.InExpression(expression).Where(name => table.IndexOf(name) < 0).ToList());
             var sheet = host.Table(null, table);
             for (var row = 0; row < table.Rows.Count; row++)
             {
@@ -327,7 +327,7 @@ namespace DocuHelper.Dash.Runtime
             return name.EndsWith(RangeParam.StartSuffix, StringComparison.Ordinal) ? range.From : range.To;
         }
 
-        private void AddConstants(DashFormulaHost host)
+        private void AddConstants(DashFormulaHost host, IReadOnlyCollection<string> used = null)
         {
             foreach (var param in Document.Params.Where(param => param != null && !string.IsNullOrWhiteSpace(param.Name)))
             {
@@ -344,7 +344,10 @@ namespace DocuHelper.Dash.Runtime
             }
 
             foreach (var value in Document.Values.Where(value => value is PickValue or FixedValue && !string.IsNullOrWhiteSpace(value.Name)))
-                host.Constant(value.Name, Value(value.Name));
+            {
+                if (used == null || used.Contains(value.Name))
+                    host.Constant(value.Name, Value(value.Name));
+            }
         }
 
         private void Calculate()

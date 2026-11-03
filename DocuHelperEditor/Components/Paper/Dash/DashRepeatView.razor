@@ -1,0 +1,79 @@
+@using DocuHelper.Dash.Runtime
+
+<div class="repeat @(Across ? "across" : null)" style="@ContainerStyle">
+    @if (Result.Children.Count == 0)
+    {
+        if (!string.IsNullOrEmpty(Result.EmptyText))
+        {
+            <p class="empty">@Result.EmptyText</p>
+        }
+    }
+    else
+    {
+        foreach (var child in Result.Children)
+        {
+            if (child is not RepeatRowResult row)
+            {
+                continue;
+            }
+
+            if (row.OnClick != null && Context.CanInteract)
+            {
+                <button type="button" @key="row.Key" class="item click" style="@RowStyle" @onclick="() => ClickAsync(row)">
+                    @Cells(row)
+                </button>
+            }
+            else
+            {
+                <div @key="row.Key" class="item" style="@RowStyle">
+                    @Cells(row)
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public RepeatResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private bool Across => string.Equals(Result.Direction, "row", StringComparison.OrdinalIgnoreCase);
+
+    private string Gap => DashCss.Cq(Result.Style?.Gap ?? 6, Context.PageWidth);
+
+    private string ContainerStyle
+    {
+        get
+        {
+            var css = DashCss.Text(Result.Style, Context.PageWidth) + "gap:" + Gap + ";";
+            if (Result.Style?.Padding is double padding)
+                css += "padding:" + DashCss.Cq(padding, Context.PageWidth) + ";";
+
+            return css;
+        }
+    }
+
+    private string RowStyle => "gap:" + Gap + ";align-items:" + RowAlign + ";";
+
+    private string RowAlign => Result.Style?.Align switch
+    {
+        "start" => "flex-start",
+        "end" => "flex-end",
+        "stretch" => "stretch",
+        _ => "center",
+    };
+
+    private RenderFragment Cells(RepeatRowResult row) => __builder =>
+    {
+        foreach (var child in row.Children)
+        {
+            <DashElementView @key="child.Key" Result="child" Placement="@DashCss.FlowItem(child.Style, Context.PageWidth)" />
+        }
+    };
+
+    private Task ClickAsync(RepeatRowResult row) =>
+        Context.CanInteract && row.OnClick != null ? Context.RunAction(row.OnClick, row.Item) : Task.CompletedTask;
+}

@@ -1,0 +1,53 @@
+.repeat {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--ink);
+}
+
+.repeat.across {
+    flex-direction: row;
+}
+
+.item {
+    flex: none;
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.repeat.across .item {
+    flex: 1 1 0;
+    width: auto;
+}
+
+.click {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    cursor: pointer;
+}
+
+.click:hover {
+    background: var(--well);
+}
+
+.click:focus-visible {
+    outline: 2px solid var(--docx);
+    outline-offset: 2px;
+}
+
+.empty {
+    margin: 0;
+    color: var(--ink-2);
+    line-height: 1.45;
+}

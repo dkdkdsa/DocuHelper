@@ -1,0 +1,87 @@
+@using DocuHelper.Dash.Runtime
+
+<svg class="line" viewBox="0 0 @DashCss.Num(Width) @DashCss.Num(Height)" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    @if (Result.ArrowStart || Result.ArrowEnd)
+    {
+        <defs>
+            @if (Result.ArrowStart)
+            {
+                <marker id="@StartId" markerUnits="userSpaceOnUse" markerWidth="@DashCss.Num(HeadLength)" markerHeight="@DashCss.Num(HeadWidth)" refX="@DashCss.Num(HeadLength * (1 - Shoulder))" refY="@DashCss.Num(HeadWidth / 2)" orient="auto">
+                    <path d="@StartHead" style="@FillStyle" />
+                </marker>
+            }
+            @if (Result.ArrowEnd)
+            {
+                <marker id="@EndId" markerUnits="userSpaceOnUse" markerWidth="@DashCss.Num(HeadLength)" markerHeight="@DashCss.Num(HeadWidth)" refX="@DashCss.Num(HeadLength * Shoulder)" refY="@DashCss.Num(HeadWidth / 2)" orient="auto">
+                    <path d="@EndHead" style="@FillStyle" />
+                </marker>
+            }
+        </defs>
+    }
+    <line x1="@DashCss.Num(StartX)" y1="@DashCss.Num(StartY)" x2="@DashCss.Num(EndX)" y2="@DashCss.Num(EndY)" style="@StrokeStyle" marker-start="@(Result.ArrowStart ? "url(#" + StartId + ")" : null)" marker-end="@(Result.ArrowEnd ? "url(#" + EndId + ")" : null)" />
+</svg>
+
+@code {
+    private const double Shoulder = 0.65;
+
+    private readonly string _uid = "ln" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+    [Parameter]
+    public LineResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private string StartId => _uid + "-s";
+
+    private string EndId => _uid + "-e";
+
+    private double Width => Math.Max(Result.Style?.W ?? DashCss.DefaultWidth, 1);
+
+    private double Height => Math.Max(Result.Style?.H ?? DashCss.DefaultHeight, 1);
+
+    private double Weight => Math.Max(Result.Style?.LineWidth ?? 1.5, 0.25);
+
+    private string Stroke => DashCss.Color(Result.Style?.Line) ?? "var(--ink-2)";
+
+    private double HeadLength => Math.Max(10, Weight * 5);
+
+    private double HeadWidth => HeadLength * 0.8;
+
+    private double Inset => HeadLength * (1 - Shoulder);
+
+    private double Length => Math.Sqrt(Width * Width + Height * Height);
+
+    private double UnitX => Width / Length;
+
+    private double UnitY => (Result.Flip ? -Height : Height) / Length;
+
+    private double StartX => Result.ArrowStart ? UnitX * Inset : 0;
+
+    private double StartY => (Result.Flip ? Height : 0) + (Result.ArrowStart ? UnitY * Inset : 0);
+
+    private double EndX => Width - (Result.ArrowEnd ? UnitX * Inset : 0);
+
+    private double EndY => (Result.Flip ? 0 : Height) - (Result.ArrowEnd ? UnitY * Inset : 0);
+
+    private string FillStyle => "fill:" + Stroke + ";";
+
+    private string EndHead => $"M0,0 L{DashCss.Num(HeadLength)},{DashCss.Num(HeadWidth / 2)} L0,{DashCss.Num(HeadWidth)} Z";
+
+    private string StartHead => $"M{DashCss.Num(HeadLength)},0 L0,{DashCss.Num(HeadWidth / 2)} L{DashCss.Num(HeadLength)},{DashCss.Num(HeadWidth)} Z";
+
+    private string StrokeStyle
+    {
+        get
+        {
+            var dash = Result.Style?.LineDash switch
+            {
+                "dash" => "stroke-dasharray:" + DashCss.Num(Weight * 4) + " " + DashCss.Num(Weight * 3) + ";",
+                "dot" => "stroke-dasharray:" + DashCss.Num(Weight) + " " + DashCss.Num(Weight * 2) + ";",
+                _ => string.Empty,
+            };
+
+            return "stroke:" + Stroke + ";stroke-width:" + DashCss.Num(Weight) + ";" + dash;
+        }
+    }
+}

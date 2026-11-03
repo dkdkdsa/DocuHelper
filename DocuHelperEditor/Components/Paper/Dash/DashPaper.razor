@@ -1,19 +1,152 @@
 @using System.Globalization
+@using DocuHelper.Dash.Logic
+@using DocuHelper.Dash.Runtime
+@using DocuHelperEditor.Components.Paper
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
+@inject IJSRuntime JS
 
 @if (File?.Paper is DashPaperModel model)
 {
-    <div class="dash">
-        <div class="stage">
-            <div class="page" style="aspect-ratio: @Num(model.PageWidth) / @Num(model.PageHeight); background: @(model.Root?.Style?.Fill ?? "#FFFFFF")" aria-label="@File.Name"></div>
+    <div class="dash" @ref="_root">
+        <DashRibbon @ref="_ribbonHost" File="File" State="_state" OnChanged="Redraw" />
+        <div class="body @(Locked ? "locked" : null)">
+            <div class="stage">
+                @if (Mode == DashViewState.DataMode)
+                {
+                    <p class="later">데이터 보기는 아직 준비 중이에요.</p>
+                }
+                else
+                {
+                    <div class="frame" style="--page-max: @PageMax">
+                        <CascadingValue Value="ContextOf(model)">
+                            <DashCanvas Model="model" State="_state" Label="@File.Name" />
+                        </CascadingValue>
+                    </div>
+                }
+            </div>
         </div>
+        <DashStatusBar Model="model" State="_state" Commands="_ribbonHost?.Commands" OnZoom="SetZoom" />
+        <DialogHost Presenter="_presenter" />
+        <ChangeNavigator File="File" />
     </div>
 }
 
 @code {
+    private const int BaseWidth = 760;
+
+    private readonly DialogPresenter _presenter = new();
+    private ElementReference _root;
+    private WheelZoom _wheel;
+    private DashRibbon _ribbonHost;
+
     [Parameter]
     public WorkspaceFile File { get; set; }
 
-    private static string Num(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+    private DashViewState _state => DashViewState.Of(File) ?? new DashViewState();
+
+    private bool Locked => File?.Activity == FileActivity.Editing;
+
+    private string Mode => _state.Mode ?? DashViewState.ViewMode;
+
+    private string PageMax => _state.FitRequested ? "100%" : (BaseWidth * _state.Zoom / 100).ToString(CultureInfo.InvariantCulture) + "px";
+
+    protected override void OnInitialized() => _state.Dialogs = _presenter;
+
+    protected override void OnParametersSet()
+    {
+        if (_state.Mode == null && File?.Paper is DashPaperModel model)
+            _state.Mode = model.IsBlank ? DashViewState.EditMode : DashViewState.ViewMode;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_root.Id != null)
+        {
+            _wheel ??= new WheelZoom(JS, ZoomStepAsync);
+            await _wheel.AttachAsync(_root);
+        }
+
+        if (firstRender && _ribbonHost != null)
+            StateHasChanged();
+    }
+
+    protected override void OnDispose() => _ = _wheel?.Detach();
+
+    private DashRenderContext ContextOf(DashPaperModel model) => new()
+    {
+        PageWidth = model.PageWidth,
+        PageHeight = model.PageHeight,
+        Mode = Mode,
+        IsLocked = Locked,
+        Selected = _state.Selected,
+        LiveChanges = (File.Docu?.Changes ?? new List<DocuChange>()).SelectMany(change => change.Anchors).ToHashSet(StringComparer.Ordinal),
+        SetParam = (name, value) => SetParamAsync(model, name, value),
+        RunAction = (action, item) => RunActionAsync(model, action, item),
+    };
+
+    private Task SetParamAsync(DashPaperModel model, string name, object value)
+    {
+        model.SetParam(name, value);
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task RunActionAsync(DashPaperModel model, DashAction action, IReadOnlyDictionary<string, object> item)
+    {
+        switch (action)
+        {
+            case SetAction:
+            case ResetAction:
+                model.RunAction(action, item);
+                break;
+            case RefreshAction:
+                model.Reload();
+                break;
+            case AskAction ask:
+                var text = FillAsk(model, ask.Text, item);
+                if (_ribbonHost?.Commands != null)
+                    await _ribbonHost.Commands.PrefillAsync(text);
+                break;
+            case OpenAction open:
+                var target = Workspace.Files.FirstOrDefault(file => string.Equals(file.Name, open.File, StringComparison.OrdinalIgnoreCase));
+                if (target != null)
+                    Workspace.Open(target.Id);
+                else
+                    _ribbonHost?.Commands?.Notify($"‘{open.File}’ 파일을 작업 폴더에서 찾을 수 없어요.");
+                break;
+            case PdfAction:
+                _ribbonHost?.Commands?.Notify("PDF로 저장은 아직 준비 중이에요.");
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    private static string FillAsk(DashPaperModel model, string template, IReadOnlyDictionary<string, object> item)
+    {
+        var text = template ?? string.Empty;
+        if (item != null)
+        {
+            foreach (var pair in item)
+                text = text.Replace("«item." + pair.Key + "»", DashFormats.Display(pair.Value, null), StringComparison.Ordinal);
+        }
+
+        return new DashScope(model.Runtime).FillText(text);
+    }
+
+    private Task ZoomStepAsync(int direction)
+    {
+        SetZoom(_state.Zoom + direction * 10);
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void SetZoom(int value)
+    {
+        _state.Zoom = Math.Clamp(value, DashViewState.MinZoom, DashViewState.MaxZoom);
+        _state.FitRequested = false;
+    }
+
+    private void Redraw() => StateHasChanged();
 }

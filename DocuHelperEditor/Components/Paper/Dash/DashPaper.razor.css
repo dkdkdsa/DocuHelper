@@ -5,6 +5,16 @@
     flex-direction: column;
 }
 
+.body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+.body.locked {
+    opacity: 0.55;
+}
+
 .stage {
     flex: 1;
     min-width: 0;
@@ -14,9 +24,16 @@
     display: flex;
     flex-direction: column;
     align-items: safe center;
+    gap: 10px;
 }
 
-.page {
-    width: min(100%, 760px);
-    box-shadow: 0 1px 3px rgba(var(--ink-rgb), 0.16);
+.frame {
+    position: relative;
+    flex: none;
+    width: var(--page-max, 760px);
+}
+
+.later {
+    margin: 40px auto;
+    color: var(--ink-2);
 }

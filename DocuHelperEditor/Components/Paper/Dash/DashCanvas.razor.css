@@ -1,0 +1,40 @@
+.page {
+    position: relative;
+    width: 100%;
+    container-type: inline-size;
+    overflow: hidden;
+    background: var(--paper);
+    box-shadow: 0 1px 3px rgba(var(--ink-rgb), 0.16);
+    color: var(--ink);
+    font-family: var(--font-body);
+}
+
+.grid-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.6;
+    background-image: linear-gradient(to right, var(--rule) 1px, transparent 1px), linear-gradient(to bottom, var(--rule) 1px, transparent 1px);
+}
+
+.guide {
+    position: absolute;
+    pointer-events: none;
+    border-color: var(--line-strong);
+    border-style: dashed;
+    border-width: 0;
+}
+
+.guide.x {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left-width: 1px;
+}
+
+.guide.y {
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top-width: 1px;
+}

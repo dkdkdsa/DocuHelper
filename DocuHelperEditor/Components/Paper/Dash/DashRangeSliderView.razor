@@ -1,0 +1,70 @@
+@using System.Globalization
+@using DocuHelper.Dash.Runtime
+
+<div class="range @(Attached ? "attached" : null)" style="@RootStyle" inert="@Inert">
+    @if (!Attached)
+    {
+        <div class="head">
+            <span class="label">@Result.Label</span>
+            <span class="value">@Result.Text</span>
+        </div>
+    }
+    <div class="lane" style="@LaneStyle">
+        <span class="rail"></span>
+        <span class="band"></span>
+        <input class="thumb" type="range" min="@Format(Result.Min)" max="@Format(Result.Max)" step="@StepText" style="@StartStyle" aria-label="@(Name + " 시작")" tabindex="@TabIndex" @bind:get="FromText" @bind:set="ChangeFromAsync" @bind:event="oninput" />
+        <input class="thumb" type="range" min="@Format(Result.Min)" max="@Format(Result.Max)" step="@StepText" style="z-index: 2" aria-label="@(Name + " 끝")" tabindex="@TabIndex" @bind:get="ToText" @bind:set="ChangeToAsync" @bind:event="oninput" />
+    </div>
+    @if (Attached)
+    {
+        <div class="foot">
+            <span class="label">@Result.Label</span>
+            <span class="value">@Result.Text</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public RangeSliderResult Result { get; set; }
+
+    [Parameter]
+    public bool Attached { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private bool Inert => !Context.CanInteract;
+
+    private string TabIndex => Context.CanInteract ? null : "-1";
+
+    private string RootStyle => Attached ? null : DashCss.Text(Result.Style, Context.PageWidth);
+
+    private string Name => string.IsNullOrWhiteSpace(Result.Label) ? Result.Param : Result.Label;
+
+    private string StepText => Result.Step > 0 ? Format(Result.Step) : "any";
+
+    private string FromText => Format(Result.From);
+
+    private string ToText => Format(Result.To);
+
+    private string LaneStyle => "--a:" + DashCss.Num(Share(Result.From)) + "%;--b:" + DashCss.Num(Share(Result.To)) + "%;";
+
+    private string StartStyle => "z-index:" + (Share(Result.From) > 50 ? "3" : "1");
+
+    private double Share(double value) => Result.Max > Result.Min ? Math.Clamp((value - Result.Min) / (Result.Max - Result.Min), 0, 1) * 100 : 0;
+
+    private static string Format(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
+
+    private Task ChangeFromAsync(string text) =>
+        TryParse(text, out var value) ? Commit(Math.Min(value, Result.To), Result.To) : Task.CompletedTask;
+
+    private Task ChangeToAsync(string text) =>
+        TryParse(text, out var value) ? Commit(Result.From, Math.Max(value, Result.From)) : Task.CompletedTask;
+
+    private static bool TryParse(string text, out double value) =>
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+
+    private Task Commit(double from, double to) =>
+        Context.CanInteract && !string.IsNullOrEmpty(Result.Param) ? Context.SetParam(Result.Param, new DashRange(from, to)) : Task.CompletedTask;
+}

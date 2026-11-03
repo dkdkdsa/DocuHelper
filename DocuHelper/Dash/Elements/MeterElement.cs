@@ -29,7 +29,9 @@ namespace DocuHelper.Dash.Elements
             }
 
             result.Ratio = Math.Max(0, DashCells.Number(scope.Value(Value)) ?? 0);
-            result.Text = scope.Display(Value);
+            result.Text = DashNames.IsItem(Value) || string.IsNullOrWhiteSpace(scope.Document.FindValue(Value)?.Format)
+                ? DashFormats.Display(result.Ratio, "pct")
+                : scope.Display(Value);
             return result;
         }
     }

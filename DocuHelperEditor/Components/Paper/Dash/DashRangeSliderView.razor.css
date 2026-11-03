@@ -1,0 +1,124 @@
+.range {
+    --thumb: 1.1em;
+    --track: 0.3em;
+    --height: 1.4em;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.1em;
+    color: var(--ink);
+    line-height: 1.3;
+}
+
+.range.attached {
+    height: auto;
+    margin-top: 0.3em;
+}
+
+.range:not(.attached) {
+    height: 100%;
+}
+
+.head,
+.foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6em;
+}
+
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    color: var(--ink-2);
+}
+
+.value {
+    flex: none;
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.lane {
+    position: relative;
+    flex: none;
+    height: var(--height);
+    margin: 0 calc(var(--thumb) / 2);
+}
+
+.range.attached .lane {
+    margin: 0;
+}
+
+.rail,
+.band {
+    position: absolute;
+    top: calc((var(--height) - var(--track)) / 2);
+    height: var(--track);
+    border-radius: 9999px;
+}
+
+.rail {
+    left: 0;
+    right: 0;
+    background: var(--hair);
+}
+
+.band {
+    left: var(--a);
+    right: calc(100% - var(--b));
+    background: var(--ink);
+}
+
+.thumb {
+    position: absolute;
+    top: 0;
+    left: calc(var(--thumb) / -2);
+    display: block;
+    box-sizing: border-box;
+    width: calc(100% + var(--thumb));
+    height: var(--height);
+    margin: 0;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    pointer-events: none;
+}
+
+.thumb:focus-visible {
+    outline: none;
+}
+
+.thumb::-webkit-slider-runnable-track {
+    height: var(--track);
+    background: transparent;
+}
+
+.thumb::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    width: var(--thumb);
+    height: var(--thumb);
+    margin-top: calc((var(--track) - var(--thumb)) / 2);
+    border: 0.15em solid var(--ink);
+    border-radius: 50%;
+    background: var(--paper);
+    pointer-events: auto;
+    cursor: grab;
+}
+
+.thumb::-webkit-slider-thumb:active {
+    cursor: grabbing;
+}
+
+.thumb:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--docx);
+    outline-offset: 2px;
+}

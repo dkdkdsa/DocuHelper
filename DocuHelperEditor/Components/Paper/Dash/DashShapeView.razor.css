@@ -1,0 +1,43 @@
+.shape {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2em 0.6em;
+    overflow: hidden;
+    color: var(--ink);
+    text-align: center;
+}
+
+.shape.plain {
+    background: var(--well);
+}
+
+.shape.ellipse {
+    padding: 0.2em 14%;
+    border-radius: 50%;
+}
+
+.shape.pill {
+    padding: 0.2em 1em;
+    border-radius: 9999px;
+}
+
+.label {
+    margin: 0;
+    max-width: 100%;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.bound {
+    text-decoration: underline dotted var(--rev-3);
+    text-underline-offset: 3px;
+}
+
+.missing {
+    color: var(--rev-4);
+}

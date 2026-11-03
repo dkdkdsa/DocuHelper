@@ -1,0 +1,42 @@
+@using DocuHelperEditor.State.Papers
+
+@if (Model?.Root != null)
+{
+    var page = Model.Root;
+    <div class="page" style="aspect-ratio: @DashCss.Num(Model.PageWidth) / @DashCss.Num(Model.PageHeight); @DashCss.Box(page.Style, Model.PageWidth)" aria-label="@Label">
+        @foreach (var child in page.Children)
+        {
+            <DashElementView @key="child.Key" Result="child" Placement="@DashCss.Absolute(child.Style, Model.PageWidth, Model.PageHeight)" />
+        }
+        @if (State?.Gridlines == true)
+        {
+            <div class="grid-layer" style="@GridStyle" aria-hidden="true"></div>
+        }
+        @if (State?.Guides == true)
+        {
+            <span class="guide x" aria-hidden="true"></span>
+            <span class="guide y" aria-hidden="true"></span>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashViewState State { get; set; }
+
+    [Parameter]
+    public string Label { get; set; }
+
+    private string GridStyle
+    {
+        get
+        {
+            var width = Model.WidthCm > 0 ? 100 / Model.WidthCm : 3.37;
+            var height = Model.HeightCm > 0 ? 100 / Model.HeightCm : 4.76;
+            return $"background-size: {DashCss.Num(width)}% {DashCss.Num(height)}%";
+        }
+    }
+}

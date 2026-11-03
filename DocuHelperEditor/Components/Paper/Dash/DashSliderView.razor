@@ -1,0 +1,55 @@
+@using System.Globalization
+@using DocuHelper.Dash.Runtime
+
+<div class="slider" style="@DashCss.Text(Result.Style, Context.PageWidth)" inert="@Inert">
+    @if (HasLabel || Result.ShowValue)
+    {
+        <div class="head">
+            @if (HasLabel)
+            {
+                <label class="label" for="@_uid">@Result.Label</label>
+            }
+            @if (Result.ShowValue)
+            {
+                <span class="value">@Result.ValueText</span>
+            }
+        </div>
+    }
+    <input id="@_uid" class="range" type="range" min="@Format(Result.Min)" max="@Format(Result.Max)" step="@StepText" style="--frac: @DashCss.Num(Fraction)" aria-label="@Name" aria-valuetext="@Result.ValueText" tabindex="@TabIndex" @bind:get="Current" @bind:set="ChangeAsync" @bind:event="oninput" />
+</div>
+
+@code {
+    private readonly string _uid = "sl" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+    [Parameter]
+    public SliderResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private bool Inert => !Context.CanInteract;
+
+    private string TabIndex => Context.CanInteract ? null : "-1";
+
+    private bool HasLabel => !string.IsNullOrWhiteSpace(Result.Label);
+
+    private string Name => HasLabel ? Result.Label : Result.Param;
+
+    private string StepText => Result.Step > 0 ? Format(Result.Step) : "any";
+
+    private string Current => Format(Result.Value);
+
+    private double Fraction => Result.Max > Result.Min ? Math.Clamp((Result.Value - Result.Min) / (Result.Max - Result.Min), 0, 1) : 0;
+
+    private static string Format(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
+
+    private Task ChangeAsync(string text)
+    {
+        if (!Context.CanInteract || string.IsNullOrEmpty(Result.Param))
+            return Task.CompletedTask;
+
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? Context.SetParam(Result.Param, value)
+            : Task.CompletedTask;
+    }
+}
