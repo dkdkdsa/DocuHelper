@@ -28,11 +28,11 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         private void RegisterClipboard()
         {
-            AddClipboard(CopyId, _ => CopyAsync(false)).Unless(() => NeedBlocker(PptNeed.Text));
-            AddClipboard(CutId, _ => CopyAsync(true)).Unless(() => NeedBlocker(PptNeed.Text));
-            AddClipboard(PasteId, _ => PasteAsync()).Unless(() => NeedBlocker(PptNeed.Text));
+            AddClipboard(CopyId, _ => CopyAsync(false)).Unless(() => NeedBlocker("text"));
+            AddClipboard(CutId, _ => CopyAsync(true)).Unless(() => NeedBlocker("text"));
+            AddClipboard(PasteId, _ => PasteAsync()).Unless(() => NeedBlocker("text"));
             AddClipboard(PainterId, _ => FormatPainterAsync())
-                .Unless(() => _painter == null ? NeedBlocker(PptNeed.Text) : null)
+                .Unless(() => _painter == null ? NeedBlocker("text") : null)
                 .PressedWhen(() => _painter != null);
         }
 

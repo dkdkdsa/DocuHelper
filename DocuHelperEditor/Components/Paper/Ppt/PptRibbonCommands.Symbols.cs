@@ -19,7 +19,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private void RegisterSymbol()
         {
             AddTool(SymbolId, symbol => SymbolEdit(symbol))
-                .Unless(() => NeedBlocker(PptNeed.Text))
+                .Unless(() => NeedBlocker("text"))
                 .MenuFrom(SymbolMenu);
         }
 

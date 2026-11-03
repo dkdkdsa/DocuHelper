@@ -29,7 +29,7 @@ namespace DocuHelperEditor.State.Ribbon
             "word.home.styles.heading2",
         };
 
-        private bool IsLegacy(WordCommandSpec spec)
+        private bool IsLegacy(CommandSpec spec)
         {
             if (!s_legacy.Contains(spec.Id))
                 return false;
@@ -40,7 +40,7 @@ namespace DocuHelperEditor.State.Ribbon
             return !HasTool(spec.Tool);
         }
 
-        private string ToolBlocker(WordCommandSpec spec)
+        private string ToolBlocker(CommandSpec spec)
         {
             if (IsLegacy(spec))
                 return LegacyBlocker(spec);
@@ -61,7 +61,7 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
-        private string Needed(WordCommandSpec spec)
+        private string Needed(CommandSpec spec)
         {
             var names = NamesOf(spec);
             if (names.Any(n => s_blockTargets.Contains(n)) && Block == null)
@@ -82,7 +82,7 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
-        private string LegacyBlocker(WordCommandSpec spec)
+        private string LegacyBlocker(CommandSpec spec)
         {
             var block = Block;
             if (block == null)
@@ -102,7 +102,7 @@ namespace DocuHelperEditor.State.Ribbon
             }
         }
 
-        private IReadOnlyList<EditCommand> BuildEdits(WordCommandSpec spec, string arg)
+        private IReadOnlyList<EditCommand> BuildEdits(CommandSpec spec, string arg)
         {
             if (IsLegacy(spec))
                 return LegacyEdits(spec);
@@ -161,7 +161,7 @@ namespace DocuHelperEditor.State.Ribbon
             return template;
         }
 
-        private JsonNode RootOf(WordCommandSpec spec)
+        private JsonNode RootOf(CommandSpec spec)
         {
             if (!_templates.TryGetValue(spec.Id, out var root))
             {
@@ -172,7 +172,7 @@ namespace DocuHelperEditor.State.Ribbon
             return root;
         }
 
-        private IReadOnlyList<string> NamesOf(WordCommandSpec spec)
+        private IReadOnlyList<string> NamesOf(CommandSpec spec)
         {
             if (!_names.TryGetValue(spec.Id, out var names))
             {
@@ -436,7 +436,7 @@ namespace DocuHelperEditor.State.Ribbon
             return true;
         }
 
-        private MenuEntry EntryOf(WordCommandSpec spec, string arg)
+        private MenuEntry EntryOf(CommandSpec spec, string arg)
         {
             var field = FieldEntryOf(arg);
             if (field != null)
@@ -545,7 +545,7 @@ namespace DocuHelperEditor.State.Ribbon
             return true;
         }
 
-        private IReadOnlyDictionary<string, JsonNode> DefaultsOf(WordCommandSpec spec)
+        private IReadOnlyDictionary<string, JsonNode> DefaultsOf(CommandSpec spec)
         {
             var defaults = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
             foreach (var field in spec.Dialog.Fields)
@@ -565,7 +565,7 @@ namespace DocuHelperEditor.State.Ribbon
             return defaults;
         }
 
-        private IReadOnlyList<EditCommand> LegacyEdits(WordCommandSpec spec)
+        private IReadOnlyList<EditCommand> LegacyEdits(CommandSpec spec)
         {
             var block = Block;
             if (block == null)
@@ -604,7 +604,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private WordCharPressed FormatPressed() => WordSelectionService.Pressed(Model, File?.Docu);
 
-        private bool IsPressed(WordCommandSpec spec)
+        private bool IsPressed(CommandSpec spec)
         {
             var block = Block;
             switch (spec.Id)

@@ -34,7 +34,7 @@ namespace DocuHelperEditor.State.Ribbon
             "word.home.font.highlight",
         };
 
-        private readonly Dictionary<string, WordCommandSpec> _specs = new Dictionary<string, WordCommandSpec>(StringComparer.Ordinal);
+        private readonly Dictionary<string, CommandSpec> _specs = new Dictionary<string, CommandSpec>(StringComparer.Ordinal);
         private readonly Dictionary<string, Func<string, Task>> _provided = new Dictionary<string, Func<string, Task>>(StringComparer.Ordinal);
         private readonly Dictionary<string, JsonNode> _templates = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
         private readonly Dictionary<string, IReadOnlyList<string>> _names = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
@@ -171,7 +171,7 @@ namespace DocuHelperEditor.State.Ribbon
                 && found.InputSchema.Contains("\"" + property + "\"", StringComparison.Ordinal);
         }
 
-        private void Register(WordCommandSpec spec)
+        private void Register(CommandSpec spec)
         {
             RibbonCommand command;
             switch (spec.Class)
@@ -216,7 +216,7 @@ namespace DocuHelperEditor.State.Ribbon
                 command.ValueFrom(() => WordSelectionService.FontSizeOf(Model, Model?.Selection));
         }
 
-        private RibbonCommand RegisterFile(WordCommandSpec spec)
+        private RibbonCommand RegisterFile(CommandSpec spec)
         {
             switch (spec.Id)
             {
@@ -236,12 +236,12 @@ namespace DocuHelperEditor.State.Ribbon
             }
         }
 
-        private Task RunProvidedAsync(WordCommandSpec spec, string arg)
+        private Task RunProvidedAsync(CommandSpec spec, string arg)
         {
             return _provided.TryGetValue(spec.Id, out var run) ? run(arg) : Task.CompletedTask;
         }
 
-        private string PromptOf(WordCommandSpec spec)
+        private string PromptOf(CommandSpec spec)
         {
             var prompt = spec.Prompt ?? string.Empty;
             const string marker = "{선택한 글}";
@@ -251,7 +251,7 @@ namespace DocuHelperEditor.State.Ribbon
             return prompt.Replace(marker, WordSelectionService.SelectedText(Model));
         }
 
-        private string AssistantBlocker(WordCommandSpec spec)
+        private string AssistantBlocker(CommandSpec spec)
         {
             if (spec.Prompt != null && spec.Prompt.Contains("{선택한 글}", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(WordSelectionService.SelectedText(Model)))
                 return "비슷한 말을 찾을 문단을 먼저 눌러 골라 주세요.";
@@ -261,14 +261,14 @@ namespace DocuHelperEditor.State.Ribbon
 
         private sealed class Run
         {
-            public Run(WordCommandSpec spec, string arg, MenuEntry entry)
+            public Run(CommandSpec spec, string arg, MenuEntry entry)
             {
                 Spec = spec;
                 Arg = arg;
                 Entry = entry;
             }
 
-            public WordCommandSpec Spec { get; }
+            public CommandSpec Spec { get; }
 
             public string Arg { get; }
 
@@ -287,13 +287,13 @@ namespace DocuHelperEditor.State.Ribbon
 
         private sealed class MenuEntry
         {
-            public MenuEntry(WordMenuSpec spec, JsonObject args)
+            public MenuEntry(CommandMenuSpec spec, JsonObject args)
             {
                 Spec = spec;
                 Args = args ?? new JsonObject();
             }
 
-            public WordMenuSpec Spec { get; }
+            public CommandMenuSpec Spec { get; }
 
             public JsonObject Args { get; }
 

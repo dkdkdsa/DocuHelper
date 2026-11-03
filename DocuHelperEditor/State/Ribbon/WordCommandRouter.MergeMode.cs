@@ -24,7 +24,7 @@ namespace DocuHelperEditor.State.Ribbon
             return Task.CompletedTask;
         }
 
-        private bool? MergeModeChecked(WordCommandSpec spec, int index)
+        private bool? MergeModeChecked(CommandSpec spec, int index)
         {
             var mode = WordArgs.Parse(spec.Menu[index].Args) is System.Text.Json.Nodes.JsonObject args ? args["mode"]?.ToString() : null;
             return mode == null ? null : mode == State.MergeMode;

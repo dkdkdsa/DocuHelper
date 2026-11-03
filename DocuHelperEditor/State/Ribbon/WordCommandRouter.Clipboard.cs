@@ -38,13 +38,13 @@ namespace DocuHelperEditor.State.Ribbon
                 Apply(commands);
         }
 
-        private string ModeOf(WordCommandSpec spec, string arg)
+        private string ModeOf(CommandSpec spec, string arg)
         {
             var entry = EntryOf(spec, arg);
             return entry?.Args["mode"] is JsonValue value && value.TryGetValue<string>(out var mode) ? mode : "keep_source";
         }
 
-        private async Task RunClipboardOperationAsync(WordCommandSpec spec, string arg)
+        private async Task RunClipboardOperationAsync(CommandSpec spec, string arg)
         {
             switch (spec.Action)
             {

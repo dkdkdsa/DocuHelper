@@ -61,7 +61,7 @@ namespace DocuHelperEditor.State.Ribbon
             _ => PendingReason,
         };
 
-        private string ViewBlocker(HwpCommandSpec spec)
+        private string ViewBlocker(CommandSpec spec)
         {
             if (IsProvided(spec.Id))
                 return null;
@@ -89,7 +89,7 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
-        private async Task RunViewAsync(HwpCommandSpec spec, string arg)
+        private async Task RunViewAsync(CommandSpec spec, string arg)
         {
             if (_provided.TryGetValue(spec.Id, out var provided))
             {
@@ -182,7 +182,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private static int Int(JsonObject args, string key, int fallback) => AsNumber(args[key]) is double number ? (int)Math.Round(number) : fallback;
 
-        private bool IsViewPressed(HwpCommandSpec spec)
+        private bool IsViewPressed(CommandSpec spec)
         {
             switch (spec.Id)
             {
@@ -217,7 +217,7 @@ namespace DocuHelperEditor.State.Ribbon
             return false;
         }
 
-        private string ClipboardBlocker(HwpCommandSpec spec)
+        private string ClipboardBlocker(CommandSpec spec)
         {
             if (IsProvided(spec.Id))
                 return null;
@@ -232,7 +232,7 @@ namespace DocuHelperEditor.State.Ribbon
             };
         }
 
-        private async Task RunClipboardAsync(HwpCommandSpec spec, string arg)
+        private async Task RunClipboardAsync(CommandSpec spec, string arg)
         {
             if (_provided.TryGetValue(spec.Id, out var provided))
             {

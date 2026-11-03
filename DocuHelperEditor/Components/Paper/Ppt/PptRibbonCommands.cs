@@ -67,7 +67,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         private readonly IClipboardService _clipboard;
         private readonly IPrintService _prints;
         private readonly IFileDialogService _dialogs;
-        private readonly Dictionary<string, PptCommandSpec> _specs = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, CommandSpec> _specs = new(StringComparer.Ordinal);
         private readonly Dictionary<string, (Tool Instance, PptToolSchema Schema)> _schemas = new(StringComparer.Ordinal);
         private readonly Dictionary<string, JsonNode> _fields = new(StringComparer.Ordinal);
         private string _pickedName;
@@ -93,7 +93,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
         {
             var target = id;
             var spec = id != null && _specs.TryGetValue(id, out var found) ? found : null;
-            PptMenuSpec entry = null;
+            CommandMenuSpec entry = null;
             if (spec != null)
             {
                 if (arg == QuickEntry)
@@ -145,20 +145,20 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             _state.ActivateSlide?.Invoke(index);
         }
 
-        private static string EntryId(PptCommandSpec spec, int index) =>
+        private static string EntryId(CommandSpec spec, int index) =>
             spec.Id + "#" + index.ToString(CultureInfo.InvariantCulture);
 
-        private void Register(PptCommandSpec spec)
+        private void Register(CommandSpec spec)
         {
-            switch (spec.Kind)
+            switch (spec.Class)
             {
-                case PptCommandKind.Tool:
+                case RibbonCommandClass.Tool:
                     Decorate(AddTool(spec.Id, arg => BuildTool(spec, null, arg)).Unless(() => ToolBlocker(spec, null)), spec);
                     break;
-                case PptCommandKind.View:
+                case RibbonCommandClass.View:
                     Decorate(AddView(spec.Id, _ => ApplyView(spec.Args)).EnabledWhen(() => CanApplyView(spec.Args), PendingReason), spec);
                     break;
-                case PptCommandKind.Assistant:
+                case RibbonCommandClass.Assistant:
                     Decorate(AddAssistant(spec.Id, () => Phrase(spec.Prompt)).Unless(() => DialogBlocker(spec.Dialog)), spec);
                     break;
                 default:
@@ -173,17 +173,17 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 RegisterEntry(spec, spec.Menu[i], EntryId(spec, i));
         }
 
-        private void RegisterEntry(PptCommandSpec spec, PptMenuSpec entry, string id)
+        private void RegisterEntry(CommandSpec spec, CommandMenuSpec entry, string id)
         {
             switch (KindOf(spec, entry))
             {
-                case PptCommandKind.Assistant:
+                case RibbonCommandClass.Assistant:
                     AddAssistant(id, () => Phrase(entry.Prompt)).Unless(() => DialogBlocker(entry.Dialog));
                     break;
-                case PptCommandKind.Disabled:
+                case RibbonCommandClass.Disabled:
                     AddDisabled(id, entry.Reason);
                     break;
-                case PptCommandKind.View:
+                case RibbonCommandClass.View:
                     AddView(id, _ => ApplyView(entry.Args)).EnabledWhen(() => CanApplyView(entry.Args), PendingReason);
                     break;
                 default:
@@ -192,21 +192,21 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             }
         }
 
-        private static PptCommandKind KindOf(PptCommandSpec spec, PptMenuSpec entry)
+        private static RibbonCommandClass KindOf(CommandSpec spec, CommandMenuSpec entry)
         {
-            if (entry.Kind != PptCommandKind.Tool)
-                return entry.Kind;
+            if (entry.Class != RibbonCommandClass.Tool)
+                return entry.Class;
 
             if (!string.IsNullOrEmpty(entry.Prompt))
-                return PptCommandKind.Assistant;
+                return RibbonCommandClass.Assistant;
 
             if (entry.Tool != null)
-                return PptCommandKind.Tool;
+                return RibbonCommandClass.Tool;
 
-            return spec.Kind == PptCommandKind.View ? PptCommandKind.View : PptCommandKind.Tool;
+            return spec.Class == RibbonCommandClass.View ? RibbonCommandClass.View : RibbonCommandClass.Tool;
         }
 
-        private void Decorate(RibbonCommand command, PptCommandSpec spec)
+        private void Decorate(RibbonCommand command, CommandSpec spec)
         {
             if (spec.Pressed != null)
                 command.PressedWhen(() => PressedOf(spec.Pressed));
@@ -245,7 +245,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             RegisterClipboard();
         }
 
-        private string ToolBlocker(PptCommandSpec spec, PptMenuSpec entry)
+        private string ToolBlocker(CommandSpec spec, CommandMenuSpec entry)
         {
             if (File?.Docu == null)
                 return SampleReason;
@@ -279,29 +279,29 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return _state.Dialogs == null ? PendingReason : null;
         }
 
-        private string NeedBlocker(PptNeed need)
+        private string NeedBlocker(string need)
         {
             var selection = _state.Selection;
             switch (need)
             {
-                case PptNeed.Slide:
+                case "slide":
                     return selection.HasSlide ? null : NoSlideReason;
-                case PptNeed.Shape:
+                case "shape":
                     return selection.HasShape ? null : NoShapeReason;
-                case PptNeed.Text:
+                case "text":
                     return selection.HasText ? null : NoTextReason;
-                case PptNeed.Shapes2:
+                case "shapes2":
                     return selection.ShapeCount >= 2 ? null : TwoShapesReason;
-                case PptNeed.Shapes3:
+                case "shapes3":
                     return selection.ShapeCount >= 3 ? null : ThreeShapesReason;
-                case PptNeed.ClipboardImage:
+                case "clipboardImage":
                     return PendingReason;
                 default:
                     return null;
             }
         }
 
-        private (string Tool, JsonObject Template) PlanOf(PptCommandSpec spec, PptMenuSpec entry, bool off)
+        private (string Tool, JsonObject Template) PlanOf(CommandSpec spec, CommandMenuSpec entry, bool off)
         {
             var tool = entry?.Tool ?? spec.Tool;
             var template = entry?.Tool != null ? new JsonObject() : PptArgs.ParseObject(spec.Args);
@@ -318,7 +318,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return legacy != null && Ready(legacy.Value.Tool, legacy.Value.Template) ? legacy.Value : (tool, template);
         }
 
-        private static (string Tool, JsonObject Template)? LegacyPlan(PptCommandSpec spec, PptMenuSpec entry, bool off)
+        private static (string Tool, JsonObject Template)? LegacyPlan(CommandSpec spec, CommandMenuSpec entry, bool off)
         {
             if (entry != null)
                 return null;
@@ -383,13 +383,13 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return cached.Schema;
         }
 
-        private EditCommand BuildTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
+        private EditCommand BuildTool(CommandSpec spec, CommandMenuSpec entry, string arg)
         {
             _state.CommitDraft?.Invoke();
             return PlanTool(spec, entry, arg);
         }
 
-        private EditCommand PlanTool(PptCommandSpec spec, PptMenuSpec entry, string arg)
+        private EditCommand PlanTool(CommandSpec spec, CommandMenuSpec entry, string arg)
         {
             var selection = _state.Selection;
             var off = entry == null && spec.ArgsOff != null && IsOn(spec.Id);
@@ -559,7 +559,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return Task.CompletedTask;
         }
 
-        private async Task<bool> GatherAsync(PptCommandSpec spec, PptMenuSpec entry, string target, string arg)
+        private async Task<bool> GatherAsync(CommandSpec spec, CommandMenuSpec entry, string target, string arg)
         {
             var dialog = entry?.Dialog ?? spec.Dialog;
             if (dialog != null)
@@ -625,7 +625,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return true;
         }
 
-        private IReadOnlyList<RibbonMenuItem> MenuOf(PptCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> MenuOf(CommandSpec spec)
         {
             var items = new List<RibbonMenuItem>();
             if (Array.IndexOf(s_newSlideIds, spec.Id) >= 0)
@@ -668,7 +668,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return items;
         }
 
-        private List<int> VisibleEntries(PptCommandSpec spec)
+        private List<int> VisibleEntries(CommandSpec spec)
         {
             var effect = EffectOf(spec);
             var visible = new List<int>();
@@ -684,7 +684,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return visible;
         }
 
-        private string EffectOf(PptCommandSpec spec)
+        private string EffectOf(CommandSpec spec)
         {
             var selection = _state.Selection;
             if (spec.Id.StartsWith("ppt.trans.", StringComparison.Ordinal))
@@ -696,10 +696,10 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return null;
         }
 
-        private static bool HasOnlyEffectEntries(PptCommandSpec spec) =>
+        private static bool HasOnlyEffectEntries(CommandSpec spec) =>
             spec.Menu != null && spec.Menu.Count > 0 && spec.Menu.All(e => e.Effects != null);
 
-        private static int LongestRun(PptCommandSpec spec, List<int> visible)
+        private static int LongestRun(CommandSpec spec, List<int> visible)
         {
             var longest = 0;
             var run = 0;

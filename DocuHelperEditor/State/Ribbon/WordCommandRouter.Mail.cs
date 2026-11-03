@@ -28,7 +28,7 @@ namespace DocuHelperEditor.State.Ribbon
             Provide("word.mail.finish.merge", _ => FinishMergeAsync());
         }
 
-        private IReadOnlyList<RibbonMenuItem> FieldMenu(WordCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> FieldMenu(CommandSpec spec)
         {
             var items = new List<RibbonMenuItem>();
             if (State.Recipients == null)
@@ -48,7 +48,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return null;
 
             var args = new JsonObject { ["name"] = arg.Substring(FieldPrefix.Length) };
-            return new MenuEntry(new WordMenuSpec(arg.Substring(FieldPrefix.Length), args.ToJsonString(), null), args);
+            return new MenuEntry(new CommandMenuSpec { Label = arg.Substring(FieldPrefix.Length), Args = args.ToJsonString() }, args);
         }
 
         private Task OpenRecipientsAsync()

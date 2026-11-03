@@ -44,7 +44,7 @@ namespace DocuHelperEditor.State.Ribbon
             ["toggleComments"] = "comments",
         };
 
-        private string FeatureOf(WordCommandSpec spec)
+        private string FeatureOf(CommandSpec spec)
         {
             if (spec.Action == "toggleView")
             {
@@ -55,7 +55,7 @@ namespace DocuHelperEditor.State.Ribbon
             return s_features.TryGetValue(spec.Action ?? string.Empty, out var feature) ? feature : null;
         }
 
-        private string ViewBlocker(WordCommandSpec spec)
+        private string ViewBlocker(CommandSpec spec)
         {
             if (spec.Id == "word.review.speech.readaloud")
                 return ReadAloudBlocker();
@@ -90,7 +90,7 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
-        private async Task RunViewAsync(WordCommandSpec spec, string arg)
+        private async Task RunViewAsync(CommandSpec spec, string arg)
         {
             if (_provided.TryGetValue(spec.Id, out var provided))
             {
@@ -161,7 +161,7 @@ namespace DocuHelperEditor.State.Ribbon
             Workspace.Notify();
         }
 
-        private void SetZoom(WordCommandSpec spec, string arg, JsonObject args)
+        private void SetZoom(CommandSpec spec, string arg, JsonObject args)
         {
             if (spec.Id == "word.status.zoomout")
             {
@@ -292,7 +292,7 @@ namespace DocuHelperEditor.State.Ribbon
             return value.TryGetValue<string>(out var text) && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
         }
 
-        private bool IsViewPressed(WordCommandSpec spec)
+        private bool IsViewPressed(CommandSpec spec)
         {
             switch (spec.Id)
             {
@@ -327,7 +327,7 @@ namespace DocuHelperEditor.State.Ribbon
             return false;
         }
 
-        private string ClipboardBlocker(WordCommandSpec spec)
+        private string ClipboardBlocker(CommandSpec spec)
         {
             if (IsProvided(spec.Id))
                 return null;
@@ -342,7 +342,7 @@ namespace DocuHelperEditor.State.Ribbon
             };
         }
 
-        private async Task RunClipboardAsync(WordCommandSpec spec, string arg)
+        private async Task RunClipboardAsync(CommandSpec spec, string arg)
         {
             if (_provided.TryGetValue(spec.Id, out var provided))
             {

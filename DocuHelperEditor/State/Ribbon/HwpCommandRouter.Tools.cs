@@ -27,7 +27,7 @@ namespace DocuHelperEditor.State.Ribbon
             ["hwp.format.para.indentmore"] = 1,
         };
 
-        private string ToolBlocker(HwpCommandSpec spec)
+        private string ToolBlocker(CommandSpec spec)
         {
             var gate = GateBlocker(spec.Gates, spec.Reason);
             if (gate != null)
@@ -49,7 +49,7 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
-        private string Needed(HwpCommandSpec spec)
+        private string Needed(CommandSpec spec)
         {
             var names = NamesOf(spec);
             if (names.Any(n => s_blockTargets.Contains(n)) && Block == null)
@@ -61,7 +61,7 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
-        private void FixDialogArgs(HwpCommandSpec spec, Run run, JsonObject args)
+        private void FixDialogArgs(CommandSpec spec, Run run, JsonObject args)
         {
             if (run.Fields == null)
                 return;
@@ -138,7 +138,7 @@ namespace DocuHelperEditor.State.Ribbon
             _ => "decimal",
         };
 
-        private IReadOnlyList<EditCommand> BuildEdits(HwpCommandSpec spec, string arg)
+        private IReadOnlyList<EditCommand> BuildEdits(CommandSpec spec, string arg)
         {
             if (s_levelSteps.TryGetValue(spec.Id, out var step) && Block != null && Block.ListKind != WordListKind.None && HasTool("set_list"))
                 return new[] { EditCommand.Create("set_list", new { ids = new[] { Block.Id }, level_delta = step }) };
@@ -209,7 +209,7 @@ namespace DocuHelperEditor.State.Ribbon
             return template;
         }
 
-        private JsonNode RootOf(HwpCommandSpec spec)
+        private JsonNode RootOf(CommandSpec spec)
         {
             if (!_templates.TryGetValue(spec.Id, out var root))
             {
@@ -220,7 +220,7 @@ namespace DocuHelperEditor.State.Ribbon
             return root;
         }
 
-        private IReadOnlyList<string> NamesOf(HwpCommandSpec spec)
+        private IReadOnlyList<string> NamesOf(CommandSpec spec)
         {
             if (!_names.TryGetValue(spec.Id, out var names))
             {
@@ -469,7 +469,7 @@ namespace DocuHelperEditor.State.Ribbon
             return true;
         }
 
-        private MenuEntry EntryOf(HwpCommandSpec spec, string arg)
+        private MenuEntry EntryOf(CommandSpec spec, string arg)
         {
             if (arg == null || !arg.StartsWith(MenuPrefix, StringComparison.Ordinal))
                 return null;
@@ -541,7 +541,7 @@ namespace DocuHelperEditor.State.Ribbon
             return true;
         }
 
-        private IReadOnlyDictionary<string, JsonNode> DefaultsOf(HwpCommandSpec spec)
+        private IReadOnlyDictionary<string, JsonNode> DefaultsOf(CommandSpec spec)
         {
             var defaults = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
             foreach (var field in spec.Dialog.Fields)
@@ -566,7 +566,7 @@ namespace DocuHelperEditor.State.Ribbon
             return defaults;
         }
 
-        private bool IsPressed(HwpCommandSpec spec)
+        private bool IsPressed(CommandSpec spec)
         {
             var block = Block;
             var info = Info;

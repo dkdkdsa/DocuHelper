@@ -27,7 +27,7 @@ namespace DocuHelperEditor.State.Ribbon
             ["word.layout.para.spaceafter"] = ("pt", "8"),
         };
 
-        private bool HasMenu(WordCommandSpec spec)
+        private bool HasMenu(CommandSpec spec)
         {
             return spec.Menu.Count > 0
                 || s_numberFields.ContainsKey(spec.Id)
@@ -36,7 +36,7 @@ namespace DocuHelperEditor.State.Ribbon
                 || spec.Id == "word.insert.table.table";
         }
 
-        private IReadOnlyList<RibbonMenuItem> MenuOf(WordCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> MenuOf(CommandSpec spec)
         {
             if (IsLegacy(spec))
                 return null;
@@ -71,7 +71,7 @@ namespace DocuHelperEditor.State.Ribbon
             return Entries(spec, false);
         }
 
-        private IReadOnlyList<RibbonMenuItem> ColorMenu(WordCommandSpec spec, string resetValue, string resetLabel, string swatch, IReadOnlyList<RibbonSwatch> colors)
+        private IReadOnlyList<RibbonMenuItem> ColorMenu(CommandSpec spec, string resetValue, string resetLabel, string swatch, IReadOnlyList<RibbonSwatch> colors)
         {
             _colors.TryGetValue(spec.Id, out var current);
             return new[]
@@ -82,7 +82,7 @@ namespace DocuHelperEditor.State.Ribbon
             };
         }
 
-        private IReadOnlyList<RibbonMenuItem> TableMenu(WordCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> TableMenu(CommandSpec spec)
         {
             var items = new List<RibbonMenuItem> { Heading("표 크기 고르기") };
             foreach (var (columns, rows) in s_tables)
@@ -99,7 +99,7 @@ namespace DocuHelperEditor.State.Ribbon
             return items;
         }
 
-        private List<RibbonMenuItem> Entries(WordCommandSpec spec, bool font)
+        private List<RibbonMenuItem> Entries(CommandSpec spec, bool font)
         {
             var items = new List<RibbonMenuItem>();
             for (var i = 0; i < spec.Menu.Count; i++)
@@ -115,7 +115,7 @@ namespace DocuHelperEditor.State.Ribbon
             return items;
         }
 
-        private string EntryReason(WordCommandSpec spec, string arg, MenuEntry entry)
+        private string EntryReason(CommandSpec spec, string arg, MenuEntry entry)
         {
             if (entry.Command != null)
                 return DisabledReasonOf(entry.Command);
@@ -135,7 +135,7 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
-        private string MarkupOf(WordCommandSpec spec, int index)
+        private string MarkupOf(CommandSpec spec, int index)
         {
             var args = WordArgs.Parse(spec.Menu[index].Args) as System.Text.Json.Nodes.JsonObject;
             return args?["markup"]?.ToString();

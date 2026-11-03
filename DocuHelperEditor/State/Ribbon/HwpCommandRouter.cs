@@ -38,7 +38,7 @@ namespace DocuHelperEditor.State.Ribbon
             "hwp.page.section.erase",
         };
 
-        private readonly Dictionary<string, HwpCommandSpec> _specs = new Dictionary<string, HwpCommandSpec>(StringComparer.Ordinal);
+        private readonly Dictionary<string, CommandSpec> _specs = new Dictionary<string, CommandSpec>(StringComparer.Ordinal);
         private readonly Dictionary<string, Func<string, Task>> _provided = new Dictionary<string, Func<string, Task>>(StringComparer.Ordinal);
         private readonly Dictionary<string, JsonNode> _templates = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
         private readonly Dictionary<string, IReadOnlyList<string>> _names = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
@@ -218,7 +218,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private string GateBlocker(IReadOnlyList<string> gates, string reason) => HwpCapabilityGate.Blocker(gates, reason, ToolHas);
 
-        private void Register(HwpCommandSpec spec)
+        private void Register(CommandSpec spec)
         {
             RibbonCommand command;
             switch (spec.Class)
@@ -257,7 +257,7 @@ namespace DocuHelperEditor.State.Ribbon
                 command.ValueFrom(value);
         }
 
-        private RibbonCommand RegisterFile(HwpCommandSpec spec)
+        private RibbonCommand RegisterFile(CommandSpec spec)
         {
             switch (spec.Id)
             {
@@ -289,7 +289,7 @@ namespace DocuHelperEditor.State.Ribbon
             return hancom ? PendingReason : "이 컴퓨터에 한글이 없어서 PDF로 저장할 수 없어요.";
         }
 
-        private Task RunProvidedAsync(HwpCommandSpec spec, string arg)
+        private Task RunProvidedAsync(CommandSpec spec, string arg)
         {
             return _provided.TryGetValue(spec.Id, out var run) ? run(arg) : Task.CompletedTask;
         }
@@ -311,14 +311,14 @@ namespace DocuHelperEditor.State.Ribbon
             return null;
         }
 
-        private string PromptOf(HwpCommandSpec spec)
+        private string PromptOf(CommandSpec spec)
         {
             var text = WordSelectionService.SelectedText(Model);
             var prompt = _run?.Entry?.Prompt ?? (text.Length > 0 && spec.SelectionPrompt != null ? spec.SelectionPrompt : spec.Prompt) ?? string.Empty;
             return prompt.Replace(SelectedTextMarker, text, StringComparison.Ordinal);
         }
 
-        private string AssistantBlocker(HwpCommandSpec spec)
+        private string AssistantBlocker(CommandSpec spec)
         {
             if (spec.Prompt != null && spec.Prompt.Contains(SelectedTextMarker, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(WordSelectionService.SelectedText(Model)))
                 return SelectWordReason;
@@ -328,14 +328,14 @@ namespace DocuHelperEditor.State.Ribbon
 
         private sealed class Run
         {
-            public Run(HwpCommandSpec spec, string arg, MenuEntry entry)
+            public Run(CommandSpec spec, string arg, MenuEntry entry)
             {
                 Spec = spec;
                 Arg = arg;
                 Entry = entry;
             }
 
-            public HwpCommandSpec Spec { get; }
+            public CommandSpec Spec { get; }
 
             public string Arg { get; }
 
@@ -352,13 +352,13 @@ namespace DocuHelperEditor.State.Ribbon
 
         private sealed class MenuEntry
         {
-            public MenuEntry(HwpMenuSpec spec, JsonObject args)
+            public MenuEntry(CommandMenuSpec spec, JsonObject args)
             {
                 Spec = spec;
                 Args = args ?? new JsonObject();
             }
 
-            public HwpMenuSpec Spec { get; }
+            public CommandMenuSpec Spec { get; }
 
             public JsonObject Args { get; }
 

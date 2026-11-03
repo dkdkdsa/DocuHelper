@@ -37,13 +37,13 @@ namespace DocuHelperEditor.State.Ribbon
             return Task.CompletedTask;
         }
 
-        private string MarkupKindOf(WordCommandSpec spec, int index)
+        private string MarkupKindOf(CommandSpec spec, int index)
         {
             var args = WordArgs.Parse(spec.Menu[index].Args) as System.Text.Json.Nodes.JsonObject;
             return args?["kind"]?.ToString();
         }
 
-        private bool? MarkupKindChecked(WordCommandSpec spec, int index) => MarkupKindOf(spec, index) switch
+        private bool? MarkupKindChecked(CommandSpec spec, int index) => MarkupKindOf(spec, index) switch
         {
             "comments" => State.ShowComments,
             "insdel" => State.ShowInsDel,

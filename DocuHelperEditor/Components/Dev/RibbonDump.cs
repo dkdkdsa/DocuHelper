@@ -244,7 +244,7 @@ namespace DocuHelperEditor.Components.Dev
                     yield return (spec.Id, spec.Dialog);
 
                 var index = 0;
-                foreach (var entry in spec.Menu ?? Array.Empty<DocuHelperEditor.Components.Paper.Ppt.PptMenuSpec>())
+                foreach (var entry in spec.Menu)
                 {
                     if (entry.Dialog != null)
                         yield return (spec.Id + "#" + index, entry.Dialog);

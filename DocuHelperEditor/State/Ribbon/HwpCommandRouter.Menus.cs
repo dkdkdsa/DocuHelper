@@ -8,7 +8,7 @@ namespace DocuHelperEditor.State.Ribbon
 {
     public sealed partial class HwpCommandRouter
     {
-        private IReadOnlyList<RibbonMenuItem> MenuOf(HwpCommandSpec spec)
+        private IReadOnlyList<RibbonMenuItem> MenuOf(CommandSpec spec)
         {
             switch (spec.Id)
             {
@@ -27,9 +27,9 @@ namespace DocuHelperEditor.State.Ribbon
             return Entries(spec);
         }
 
-        private IReadOnlyList<RibbonMenuItem> Prefixed(HwpCommandSpec spec, params RibbonMenuItem[] head) => head.Concat(Entries(spec)).ToList();
+        private IReadOnlyList<RibbonMenuItem> Prefixed(CommandSpec spec, params RibbonMenuItem[] head) => head.Concat(Entries(spec)).ToList();
 
-        private List<RibbonMenuItem> Entries(HwpCommandSpec spec)
+        private List<RibbonMenuItem> Entries(CommandSpec spec)
         {
             var items = new List<RibbonMenuItem>();
             for (var i = 0; i < spec.Menu.Count; i++)
@@ -42,13 +42,13 @@ namespace DocuHelperEditor.State.Ribbon
 
                 switch (menu.Kind)
                 {
-                    case HwpMenuKind.Separator:
+                    case RibbonMenuKind.Separator:
                         items.Add(Separator());
                         break;
-                    case HwpMenuKind.Heading:
+                    case RibbonMenuKind.Heading:
                         items.Add(Heading(menu.Label));
                         break;
-                    case HwpMenuKind.Swatches:
+                    case RibbonMenuKind.Swatches:
                         _colors.TryGetValue(spec.Id, out var current);
                         items.Add(Palette(menu.Label, menu.Palette == "Highlight" ? RibbonPalette.Highlight : RibbonPalette.Standard, current));
                         break;
@@ -79,7 +79,7 @@ namespace DocuHelperEditor.State.Ribbon
             return false;
         }
 
-        private string EntryReason(HwpCommandSpec spec, MenuEntry entry)
+        private string EntryReason(CommandSpec spec, MenuEntry entry)
         {
             var gate = GateBlocker(entry.Spec.Gates, entry.Spec.Reason);
             if (gate != null)
@@ -94,7 +94,7 @@ namespace DocuHelperEditor.State.Ribbon
             return entry.Picker != null && _files == null ? PendingReason : null;
         }
 
-        private bool? CheckOf(HwpCommandSpec spec, MenuEntry entry)
+        private bool? CheckOf(CommandSpec spec, MenuEntry entry)
         {
             var info = Info;
             if (info == null || Block == null)

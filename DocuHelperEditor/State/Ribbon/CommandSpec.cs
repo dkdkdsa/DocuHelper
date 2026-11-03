@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    internal sealed record HwpCommandSpec
+    internal sealed record CommandSpec
     {
         public string Id { get; init; }
 
@@ -17,15 +17,21 @@ namespace DocuHelperEditor.State.Ribbon
 
         public string Args { get; init; }
 
+        public string ArgsOff { get; init; }
+
         public string Prompt { get; init; }
 
         public string SelectionPrompt { get; init; }
 
         public string Reason { get; init; }
 
+        public string Need { get; init; }
+
+        public string Pressed { get; init; }
+
         public IReadOnlyList<string> Gates { get; init; } = Array.Empty<string>();
 
-        public IReadOnlyList<HwpMenuSpec> Menu { get; init; } = Array.Empty<HwpMenuSpec>();
+        public IReadOnlyList<CommandMenuSpec> Menu { get; init; } = Array.Empty<CommandMenuSpec>();
 
         public DialogSpec Dialog { get; init; }
     }
