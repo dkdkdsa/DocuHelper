@@ -37,6 +37,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return Task.CompletedTask;
             });
             ProvideSearchCommands();
+            ReportMissing("HWP", HwpRibbon.Tabs, HwpRibbon.FileItems);
         }
 
         protected override string SelectWordReason => "바꿀 낱말이 있는 문단을 먼저 눌러 골라 주세요.";

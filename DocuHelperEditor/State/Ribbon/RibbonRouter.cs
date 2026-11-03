@@ -173,6 +173,14 @@ namespace DocuHelperEditor.State.Ribbon
             return missing;
         }
 
+        [System.Diagnostics.Conditional("DEBUG")]
+        protected void ReportMissing(string format, IEnumerable<RibbonTab> tabs, IEnumerable<RibbonFileItem> fileItems)
+        {
+            var missing = MissingIds(tabs, fileItems);
+            if (missing.Count > 0)
+                AppLog.Write(format + " ribbon commands missing: " + string.Join(", ", missing));
+        }
+
         protected RibbonCommand AddTool(string id, string tool, Func<string, object> args)
         {
             if (args == null)

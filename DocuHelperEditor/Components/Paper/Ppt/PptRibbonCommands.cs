@@ -85,6 +85,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             });
             Provide("exportPdf", _ => ExportPdfAsync());
             Provide("print", _ => PrintAsync());
+            ReportMissing("PPT", PptRibbonData.Tabs, PptRibbonData.FileItems);
         }
 
         public override async Task InvokeAsync(string id, string arg)

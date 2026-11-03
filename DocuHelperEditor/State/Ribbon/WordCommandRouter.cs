@@ -34,6 +34,7 @@ namespace DocuHelperEditor.State.Ribbon
             ProvideSearchCommands();
             ProvideReviewCommands();
             ProvideMergeModeCommands();
+            ReportMissing("Word", WordRibbon.WithTable, WordRibbon.FileItems);
         }
 
         protected override string SelectWordReason => "비슷한 말을 찾을 문단을 먼저 눌러 골라 주세요.";
