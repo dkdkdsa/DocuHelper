@@ -13,7 +13,10 @@ namespace DocuHelper.Tools.Dash
 
         public override string Description =>
             "Dashboard (.dash) files only: change one element (by id) or one source, param or value (by name) with a JSON merge patch. "
-            + "Fields you give replace the old ones, nested objects such as style merge, and null removes a field.";
+            + "Fields you give replace the old ones, nested objects such as style merge, and null removes a field. "
+            + "Send several changes at once with items.";
+
+        protected override bool Batches => true;
 
         public override string InputSchema => """
             {
@@ -22,9 +25,9 @@ namespace DocuHelper.Tools.Dash
                 "kind": {"type": "string", "enum": ["element", "source", "param", "value"], "description": "Default element."},
                 "id": {"type": "string", "description": "element: its id."},
                 "name": {"type": "string", "description": "source, param or value: its name."},
-                "patch": {"type": "object", "description": "Merge patch, e.g. {\"style\": {\"x\": 48, \"fontSize\": 20}} or {\"text\": \"«매출»이에요\"}."}
-              },
-              "required": ["patch"]
+                "patch": {"type": "object", "description": "Merge patch, e.g. {\"style\": {\"x\": 48, \"fontSize\": 20}} or {\"text\": \"«매출»이에요\"}."},
+                "items": {"type": "array", "description": "Instead of one change: several, applied in order, each an object with kind, id or name, and patch.", "items": {"type": "object"}}
+              }
             }
             """;
 

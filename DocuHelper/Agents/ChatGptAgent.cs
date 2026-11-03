@@ -121,6 +121,12 @@ namespace DocuHelper.Agents
                         return toolbox.BuildResult(text);
                     }
 
+                    if (turn == MaxTurns - 1)
+                    {
+                        _pendingResults.AddRange(results);
+                        return toolbox.BuildPaused();
+                    }
+
                     _items.AddRange(results);
                 }
 

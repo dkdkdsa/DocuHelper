@@ -9,7 +9,7 @@ namespace DocuHelper.Agents
             Text elements show values by writing «이름» in the text; the app fills them in, formats them with the value's format (man, won, gun, pct, day:6) and fixes the Korean particle after them, so write «매출»을 or «1등 거래처»예요 naturally. Inside a repeat template use «item.열이름».
             Page children need style x, y, w, h in page pixels (the A4 landscape page is 1123 x 794); keep 48 px margins and line things up. Put related elements in a row or column (style gap, padding) so they flow. Use when (an Excel condition such as 보기="거래처별" or 달성률>=1) to show one of two texts instead of writing negative numbers.
             Controls: slider (number param), rangeSlider (range param), toggle (bool), segmented or select (pick), button with an action (set, reset, ask, open, refresh, pdf). A chart with range and rangeControl gets a period slider right under it and dims the days outside it.
-            update_dash_item takes a merge patch: send only the fields that change. Every write needs label like the other tools.
+            update_dash_item takes a merge patch: send only the fields that change. add_dash_item and update_dash_item also take items, a list of several items or changes applied in order: build a dashboard in a few large calls (all sources and params, then all values, then all elements), not one call per item. Every write needs label like the other tools.
             """;
 
         private const string DashGuideStart = """
@@ -20,7 +20,7 @@ namespace DocuHelper.Agents
             Steps
             1. Read every source file with its own tool (read_sheet, read_document, read_slides) and note the sheet name, the header row and the exact column names. Dates must be real dates and amounts real numbers.
             2. create_file with a name such as "6월 매출 대시보드.dash"; the dashboard tools arrive on your next step.
-            3. add_dash_item, one item per call and each with a label: sources, then params, then values, then elements. Check every table with preview_dash before an element uses it.
+            3. add_dash_item with items, a label per call: first the sources and params, then the values, then the elements, so the whole build takes a handful of calls. Check the tables with preview_dash before elements use them, and don't re-read the dashboard after every change.
             4. Call read_dash at the end and fix every problem it lists. In finish, say which files the dashboard reads and what the viewer can change.
 
             Rules

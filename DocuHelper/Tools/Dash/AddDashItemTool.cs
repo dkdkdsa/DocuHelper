@@ -34,7 +34,10 @@ namespace DocuHelper.Tools.Dash
 
         public override string Description =>
             "Dashboard (.dash) files only: add one element to the page tree, or one source, param or value. "
-            + "Elements go into the page (free x/y/w/h placement) or into a row, column or repeat template (flow layout). Returns the new id.";
+            + "Elements go into the page (free x/y/w/h placement) or into a row, column or repeat template (flow layout). Returns the new id. "
+            + "Send several at once with items, in order, so a whole dashboard takes a few calls.";
+
+        protected override bool Batches => true;
 
         public override string InputSchema => """
             {
@@ -43,9 +46,9 @@ namespace DocuHelper.Tools.Dash
                 "kind": {"type": "string", "enum": ["element", "source", "param", "value"], "description": "Default element."},
                 "item": {"type": "object", "description": "The item as stored in the file, with its \"type\". Elements: page children need style x, y, w, h in page pixels (A4 landscape page is 1123 x 794)."},
                 "parent": {"type": "string", "description": "element only: id of the page, row, column, canvas or repeat to put it in. Default the page."},
-                "index": {"type": "integer", "minimum": 0, "description": "element only: position among the parent's children (0 = back). Default the end (front)."}
-              },
-              "required": ["item"]
+                "index": {"type": "integer", "minimum": 0, "description": "element only: position among the parent's children (0 = back). Default the end (front)."},
+                "items": {"type": "array", "description": "Instead of one item: several, applied in order, each an object with kind, item and optional parent and index. Later items may use names and ids made by earlier ones.", "items": {"type": "object"}}
+              }
             }
             """;
 

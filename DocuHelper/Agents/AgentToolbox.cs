@@ -24,6 +24,8 @@ namespace DocuHelper.Agents
         public const string FinishTool = "finish";
 
         private const int MaxFollowUps = 3;
+        private const string ContinueRequest = "이어서 해 줘";
+        private const string PausedText = "할 일이 많아서 여기까지 했어요. 지금까지 바꾼 곳은 그대로 남아 있어요. ‘이어서 해 줘’라고 하시면 이어서 할게요.";
         private const int MaxDetailLength = 24;
 
         private const string ListFilesSchema = """
@@ -210,6 +212,14 @@ namespace DocuHelper.Agents
             {
                 return ToolResult.Fail(e.Message);
             }
+        }
+
+        public AgentResult BuildPaused()
+        {
+            var result = BuildResult(PausedText);
+            result.FollowUps.Clear();
+            result.FollowUps.Add(ContinueRequest);
+            return result;
         }
 
         public AgentResult BuildResult(string text)
