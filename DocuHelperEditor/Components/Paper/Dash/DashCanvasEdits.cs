@@ -11,7 +11,9 @@ namespace DocuHelperEditor.Components.Paper.Dash
 {
     public static class DashCanvasEdits
     {
+        public const string AddTool = "add_dash_item";
         public const string UpdateTool = "update_dash_item";
+        public const string MoveTool = "move_dash_item";
         public const string RemoveTool = "remove_dash_item";
 
         private const double MinSize = 8;

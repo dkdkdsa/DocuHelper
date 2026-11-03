@@ -1,0 +1,282 @@
+@using System.Globalization
+@using DocuHelper.Dash
+@using DocuHelper.Dash.Elements
+@using DocuHelper.Dash.Logic
+@using DocuHelper.Dash.Runtime
+@using DocuHelperEditor.State.Papers
+@inject IJSRuntime JS
+
+@if (Model?.Document?.Root != null)
+{
+    <aside class="pane" aria-label="요소와 데이터">
+        <section class="section" aria-labelledby="@OrderId">
+            <h2 id="@OrderId" class="title">순서</h2>
+            @if (_rows.Count == 0)
+            {
+                <p class="empty">아직 놓은 요소가 없어요.</p>
+            }
+            else
+            {
+                <ul class="tree" aria-label="요소 순서">
+                    @for (var i = 0; i < _rows.Count; i++)
+                    {
+                        var index = i;
+                        var row = _rows[index];
+                        var picked = IsPicked(row);
+                        <li @key="row.Element.Id" class="node">
+                            <button type="button" id="@RowId(index)" class="row @(picked ? "on" : null) @(row.Visible ? null : "off")" style="--depth: @row.Depth.ToString(CultureInfo.InvariantCulture)" aria-label="@RowLabel(row)" aria-pressed="@(picked ? "true" : "false")" tabindex="@(index == _stop ? 0 : -1)" @onclick="e => PickAsync(row, e)" @onkeydown="e => KeyAsync(e, index)">
+                                <span class="main">
+                                    <span class="name">@Label(row)</span>
+                                    @if (!row.Visible)
+                                    {
+                                        <span class="gone">지금 안 보임</span>
+                                    }
+                                </span>
+                                <span class="kind">@Kind(row)</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+        <section class="section" aria-labelledby="@DataId">
+            <h2 id="@DataId" class="title">데이터</h2>
+            @if (!HasData)
+            {
+                <p class="empty">연결한 데이터가 아직 없어요.</p>
+            }
+            @if (Params.Count > 0)
+            {
+                <h3 class="group">조절값</h3>
+                <ul class="list" aria-label="조절값">
+                    @foreach (var param in Params)
+                    {
+                        var type = DashInserts.ControlFor(param, Model.Runtime);
+                        var note = ControlNote(param.Name, type);
+                        <li class="datum">
+                            <span class="text">
+                                <span class="name">@param.Name</span>
+                                <span class="note">@Model.Runtime.Display(param.Name)</span>
+                            </span>
+                            <button type="button" class="add" aria-label="@note" title="@note" disabled="@(!CanAdd || type == null)" @onclick="() => AddControl(param.Name)">
+                                <Icon Name="plus" Size="18" Stroke="2.2" />
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+            @if (Values.Count > 0)
+            {
+                <h3 class="group">값</h3>
+                <ul class="list" aria-label="값">
+                    @foreach (var value in Values)
+                    {
+                        var note = $"‘{value.Name}’ 값을 글자로 넣기";
+                        <li class="datum">
+                            <span class="text">
+                                <span class="name">@value.Name</span>
+                                <span class="note">@Model.Runtime.Display(value.Name)</span>
+                            </span>
+                            <button type="button" class="add" aria-label="@note" title="@note" disabled="@(!CanAdd)" @onclick="() => AddValue(value.Name)">
+                                <Icon Name="plus" Size="18" Stroke="2.2" />
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+            @if (Tables.Count > 0)
+            {
+                <h3 class="group">표</h3>
+                <ul class="list" aria-label="표">
+                    @foreach (var table in Tables)
+                    {
+                        var note = $"‘{table.Name}’ 표를 세로 막대 차트로 넣기";
+                        <li class="datum">
+                            <span class="text">
+                                <span class="name">@table.Name</span>
+                                <span class="note">@RowsText(table)</span>
+                            </span>
+                            <button type="button" class="add" aria-label="@note" title="@note" disabled="@(!CanAdd)" @onclick="() => AddTable(table.Name)">
+                                <Icon Name="plus" Size="18" Stroke="2.2" />
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+            @if (Sources.Count > 0)
+            {
+                <h3 class="group">원본</h3>
+                <ul class="list" aria-label="원본">
+                    @foreach (var source in Sources)
+                    {
+                        <li class="datum">
+                            <span class="text">
+                                <span class="name">@source.Name</span>
+                                <span class="note">@SourceText(source)</span>
+                            </span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    </aside>
+}
+
+@code {
+    private readonly string _uid = "dash-pane-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private List<Row> _rows = new();
+    private int _stop;
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashViewState State { get; set; }
+
+    [Parameter]
+    public DashRibbonCommands Commands { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public EventCallback<(string Id, bool Additive)> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnEditText { get; set; }
+
+    private string OrderId => _uid + "-order";
+
+    private string DataId => _uid + "-data";
+
+    private bool CanAdd => !Locked && Commands != null;
+
+    private List<DashParam> Params => Model.Document.Params.Where(item => item != null).ToList();
+
+    private List<StepsTable> Tables => Model.Document.Values.OfType<StepsTable>().ToList();
+
+    private List<DashValue> Values => Model.Document.Values.Where(item => item != null && item is not StepsTable).ToList();
+
+    private List<DashSource> Sources => Model.Document.Sources.Where(item => item != null).ToList();
+
+    private bool HasData => Params.Count > 0 || Values.Count > 0 || Tables.Count > 0 || Sources.Count > 0;
+
+    protected override void OnParametersSet()
+    {
+        _rows = Model?.Document?.Root == null ? new List<Row>() : RowsOf(Model);
+        var first = _rows.FindIndex(IsPicked);
+        _stop = first < 0 ? 0 : first;
+    }
+
+    private static List<Row> RowsOf(DashPaperModel model)
+    {
+        var results = new Dictionary<string, ElementResult>(StringComparer.Ordinal);
+        Collect(model.Root, results);
+        var rows = new List<Row>();
+        foreach (var child in model.Document.Root.Children.Where(child => child != null))
+            Walk(child, 0, true, results, rows);
+
+        return rows;
+    }
+
+    private static void Collect(ElementResult result, Dictionary<string, ElementResult> results)
+    {
+        if (result == null)
+            return;
+
+        if (result.Key != null)
+            results.TryAdd(result.Key, result);
+
+        foreach (var child in result.Children)
+            Collect(child, results);
+    }
+
+    private static void Walk(Element element, int depth, bool parentVisible, Dictionary<string, ElementResult> results, List<Row> rows)
+    {
+        var visible = parentVisible && (element.Id == null || !results.TryGetValue(element.Id, out var result) || result.Visible);
+        rows.Add(new Row(element, depth, visible));
+        foreach (var child in element.Nested().Where(child => child != null))
+            Walk(child, depth + 1, visible, results, rows);
+    }
+
+    private bool IsPicked(Row row) => State != null && row.Element.Id != null && State.Selected.Contains(row.Element.Id);
+
+    private string RowId(int index) => _uid + "-" + index.ToString(CultureInfo.InvariantCulture);
+
+    private static string Label(Row row) => DashLabels.Of(row.Element);
+
+    private static string Kind(Row row) => DashLabels.Kind(row.Element.Kind);
+
+    private static string RowLabel(Row row) => row.Visible ? $"{Label(row)}, {Kind(row)}" : $"{Label(row)}, {Kind(row)}, 지금 안 보임";
+
+    private bool CanEditText(Element element) =>
+        !Locked && (element is TextElement or ShapeElement) && DashCanvasEdits.IsMovable(Model, element);
+
+    private Task PickAsync(Row row, MouseEventArgs e) => OnSelect.InvokeAsync((row.Element.Id, e.ShiftKey));
+
+    private async Task KeyAsync(KeyboardEventArgs e, int index)
+    {
+        if (e.Key == "Enter" && CanEditText(_rows[index].Element))
+        {
+            await OnEditText.InvokeAsync(_rows[index].Element.Id);
+            return;
+        }
+
+        var target = e.Key switch
+        {
+            "ArrowUp" => index - 1,
+            "ArrowDown" => index + 1,
+            "Home" => 0,
+            "End" => _rows.Count - 1,
+            _ => -1,
+        };
+        if (target < 0 || target >= _rows.Count || target == index)
+            return;
+
+        _stop = target;
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.focus", "#" + RowId(target));
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private void AddControl(string name) => Commands?.InsertControl(name);
+
+    private void AddValue(string name) => Commands?.InsertValue(name);
+
+    private void AddTable(string name) => Commands?.InsertTable(name);
+
+    private static string ControlNote(string name, string type)
+    {
+        var kind = DashLabels.Kind(type);
+        return $"‘{name}’ 조절값을 {kind}{KoreanParticles.Attach(kind, "으로")} 넣기";
+    }
+
+    private string RowsText(StepsTable table)
+    {
+        var data = Model.Runtime.TryTable(table.Name);
+        return data == null ? "읽지 못했어요" : data.Rows.Count.ToString(CultureInfo.InvariantCulture) + "줄";
+    }
+
+    private static string SourceText(DashSource source)
+    {
+        var place = source switch
+        {
+            ExcelSheetSource excel => excel.Sheet,
+            WordTableSource word => $"표 {word.Table.ToString(CultureInfo.InvariantCulture)}",
+            PptTableSource table => $"{table.Slide.ToString(CultureInfo.InvariantCulture)}번 슬라이드 표 {table.Table.ToString(CultureInfo.InvariantCulture)}",
+            PptChartSource chart => $"{chart.Slide.ToString(CultureInfo.InvariantCulture)}번 슬라이드 차트 {chart.Chart.ToString(CultureInfo.InvariantCulture)}",
+            _ => null,
+        };
+
+        return string.IsNullOrWhiteSpace(place) ? source.File : source.File + " · " + place;
+    }
+
+    private sealed record Row(Element Element, int Depth, bool Visible);
+}

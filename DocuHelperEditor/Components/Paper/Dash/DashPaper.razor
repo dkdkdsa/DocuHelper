@@ -12,6 +12,10 @@
     <div class="dash" @ref="_root">
         <DashRibbon @ref="_ribbonHost" File="File" State="_state" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
+            @if (Mode == DashViewState.EditMode)
+            {
+                <DashSidePane Model="model" State="_state" Commands="_ribbonHost?.Commands" Locked="Locked" OnSelect="pick => PickFromPane(pick.Id, pick.Additive)" OnEditText="StartText" />
+            }
             <div class="stage">
                 @if (Mode == DashViewState.DataMode)
                 {
@@ -132,6 +136,14 @@
 
         if (!_state.Selected.Remove(id))
             _state.Selected.Add(id);
+    }
+
+    private void PickFromPane(string id, bool additive)
+    {
+        if (Locked || Mode != DashViewState.EditMode)
+            return;
+
+        Select(id, additive);
     }
 
     private void StartText(string id)

@@ -1,5 +1,6 @@
 @inherits StoreComponentBase
 @inject IJSRuntime JS
+@inject IClipboardService Clipboard
 
 <Ribbon Tabs="DashRibbonData.Tabs" @bind-ActiveTab="State.Tab" @bind-IsOpen="State.RibbonOpen" FileItems="DashRibbonData.FileItems" Host="_commands" Format="DocuType.Dash" Disabled="_commands.IsLocked">
     <Trailing>
@@ -24,7 +25,7 @@
 
     protected override void OnInitialized()
     {
-        _commands = new DashRibbonCommands(Workspace, Assistant, JS, State);
+        _commands = new DashRibbonCommands(Workspace, Assistant, JS, State, Clipboard);
         _commands.Changed += OnCommandsChanged;
     }
 

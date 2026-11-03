@@ -1,0 +1,167 @@
+.pane {
+    flex: none;
+    width: 232px;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: 8px 6px var(--space-4);
+    background: var(--paper-2);
+    border-right: 1px solid var(--hair);
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.title {
+    margin: 0;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.group {
+    margin: var(--space-2) 0 0;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.empty {
+    margin: 0;
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ink-3);
+}
+
+.tree,
+.list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.row {
+    width: 100%;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px 6px calc(8px + var(--depth, 0) * 14px);
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.row:hover {
+    background: var(--head-hover);
+}
+
+.row.on {
+    background: var(--hair);
+    color: var(--ink);
+}
+
+.row.off {
+    opacity: 0.55;
+}
+
+.row:focus-visible,
+.add:focus-visible {
+    outline: 2px solid var(--dash);
+    outline-offset: -2px;
+}
+
+.name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.kind {
+    flex: none;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--ink-3);
+}
+
+.gone {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--warn);
+}
+
+.datum {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: var(--hit);
+    padding: 2px 2px 2px 8px;
+}
+
+.text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+}
+
+.datum .name {
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.note {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--ink-3);
+}
+
+.add {
+    flex: none;
+    width: var(--hit);
+    height: var(--hit);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.add:hover:not(:disabled) {
+    background: var(--head-hover);
+}
+
+.add:disabled {
+    color: var(--ink-disabled);
+    cursor: not-allowed;
+}
