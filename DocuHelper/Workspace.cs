@@ -44,6 +44,8 @@ namespace DocuHelper
 
         public Agent Agent { get; set; }
 
+        public AgentGuide Guide { get; } = new();
+
         public bool IsAgentRunning { get; private set; }
 
         public bool IsRunTouchingFiles => _runToolbox?.Before.Count > 0;

@@ -106,6 +106,7 @@ namespace DocuHelperEditor
             workspace.RegisterEditor(new PptEditor());
             workspace.RegisterEditor(new HwpEditor(new HancomOffice()));
             workspace.RegisterEditor(new DashEditor());
+            AppGuide.AddTo(workspace.Guide);
             return workspace;
         }
     }

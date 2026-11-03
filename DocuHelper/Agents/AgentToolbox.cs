@@ -18,6 +18,7 @@ namespace DocuHelper.Agents
     {
         public const string ListFilesTool = "list_files";
         public const string CreateFileTool = "create_file";
+        public const string ReadGuideTool = "read_guide";
         public const string AskUserTool = "ask_user";
         public const string FinishTool = "finish";
 
@@ -186,6 +187,8 @@ namespace DocuHelper.Agents
                         return Track(host, args, "작업 폴더 살펴보기", null, ListFiles);
                     case CreateFileTool:
                         return Track(host, args, $"{args.GetString("name")} 만들기", null, () => CreateFile(args));
+                    case ReadGuideTool:
+                        return Track(host, args, "설명서 읽기", null, () => ReadGuide(args));
                     default:
                         return RunFormatTool(name, input, args, host);
                 }
@@ -355,6 +358,15 @@ namespace DocuHelper.Agents
             Reveal();
 
             return ToolResult.Ok($"Created '{docu.Name}' in the working folder. It is blank. Fill it with the {KindName(docu.Type)} tools using file=\"{docu.Name}\".", "새 파일");
+        }
+
+        private ToolResult ReadGuide(ToolInput args)
+        {
+            var topic = args.GetString("topic");
+            var page = _workspace.Guide.Find(topic)
+                ?? throw new ToolInputException($"There is no guide page '{topic}'. Pages: {string.Join(", ", _workspace.Guide.Pages.Select(p => p.Topic))}.");
+
+            return ToolResult.Ok(page.Text, page.Title);
         }
 
         private async Task<ToolResult> AskUserAsync(ToolInput args, IAgentHost host, CancellationToken cancellationToken)
@@ -604,9 +616,34 @@ namespace DocuHelper.Agents
 
             definitions.Add(Define(ListFilesTool, "List the files in the user's working folder with a one-line summary of each.", ListFilesSchema));
             definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word, 한글, PowerPoint or dashboard (.dash) file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves. If you have no editing tools for that kind of file yet, you get them on your next step.", CreateFileSchema));
+            if (_workspace.Guide.Pages.Count > 0)
+                definitions.Add(Define(ReadGuideTool, "Read one page of the app's guide: how its screens, menus and buttons work, and how to build a dashboard. Use it when the user asks how to do something in the app or where a button is, and before you build a dashboard. It changes nothing.", GuideSchema()));
+
             definitions.Add(Define(AskUserTool, "Ask the user one question and wait for the answer. Use it only when you cannot pick a sensible default.", AskUserSchema));
             definitions.Add(Define(FinishTool, "Report the result to the user and end the task. Call it once, after all changes are made.", FinishSchema));
             return definitions;
+        }
+
+        private JsonElement GuideSchema()
+        {
+            var pages = _workspace.Guide.Pages;
+            var schema = new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["topic"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["enum"] = new JsonArray(pages.Select(page => (JsonNode)page.Topic).ToArray()),
+                        ["description"] = string.Join("\n", pages.Select(page => $"{page.Topic}: {page.Summary}")),
+                    },
+                    ["step"] = new JsonObject { ["type"] = "string" },
+                },
+                ["required"] = new JsonArray("topic"),
+            };
+
+            return JsonSerializer.SerializeToElement(schema);
         }
 
         private static AgentToolDefinition Define(string name, string description, string schema) =>
