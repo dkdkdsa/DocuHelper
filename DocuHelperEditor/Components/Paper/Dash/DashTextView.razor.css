@@ -16,7 +16,7 @@
 }
 
 .bound {
-    text-decoration: underline dotted var(--rev-3);
+    text-decoration: underline dotted var(--dash);
     text-underline-offset: 3px;
 }
 

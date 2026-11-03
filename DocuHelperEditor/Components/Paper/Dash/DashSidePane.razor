@@ -3,128 +3,69 @@
 @using DocuHelper.Dash.Elements
 @using DocuHelper.Dash.Logic
 @using DocuHelper.Dash.Runtime
+@using DocuHelper.Editors
 @using DocuHelperEditor.State.Papers
 @inject IJSRuntime JS
 
 @if (Model?.Document?.Root != null)
 {
-    <aside class="pane" aria-label="요소와 데이터">
-        <section class="section" aria-labelledby="@OrderId">
-            <h2 id="@OrderId" class="title">순서</h2>
-            @if (_rows.Count == 0)
-            {
-                <p class="empty">아직 놓은 요소가 없어요.</p>
-            }
-            else
-            {
-                <ul class="tree" aria-label="요소 순서">
-                    @for (var i = 0; i < _rows.Count; i++)
-                    {
-                        var index = i;
-                        var row = _rows[index];
-                        var picked = IsPicked(row);
-                        <li @key="row.Element.Id" class="node">
-                            <button type="button" id="@RowId(index)" class="row @(picked ? "on" : null) @(row.Visible ? null : "off")" style="--depth: @row.Depth.ToString(CultureInfo.InvariantCulture)" aria-label="@RowLabel(row)" aria-pressed="@(picked ? "true" : "false")" tabindex="@(index == _stop ? 0 : -1)" @onclick="e => PickAsync(row, e)" @onkeydown="e => KeyAsync(e, index)">
-                                <span class="main">
-                                    <span class="name">@Label(row)</span>
-                                    @if (!row.Visible)
-                                    {
-                                        <span class="gone">지금 안 보임</span>
-                                    }
-                                </span>
-                                <span class="kind">@Kind(row)</span>
-                            </button>
-                        </li>
-                    }
-                </ul>
-            }
-        </section>
-        <section class="section" aria-labelledby="@DataId">
-            <h2 id="@DataId" class="title">데이터</h2>
-            @if (!HasData)
-            {
-                <p class="empty">연결한 데이터가 아직 없어요.</p>
-            }
-            @if (Params.Count > 0)
-            {
-                <h3 class="group">조절값</h3>
-                <ul class="list" aria-label="조절값">
-                    @foreach (var param in Params)
-                    {
-                        var type = DashInserts.ControlFor(param, Model.Runtime);
-                        var note = ControlNote(param.Name, type);
-                        <li class="datum">
-                            <span class="text">
-                                <span class="name">@param.Name</span>
-                                <span class="note">@Model.Runtime.Display(param.Name)</span>
-                            </span>
-                            <button type="button" class="add" aria-label="@note" title="@note" disabled="@(!CanAdd || type == null)" @onclick="() => AddControl(param.Name)">
-                                <Icon Name="plus" Size="18" Stroke="2.2" />
-                            </button>
-                        </li>
-                    }
-                </ul>
-            }
-            @if (Values.Count > 0)
-            {
-                <h3 class="group">값</h3>
-                <ul class="list" aria-label="값">
-                    @foreach (var value in Values)
-                    {
-                        var note = $"‘{value.Name}’ 값을 글자로 넣기";
-                        <li class="datum">
-                            <span class="text">
-                                <span class="name">@value.Name</span>
-                                <span class="note">@Model.Runtime.Display(value.Name)</span>
-                            </span>
-                            <button type="button" class="add" aria-label="@note" title="@note" disabled="@(!CanAdd)" @onclick="() => AddValue(value.Name)">
-                                <Icon Name="plus" Size="18" Stroke="2.2" />
-                            </button>
-                        </li>
-                    }
-                </ul>
-            }
-            @if (Tables.Count > 0)
-            {
-                <h3 class="group">표</h3>
-                <ul class="list" aria-label="표">
-                    @foreach (var table in Tables)
-                    {
-                        var note = $"‘{table.Name}’ 표를 세로 막대 차트로 넣기";
-                        <li class="datum">
-                            <span class="text">
-                                <span class="name">@table.Name</span>
-                                <span class="note">@RowsText(table)</span>
-                            </span>
-                            <button type="button" class="add" aria-label="@note" title="@note" disabled="@(!CanAdd)" @onclick="() => AddTable(table.Name)">
-                                <Icon Name="plus" Size="18" Stroke="2.2" />
-                            </button>
-                        </li>
-                    }
-                </ul>
-            }
-            @if (Sources.Count > 0)
-            {
-                <h3 class="group">원본</h3>
-                <ul class="list" aria-label="원본">
-                    @foreach (var source in Sources)
-                    {
-                        <li class="datum">
-                            <span class="text">
-                                <span class="name">@source.Name</span>
-                                <span class="note">@SourceText(source)</span>
-                            </span>
-                        </li>
-                    }
-                </ul>
-            }
-        </section>
+    <aside class="lp @(_expanded ? "open" : null)" aria-label="데이터와 순서">
+        <button type="button" class="strip" aria-expanded="@(_expanded ? "true" : "false")" aria-label="@(_expanded ? "데이터와 순서 접기" : "데이터와 순서 펼치기")" title="@(_expanded ? "접기" : "데이터와 순서")" @onclick="() => _expanded = !_expanded">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="@(_expanded ? "m15 18-6-6 6-6" : "m9 18 6-6-6-6")" /></svg>
+        </button>
+        <div class="lpin">
+            <div class="ptabs">
+                <button type="button" class="ptab" aria-pressed="@(_tab == DataTab ? "true" : "false")" @onclick="() => _tab = DataTab">데이터</button>
+                <button type="button" class="ptab" aria-pressed="@(_tab == OrderTab ? "true" : "false")" @onclick="() => _tab = OrderTab">순서</button>
+            </div>
+            <div class="psc">
+                @if (_tab == DataTab)
+                {
+                    @DataView
+                }
+                else
+                {
+                    @OrderView
+                }
+            </div>
+        </div>
     </aside>
 }
 
 @code {
+    public const string ParamKind = "param";
+    public const string ValueKind = "value";
+    public const string TableKind = "table";
+
+    private const string HiddenKey = "hidden";
+    private const string LockedKey = "locked";
+    private const string DataTab = "data";
+    private const string OrderTab = "order";
+    private const string PlusPath = "M12 5v14 M5 12h14";
+    private const string EyePath = "M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z";
+    private const string EyeOffPath = "M3 3l18 18 M10.6 10.6a2 2 0 0 0 2.8 2.8 M9.9 5.1A10 10 0 0 1 12 5c7 0 10 7 10 7a17 17 0 0 1-2.2 3.2 M6.6 6.6C3.9 8.3 2 12 2 12s3 7 10 7a10 10 0 0 0 5.4-1.6";
+    private const string LockPath = "M5 11h14v10H5Z M8 11V7a4 4 0 0 1 8 0v4";
+    private const string UnlockPath = "M5 11h14v10H5Z M8 11V7a4 4 0 0 1 7.8-1.2";
+    private const string ChevronPath = "m6 9 6 6 6-6";
+    private const string ValuePath = "M4 9h16 M4 15h16 M10 3 8 21 M16 3l-2 18";
+    private const string TablePath = "M3 5h18v14H3Z M3 10h18 M9 5v14";
+    private const string SheetPath = "M3 3h18v18H3Z M3 9h18 M9 3v18";
+
+    private static readonly Dictionary<string, string> s_icons = DashIcons.Elements;
+
+    private static readonly Dictionary<string, string> s_paramIcons = new(StringComparer.Ordinal)
+    {
+        ["pick"] = s_icons["segmented"],
+        ["range"] = s_icons["rangeSlider"],
+        ["number"] = s_icons["slider"],
+        ["bool"] = s_icons["toggle"],
+    };
+
     private readonly string _uid = "dash-pane-" + Guid.NewGuid().ToString("N").Substring(0, 8);
     private List<Row> _rows = new();
+    private string _tab = DataTab;
+    private string _open;
+    private bool _expanded;
     private int _stop;
 
     [Parameter]
@@ -145,9 +86,8 @@
     [Parameter]
     public EventCallback<string> OnEditText { get; set; }
 
-    private string OrderId => _uid + "-order";
-
-    private string DataId => _uid + "-data";
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
 
     private bool CanAdd => !Locked && Commands != null;
 
@@ -159,8 +99,6 @@
 
     private List<DashSource> Sources => Model.Document.Sources.Where(item => item != null).ToList();
 
-    private bool HasData => Params.Count > 0 || Values.Count > 0 || Tables.Count > 0 || Sources.Count > 0;
-
     protected override void OnParametersSet()
     {
         _rows = Model?.Document?.Root == null ? new List<Row>() : RowsOf(Model);
@@ -168,12 +106,199 @@
         _stop = first < 0 ? 0 : first;
     }
 
+    private RenderFragment DataView => __builder =>
+    {
+        <p class="ph">
+            <span>조절값</span>
+            @if (Model.IsPreviewing)
+            {
+                <button type="button" class="crumb" @onclick="ResetAsync">처음 값으로</button>
+            }
+        </p>
+        <p class="hint pad">보는 사람이 단추나 슬라이더로 바꾸는 값이에요. 여기서 바꿔 보면 페이지가 미리 따라 바뀌고, 파일에 저장되는 처음 값은 그대로예요.</p>
+        @if (Params.Count == 0)
+        {
+            <p class="hint pad">연결한 조절값이 아직 없어요.</p>
+        }
+        else
+        {
+            <ul class="dl" aria-label="조절값">
+                @foreach (var param in Params)
+                {
+                    var current = param;
+                    var type = DashInserts.ControlFor(current, Model.Runtime);
+                    var open = _open == current.Name;
+                    <li @key="current.Name">
+                        <div class="di" draggable="@(CanAdd && type != null ? "true" : "false")" title="페이지로 끌어다 놓으면 이 조절값을 바꾸는 장치가 생겨요" @ondragstart="() => Drag(ParamKind, current.Name)" @ondragend="EndDrag">
+                            <span class="dk pp" aria-hidden="true">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="@ParamIcon(current)" /></svg>
+                            </span>
+                            <button type="button" class="ppb" aria-expanded="@(open ? "true" : "false")" @onclick="() => _open = open ? null : current.Name">
+                                <span class="dn"><b>@current.Name</b><small>@Model.Runtime.Display(current.Name)</small></span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="@ChevronPath" /></svg>
+                            </button>
+                            <button type="button" class="tb" aria-label="@ControlNote(current.Name, type)" title="조절 장치로 넣기" disabled="@(!CanAdd || type == null)" @onclick="() => AddControl(current.Name)">
+                                <Icon Name="plus" Size="16" Stroke="2.4" />
+                            </button>
+                        </div>
+                        @if (open)
+                        {
+                            <div class="ppc">@Preview(current)</div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        <p class="ph rule"><span>값</span></p>
+        @if (Values.Count == 0)
+        {
+            <p class="hint pad">엑셀에서 읽은 값이 아직 없어요.</p>
+        }
+        else
+        {
+            <ul class="dl" aria-label="값">
+                @foreach (var value in Values)
+                {
+                    var current = value;
+                    var note = $"‘{current.Name}’ 값을 글자로 넣기";
+                    <li class="di" draggable="@(CanAdd ? "true" : "false")" title="페이지로 끌어다 놓으면 이 값이 들어간 글자가 생겨요" @ondragstart="() => Drag(ValueKind, current.Name)" @ondragend="EndDrag">
+                        <span class="dk" aria-hidden="true">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="@ValuePath" /></svg>
+                        </span>
+                        <span class="dn"><b>@current.Name</b><small>@Model.Runtime.Display(current.Name)</small></span>
+                        <button type="button" class="tb" aria-label="@note" title="페이지에 넣기" disabled="@(!CanAdd)" @onclick="() => AddValue(current.Name)">
+                            <Icon Name="plus" Size="16" Stroke="2.4" />
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+        <p class="ph rule"><span>표</span></p>
+        @if (Tables.Count == 0)
+        {
+            <p class="hint pad">엑셀에서 읽은 표가 아직 없어요.</p>
+        }
+        else
+        {
+            <ul class="dl" aria-label="표">
+                @foreach (var table in Tables)
+                {
+                    var current = table;
+                    var note = $"‘{current.Name}’ 표를 그래프로 넣기";
+                    <li class="di" draggable="@(CanAdd ? "true" : "false")" title="페이지로 끌어다 놓으면 그래프가 생겨요" @ondragstart="() => Drag(TableKind, current.Name)" @ondragend="EndDrag">
+                        <span class="dk" aria-hidden="true">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="@TablePath" /></svg>
+                        </span>
+                        <span class="dn"><b>@current.Name</b><small>@RowsText(current)</small></span>
+                        <button type="button" class="tb" aria-label="@note" title="그래프로 넣기" disabled="@(!CanAdd)" @onclick="() => AddTable(current.Name)">
+                            <Icon Name="plus" Size="16" Stroke="2.4" />
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+        <p class="ph rule"><span>읽는 엑셀</span></p>
+        @if (Sources.Count == 0)
+        {
+            <p class="hint pad">읽는 엑셀이 아직 없어요.</p>
+        }
+        else
+        {
+            <ul class="srcs" aria-label="읽는 엑셀">
+                @foreach (var group in Sources.GroupBy(source => source.File, StringComparer.OrdinalIgnoreCase))
+                {
+                    <li>
+                        <span class="fi" aria-hidden="true">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="@SheetPath" /></svg>
+                        </span>
+                        <span><b>@group.Key</b><br />@string.Join(", ", group.Select(SourceText))</span>
+                    </li>
+                }
+            </ul>
+        }
+    };
+
+    private RenderFragment OrderView => __builder =>
+    {
+        <p class="ph"><span>앞에 있는 것부터</span><span class="count">@_rows.Count.ToString(CultureInfo.InvariantCulture)개</span></p>
+        @if (_rows.Count == 0)
+        {
+            <p class="hint pad">아직 놓은 요소가 없어요.</p>
+        }
+        else
+        {
+            <ul class="lys" aria-label="페이지에 놓인 것">
+                @for (var i = 0; i < _rows.Count; i++)
+                {
+                    var index = i;
+                    var row = _rows[index];
+                    var element = row.Element;
+                    var picked = IsPicked(row);
+                    var tag = TagOf(row);
+                    <li @key="element.Id" class="ly @(picked ? "on" : null) @(element.Hidden || !row.Visible ? "off" : null) @(tag != null ? "cnd" : null)">
+                        <button type="button" id="@RowId(index)" class="lyb" style="--depth: @row.Depth.ToString(CultureInfo.InvariantCulture)" aria-label="@RowLabel(row)" aria-pressed="@(picked ? "true" : "false")" tabindex="@(index == _stop ? 0 : -1)" @onclick="e => PickAsync(row, e)" @onkeydown="e => KeyAsync(e, index)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="@IconOf(element)" /></svg>
+                            <span class="lyn">@Label(row)</span>
+                            @if (IsBound(element))
+                            {
+                                <span class="lyd" title="엑셀에서 온 값이 들어 있어요"></span>
+                            }
+                            @if (tag != null)
+                            {
+                                <span class="lyc" title="@element.When">@tag</span>
+                            }
+                        </button>
+                        <button type="button" class="tb lyt" aria-label="@(Label(row) + (element.Hidden ? " 보이기" : " 숨기기"))" title="@(element.Hidden ? "보이기" : "숨기기")" disabled="@(!CanAdd)" @onclick="() => ToggleAsync(element, HiddenKey, element.Hidden)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="@(element.Hidden ? EyeOffPath : EyePath)" /></svg>
+                        </button>
+                        <button type="button" class="tb lyt" aria-label="@(Label(row) + (element.Locked ? " 잠금 풀기" : " 잠그기"))" title="@(element.Locked ? "잠금 풀기" : "잠그기")" disabled="@(!CanAdd)" @onclick="() => ToggleAsync(element, LockedKey, element.Locked)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="@(element.Locked ? LockPath : UnlockPath)" /></svg>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    };
+
+    private RenderFragment Preview(DashParam param) => __builder =>
+    {
+        var current = Model.Runtime.State.Get(param.Name);
+        switch (param)
+        {
+            case PickParam pick:
+                <div class="ppk" role="group" aria-label="@(param.Name + " 바꿔 보기")">
+                    @foreach (var option in Model.Runtime.OptionsOf(pick))
+                    {
+                        var choice = option;
+                        <button type="button" class="chip" aria-pressed="@(string.Equals(current as string, choice, StringComparison.Ordinal) ? "true" : "false")" @onclick="() => SetAsync(param.Name, choice)">@choice</button>
+                    }
+                </div>
+                break;
+            case NumberParam number:
+                <input type="range" class="mini" min="@Show(number.Min)" max="@Show(number.Max)" step="@StepOf(number.Step)" value="@(current is double value ? Show(value) : Show(number.Min))" aria-label="@(param.Name + " 바꿔 보기")" @onchange="e => SetNumberAsync(param.Name, e.Value?.ToString())" />
+                break;
+            case RangeParam range:
+                var span = current as DashRange ?? new DashRange(range.Min, range.Max);
+                <div class="geo">
+                    <label class="ni"><span>시작</span><input type="number" min="@Show(range.Min)" max="@Show(range.Max)" step="@StepOf(range.Step)" value="@Show(span.From)" @onchange="e => SetRangeAsync(param.Name, span, e.Value?.ToString(), true)" /></label>
+                    <label class="ni"><span>끝</span><input type="number" min="@Show(range.Min)" max="@Show(range.Max)" step="@StepOf(range.Step)" value="@Show(span.To)" @onchange="e => SetRangeAsync(param.Name, span, e.Value?.ToString(), false)" /></label>
+                </div>
+                break;
+            case BoolParam:
+                <div class="swr">
+                    <span class="swt"><small>@(current is true ? "켜진 모습으로 보고 있어요" : "꺼진 모습으로 보고 있어요")</small></span>
+                    <label class="swl"><span class="sr">@(param.Name + " 켜 보기")</span><input type="checkbox" role="switch" class="swi" checked="@(current is true)" @onchange="e => SetAsync(param.Name, e.Value is true)" /></label>
+                </div>
+                break;
+        }
+    };
+
     private static List<Row> RowsOf(DashPaperModel model)
     {
         var results = new Dictionary<string, ElementResult>(StringComparer.Ordinal);
         Collect(model.Root, results);
         var rows = new List<Row>();
-        foreach (var child in model.Document.Root.Children.Where(child => child != null))
+        foreach (var child in model.Document.Root.Children.Where(child => child != null).Reverse())
             Walk(child, 0, true, results, rows);
 
         return rows;
@@ -195,7 +320,7 @@
     {
         var visible = parentVisible && (element.Id == null || !results.TryGetValue(element.Id, out var result) || result.Visible);
         rows.Add(new Row(element, depth, visible));
-        foreach (var child in element.Nested().Where(child => child != null))
+        foreach (var child in element.Nested().Where(child => child != null).Reverse())
             Walk(child, depth + 1, visible, results, rows);
     }
 
@@ -208,6 +333,25 @@
     private static string Kind(Row row) => DashLabels.Kind(row.Element.Kind);
 
     private static string RowLabel(Row row) => row.Visible ? $"{Label(row)}, {Kind(row)}" : $"{Label(row)}, {Kind(row)}, 지금 안 보임";
+
+    private static string IconOf(Element element) => s_icons.TryGetValue(element.Kind ?? string.Empty, out var path) ? path : "M4 4h16v16H4Z M4 9h16";
+
+    private static string ParamIcon(DashParam param) => s_paramIcons.TryGetValue(param.Kind ?? string.Empty, out var path) ? path : s_icons["segmented"];
+
+    private static string TagOf(Row row)
+    {
+        if (!string.IsNullOrWhiteSpace(row.Element.When))
+            return row.Visible ? "조건" : "지금 안 보임";
+
+        return !row.Visible && !row.Element.Hidden ? "지금 안 보임" : null;
+    }
+
+    private static bool IsBound(Element element) => element switch
+    {
+        TextElement text => text.Text != null && text.Text.Contains('«'),
+        ChartElement or TableElement or RepeatElement or MeterElement => true,
+        _ => false,
+    };
 
     private bool CanEditText(Element element) =>
         !Locked && (element is TextElement or ShapeElement) && DashCanvasEdits.IsMovable(Model, element);
@@ -246,11 +390,63 @@
         }
     }
 
+    private Task ToggleAsync(Element element, string key, bool on)
+    {
+        if (!CanAdd || element.Id == null)
+            return Task.CompletedTask;
+
+        var patch = new Dictionary<string, object> { [key] = !on };
+        Commands.Apply(EditCommand.Create(DashCanvasEdits.UpdateTool, new { id = element.Id, patch }));
+        return OnChanged.InvokeAsync();
+    }
+
+    private void Drag(string kind, string name)
+    {
+        if (CanAdd && State != null)
+            State.Drag = new DashDrag(kind, name);
+    }
+
+    private void EndDrag()
+    {
+        if (State != null)
+            State.Drag = null;
+    }
+
     private void AddControl(string name) => Commands?.InsertControl(name);
 
     private void AddValue(string name) => Commands?.InsertValue(name);
 
     private void AddTable(string name) => Commands?.InsertTable(name);
+
+    private Task ResetAsync()
+    {
+        Model.ResetParams();
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task SetAsync(string name, object value)
+    {
+        Model.SetParam(name, value);
+        return OnChanged.InvokeAsync();
+    }
+
+    private Task SetNumberAsync(string name, string text) =>
+        TryNumber(text, out var number) ? SetAsync(name, number) : OnChanged.InvokeAsync();
+
+    private Task SetRangeAsync(string name, DashRange range, string text, bool start)
+    {
+        if (!TryNumber(text, out var number))
+            return OnChanged.InvokeAsync();
+
+        return SetAsync(name, start ? new DashRange(number, range.To) : new DashRange(range.From, number));
+    }
+
+    private static bool TryNumber(string text, out double number) =>
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number) && double.IsFinite(number);
+
+    private static string Show(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static string StepOf(double step) => step > 0 ? Show(step) : "any";
 
     private static string ControlNote(string name, string type)
     {
@@ -264,7 +460,7 @@
         return data == null ? "읽지 못했어요" : data.Rows.Count.ToString(CultureInfo.InvariantCulture) + "줄";
     }
 
-    private static string SourceText(DashSource source)
+    private string SourceText(DashSource source)
     {
         var place = source switch
         {
@@ -272,10 +468,11 @@
             WordTableSource word => $"표 {word.Table.ToString(CultureInfo.InvariantCulture)}",
             PptTableSource table => $"{table.Slide.ToString(CultureInfo.InvariantCulture)}번 슬라이드 표 {table.Table.ToString(CultureInfo.InvariantCulture)}",
             PptChartSource chart => $"{chart.Slide.ToString(CultureInfo.InvariantCulture)}번 슬라이드 차트 {chart.Chart.ToString(CultureInfo.InvariantCulture)}",
-            _ => null,
+            _ => source.Name,
         };
-
-        return string.IsNullOrWhiteSpace(place) ? source.File : source.File + " · " + place;
+        var rows = Model.Runtime.TryTable(source.Name)?.Rows.Count;
+        var name = string.IsNullOrWhiteSpace(place) ? source.Name : place;
+        return rows.HasValue ? $"‘{name}’ {rows.Value.ToString(CultureInfo.InvariantCulture)}줄" : $"‘{name}’";
     }
 
     private sealed record Row(Element Element, int Depth, bool Visible);

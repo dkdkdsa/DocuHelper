@@ -28,6 +28,10 @@ namespace DocuHelperEditor.Components.Paper.Dash
 
         public string HighlightId { get; init; }
 
+        public IReadOnlyCollection<string> Dependents { get; init; } = Array.Empty<string>();
+
+        public bool IsDependent(string id) => IsEditing && id != null && Dependents.Contains(id);
+
         public string EditingId { get; init; }
 
         public Func<string, string, Task> CommitText { get; init; } = (_, _) => Task.CompletedTask;

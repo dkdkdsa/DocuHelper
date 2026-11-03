@@ -29,9 +29,13 @@ namespace DocuHelperEditor.Components.Paper.Dash
 
         public bool Guides { get; set; }
 
+        public bool Magnet { get; set; } = true;
+
         public List<string> Selected { get; } = new();
 
         public string EditingId { get; set; }
+
+        public DashDrag Drag { get; set; }
 
         public IDialogPresenter Dialogs { get; set; }
 

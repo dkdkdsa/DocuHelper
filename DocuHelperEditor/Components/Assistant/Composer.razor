@@ -94,7 +94,69 @@
                 </ul>
             </section>
         }
-        <div class="box @(IsBlocked ? "off" : null)">
+        @if (Assistant.IsDashMode && !IsWorking)
+        {
+            <div class="dash-pick">
+                <div class="dash-sources">
+                    <span class="dash-label">읽을 엑셀</span>
+                    @foreach (var name in Assistant.DashSources)
+                    {
+                        <span class="dash-file" @key="name"><Icon Name="sheet" Size="14" Stroke="2" />@name</span>
+                    }
+                    <button type="button" class="dash-link" aria-expanded="@(_sourcesOpen ? "true" : "false")" @onclick="() => _sourcesOpen = !_sourcesOpen">바꾸기</button>
+                </div>
+                @if (_sourcesOpen)
+                {
+                    <fieldset class="dash-files">
+                        <legend>대시보드가 읽을 엑셀</legend>
+                        <p class="dash-hint">읽기만 하고 바꾸지 않아요.</p>
+                        @foreach (var name in Assistant.ExcelFiles)
+                        {
+                            var on = Assistant.DashSources.Contains(name);
+                            <label class="dash-check" @key="name">
+                                <input type="checkbox" checked="@on" @onchange="() => Assistant.ToggleDashSource(name)" />
+                                <span>@name</span>
+                            </label>
+                        }
+                        <button type="button" class="dash-done" @onclick="() => _sourcesOpen = false">다 골랐어요</button>
+                    </fieldset>
+                }
+                @if (Assistant.DashSources.Count == 0)
+                {
+                    <p class="dash-warn">읽을 엑셀을 하나 이상 골라 주세요.</p>
+                }
+                <fieldset class="dash-shapes">
+                    <legend>어떤 모양으로 만들까요?</legend>
+                    <div class="dash-grid">
+                        @foreach (var template in DocuHelper.Dash.DashTemplates.All)
+                        {
+                            var on = template.Id == Assistant.DashTemplateId;
+                            <label class="dash-shape @(on ? "on" : null)" @key="template.Id">
+                                <input type="radio" name="dash-template" class="sr-only" checked="@on" @onchange="() => Assistant.PickDashTemplate(template.Id)" />
+                                <DashTemplateThumb Template="@template.Id" />
+                                <span>@template.Title</span>
+                                @if (on)
+                                {
+                                    <span class="dash-mark" aria-hidden="true"><Icon Name="check" Size="11" Stroke="3" /></span>
+                                }
+                            </label>
+                        }
+                    </div>
+                    <p class="dash-desc">@(DocuHelper.Dash.DashTemplates.Find(Assistant.DashTemplateId)?.Description)</p>
+                </fieldset>
+                <div class="dash-extras" role="group" aria-labelledby="dash-extras-h">
+                    <span id="dash-extras-h" class="dash-label">바꿔 볼 것 더하기</span>
+                    @foreach (var extra in AssistantStore.DashExtras)
+                    {
+                        var on = Assistant.HasDashExtra(extra.Sentence);
+                        <button type="button" class="dash-extra @(on ? "on" : null)" aria-pressed="@(on ? "true" : "false")" @onclick="() => Assistant.ToggleDashExtra(extra.Sentence)">
+                            <Icon Name="@(on ? "check" : "plus")" Size="14" Stroke="2.4" />@extra.Label
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+        <div class="box @(IsBlocked ? "off" : null) @(Assistant.IsDashMode ? "dm" : null)">
             @if (Assistant.Attachments.Count > 0)
             {
                 <ul class="attachments" aria-label="붙인 파일">
@@ -108,17 +170,32 @@
             <textarea id="composer-input" class="input" rows="2" placeholder="@Placeholder" disabled="@(IsWorking || IsBlocked)" data-region-focus="@RegionFocus" @ref="_input" @oninput="OnInput" @onkeydown="OnKeyDownAsync"></textarea>
             <div class="bar">
                 <IconButton Icon="paperclip" Label="파일 더하기" Title="파일 더하기 · 그림은 Ctrl+V로 붙여 넣어도 돼요" IconSize="18" OnClick="AddFilesAsync" />
-                <button type="button" id="composer-model-btn" class="pick" aria-label="@($"모델 {Settings.Model.Name}")" aria-expanded="@(OpenMenu == ModelMenu ? "true" : "false")" aria-controls="composer-model-pop" disabled="@PickDisabled" @onclick="ToggleModel">
-                    @Settings.Model.Name
-                    <Icon Name="chevron-down" Size="14" Stroke="2.2" Class="@(OpenMenu == ModelMenu ? "flip" : null)" />
-                </button>
-                <button type="button" id="composer-effort-btn" class="pick" aria-label="@($"노력 {Settings.Effort.Name}")" aria-expanded="@(OpenMenu == EffortMenu ? "true" : "false")" aria-controls="composer-effort-pop" disabled="@PickDisabled" @onclick="ToggleEffort">
-                    <span class="pick-label">노력</span>
-                    @Settings.Effort.Name
-                    <Icon Name="chevron-down" Size="14" Stroke="2.2" Class="@(OpenMenu == EffortMenu ? "flip" : null)" />
-                </button>
-                <ActionButton Kind="ButtonKind.Primary" Icon="send" IconSize="15" IconStroke="2.2" Class="send" Disabled="@(!Assistant.CanSend)" OnClick="SendAsync">보내기</ActionButton>
+                @if (Assistant.ShowsDashButton)
+                {
+                    <button type="button" class="dash-toggle @(Assistant.IsDashMode ? "on" : null)" aria-pressed="@(Assistant.IsDashMode ? "true" : "false")" title="@DashTitle" disabled="@(!Assistant.IsDashMode && Assistant.DashBlocker != null)" @onclick="ToggleDash">
+                        <Icon Name="dashboard" Size="18" Stroke="2" />대시보드
+                    </button>
+                }
+                @if (Assistant.IsDashMode)
+                {
+                    <ActionButton Kind="ButtonKind.Primary" Icon="dashboard" IconSize="15" IconStroke="2.2" Class="send" Disabled="@(!Assistant.CanSendDashboard)" OnClick="SendDashboardAsync">대시보드 만들기</ActionButton>
+                }
+                else
+                {
+                    <ActionButton Kind="ButtonKind.Primary" Icon="send" IconSize="15" IconStroke="2.2" Class="send" Disabled="@(!Assistant.CanSend)" OnClick="SendAsync">보내기</ActionButton>
+                }
             </div>
+        </div>
+        <div class="under">
+            <button type="button" id="composer-model-btn" class="pick" aria-label="@($"모델 {Settings.Model.Name}")" aria-expanded="@(OpenMenu == ModelMenu ? "true" : "false")" aria-controls="composer-model-pop" disabled="@PickDisabled" @onclick="ToggleModel">
+                @Settings.Model.Name
+                <Icon Name="chevron-down" Size="14" Stroke="2.2" Class="@(OpenMenu == ModelMenu ? "flip" : null)" />
+            </button>
+            <button type="button" id="composer-effort-btn" class="pick" aria-label="@($"노력 {Settings.Effort.Name}")" aria-expanded="@(OpenMenu == EffortMenu ? "true" : "false")" aria-controls="composer-effort-pop" disabled="@PickDisabled" @onclick="ToggleEffort">
+                <span class="pick-label">노력</span>
+                @Settings.Effort.Name
+                <Icon Name="chevron-down" Size="14" Stroke="2.2" Class="@(OpenMenu == EffortMenu ? "flip" : null)" />
+            </button>
         </div>
     </div>
 </div>
@@ -128,6 +205,7 @@
     private const string FilesModulePath = "./js/attachments.js";
     private const string WorkingPlaceholder = "도우미가 일하는 중이에요";
     private const string RevisePlaceholder = "어떻게 고칠지 적어 주세요. 예: 합계 줄은 빼 줘";
+    private const string DashPlaceholder = "더 넣을 걸 적어 주세요. 비워 두면 이 모양에 이야기한 내용만 채워요";
     private const string ModelMenu = "model";
     private const string EffortMenu = "effort";
     private static readonly DocuHelper.Agents.AgentProvider[] s_modelGroups = { DocuHelper.Agents.AgentProvider.Claude, DocuHelper.Agents.AgentProvider.OpenAi };
@@ -139,6 +217,11 @@
     private bool _dropNextInput;
     private string _shownDraft = string.Empty;
     private string _menu;
+    private bool _sourcesOpen;
+
+    private string DashTitle => Assistant.IsDashMode
+        ? "대시보드 만들기 끄기 (Esc)"
+        : Assistant.DashBlocker ?? "지금까지 이야기한 내용으로 대시보드 만들기";
 
     private IReadOnlyList<ContextChipModel> Chips => Assistant.ContextChips;
 
@@ -158,6 +241,9 @@
         {
             if (IsWorking)
                 return WorkingPlaceholder;
+
+            if (Assistant.IsDashMode)
+                return DashPlaceholder;
 
             if (Assistant.IsRevising && Assistant.Status != AssistantStatus.Asking)
                 return RevisePlaceholder;
@@ -236,6 +322,22 @@
     {
         if (e.Key == "Escape" && _menu != null)
             await CloseMenuAsync();
+        else if (e.Key == "Escape" && Assistant.IsDashMode)
+            Assistant.StopDashMode();
+    }
+
+    private void ToggleDash()
+    {
+        _sourcesOpen = false;
+        Assistant.ToggleDashMode();
+    }
+
+    private async Task SendDashboardAsync()
+    {
+        _menu = null;
+        _sourcesOpen = false;
+        await Assistant.SendDashboardAsync();
+        await JS.InvokeVoidAsync("docuHelper.focus", "#composer-input");
     }
 
     private void OnInput(ChangeEventArgs e)
@@ -256,6 +358,16 @@
         if (!plainEnter)
         {
             _dropNextInput = false;
+            return;
+        }
+
+        if (Assistant.IsDashMode)
+        {
+            if (!Assistant.CanSendDashboard)
+                return;
+
+            _dropNextInput = !_enterGuarded;
+            await Assistant.SendDashboardAsync();
             return;
         }
 

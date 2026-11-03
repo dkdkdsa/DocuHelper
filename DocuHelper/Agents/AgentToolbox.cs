@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using DocuHelper.Dash;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools;
@@ -101,6 +102,8 @@ namespace DocuHelper.Agents
         private readonly Dictionary<Docu, DocuState> _before = new();
         private readonly HashSet<Docu> _locked = new();
         private Docu _lastWritten;
+        private Docu _onlyWrite;
+        private DashTemplate _dashTemplate;
         private readonly List<Docu> _read = new();
         private readonly List<AgentChange> _changes = new();
         private readonly List<string> _untouched = new();
@@ -115,6 +118,9 @@ namespace DocuHelper.Agents
             _request = request;
             _notes = notes;
             _types = (keepTypes ?? Enumerable.Empty<DocuType>()).Where(workspace.Editors.ContainsKey).Distinct().OrderBy(type => type).ToList();
+            if (request.DashMake != null)
+                _onlyWrite = StartDashboard(request.DashMake);
+
             Reveal();
         }
 
@@ -159,6 +165,13 @@ namespace DocuHelper.Agents
 
             if (_request.Attachments.Count > 0)
                 text.AppendLine($"Attached to this message: {string.Join(", ", _request.Attachments.Select(a => a.Name))}");
+
+            if (_onlyWrite != null)
+            {
+                var sources = _request.DashMake.Sources.Count > 0 ? string.Join(", ", _request.DashMake.Sources) : "the Excel files that fit the request";
+                text.AppendLine($"This turn builds a dashboard: the app has just made '{_onlyWrite.Name}' from the '{_dashTemplate.Title}' template ({_dashTemplate.Description}). Its elements are slots with placeholder text and no data yet; read_dash lists them by id and name.");
+                text.AppendLine($"Read the dashboard guide page and the source files ({sources}), then add the sources, params and values, connect every slot to a fitting value or table and replace every placeholder text. Keep the template's layout; remove a slot only when nothing fits it. Add controls only for what the user asked to change, in free space near the top. This turn may only change '{_onlyWrite.Name}'; the source files stay as they are. With no request text, build it from the conversation so far.");
+            }
 
             if (_notes.Count > 0)
             {
@@ -264,6 +277,9 @@ namespace DocuHelper.Agents
 
         private ToolResult Write(DocuEditor editor, Docu docu, string name, JsonElement input, ToolInput args)
         {
+            if (_onlyWrite != null && docu != _onlyWrite)
+                return ToolResult.Fail($"This turn builds the dashboard '{_onlyWrite.Name}' and may only change that file. '{docu.Name}' is read-only now: read it, don't change it.");
+
             Prepare(docu);
             var result = editor.Execute(docu, name, input);
             if (result.IsError)
@@ -339,8 +355,33 @@ namespace DocuHelper.Agents
             return ToolResult.Ok(text.ToString().TrimEnd(), $"{_workspace.Docus.Count}개");
         }
 
+        private Docu StartDashboard(AgentDashMake make)
+        {
+            var template = DashTemplates.Find(make.Template) ?? DashTemplates.Find(DashTemplates.Summary);
+            var docu = _workspace.CreateDocu(make.FileName, DashFile.Write(template.Create()));
+            _before[docu] = null;
+            _locked.Add(docu);
+            docu.SetLocked(true);
+            _lastWritten = docu;
+
+            var change = new DocuChange
+            {
+                Label = $"‘{template.Title}’ 모양으로 ‘{docu.Name}’ 파일을 새로 만들어요",
+                Location = "새 파일",
+                Icon = "file-plus",
+            };
+            docu.AddChange(change);
+            _changes.Add(new AgentChange { Docu = docu, Change = change });
+            docu.MarkDirty();
+            _dashTemplate = template;
+            return docu;
+        }
+
         private ToolResult CreateFile(ToolInput args)
         {
+            if (_onlyWrite != null)
+                return ToolResult.Fail($"This turn builds the dashboard '{_onlyWrite.Name}', which already exists. Fill it instead of creating another file.");
+
             var docu = _workspace.CreateDocu(args.GetString("name"));
             _before[docu] = null;
             _locked.Add(docu);

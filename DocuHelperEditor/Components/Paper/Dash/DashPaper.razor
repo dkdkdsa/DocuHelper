@@ -6,33 +6,40 @@
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
+@inject IClipboardService Clipboard
+@inject IFileDialogService Dialogs
+@inject IPrintService Prints
 
 @if (File?.Paper is DashPaperModel model)
 {
     <div class="dash" @ref="_root">
-        <DashRibbon @ref="_ribbonHost" File="File" State="_state" OnChanged="Redraw" />
+        <DashToolbar File="File" Model="model" State="_state" Commands="_commands" OnZoom="SetZoom" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
             @if (Mode == DashViewState.DataMode)
             {
-                <DashDataView Model="model" State="_state" Commands="_ribbonHost?.Commands" Locked="Locked" OnChanged="Redraw" OnOpenElement="OpenElement" />
+                <DashDataView Model="model" State="_state" Commands="_commands" Locked="Locked" OnChanged="Redraw" OnOpenElement="OpenElement" />
             }
             else
             {
                 if (Mode == DashViewState.EditMode)
                 {
-                    <DashSidePane Model="model" State="_state" Commands="_ribbonHost?.Commands" Locked="Locked" OnSelect="pick => PickFromPane(pick.Id, pick.Additive)" OnEditText="StartText" />
+                    <DashSidePane Model="model" State="_state" Commands="_commands" Locked="Locked" OnSelect="pick => PickFromPane(pick.Id, pick.Additive)" OnEditText="StartText" OnChanged="Redraw" />
                 }
 
-                <div class="stage">
-                    <div class="frame" style="--page-max: @PageMax">
+                <div class="stage" @ondragover:preventDefault @ondrop="e => DropAsync(model, e)" @ondrop:preventDefault>
+                    <div class="frame @(_state.FitRequested ? "fit" : null)" style="--page-max: @PageMax; --ratio: @DashCss.Num(model.AspectRatio)">
                         <CascadingValue Value="ContextOf(model)">
                             <DashCanvas Model="model" State="_state" Label="@File.Name" Locked="Locked" OnGesture="g => GestureAsync(model, g)" OnEditText="StartText" />
                         </CascadingValue>
                     </div>
                 </div>
+
+                if (Mode == DashViewState.EditMode)
+                {
+                    <DashInspector Model="model" State="_state" Commands="_commands" File="File" OnChanged="Redraw" OnSelect="id => PickFromPane(id, false)" />
+                }
             }
         </div>
-        <DashStatusBar Model="model" State="_state" Commands="_ribbonHost?.Commands" OnZoom="SetZoom" />
         <DialogHost Presenter="_presenter" />
         <ChangeNavigator File="File" />
     </div>
@@ -44,7 +51,8 @@
     private readonly DialogPresenter _presenter = new();
     private ElementReference _root;
     private WheelZoom _wheel;
-    private DashRibbon _ribbonHost;
+    private DashRibbonCommands _commands;
+    private DashViewState _commandState;
 
     [Parameter]
     public WorkspaceFile File { get; set; }
@@ -61,8 +69,19 @@
 
     protected override void OnParametersSet()
     {
-        if (_state.Mode == null && File?.Paper is DashPaperModel model)
-            _state.Mode = model.IsBlank ? DashViewState.EditMode : DashViewState.ViewMode;
+        if (!ReferenceEquals(_commandState, _state))
+        {
+            if (_commands != null)
+                _commands.Changed -= OnCommandsChanged;
+
+            _commandState = _state;
+            _commands = new DashRibbonCommands(Workspace, Assistant, JS, _state, Clipboard, Dialogs, Prints);
+            _commands.Changed += OnCommandsChanged;
+        }
+
+        _commands.File = File;
+        if (_state.Mode == null && File?.Paper is DashPaperModel)
+            _state.Mode = DashViewState.ViewMode;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -72,9 +91,6 @@
             _wheel ??= new WheelZoom(JS, ZoomStepAsync);
             await _wheel.AttachAsync(_root);
         }
-
-        if (firstRender && _ribbonHost != null)
-            StateHasChanged();
 
         var selected = Workspace.SelectedChangeId;
         if (selected == _seenChangeId && Workspace.ChangePickVersion == _seenPickVersion)
@@ -97,7 +113,15 @@
     private string _seenChangeId;
     private int _seenPickVersion = -1;
 
-    protected override void OnDispose() => _ = _wheel?.Detach();
+    protected override void OnDispose()
+    {
+        if (_commands != null)
+            _commands.Changed -= OnCommandsChanged;
+
+        _ = _wheel?.Detach();
+    }
+
+    private void OnCommandsChanged() => _ = InvokeAsync(StateHasChanged);
 
     private DashRenderContext ContextOf(DashPaperModel model) => new()
     {
@@ -109,6 +133,7 @@
         LiveChanges = (File.Docu?.Changes ?? new List<DocuChange>()).SelectMany(change => change.Anchors).ToHashSet(StringComparer.Ordinal),
         ChangeIds = ChangeIdsOf(File.Docu),
         EditingId = _state.EditingId,
+        Dependents = Mode == DashViewState.EditMode ? DashDependents.IdsOf(model.Document, _state.Selected) : Array.Empty<string>(),
         CommitText = (id, text) => CommitTextAsync(model, id, text),
         CancelText = CancelTextAsync,
         SetParam = (name, value) => SetParamAsync(model, name, value),
@@ -133,7 +158,7 @@
 
         var result = commands.Count == 1 ? Workspace.ApplyEdit(File, commands[0]) : Workspace.ApplyEdits(File, commands);
         if (result.IsError)
-            _ribbonHost?.Commands?.Notify(result.Content);
+            _commands?.Notify(result.Content);
         else if (gesture.Kind == "key" && gesture.Key is "Delete" or "Backspace")
             _state.Selected.Clear();
 
@@ -203,7 +228,7 @@
         {
             var result = Workspace.ApplyEdit(File, DashCanvasEdits.Text(id, text));
             if (result.IsError)
-                _ribbonHost?.Commands?.Notify(result.Content);
+                _commands?.Notify(result.Content);
         }
 
         StateHasChanged();
@@ -237,19 +262,19 @@
                 break;
             case AskAction ask:
                 var text = FillAsk(model, ask.Text, item);
-                if (_ribbonHost?.Commands != null)
-                    await _ribbonHost.Commands.PrefillAsync(text);
+                if (_commands != null)
+                    await _commands.PrefillAsync(text);
                 break;
             case OpenAction open:
                 var target = Workspace.Files.FirstOrDefault(file => string.Equals(file.Name, open.File, StringComparison.OrdinalIgnoreCase));
                 if (target != null)
                     Workspace.Open(target.Id);
                 else
-                    _ribbonHost?.Commands?.Notify($"‘{open.File}’ 파일을 작업 폴더에서 찾을 수 없어요.");
+                    _commands?.Notify($"‘{open.File}’ 파일을 작업 폴더에서 찾을 수 없어요.");
                 break;
             case PdfAction:
-                if (_ribbonHost?.Commands != null)
-                    await _ribbonHost.Commands.ExportPdfFromPageAsync();
+                if (_commands != null)
+                    await _commands.ExportPdfFromPageAsync();
                 break;
         }
 
@@ -282,6 +307,45 @@
     }
 
     private void Redraw() => StateHasChanged();
+
+    private async Task DropAsync(DashPaperModel model, DragEventArgs e)
+    {
+        var drag = _state.Drag;
+        _state.Drag = null;
+        if (drag == null || Locked || Mode != DashViewState.EditMode || _commands == null)
+            return;
+
+        double[] point = null;
+        try
+        {
+            point = await JS.InvokeAsync<double[]>("docuHelperDashCanvas.pointOnPage", _root, e.ClientX, e.ClientY);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        if (point == null || point.Length < 2)
+            return;
+
+        var at = (point[0] * model.PageWidth, point[1] * model.PageHeight);
+        switch (drag.Kind)
+        {
+            case DashSidePane.ParamKind:
+                _commands.InsertControl(drag.Name, at);
+                break;
+            case DashSidePane.ValueKind:
+                _commands.InsertValue(drag.Name, at);
+                break;
+            case DashSidePane.TableKind:
+                _commands.InsertTable(drag.Name, at);
+                break;
+        }
+
+        StateHasChanged();
+    }
 
     private static Dictionary<string, string> ChangeIdsOf(Docu docu)
     {

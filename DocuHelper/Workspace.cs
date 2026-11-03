@@ -162,7 +162,9 @@ namespace DocuHelper
                 ?? _docus.FirstOrDefault(d => d.Name.Contains(key, StringComparison.CurrentCultureIgnoreCase));
         }
 
-        public Docu CreateDocu(string fileName)
+        public Docu CreateDocu(string fileName) => CreateDocu(fileName, null);
+
+        public Docu CreateDocu(string fileName, byte[] content)
         {
             var name = fileName?.Trim() ?? string.Empty;
             var problem = FileNames.Problem(Path.GetFileNameWithoutExtension(name));
@@ -177,6 +179,9 @@ namespace DocuHelper
                 name = Path.ChangeExtension(name, editor.Extension);
 
             var docu = editor.CreateBlank(UniquePath(name));
+            if (content != null)
+                docu.Load(content);
+
             editor.Save(docu);
             History.Record(docu.FilePath, "새로 만든 상태");
             docu.MarkSaved();

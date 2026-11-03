@@ -12,14 +12,25 @@ namespace DocuHelperEditor.Components.Paper.Dash
     {
         private IReadOnlyList<EditCommand> ArrangeEdits(CommandSpec spec, string arg)
         {
-            var model = Model;
             var entry = EntryOf(spec, arg);
             var to = entry != null && JsonNode.Parse(entry.Args) is JsonObject args ? args["to"]?.GetValue<string>() : null;
-            if (model == null || to == null)
+            return to == null ? null : ArrangeEdits(to, SelectedElements());
+        }
+
+        public bool Arrange(string to, string id)
+        {
+            var element = Model?.Document.Find(id);
+            return element != null && Editable() == null && Apply(ArrangeEdits(to, new[] { element }));
+        }
+
+        private IReadOnlyList<EditCommand> ArrangeEdits(string to, IReadOnlyList<Element> elements)
+        {
+            var model = Model;
+            if (model == null)
                 return null;
 
             var commands = new List<EditCommand>();
-            var picked = new HashSet<Element>(SelectedElements());
+            var picked = new HashSet<Element>(elements);
             var ascending = to is "front" or "backward";
             foreach (var parent in picked.Select(element => ParentOf(model.Document, element)).Where(parent => parent != null).Distinct())
             {

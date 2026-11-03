@@ -6,7 +6,7 @@
 @if (Model?.Root != null)
 {
     var page = Model.Root;
-    <div @ref="_stage" class="page @(Editing ? "editing" : null)" style="aspect-ratio: @DashCss.Num(Model.PageWidth) / @DashCss.Num(Model.PageHeight); @DashCss.Box(page.Style, Model.PageWidth)" aria-label="@Label" tabindex="@(Editing && !Locked ? "-1" : null)" data-slide="@(Editing ? "dash" : null)" data-snap="@(Editing ? Snap : null)" data-wcm="@DashCss.Num(Model.WidthCm)" data-hcm="@DashCss.Num(Model.HeightCm)" data-locked="@(Editing && Locked ? "true" : null)" data-selected="@(State?.Selected.Count ?? 0)">
+    <div @ref="_stage" class="page @(Editing ? "editing" : null)" style="aspect-ratio: @DashCss.Num(Model.PageWidth) / @DashCss.Num(Model.PageHeight); @DashCss.Box(page.Style, Model.PageWidth)" aria-label="@Label" tabindex="@(Editing && !Locked ? "-1" : null)" data-slide="@(Editing ? "dash" : null)" data-snap="@(Editing ? Snap : null)" data-drag-hook="@(Editing ? "dash" : null)" data-magnet="@(Editing && State?.Magnet == false ? "false" : null)" data-pw="@DashCss.Num(Model.PageWidth)" data-ph="@DashCss.Num(Model.PageHeight)" data-wcm="@DashCss.Num(Model.WidthCm)" data-hcm="@DashCss.Num(Model.HeightCm)" data-locked="@(Editing && Locked ? "true" : null)" data-selected="@(State?.Selected.Count ?? 0)">
         @foreach (var child in page.Children)
         {
             <DashElementView @key="child.Key" Result="child" Root="true" Movable="@DashCanvasEdits.IsMovable(Model, child.Source)" Placement="@DashCss.Absolute(child.Style, Model.PageWidth, Model.PageHeight)" />

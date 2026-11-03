@@ -1,0 +1,250 @@
+.bar {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 6px 10px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--hair);
+}
+
+.bar.view {
+    gap: 8px 10px;
+    padding: 6px 12px 6px 16px;
+}
+
+.head {
+    flex: 1 1 280px;
+    min-width: 0;
+    line-height: 1.35;
+}
+
+.title {
+    margin: 0;
+    font-family: var(--font-display, 'Hahmlet', 'Batang', serif);
+    font-size: 17px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--ink-2);
+}
+
+.seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    margin-right: 6px;
+    border: 1.5px solid #CBD1DB;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--paper);
+}
+
+.seg > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 41px;
+    padding: 0 12px;
+    border: 0;
+    border-left: 1px solid var(--hair);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.seg > button:first-child {
+    border-left: 0;
+}
+
+.seg > button:hover {
+    background: var(--paper-2);
+}
+
+.seg > button[aria-pressed="true"] {
+    background: var(--ink);
+    color: #FFFFFF;
+    font-weight: 700;
+}
+
+.bar.view .seg {
+    margin-right: 0;
+}
+
+.btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 44px;
+    padding: 0 12px;
+    border: 1.5px solid #7A849B;
+    border-radius: 8px;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.btn:hover {
+    filter: brightness(0.96);
+}
+
+.tool {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 44px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.tool:hover {
+    background: #EEF1F6;
+}
+
+.tool:disabled {
+    color: var(--ink-disabled);
+    cursor: not-allowed;
+    background: transparent;
+}
+
+.tool[aria-expanded="true"] {
+    background: var(--ink);
+    color: #FFFFFF;
+}
+
+.icon {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.icon:hover {
+    background: #EEF1F6;
+}
+
+.icon:disabled {
+    color: var(--ink-disabled);
+    cursor: not-allowed;
+    background: transparent;
+}
+
+.vsep {
+    flex: none;
+    width: 1px;
+    height: 28px;
+    margin: 0 4px;
+    background: var(--hair);
+}
+
+.zoom {
+    min-width: 44px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.drop {
+    position: relative;
+    flex: none;
+}
+
+.shield {
+    position: fixed;
+    inset: 0;
+    z-index: 29;
+}
+
+.menu {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    z-index: 30;
+    width: 300px;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    border: 1px solid #CBD1DB;
+    border-radius: 12px;
+    background: var(--paper);
+    box-shadow: 0 14px 32px -12px rgba(28, 42, 72, 0.45);
+}
+
+.item {
+    width: 100%;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.item:hover {
+    background: var(--paper-2);
+}
+
+.item svg {
+    flex: none;
+}
+
+.item > span {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.35;
+}
+
+.item b {
+    font-size: 14px;
+}
+
+.item small {
+    font-size: 12px;
+    color: var(--ink-2);
+}
+
+.bar button:focus-visible {
+    outline: 2px solid var(--dash);
+    outline-offset: -2px;
+}

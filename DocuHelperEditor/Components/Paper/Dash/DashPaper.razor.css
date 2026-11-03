@@ -1,8 +1,11 @@
 .dash {
     flex: 1;
     min-height: 0;
+    min-width: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
+    container-type: inline-size;
 }
 
 .body {
@@ -18,17 +21,30 @@
 .stage {
     flex: 1;
     min-width: 0;
+    min-height: 0;
     overflow: auto;
-    padding: 22px 20px 20px;
-    background: var(--canvas);
+    padding: 24px;
+    background: #E5E8ED;
     display: flex;
     flex-direction: column;
     align-items: safe center;
+    justify-content: safe center;
     gap: 10px;
+    container-type: size;
 }
 
 .frame {
     position: relative;
     flex: none;
     width: var(--page-max, 760px);
+}
+
+.frame.fit {
+    width: min(100cqw, calc(100cqh * var(--ratio, 1.41)));
+}
+
+@container (max-width: 900px) {
+    .stage {
+        padding: 16px;
+    }
 }

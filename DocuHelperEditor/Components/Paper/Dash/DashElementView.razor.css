@@ -16,9 +16,19 @@
     box-shadow: 0 0 0 2px var(--hl), 0 0 0 3px var(--hl-edge);
 }
 
+.el.shape:hover:not(.on) {
+    outline: 2px solid rgba(var(--ink-rgb), 0.35);
+    outline-offset: 2px;
+}
+
 .el.on {
-    outline: 1.5px dashed var(--ink);
-    outline-offset: 4px;
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+.el.dep:not(.on) {
+    outline: 1.5px dashed var(--dash);
+    outline-offset: 2px;
 }
 
 .el.picked {

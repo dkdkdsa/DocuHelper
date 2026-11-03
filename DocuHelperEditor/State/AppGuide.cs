@@ -41,7 +41,8 @@ namespace DocuHelperEditor.State
             The 도우미 panel
             - Type a request and press Enter or 보내기 (Shift+Enter starts a new line). The chip above the box shows the file and selection that go with the request. Suggested requests fill the box without sending it.
             - Attach pictures, PDFs and text files with the clip button 파일 더하기, by dragging them onto the window, or by pasting a picture with Ctrl+V: up to 10 per message, pictures up to 30 MB, PDFs up to 10 MB and text files up to 200 KB.
-            - Under the box are the model button (such as Sonnet 5.5) and 노력 (빠르게, 보통, 꼼꼼하게, 최대한); a change applies from the next request.
+            - Below the box are the model button (such as Sonnet 5.5) and 노력 (빠르게, 보통, 꼼꼼하게, 최대한); a change applies from the next request.
+            - The 대시보드 button next to the clip (not shown while a dashboard is open) makes a dashboard from the conversation: pick a shape (한 장 요약, 그래프 위주, 카드로 보기, 표로 보기), check 읽을 엑셀 (바꾸기 changes it), optionally add 바꿔 볼 것 (기간, 목표, 고르기), then press 대시보드 만들기. The app makes the file from that shape and the assistant fills it, reading the Excel files without changing them. Esc turns the button off.
             - There is no voice input. Word can read a document aloud with 검토 → 소리내어 읽기.
             - While the assistant works, its card lists the steps with 멈추기, and stopping puts the files it was changing back as they were. The file it is writing is locked under a dark banner 도우미가 이 파일을 고치는 중이에요; saving, undo, renaming, going back in 기록 and opening another folder wait until it finishes, but other files can be looked at.
             - A question from the assistant opens over the panel (도우미가 여쭤봐요): pick an answer or type one.

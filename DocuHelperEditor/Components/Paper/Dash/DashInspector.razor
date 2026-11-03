@@ -1,0 +1,647 @@
+@using System.Text.Json.Nodes
+@using System.Globalization
+@using DocuHelper.Dash
+@using DocuHelper.Dash.Elements
+@using DocuHelper.Dash.Logic
+@using DocuHelper.Dash.Runtime
+@using DocuHelperEditor.State.Papers
+
+@if (Model?.Document?.Root != null)
+{
+    <aside class="inspector" aria-labelledby="@HeadId">
+        <div class="head">
+            <span class="mark" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="@IconPath" /></svg>
+            </span>
+            <div class="text">
+                <h2 id="@HeadId" class="name">@Title</h2>
+                <span class="sub">@Subtitle</span>
+            </div>
+        </div>
+        <fieldset class="psc" disabled="@Busy">
+            @if (_el == null)
+            {
+                @PageView
+            }
+            else
+            {
+                @ElementView
+            }
+        </fieldset>
+    </aside>
+}
+
+@code {
+    private RenderFragment PageView => __builder =>
+    {
+        <div class="sec">
+            <span class="lbl" id="@(_uid + "-paper")">종이</span>
+            <div class="seg" role="group" aria-labelledby="@(_uid + "-paper")">
+                @foreach (var paper in s_papers)
+                {
+                    var key = paper.Key;
+                    <button type="button" aria-pressed="@Pressed(PaperKey == key)" @onclick="() => SetPaper(key)">@paper.Text</button>
+                }
+            </div>
+        </div>
+        <div class="sec">
+            <div class="swr">
+                <span class="swt"><b>자석</b><small>끌 때 다른 것의 끝과 가운데에 붙어요. Alt를 누르고 끌면 안 붙어요.</small></span>
+                <label class="swl"><span class="sr">자석 켜기</span><input type="checkbox" role="switch" class="swi" checked="@(State?.Magnet != false)" @onchange="e => ToggleMagnet(e.Value is true)" /></label>
+            </div>
+        </div>
+        <div class="sec">
+            <span class="lbl">바탕색</span>
+            @Swatches(s_pageColors, Document.Root.Style?.Fill, SetPageFill)
+        </div>
+        <div class="sec last">
+            <p class="hint">페이지 위의 글자나 그래프를 누르면 그것만 고칠 수 있어요. 왼쪽 값이나 표를 페이지로 끌어다 놓아도 돼요.</p>
+        </div>
+    };
+
+    private RenderFragment ElementView => __builder =>
+    {
+        if (HiddenByCondition || _revealed)
+        {
+            <div class="sec">
+                <div class="toast" aria-live="polite">
+                    <span>@NoticeText</span>
+                    @if (_revealed)
+                    {
+                        <button type="button" class="btn" @onclick="RestoreReveal">처음 값으로</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn" @onclick="Reveal">보이게 바꿔 보기</button>
+                    }
+                </div>
+            </div>
+        }
+
+        <text>@GeometryView</text>
+
+        switch (_el)
+        {
+            case TextElement:
+                <text>@TextView</text>
+                break;
+            case ShapeElement:
+                <text>@ShapeView</text>
+                break;
+            case LineElement:
+                <text>@LineView</text>
+                break;
+            case ChartElement chart:
+                <text>@ChartView(chart)</text>
+                break;
+            case TableElement table:
+                <text>@TableView(table)</text>
+                break;
+            case RepeatElement repeat:
+                <text>@RepeatView(repeat)</text>
+                break;
+        }
+
+        if (Compatible().Any() || BoundParam != null)
+        {
+            <text>@ParamView</text>
+            switch (_el)
+            {
+                case SliderElement when BoundParam is NumberParam number:
+                    <text>@SliderView(number)</text>
+                    break;
+                case RangeSliderElement when BoundParam is RangeParam range:
+                    <text>@RangeView(range)</text>
+                    break;
+                case ToggleElement toggle when BoundParam is BoolParam flag:
+                    <text>@ToggleView(toggle, flag)</text>
+                    break;
+                case SegmentedElement or SelectElement when BoundParam is PickParam pick:
+                    <text>@ChoiceView(pick)</text>
+                    break;
+            }
+
+            <text>@FollowView</text>
+        }
+
+        if (_el is MeterElement meter)
+        {
+            <text>@MeterView(meter)</text>
+        }
+
+        if (_el is ButtonElement button)
+        {
+            <text>@ButtonView(button)</text>
+        }
+
+        <text>@WhenView</text>
+    };
+
+    private RenderFragment GeometryView => __builder =>
+    {
+        var parent = ParentElement;
+        <div class="sec">
+            @if (parent != null && parent != Document.Root)
+            {
+                <button type="button" class="crumb" @onclick="GoParent">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>@DashLabels.Of(parent)
+                </button>
+            }
+            <label class="lbl" for="@(_uid + "-name")">이름</label>
+            <input id="@(_uid + "-name")" class="sel" type="text" value="@(_el.Name ?? string.Empty)" placeholder="@DashLabels.Of(_el)" @onchange="SetName" />
+            <span class="lbl">자리와 크기</span>
+            <div class="geo">
+                @Field("왼쪽", "x", GeoOff || !IsRootChild)
+                @Field("위", "y", GeoOff || !IsRootChild)
+                @Field("너비", "w", GeoOff)
+                @Field("높이", "h", GeoOff)
+            </div>
+            <div class="acts">
+                <button type="button" class="btn" disabled="@(!IsRootChild)" @onclick="Front">맨 앞으로</button>
+                <button type="button" class="btn" disabled="@(!IsRootChild)" @onclick="Back">맨 뒤로</button>
+                <button type="button" class="tb" aria-label="@(_el.Locked ? "잠금 풀기" : "잠그기")" title="@(_el.Locked ? "잠금 풀기" : "잠그기")" aria-pressed="@Pressed(_el.Locked)" @onclick="ToggleLock">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="@(_el.Locked ? "M5 11h14v10H5Z M8 11V7a4 4 0 0 1 8 0v4" : "M5 11h14v10H5Z M8 11V7a4 4 0 0 1 7.8-1.2")" /></svg>
+                </button>
+                <button type="button" class="tb" aria-label="지우기" title="지우기 (Delete)" disabled="@_el.Locked" @onclick="Remove">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6" /></svg>
+                </button>
+            </div>
+        </div>
+    };
+
+    private RenderFragment Field(string label, string key, bool off) => __builder =>
+    {
+        <label class="ni @(off ? "off" : null)"><span>@label</span><input type="number" step="any" value="@Show(BoxOf(key))" disabled="@off" @onchange="e => SetBox(key, e)" /></label>
+    };
+
+    private RenderFragment TextView => __builder =>
+    {
+        <div class="sec">
+            <label class="lbl" for="@(_uid + "-look")">글자 모양</label>
+            <select id="@(_uid + "-look")" class="sel" @onchange="SetPreset">
+                @if (PresetKey.Length == 0)
+                {
+                    <option value="" selected>직접 정한 모양</option>
+                }
+                @foreach (var preset in s_presets)
+                {
+                    <option value="@preset.Key" selected="@(PresetKey == preset.Key)">@preset.Text</option>
+                }
+            </select>
+            <div class="trow">
+                @Stepper(Show(FontSize), "글자 작게", "글자 크게", () => StepSize(-1), () => StepSize(1))
+                <button type="button" class="tb bd" aria-label="굵게" aria-pressed="@Pressed(Bold)" @onclick="ToggleBold">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h8a4 4 0 0 1 0 8H6z M6 12h9a4 4 0 0 1 0 8H6z" /></svg>
+                </button>
+                <div class="seg ic" role="group" aria-label="맞춤">
+                    @foreach (var align in s_aligns)
+                    {
+                        var key = align.Key;
+                        <button type="button" aria-label="@align.Text" aria-pressed="@Pressed(AlignKey == key)" @onclick="() => SetAlign(key)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="@align.Path" /></svg>
+                        </button>
+                    }
+                </div>
+            </div>
+            <span class="lbl">색</span>
+            @Swatches(s_textColors, _style.Color ?? Ink, SetColor)
+            <div class="swr">
+                <span class="swt"><b>형광펜</b><small>글 아래쪽에 노란 줄을 그어요</small></span>
+                <label class="swl"><span class="sr">형광펜 켜기</span><input type="checkbox" role="switch" class="swi" checked="@Marked" @onchange="ToggleMark" /></label>
+            </div>
+        </div>
+        <div class="sec">
+            <span class="lbl">이 글에 들어 있는 엑셀 값</span>
+            @if (Tokens.Any())
+            {
+                <ul class="vl">
+                    @foreach (var name in Tokens)
+                    {
+                        <li class="vli"><span class="vn">«@name»</span><span class="vv">@TokenText(name)</span></li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="hint">아직 없어요. 값을 넣으면 엑셀이 바뀔 때 글 속 숫자도 같이 바뀌어요.</p>
+            }
+            <button type="button" class="btn start" aria-expanded="@Pressed(_valuesOpen)" @onclick="() => _valuesOpen = !_valuesOpen">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14 M5 12h14" /></svg>값 넣기
+            </button>
+            @if (_valuesOpen)
+            {
+                var choices = InsertableValues().ToList();
+                if (choices.Count == 0)
+                {
+                    <p class="hint">넣을 수 있는 값이 아직 없어요.</p>
+                }
+                else
+                {
+                    <ul class="vpick" aria-label="넣을 값 고르기">
+                        @foreach (var choice in choices)
+                        {
+                            var name = choice.Name;
+                            <li><button type="button" class="vpb" @onclick="() => InsertToken(name)"><span>@name</span><small>@choice.Text</small></button></li>
+                        }
+                    </ul>
+                }
+            }
+            <p class="hint">글을 두 번 누르면 바로 고쳐요. 값은 글 맨 끝에 «이름»으로 들어가요.</p>
+        </div>
+    };
+
+    private RenderFragment ShapeView => __builder =>
+    {
+        <div class="sec">
+            <span class="lbl">채우기</span>
+            @Swatches(s_fills, _style.Fill, SetFill)
+            <span class="lbl">모서리 둥글기</span>
+            @Stepper(Show(Radius), "덜 둥글게", "더 둥글게", () => StepRadius(-1), () => StepRadius(1))
+            <div class="swr">
+                <span class="swt"><b>테두리</b></span>
+                <label class="swl"><span class="sr">테두리 켜기</span><input type="checkbox" role="switch" class="swi" checked="@HasBorder" @onchange="e => ToggleBorder(e.Value is true)" /></label>
+            </div>
+        </div>
+    };
+
+    private RenderFragment LineView => __builder =>
+    {
+        <div class="sec">
+            <span class="lbl">선 색</span>
+            @Swatches(s_lineColors, _style.Line, SetStroke)
+            <span class="lbl">굵기</span>
+            @Stepper(Show(Weight), "가늘게", "굵게", () => StepWeight(-1), () => StepWeight(1))
+        </div>
+    };
+
+    private RenderFragment ChartView(ChartElement chart) => __builder =>
+    {
+        <div class="sec">
+            <label class="lbl" for="@(_uid + "-data")">보여 줄 표</label>
+            @TableSelect(_uid + "-data", chart.Data)
+            <span class="lbl" id="@(_uid + "-kind")">모양</span>
+            <div class="seg" role="group" aria-labelledby="@(_uid + "-kind")">
+                @foreach (var kind in s_chartKinds)
+                {
+                    var key = kind.Key;
+                    <button type="button" aria-pressed="@Pressed(ChartKindKey == key)" @onclick="() => SetChartKind(key)">@kind.Text</button>
+                }
+            </div>
+            <span class="lbl" id="@(_uid + "-emph")">진하게</span>
+            <div class="seg" role="group" aria-labelledby="@(_uid + "-emph")">
+                <button type="button" aria-pressed="@Pressed(!TopOnly)" @onclick="() => SetEmphasis(false)">모두 같게</button>
+                <button type="button" aria-pressed="@Pressed(TopOnly)" @onclick="() => SetEmphasis(true)">1등만 진하게</button>
+            </div>
+            <div class="swr">
+                <span class="swt"><b>숫자 보이기</b><small>막대 끝에 금액을 적어요</small></span>
+                <label class="swl"><span class="sr">숫자 보이기</span><input type="checkbox" role="switch" class="swi" checked="@chart.Labels" @onchange="e => ToggleLabels(e.Value is true)" /></label>
+            </div>
+            @if (FirstRange != null)
+            {
+                <div class="swr">
+                    <span class="swt"><b>기간 밖은 흐리게</b><small>‘@FirstRange.Name’ 고른 날만 진하게, 나머지는 흐리게 그려요</small></span>
+                    <label class="swl"><span class="sr">기간 밖은 흐리게</span><input type="checkbox" role="switch" class="swi" checked="@(!string.IsNullOrWhiteSpace(chart.Range))" @onchange="e => ToggleRange(e.Value is true)" /></label>
+                </div>
+            }
+            <button type="button" class="btn start" disabled="@string.IsNullOrWhiteSpace(chart.Data)" @onclick="OpenCalculation">‘@chart.Data’ 계산 보기</button>
+        </div>
+    };
+
+    private RenderFragment TableView(TableElement table) => __builder =>
+    {
+        <div class="sec">
+            <label class="lbl" for="@(_uid + "-data")">보여 줄 표</label>
+            @TableSelect(_uid + "-data", table.Data)
+            <span class="lbl">몇 줄까지</span>
+            @Stepper(table.Max?.ToString(CultureInfo.InvariantCulture) ?? "모두", "한 줄 덜", "한 줄 더", () => StepTable(-1), () => StepTable(1))
+        </div>
+    };
+
+    private RenderFragment RepeatView(RepeatElement repeat) => __builder =>
+    {
+        var parts = repeat.Nested().Where(child => child != null).ToList();
+        <div class="sec">
+            <p class="hint">표의 한 줄마다 같은 모양을 한 칸씩 만들어요. 한 칸을 고치면 나머지도 똑같이 따라 바뀌어요.</p>
+            <span class="lbl">칸 안에 있는 것 (눌러서 고치기)</span>
+            @if (parts.Count == 0)
+            {
+                <p class="hint">칸 안에 아직 아무것도 없어요.</p>
+            }
+            else
+            {
+                <div class="ppk">
+                    @foreach (var part in parts)
+                    {
+                        var id = part.Id;
+                        <button type="button" class="chip" @onclick="() => OnSelect.InvokeAsync(id)">@DashLabels.Of(part)</button>
+                    }
+                </div>
+            }
+        </div>
+        <div class="sec">
+            <label class="lbl" for="@(_uid + "-data")">한 줄씩 가져올 표</label>
+            @TableSelect(_uid + "-data", repeat.Data)
+            <span class="lbl" id="@(_uid + "-dir")">놓는 법</span>
+            <div class="seg" role="group" aria-labelledby="@(_uid + "-dir")">
+                @foreach (var direction in s_directions)
+                {
+                    var key = direction.Key;
+                    <button type="button" aria-pressed="@Pressed((repeat.Direction ?? "column") == key)" @onclick="() => SetDirection(key)">@direction.Text</button>
+                }
+            </div>
+            <span class="lbl">몇 칸까지</span>
+            @Stepper((repeat.Max ?? 5).ToString(CultureInfo.InvariantCulture), "한 칸 덜", "한 칸 더", () => StepRepeat(-1), () => StepRepeat(1))
+        </div>
+        @if (parts.Count > 0)
+        {
+            <div class="sec">
+                <span class="lbl">칸 안에 보일 것</span>
+                @foreach (var part in parts)
+                {
+                    var current = part;
+                    <div class="swr">
+                        <span class="swt"><b>@DashLabels.Of(current)</b><small>@DashLabels.Kind(current.Kind)</small></span>
+                        <label class="swl"><span class="sr">@(DashLabels.Of(current) + " 보이기")</span><input type="checkbox" role="switch" class="swi" checked="@(!current.Hidden)" @onchange="e => ToggleTemplate(current, e.Value is true)" /></label>
+                    </div>
+                }
+            </div>
+        }
+    };
+
+    private RenderFragment ParamView => __builder =>
+    {
+        var param = BoundParam;
+        var choices = Compatible().ToList();
+        <div class="sec">
+            <span class="lbl">바꾸는 조절값</span>
+            @if (choices.Count > 1)
+            {
+                <div class="ppk" role="group" aria-label="바꿀 조절값 고르기">
+                    @foreach (var choice in choices)
+                    {
+                        var current = choice;
+                        <button type="button" class="chip" aria-pressed="@Pressed(param != null && param.Name == current.Name)" @onclick="() => ChooseParam(current)">@current.Name</button>
+                    }
+                </div>
+            }
+            @if (param != null)
+            {
+                <ul class="vl">
+                    <li class="vli plain"><span class="vn">@param.Name</span><span class="vv">@Runtime.Display(param.Name)</span></li>
+                </ul>
+                <p class="hint">보는 사람이 이 장치로 바꾸는 값이에요. 바꾸면 아래 것들이 따라 바뀌어요.</p>
+            }
+            else
+            {
+                <p class="hint">이 장치에 맞는 조절값이 없어요. 데이터에서 먼저 만들어 주세요.</p>
+            }
+        </div>
+    };
+
+    private RenderFragment SliderView(NumberParam param) => __builder =>
+    {
+        <div class="sec">
+            <span class="lbl">움직이는 범위</span>
+            <div class="geo">
+                @ParamField("가장 작게", param.Min, e => SetNumber(param, "min", e))
+                @ParamField("가장 크게", param.Max, e => SetNumber(param, "max", e))
+                @ParamField("한 칸", param.Step, e => SetNumber(param, "step", e))
+                @ParamField("처음", param.Default, e => SetNumber(param, "default", e))
+            </div>
+            <p class="hint">끌면 @param.Display(param.Min)부터 @param.Display(param.Max)까지 @param.Display(param.Step)씩 움직여요.</p>
+        </div>
+    };
+
+    private RenderFragment RangeView(RangeParam param) => __builder =>
+    {
+        var whole = param.From <= param.Min && param.To >= param.Max;
+        <div class="sec">
+            <span class="lbl">처음 기간</span>
+            <div class="ppk">
+                <button type="button" class="chip" aria-pressed="@Pressed(whole)" @onclick="() => WholeRange(param)">전체 기간</button>
+            </div>
+            <div class="geo">
+                @ParamField("처음 시작", param.From, e => SetRange(param, true, e))
+                @ParamField("처음 끝", param.To, e => SetRange(param, false, e))
+            </div>
+            <p class="hint">@param.Display(new DashRange(param.Min, param.Max)) 안에서 골라요. 파일을 열면 @param.Display(new DashRange(param.From, param.To))로 시작해요.</p>
+        </div>
+    };
+
+    private RenderFragment ToggleView(ToggleElement toggle, BoolParam param) => __builder =>
+    {
+        <div class="sec">
+            <label class="lbl" for="@(_uid + "-label")">옆에 쓸 글</label>
+            <input id="@(_uid + "-label")" class="sel" type="text" value="@(toggle.Label ?? string.Empty)" @onchange="SetLabel" />
+            <div class="swr">
+                <span class="swt"><b>처음엔 켜 두기</b><small>파일을 열면 켜진 채로 시작해요</small></span>
+                <label class="swl"><span class="sr">처음엔 켜 두기</span><input type="checkbox" role="switch" class="swi" checked="@param.Default" @onchange="e => SetDefaultBool(param, e.Value is true)" /></label>
+            </div>
+        </div>
+    };
+
+    private RenderFragment ChoiceView(PickParam param) => __builder =>
+    {
+        var options = Runtime.OptionsOf(param);
+        var current = param.Default ?? param.All ?? options.FirstOrDefault();
+        <div class="sec">
+            <span class="lbl" id="@(_uid + "-shape")">모양</span>
+            <div class="seg" role="group" aria-labelledby="@(_uid + "-shape")">
+                <button type="button" aria-pressed="@Pressed(_el is SegmentedElement)" @onclick='() => ChooseShape("segmented")'>단추 줄</button>
+                <button type="button" aria-pressed="@Pressed(_el is SelectElement)" @onclick='() => ChooseShape("select")'>펼침 목록</button>
+            </div>
+            <p class="hint">@(options.Count > 4 ? $"고를 것이 {options.Count.ToString(CultureInfo.InvariantCulture)}개라 펼침 목록이 자리를 덜 차지해요." : $"고를 것이 {options.Count.ToString(CultureInfo.InvariantCulture)}개라 단추 줄로 한눈에 보여요.")</p>
+            @if (_el is SelectElement dropdown)
+            {
+                <label class="lbl" for="@(_uid + "-label")">앞에 쓸 이름</label>
+                <input id="@(_uid + "-label")" class="sel" type="text" value="@(dropdown.Label ?? string.Empty)" @onchange="SetLabel" />
+            }
+        </div>
+        <div class="sec">
+            <span class="lbl" id="@(_uid + "-first")">처음 값</span>
+            <div class="ppk" role="group" aria-labelledby="@(_uid + "-first")">
+                @foreach (var option in options)
+                {
+                    var choice = option;
+                    <button type="button" class="chip" aria-pressed="@Pressed(current == choice)" @onclick="() => SetDefaultPick(param, choice)">@choice</button>
+                }
+            </div>
+            <p class="hint">@(string.IsNullOrEmpty(param.OptionsFrom) ? "고를 것: " + string.Join(", ", options) : "고를 것은 엑셀 ‘" + param.OptionsFrom + "’ 칸에 있는 이름이에요. 엑셀에 새 이름이 생기면 여기도 늘어요.")</p>
+        </div>
+    };
+
+    private RenderFragment FollowView => __builder =>
+    {
+        var param = BoundParam;
+        var elements = FollowingElements();
+        var values = FollowingValues();
+        var title = param == null ? "따라 바뀌는 것" : param.Name + KoreanParticles.Attach(param.Name, "을") + " 따라 바뀌는 것";
+        <div class="sec">
+            <span class="lbl">@title</span>
+            @if (values.Count > 0)
+            {
+                <ul class="vl">
+                    @foreach (var value in values)
+                    {
+                        <li class="vli plain"><span class="vn">@value.Name</span><span class="vv">@(value is StepsTable ? "표" : "값")</span></li>
+                    }
+                </ul>
+            }
+            @if (elements.Count > 0)
+            {
+                <p class="hint">페이지 위에서는 보라 점선으로 보여요. 누르면 그것을 골라요.</p>
+                <div class="ppk">
+                    @foreach (var element in elements)
+                    {
+                        var id = element.Id;
+                        <button type="button" class="chip" @onclick="() => OnSelect.InvokeAsync(id)">@DashLabels.Of(element)</button>
+                    }
+                </div>
+            }
+            else if (values.Count == 0)
+            {
+                <p class="hint">@(param == null ? "조절값을 고르면 여기에 보여요." : $"아직 이 조절값을 쓰는 것이 없어요. 글에 «{param.Name}»처럼 넣거나, 데이터에서 계산에 쓰면 따라 바뀌어요.")</p>
+            }
+        </div>
+    };
+
+    private RenderFragment MeterView(MeterElement meter) => __builder =>
+    {
+        <div class="sec">
+            <span class="lbl" id="@(_uid + "-fill")">채울 값</span>
+            <div class="ppk" role="group" aria-labelledby="@(_uid + "-fill")">
+                @foreach (var choice in NumericValues(meter.Value))
+                {
+                    var name = choice.Value;
+                    <button type="button" class="chip" aria-pressed="@Pressed(meter.Value == name)" @onclick="() => SetMeterValue(name)">@choice.Label</button>
+                }
+            </div>
+            <p class="hint">@MeterNote</p>
+            <span class="lbl">색</span>
+            @Swatches(s_meterColors, meter.Color, SetMeterColor)
+        </div>
+    };
+
+    private RenderFragment ButtonView(ButtonElement button) => __builder =>
+    {
+        var set = Act as SetAction;
+        var target = set == null ? null : Document.FindParam(set.Param);
+        <div class="sec">
+            <label class="lbl" for="@(_uid + "-text")">단추 글</label>
+            <input id="@(_uid + "-text")" class="sel" type="text" value="@(button.Label ?? string.Empty)" @onchange="SetLabel" />
+            <span class="lbl" id="@(_uid + "-look2")">모양</span>
+            <div class="seg" role="group" aria-labelledby="@(_uid + "-look2")">
+                @foreach (var look in s_looks)
+                {
+                    var key = look.Key;
+                    <button type="button" aria-pressed="@Pressed((button.Look ?? "fill") == key)" @onclick="() => SetLook(key)">@look.Text</button>
+                }
+            </div>
+        </div>
+        <div class="sec">
+            <span class="lbl" id="@(_uid + "-act")">누르면</span>
+            <div class="ppk" role="group" aria-labelledby="@(_uid + "-act")">
+                @foreach (var act in s_acts)
+                {
+                    var key = act.Key;
+                    <button type="button" class="chip" aria-pressed="@Pressed(ActKey == key)" @onclick="() => PickAct(key)">@act.Text</button>
+                }
+            </div>
+            <p class="hint">@ActNote</p>
+            @if (set != null)
+            {
+                <span class="lbl" id="@(_uid + "-target")">바꿀 조절값</span>
+                <div class="ppk" role="group" aria-labelledby="@(_uid + "-target")">
+                    @foreach (var param in Document.Params.Where(item => item != null && !string.IsNullOrWhiteSpace(item.Name)))
+                    {
+                        var current = param;
+                        <button type="button" class="chip" aria-pressed="@Pressed(set.Param == current.Name)" @onclick="() => PickActParam(current)">@current.Name</button>
+                    }
+                </div>
+                @if (target != null)
+                {
+                    <span class="lbl" id="@(_uid + "-with")">이 값으로</span>
+                    <div class="ppk" role="group" aria-labelledby="@(_uid + "-with")">
+                        @foreach (var preset in Presets(target))
+                        {
+                            var value = preset.Value;
+                            <button type="button" class="chip" aria-pressed="@Pressed(JsonNode.DeepEquals(value, set.Value))" @onclick="() => PickActValue(value)">@preset.Text</button>
+                        }
+                    </div>
+                }
+            }
+            else if (Act is AskAction ask)
+            {
+                <label class="lbl" for="@(_uid + "-ask")">도우미에게 할 말</label>
+                <textarea id="@(_uid + "-ask")" class="sel ta" @onchange="SetAskText">@ask.Text</textarea>
+                <p class="hint">«기간»처럼 쓰면 누르는 때의 값이 들어가요. 지금 누르면: @AskPreview</p>
+            }
+        </div>
+    };
+
+    private RenderFragment WhenView => __builder =>
+    {
+        var choices = WhenChoices();
+        var matched = choices.Any(IsWhen);
+        <div class="sec last">
+            <span class="lbl" id="@(_uid + "-when")">언제 보일지</span>
+            <div class="ppk" role="group" aria-labelledby="@(_uid + "-when")">
+                @foreach (var choice in choices)
+                {
+                    var current = choice;
+                    <button type="button" class="chip" aria-pressed="@Pressed(IsWhen(current))" @onclick="() => SetWhen(current)">@current.Text</button>
+                }
+                @if (!matched && !string.IsNullOrWhiteSpace(_el.When))
+                {
+                    <button type="button" class="chip" aria-pressed="true">지금 조건</button>
+                }
+            </div>
+            <p class="hint">@WhenNote(choices)</p>
+        </div>
+    };
+
+    private RenderFragment Swatches((string Hex, string Label)[] colors, string current, Action<string> pick) => __builder =>
+    {
+        <div class="sws" role="group">
+            @foreach (var color in colors)
+            {
+                var hex = color.Hex;
+                <button type="button" class="swb" aria-label="@color.Label" aria-pressed="@Pressed(SameColor(current, hex))" @onclick="() => pick(hex)"><span style="background: @hex"></span></button>
+            }
+        </div>
+    };
+
+    private RenderFragment Stepper(string value, string lessLabel, string moreLabel, Action less, Action more) => __builder =>
+    {
+        <div class="stp">
+            <button type="button" class="tb bd" aria-label="@lessLabel" @onclick="less">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
+            </button>
+            <b aria-live="polite">@value</b>
+            <button type="button" class="tb bd" aria-label="@moreLabel" @onclick="more">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14 M12 5v14" /></svg>
+            </button>
+        </div>
+    };
+
+    private RenderFragment TableSelect(string id, string current) => __builder =>
+    {
+        <select id="@id" class="sel" @onchange="SetData">
+            @if (string.IsNullOrEmpty(current))
+            {
+                <option value="" selected>정하지 않았어요</option>
+            }
+            @foreach (var choice in TableChoices(current))
+            {
+                <option value="@choice.Value" selected="@(choice.Value == current)">@choice.Label</option>
+            }
+        </select>
+    };
+
+    private RenderFragment ParamField(string label, double value, Action<ChangeEventArgs> commit) => __builder =>
+    {
+        <label class="ni"><span>@label</span><input type="number" step="any" value="@Show(value)" @onchange="commit" /></label>
+    };
+
+    private static string Pressed(bool on) => on ? "true" : "false";
+}

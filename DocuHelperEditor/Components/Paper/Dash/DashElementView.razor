@@ -132,6 +132,9 @@
             if (IsEditingText)
                 name += " editing";
 
+            if (Context.IsDependent(Id))
+                name += " dep";
+
             return name;
         }
     }
