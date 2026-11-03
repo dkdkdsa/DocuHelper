@@ -248,6 +248,7 @@ namespace DocuHelperEditor.State.Ribbon
                 case DocuType.Word:
                     return s_word;
                 case DocuType.Ppt:
+                case DocuType.Dash:
                     return s_ppt;
                 default:
                     return s_hwp;

@@ -42,11 +42,13 @@ namespace DocuHelperEditor
             builder.Services.AddSingleton<DocuImporter, ExcelImporter>();
             builder.Services.AddSingleton<DocuImporter, PptImporter>();
             builder.Services.AddSingleton<DocuImporter, HwpImporter>();
+            builder.Services.AddSingleton<DocuImporter, DashImporter>();
 
             builder.Services.AddSingleton<IPaperMapper, ExcelPaperMapper>();
             builder.Services.AddSingleton<IPaperMapper, WordPaperMapper>();
             builder.Services.AddSingleton<IPaperMapper, PptPaperMapper>();
             builder.Services.AddSingleton<IPaperMapper, HwpPaperMapper>();
+            builder.Services.AddSingleton<IPaperMapper, DashPaperMapper>();
 
             builder.Services.AddSingleton<WorkspaceRegistry>();
             builder.Services.AddSingleton<WorkspaceStore>();
@@ -103,6 +105,7 @@ namespace DocuHelperEditor
             workspace.RegisterEditor(new ExcelEditor());
             workspace.RegisterEditor(new PptEditor());
             workspace.RegisterEditor(new HwpEditor(new HancomOffice()));
+            workspace.RegisterEditor(new DashEditor());
             return workspace;
         }
     }

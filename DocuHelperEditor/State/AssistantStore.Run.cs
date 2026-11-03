@@ -473,6 +473,7 @@ namespace DocuHelperEditor.State
                 ".xlsx" or ".xls" => DocuType.Excel,
                 ".pptx" or ".ppt" => DocuType.Ppt,
                 ".hwp" or ".hwpx" => DocuType.Hwp,
+                ".dash" => DocuType.Dash,
                 _ => DocuType.Word,
             };
         }

@@ -56,6 +56,7 @@
         ("docx", DocuType.Word, "워드", "글과 보고서"),
         ("hwpx", DocuType.Hwp, "한글", "공문과 안내문"),
         ("pptx", DocuType.Ppt, "파워포인트", "발표 자료"),
+        ("dash", DocuType.Dash, "현황판", "바꿔 보는 한 장"),
     };
 
     private DocuType _type;
@@ -172,6 +173,7 @@
         DocuType.Excel => "xlsx",
         DocuType.Word => "docx",
         DocuType.Hwp => "hwpx",
+        DocuType.Dash => "dash",
         _ => "pptx",
     };
 

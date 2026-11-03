@@ -247,6 +247,7 @@ namespace DocuHelperEditor.State
             DocuType.Excel => ".xlsx",
             DocuType.Word => ".docx",
             DocuType.Hwp => _workspace.Editors.TryGetValue(DocuType.Hwp, out var editor) ? editor.Extension : ".hwpx",
+            DocuType.Dash => ".dash",
             _ => ".pptx",
         };
 
@@ -257,6 +258,7 @@ namespace DocuHelperEditor.State
                 DocuType.Excel => "새 엑셀 파일",
                 DocuType.Word => "새 워드 파일",
                 DocuType.Hwp => "새 한글 파일",
+                DocuType.Dash => "새 현황판",
                 _ => "새 파워포인트 파일",
             };
 

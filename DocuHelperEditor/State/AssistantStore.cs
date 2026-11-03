@@ -23,6 +23,7 @@ namespace DocuHelperEditor.State
             [DocuType.Word] = new[] { "7월 회의 보고서 틀 잡아 줘", "제목하고 목차부터 넣어 줘" },
             [DocuType.Ppt] = new[] { "발표 순서를 5장으로 잡아 줘", "표지에 넣을 제목 정해 줘" },
             [DocuType.Hwp] = new[] { "공문 틀로 잡아 줘", "수신, 제목, 본문 순서로 넣어 줘" },
+            [DocuType.Dash] = new[] { "6월 매출로 현황판 만들어 줘", "기간이랑 목표를 바꿔 볼 수 있게 해 줘" },
         };
 
         private readonly WorkspaceStore _workspace;

@@ -1,0 +1,19 @@
+@using System.Globalization
+@using DocuHelperEditor.State.Papers
+@inherits StoreComponentBase
+
+@if (File?.Paper is DashPaperModel model)
+{
+    <div class="dash">
+        <div class="stage">
+            <div class="page" style="aspect-ratio: @Num(model.PageWidth) / @Num(model.PageHeight); background: @(model.Root?.Style?.Fill ?? "#FFFFFF")" aria-label="@File.Name"></div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private static string Num(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+}

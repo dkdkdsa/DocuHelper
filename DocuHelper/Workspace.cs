@@ -163,7 +163,7 @@ namespace DocuHelper
 
             var editor = FindEditor(name);
             if (editor == null)
-                throw new InvalidOperationException("파일 이름은 .xlsx, .docx, .hwpx, .pptx 중 하나로 끝나야 해요.");
+                throw new InvalidOperationException("파일 이름은 .xlsx, .docx, .hwpx, .pptx, .dash 중 하나로 끝나야 해요.");
 
             if (editor.IsLegacyPath(name))
                 name = Path.ChangeExtension(name, editor.Extension);

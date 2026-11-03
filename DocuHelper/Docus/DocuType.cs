@@ -6,5 +6,6 @@
         Excel,
         Ppt,
         Hwp,
+        Dash,
     }
 }

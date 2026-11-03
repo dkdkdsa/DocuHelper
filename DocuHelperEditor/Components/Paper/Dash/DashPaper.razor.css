@@ -1,0 +1,22 @@
+.dash {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.stage {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    padding: 22px 20px 20px;
+    background: var(--canvas);
+    display: flex;
+    flex-direction: column;
+    align-items: safe center;
+}
+
+.page {
+    width: min(100%, 760px);
+    box-shadow: 0 1px 3px rgba(var(--ink-rgb), 0.16);
+}

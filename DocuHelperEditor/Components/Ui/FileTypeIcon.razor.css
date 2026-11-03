@@ -43,6 +43,11 @@
     color: var(--hwp);
 }
 
+.dash {
+    background: var(--dash-soft);
+    color: var(--dash);
+}
+
 .han {
     font-family: var(--font-display);
     font-size: 15px;

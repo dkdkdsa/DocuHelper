@@ -527,6 +527,7 @@ namespace DocuHelper.Agents
             DocuType.Excel => "Excel",
             DocuType.Word => "Word",
             DocuType.Hwp => "한글",
+            DocuType.Dash => "dashboard (현황판)",
             _ => "PowerPoint",
         };
 
