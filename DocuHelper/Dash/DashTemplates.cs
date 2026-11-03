@@ -59,16 +59,20 @@ namespace DocuHelper.Dash
                 { "type": "text", "id": "tableNote", "name": "표 설명", "style": { "x": 56, "y": 680, "w": 1011, "h": 26, "fontSize": 13, "color": "#4A5570" }, "text": "표 아래에 덧붙이는 말" }
             """;
 
-        private const string CardsListBody = """
-                { "type": "text", "id": "listTitle", "name": "카드 목록 제목", "style": { "x": 56, "y": 450, "w": 600, "h": 30, "fontName": "Hahmlet", "fontSize": 20, "fontWeight": 600 }, "text": "하나씩 보기" },
-                { "type": "repeat", "id": "cards", "name": "카드 목록", "direction": "row", "max": 6, "empty": "보여 줄 줄이 없어요", "style": { "x": 56, "y": 488, "w": 1011, "h": 160, "gap": 12 },
+        private const string CardsBody = """
+                { "type": "repeat", "id": "gallery", "name": "카드 목록", "direction": "grid", "max": 8, "empty": "보여 줄 줄이 없어요", "style": { "x": 56, "y": 160, "w": 1011, "h": 600, "gap": 16 },
                   "template": [
-                    { "type": "column", "id": "card", "name": "카드", "style": { "w": 158, "h": 150, "padding": 14, "gap": 6, "fill": "#FFFFFF", "line": "#CBD1DB", "lineWidth": 1.5, "radius": 12 },
+                    { "type": "column", "id": "card", "name": "카드", "style": { "w": 240, "h": 284, "gap": 0, "fill": "#FFFFFF", "line": "#E3E7EE", "lineWidth": 1, "radius": 6 },
                       "children": [
-                        { "type": "text", "id": "cardName", "name": "이름", "style": { "h": 24, "fontSize": 15, "fontWeight": 700 }, "text": "«item.이름»" },
-                        { "type": "text", "id": "cardAmount", "name": "금액", "style": { "h": 30, "fontSize": 20, "fontWeight": 700 }, "text": "«item.금액»" },
-                        { "type": "meter", "id": "cardBar", "name": "막대", "style": { "h": 8 }, "value": "item.비율" },
-                        { "type": "text", "id": "cardNote", "name": "덧붙임", "style": { "h": 20, "fontSize": 13, "color": "#4A5570" }, "text": "«item.비율»" }
+                        { "type": "shape", "id": "cover", "name": "표지", "shape": "rect", "style": { "h": 110, "fill": "#F1F2F4", "radius": 6 } },
+                        { "type": "column", "id": "cardBody", "name": "카드 내용", "style": { "grow": 1, "padding": 14, "gap": 6 },
+                          "children": [
+                            { "type": "text", "id": "cardTitle", "name": "제목", "style": { "h": 26, "fontSize": 16, "fontWeight": 700 }, "text": "«item.이름»" },
+                            { "type": "text", "id": "field1Label", "name": "항목 1 이름", "style": { "h": 18, "fontSize": 12, "color": "#4A5570" }, "text": "항목 1" },
+                            { "type": "text", "id": "field1", "name": "항목 1", "style": { "h": 22, "fontSize": 14 }, "text": "«item.항목1»" },
+                            { "type": "text", "id": "tagLabel", "name": "태그 이름", "style": { "h": 18, "fontSize": 12, "color": "#4A5570" }, "text": "태그" },
+                            { "type": "shape", "id": "tag", "name": "태그", "shape": "round", "style": { "w": 84, "h": 22, "fontSize": 12, "fill": "#FBEFA3", "line": "#E6CF5A", "lineWidth": 1, "radius": 4 }, "text": "«item.태그»" }
+                          ] }
                       ] }
                   ] }
             """;
@@ -77,7 +81,7 @@ namespace DocuHelper.Dash
         {
             new DashTemplate { Id = Summary, Title = "한 장 요약", Description = "큰 숫자, 흐름 그래프, 순위를 한 장에", Json = Page(SummaryBody) },
             new DashTemplate { Id = "chart", Title = "그래프 위주", Description = "흐름과 나눠 보기를 큰 그래프로", Json = Page(ChartBody) },
-            new DashTemplate { Id = "cards", Title = "카드로 보기", Description = "중요한 숫자는 카드로, 항목마다 카드 한 장", Json = Page(CardsBody()) },
+            new DashTemplate { Id = "cards", Title = "카드로 보기", Description = "표의 줄마다 표지와 정보가 있는 카드 한 장씩, 갤러리처럼", Json = Page(CardsBody) },
             new DashTemplate { Id = "table", Title = "표로 보기", Description = "엑셀처럼 표 하나에 합계까지", Json = Page(TableBody) },
         };
 
@@ -85,23 +89,6 @@ namespace DocuHelper.Dash
 
         public static DashTemplate Find(string id) =>
             s_all.FirstOrDefault(template => string.Equals(template.Id, id, StringComparison.OrdinalIgnoreCase));
-
-        private static string CardsBody()
-        {
-            var cards = new List<string>();
-            for (var i = 0; i < 6; i++)
-            {
-                var x = 56 + i % 3 * 344;
-                var y = 168 + i / 3 * 136;
-                var n = i + 1;
-                cards.Add($$"""{ "type": "shape", "id": "card{{n}}", "name": "숫자 카드 {{n}}", "shape": "round", "style": { "x": {{x}}, "y": {{y}}, "w": 324, "h": 120, "fill": "#FFFFFF", "line": "#CBD1DB", "lineWidth": 1.5, "radius": 14 } }""");
-                cards.Add($$"""{ "type": "text", "id": "kpi{{n}}Label", "name": "숫자 {{n}} 이름", "style": { "x": {{x + 18}}, "y": {{y + 12}}, "w": 288, "h": 20, "fontSize": 14, "color": "#4A5570" }, "text": "숫자 {{n}}" }""");
-                cards.Add($$"""{ "type": "text", "id": "kpi{{n}}", "name": "숫자 {{n}}", "style": { "x": {{x + 18}}, "y": {{y + 34}}, "w": 288, "h": 40, "fontSize": 30, "fontWeight": 700 }, "text": "0" }""");
-                cards.Add($$"""{ "type": "text", "id": "kpi{{n}}Note", "name": "숫자 {{n}} 설명", "style": { "x": {{x + 18}}, "y": {{y + 80}}, "w": 288, "h": 20, "fontSize": 13, "color": "#4A5570" }, "text": "한 줄 설명" }""");
-            }
-
-            return string.Join(",\n", cards) + ",\n" + CardsListBody;
-        }
 
         private static string Page(string body) =>
             "{ \"kind\": \"dash\", \"version\": 1, \"root\": { \"id\": \"page\", \"paper\": \"a4l\", \"width\": 1123, \"height\": 794, \"style\": { \"fill\": \"#FFFFFF\" }, \"children\": [\n"

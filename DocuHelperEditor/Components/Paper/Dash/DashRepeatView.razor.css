@@ -25,6 +25,17 @@
     width: auto;
 }
 
+.repeat.grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+}
+
+.repeat.grid .item {
+    flex: none;
+    width: auto;
+}
+
 .click {
     margin: 0;
     padding: 0;

@@ -1,6 +1,6 @@
 @using DocuHelper.Dash.Runtime
 
-<div class="repeat @(Across ? "across" : null)" style="@ContainerStyle">
+<div class="repeat @(Grid ? "grid" : Across ? "across" : null)" style="@ContainerStyle">
     @if (Result.Children.Count == 0)
     {
         if (!string.IsNullOrEmpty(Result.EmptyText))
@@ -41,6 +41,8 @@
     public DashRenderContext Context { get; set; }
 
     private bool Across => string.Equals(Result.Direction, "row", StringComparison.OrdinalIgnoreCase);
+
+    private bool Grid => string.Equals(Result.Direction, "grid", StringComparison.OrdinalIgnoreCase);
 
     private string Gap => DashCss.Cq(Result.Style?.Gap ?? 6, Context.PageWidth);
 

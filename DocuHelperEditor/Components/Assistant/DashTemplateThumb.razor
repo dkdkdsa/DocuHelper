@@ -17,17 +17,14 @@
             }
             break;
         case "cards":
-            @for (var i = 0; i < 6; i++)
+            @for (var i = 0; i < 8; i++)
             {
-                var x = 5.5 + i % 3 * 18.3;
-                var y = 10.5 + i / 3 * 10;
-                <rect x="@x" y="@y" width="16.4" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1" />
-                <rect x="@(x + 2)" y="@(y + 2)" width="8" height="1.6" fill="currentColor" fill-opacity="0.5" />
-                <rect x="@(x + 2)" y="@(y + 4.6)" width="11" height="2" fill="currentColor" />
-            }
-            @for (var i = 0; i < 6; i++)
-            {
-                <rect x="@(5.5 + i * 9)" y="32" width="7.4" height="8" rx="1" fill="currentColor" fill-opacity="0.55" />
+                var x = 5 + i % 4 * 13.6;
+                var y = 10 + i / 4 * 16.5;
+                <rect x="@x" y="@y" width="12" height="14.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="0.8" />
+                <rect x="@x" y="@y" width="12" height="5.5" rx="1.2" fill="currentColor" fill-opacity="0.22" />
+                <rect x="@(x + 1.6)" y="@(y + 7.3)" width="7" height="1.6" fill="currentColor" />
+                <rect x="@(x + 1.6)" y="@(y + 10.6)" width="5" height="2" rx="0.6" fill="currentColor" fill-opacity="0.45" />
             }
             break;
         case "table":
