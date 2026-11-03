@@ -2,11 +2,20 @@ using System.Globalization;
 using System.Linq;
 using DocuHelper.Dash;
 using DocuHelper.Docus;
+using DocuHelper.Tools.Dash;
 
 namespace DocuHelper.Editors
 {
     public class DashEditor : DocuEditor
     {
+        public DashEditor()
+        {
+            AddTool(new AddDashItemTool());
+            AddTool(new UpdateDashItemTool());
+            AddTool(new MoveDashItemTool());
+            AddTool(new RemoveDashItemTool());
+        }
+
         public override DocuType TargetType => DocuType.Dash;
 
         public override string Extension => DashFile.Extension;
