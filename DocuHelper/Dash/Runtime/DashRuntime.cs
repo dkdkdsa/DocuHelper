@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using DocuHelper.Dash.Elements;
 using DocuHelper.Dash.Logic;
 
@@ -16,6 +20,7 @@ namespace DocuHelper.Dash.Runtime
         private readonly HashSet<string> _computing = new(StringComparer.Ordinal);
         private readonly List<string> _problems = new();
         private readonly Dictionary<string, object> _results = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _signatures = new(StringComparer.Ordinal);
         private bool _calculated;
 
         public DashRuntime(DashDocument document, IDashDocuments documents, DashState previous = null, DashCache cache = null)
@@ -24,7 +29,6 @@ namespace DocuHelper.Dash.Runtime
             Documents = documents;
             State = DashState.Start(Document, previous);
             _cache = cache ?? new DashCache();
-            _cache.Prepare(Document, documents);
         }
 
         public DashDocument Document { get; }
@@ -94,7 +98,7 @@ namespace DocuHelper.Dash.Runtime
             if (Document.FindValue(name) is not StepsTable table)
                 throw new DashException($"‘{name}’ 표를 찾을 수 없어요.");
 
-            var key = name + "#" + State.Signature(ParamsOf(name, new HashSet<string>(StringComparer.Ordinal)));
+            var key = name + "#" + State.Signature(ParamsOf(name, new HashSet<string>(StringComparer.Ordinal))) + "#" + Signature(name);
             if (_cache.TryTable(key, out var cached))
                 return cached;
 
@@ -274,7 +278,7 @@ namespace DocuHelper.Dash.Runtime
 
         private DashTable Source(DashSource source)
         {
-            var key = SourceKey + source.Name;
+            var key = SourceKey + source.Name + "#" + Signature(source.Name);
             if (_cache.TryTable(key, out var cached))
                 return cached;
 
@@ -290,7 +294,7 @@ namespace DocuHelper.Dash.Runtime
             if (!seen.Add(tableName) || Document.FindValue(tableName) is not StepsTable table)
                 yield break;
 
-            foreach (var name in table.Uses())
+            foreach (var name in DependenciesOf(table))
             {
                 if (Document.FindParam(name) != null)
                 {
@@ -303,6 +307,63 @@ namespace DocuHelper.Dash.Runtime
                     foreach (var inner in ParamsOf(name, seen))
                         yield return inner;
                 }
+            }
+        }
+
+        private string Signature(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return string.Empty;
+
+            if (_signatures.TryGetValue(name, out var known))
+                return known;
+
+            _signatures[name] = "loop";
+            string text;
+            if (Document.FindSource(name) is { } source)
+            {
+                text = "s" + JsonSerializer.Serialize(source, DashFile.Options) + "@" + Stamp(source.File);
+            }
+            else if (Document.FindParam(name) is { } param)
+            {
+                text = "p" + JsonSerializer.Serialize(param, DashFile.Options);
+            }
+            else if (Document.FindValue(name) is { } value)
+            {
+                text = "v" + JsonSerializer.Serialize(value, DashFile.Options) + "[" + string.Join(",", DependenciesOf(value).Select(Signature)) + "]";
+            }
+            else
+            {
+                var dot = name.LastIndexOf('.');
+                text = dot > 0 ? "c" + Signature(name.Substring(0, dot)) : "?" + name;
+            }
+
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)), 0, 12);
+            _signatures[name] = hash;
+            return hash;
+        }
+
+        private static IEnumerable<string> DependenciesOf(DashValue value)
+        {
+            var names = value.Uses().ToList();
+            if (value is StepsTable table && table.Steps != null)
+                names.AddRange(table.Steps.OfType<CalcStep>().SelectMany(step => DashNames.InExpression(step.Expression)));
+
+            return names.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.Ordinal);
+        }
+
+        private string Stamp(string file)
+        {
+            try
+            {
+                var docu = Documents?.Open(file);
+                return docu == null
+                    ? "none"
+                    : RuntimeHelpers.GetHashCode(docu).ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + docu.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch (Exception e) when (e is not OutOfMemoryException)
+            {
+                return "error";
             }
         }
 
@@ -365,7 +426,12 @@ namespace DocuHelper.Dash.Runtime
                 return;
 
             var key = State.Signature(Document.Params.Where(param => param != null).Select(param => param.Name))
-                + "\u0001" + string.Join("\u0002", conditions.Select(condition => condition.Key + "=" + condition.Expression));
+                + "\u0001" + string.Join("\u0002", conditions.Select(condition => condition.Key + "=" + condition.Expression))
+                + "\u0001" + string.Join(",", expressions.SelectMany(value => value.Uses().Prepend(value.Name))
+                    .Concat(conditions.SelectMany(condition => DashNames.InExpression(condition.Expression)))
+                    .Concat(Document.Values.Where(value => value is PickValue or FixedValue).Select(value => value.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Select(Signature));
             if (_cache.TryCalculation(key, out var known))
             {
                 foreach (var pair in known.Results)
