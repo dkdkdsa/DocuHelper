@@ -13,6 +13,8 @@ namespace DocuHelper.Dash.Runtime
 
         public bool Visible { get; set; } = true;
 
+        public string Problem { get; set; }
+
         public List<ElementResult> Children { get; } = new();
     }
 }

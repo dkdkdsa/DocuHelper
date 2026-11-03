@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DocuHelper.Dash.Runtime;
 
 namespace DocuHelper.Dash.Elements
 {
@@ -12,5 +13,14 @@ namespace DocuHelper.Dash.Elements
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public bool Flip { get; set; }
+
+        public override ElementResult Resolve(DashScope scope)
+        {
+            var result = scope.Base(this, new LineResult());
+            result.ArrowStart = ArrowStart;
+            result.ArrowEnd = ArrowEnd;
+            result.Flip = Flip;
+            return result;
+        }
     }
 }

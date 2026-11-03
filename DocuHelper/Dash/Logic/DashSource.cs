@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using DocuHelper.Dash.Runtime;
+using DocuHelper.Docus;
 
 namespace DocuHelper.Dash.Logic
 {
@@ -21,5 +23,7 @@ namespace DocuHelper.Dash.Logic
             if (string.IsNullOrWhiteSpace(File))
                 check.Fail($"‘{Name}’ 자료에 파일이 정해지지 않았어요.");
         }
+
+        public virtual DashTable Read(Docu docu) => throw new DashException($"‘{Name}’ 자료는 이 앱에서 읽을 수 없는 종류예요.");
     }
 }

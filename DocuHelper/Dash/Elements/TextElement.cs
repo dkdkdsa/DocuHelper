@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using DocuHelper.Dash.Runtime;
 
 namespace DocuHelper.Dash.Elements
 {
@@ -14,6 +15,13 @@ namespace DocuHelper.Dash.Elements
             base.Validate(check);
             foreach (var name in DashNames.InTemplate(Text))
                 check.RequireName(this, name);
+        }
+
+        public override ElementResult Resolve(DashScope scope)
+        {
+            var result = scope.Base(this, new TextResult());
+            result.Runs = scope.Fill(Text);
+            return result;
         }
     }
 }

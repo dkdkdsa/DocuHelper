@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using DocuHelper.Dash.Runtime;
 
 namespace DocuHelper.Dash.Logic
 {
@@ -21,5 +22,7 @@ namespace DocuHelper.Dash.Logic
             if (string.IsNullOrWhiteSpace(Name))
                 check.Fail("이름이 없는 값이 있어요.");
         }
+
+        public virtual object Compute(DashRuntime runtime) => null;
     }
 }

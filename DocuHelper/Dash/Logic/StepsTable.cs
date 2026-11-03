@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DocuHelper.Dash.Runtime;
 
 namespace DocuHelper.Dash.Logic
 {
@@ -37,6 +38,34 @@ namespace DocuHelper.Dash.Logic
 
             foreach (var step in Steps ?? new List<DashStep>())
                 step?.Validate(check, this);
+        }
+
+        public DashTable Compute(DashRuntime runtime, int count = int.MaxValue)
+        {
+            var table = runtime.Table(Source);
+            var done = new List<DashStep>();
+            var steps = Steps ?? new List<DashStep>();
+            for (var index = 0; index < steps.Count && index < count; index++)
+            {
+                var step = steps[index];
+                if (step == null || step.Off)
+                    continue;
+
+                if (step is CompareStep compare)
+                {
+                    var other = runtime.Table(compare.Source);
+                    foreach (var earlier in done)
+                        other = earlier.Apply(other, runtime);
+
+                    table = compare.Join(table, other);
+                    continue;
+                }
+
+                table = step.Apply(table, runtime);
+                done.Add(step);
+            }
+
+            return table;
         }
     }
 }

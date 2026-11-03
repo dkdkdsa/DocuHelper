@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using DocuHelper.Dash.Runtime;
 
 namespace DocuHelper.Dash.Logic
 {
@@ -17,5 +18,8 @@ namespace DocuHelper.Dash.Logic
         public virtual void Validate(DashCheck check, StepsTable owner)
         {
         }
+
+        public virtual DashTable Apply(DashTable input, DashRuntime runtime) =>
+            throw new DashException($"‘{Kind}’ 단계는 아직 셀 수 없어요.");
     }
 }

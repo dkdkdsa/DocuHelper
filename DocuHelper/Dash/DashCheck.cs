@@ -50,6 +50,23 @@ namespace DocuHelper.Dash
 
         public bool IsSource(string name) => Document?.FindSource(name) != null;
 
+        public bool IsRangePart(string name)
+        {
+            foreach (var suffix in new[] { RangeParam.StartSuffix, RangeParam.EndSuffix })
+            {
+                if (name.EndsWith(suffix, StringComparison.Ordinal) && ParamOf(name.Substring(0, name.Length - suffix.Length)) is RangeParam)
+                    return true;
+            }
+
+            return false;
+        }
+
+        public bool IsColumnOf(string name)
+        {
+            var dot = name.LastIndexOf('.');
+            return dot > 0 && (IsTable(name.Substring(0, dot)) || IsSource(name.Substring(0, dot)));
+        }
+
         public void RequireName(Element owner, string name) => RequireName(Label(owner), name);
 
         public void RequireName(string ownerLabel, string name)
@@ -60,7 +77,7 @@ namespace DocuHelper.Dash
                 return;
             }
 
-            if (IsParam(name) || IsValue(name) || (DashNames.IsItem(name) && InItem))
+            if (IsParam(name) || IsValue(name) || IsRangePart(name) || IsColumnOf(name) || IsSource(name) || (DashNames.IsItem(name) && InItem))
                 return;
 
             Fail($"‘{ownerLabel}’에서 쓰는 ‘{name}’을 찾을 수 없어요.");

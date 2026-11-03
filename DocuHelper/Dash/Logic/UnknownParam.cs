@@ -13,5 +13,9 @@ namespace DocuHelper.Dash.Logic
         public JsonObject Raw { get; }
 
         public string TypeName => DashRaw.Text(Raw, "type");
+
+        public override object InitialValue() => null;
+
+        public override object Normalize(object value) => value;
     }
 }
