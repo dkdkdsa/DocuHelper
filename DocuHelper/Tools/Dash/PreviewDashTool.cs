@@ -37,7 +37,7 @@ namespace DocuHelper.Tools.Dash
         protected override ToolResult Run(DashDocu docu, DashDocument document, ToolInput input)
         {
             var name = input.GetString("name").Trim();
-            var runtime = new DashRuntime(document, docu.Documents);
+            var runtime = new DashRuntime(document, docu.Documents, null, docu.Cache);
             var value = document.FindValue(name);
             if (document.FindSource(name) == null && value is not StepsTable)
             {

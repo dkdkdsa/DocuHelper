@@ -17,6 +17,8 @@ namespace DocuHelper.Docus
 
         public IDashDocuments Documents { get; set; }
 
+        public DashCache Cache { get; } = new();
+
         public override byte[] ToBytes() => DashFile.Write(Document);
 
         public override void Load(byte[] content) => Document = DashFile.Read(content);

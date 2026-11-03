@@ -24,7 +24,7 @@ namespace DocuHelperEditor.State.Mapping
             var document = dash.Document;
             var documents = dash.Documents ?? _workspace.DashDocuments;
             var state = (previous as DashPaperModel)?.Runtime?.State;
-            return new DashPaperModel(document, kept => new DashRuntime(document, documents, kept), state);
+            return new DashPaperModel(document, kept => new DashRuntime(document, documents, kept, dash.Cache), state);
         }
     }
 }

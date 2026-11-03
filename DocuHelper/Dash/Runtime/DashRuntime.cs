@@ -12,17 +12,19 @@ namespace DocuHelper.Dash.Runtime
         private const string ValueKey = "v:";
         private const string SourceKey = "@";
 
-        private readonly Dictionary<string, DashTable> _tables = new(StringComparer.Ordinal);
+        private readonly DashCache _cache;
         private readonly HashSet<string> _computing = new(StringComparer.Ordinal);
         private readonly List<string> _problems = new();
         private readonly Dictionary<string, object> _results = new(StringComparer.Ordinal);
         private bool _calculated;
 
-        public DashRuntime(DashDocument document, IDashDocuments documents, DashState previous = null)
+        public DashRuntime(DashDocument document, IDashDocuments documents, DashState previous = null, DashCache cache = null)
         {
             Document = document ?? DashDocument.Blank();
             Documents = documents;
             State = DashState.Start(Document, previous);
+            _cache = cache ?? new DashCache();
+            _cache.Prepare(Document, documents);
         }
 
         public DashDocument Document { get; }
@@ -93,7 +95,7 @@ namespace DocuHelper.Dash.Runtime
                 throw new DashException($"‘{name}’ 표를 찾을 수 없어요.");
 
             var key = name + "#" + State.Signature(ParamsOf(name, new HashSet<string>(StringComparer.Ordinal)));
-            if (_tables.TryGetValue(key, out var cached))
+            if (_cache.TryTable(key, out var cached))
                 return cached;
 
             if (!_computing.Add(name))
@@ -102,7 +104,7 @@ namespace DocuHelper.Dash.Runtime
             try
             {
                 var result = table.Compute(this);
-                _tables[key] = result;
+                _cache.PutTable(key, result);
                 return result;
             }
             finally
@@ -273,13 +275,13 @@ namespace DocuHelper.Dash.Runtime
         private DashTable Source(DashSource source)
         {
             var key = SourceKey + source.Name;
-            if (_tables.TryGetValue(key, out var cached))
+            if (_cache.TryTable(key, out var cached))
                 return cached;
 
             var docu = Documents?.Open(source.File)
                 ?? throw new DashException($"‘{source.File}’ 파일을 작업 폴더에서 찾을 수 없어요.");
             var table = source.Read(docu);
-            _tables[key] = table;
+            _cache.PutTable(key, table);
             return table;
         }
 
@@ -362,6 +364,26 @@ namespace DocuHelper.Dash.Runtime
             if (expressions.Count == 0 && conditions.Count == 0)
                 return;
 
+            var key = State.Signature(Document.Params.Where(param => param != null).Select(param => param.Name))
+                + "\u0001" + string.Join("\u0002", conditions.Select(condition => condition.Key + "=" + condition.Expression));
+            if (_cache.TryCalculation(key, out var known))
+            {
+                foreach (var pair in known.Results)
+                    _results[pair.Key] = pair.Value;
+
+                foreach (var problem in known.Problems)
+                    Note(problem);
+
+                return;
+            }
+
+            var noted = _problems.Count;
+            Evaluate(expressions, conditions);
+            _cache.PutCalculation(key, new DashCalculation(new Dictionary<string, object>(_results, StringComparer.Ordinal), _problems.Skip(noted).ToList()));
+        }
+
+        private void Evaluate(List<ExpressionValue> expressions, List<(string Key, string Expression)> conditions)
+        {
             try
             {
                 using var host = new DashFormulaHost();

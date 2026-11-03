@@ -26,7 +26,7 @@ namespace DocuHelper.Tools.Dash
 
         protected override ToolResult Run(DashDocu docu, DashDocument document, ToolInput input)
         {
-            var runtime = new DashRuntime(document, docu.Documents);
+            var runtime = new DashRuntime(document, docu.Documents, null, docu.Cache);
             runtime.Render();
             var text = new StringBuilder();
             var page = document.Root;

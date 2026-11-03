@@ -28,6 +28,8 @@ namespace DocuHelper.Docus
 
         public int SaveVersion { get; private set; }
 
+        public int Revision { get; private set; }
+
         public IReadOnlyList<DocuChange> Changes => _changes;
 
         public abstract byte[] ToBytes();
@@ -89,7 +91,11 @@ namespace DocuHelper.Docus
             OnChanged();
         }
 
-        public void OnChanged() => Changed?.Invoke(this);
+        public void OnChanged()
+        {
+            Revision++;
+            Changed?.Invoke(this);
+        }
 
         public virtual void Dispose()
         {
