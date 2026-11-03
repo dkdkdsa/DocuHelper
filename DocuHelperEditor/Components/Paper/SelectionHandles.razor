@@ -1,0 +1,15 @@
+@foreach (var handle in s_handles)
+{
+    <span class="handle @handle" data-handle="@handle" role="presentation"></span>
+}
+@if (Rotate)
+{
+    <span class="handle rot" data-handle="rot" role="presentation"></span>
+}
+
+@code {
+    private static readonly string[] s_handles = { "nw", "n", "ne", "e", "se", "s", "sw", "w" };
+
+    [Parameter]
+    public bool Rotate { get; set; } = true;
+}

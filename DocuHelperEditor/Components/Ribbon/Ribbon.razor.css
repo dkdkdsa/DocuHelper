@@ -50,6 +50,11 @@
     --ribbon-glyph-large: 23px;
 }
 
+.ribbon.dash {
+    --ribbon-accent: var(--dash);
+    --ribbon-tab-pad: 11px;
+}
+
 .tabrow {
     flex: none;
     position: relative;

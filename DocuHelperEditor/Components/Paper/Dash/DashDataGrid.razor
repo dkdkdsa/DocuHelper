@@ -1,0 +1,143 @@
+@using DocuHelper.Dash.Runtime
+@using DocuHelperEditor.State.Papers
+
+<div class="host" @onclick="ClickAsync">
+    @if (!string.IsNullOrEmpty(Problem))
+    {
+        <p class="problem" role="alert">@Problem</p>
+    }
+    else if (_sheet == null)
+    {
+        <p class="empty">읽어 온 칸이 없어요.</p>
+    }
+    else
+    {
+        <SheetGrid Sheet="_sheet"
+                   Locked="true"
+                   RenderAllRows="true"
+                   Version="_version"
+                   SelectedRef="@_selectedRef"
+                   Selection="_selection"
+                   CellDecorations="Carets"
+                   OnPointer="PointAsync" />
+    }
+</div>
+
+@code {
+    private const double KeyboardX = 300;
+    private const double KeyboardY = 220;
+
+    private Sheet _sheet;
+    private DashTable _source;
+    private string _name;
+    private string _signature;
+    private int _version;
+    private string _selectedRef = "A1";
+    private SheetRegion _selection = new(0, 0, 0, 0);
+    private int _anchorRow;
+    private int _anchorColumn;
+    private int _pending = -1;
+
+    [Parameter]
+    public string Name { get; set; }
+
+    [Parameter]
+    public DashTable Table { get; set; }
+
+    [Parameter]
+    public ISet<string> Changed { get; set; }
+
+    [Parameter]
+    public string Problem { get; set; }
+
+    [Parameter]
+    public EventCallback<DashColumnClick> OnHeader { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (Table == null || Table.Columns.Count == 0)
+        {
+            _sheet = null;
+            _source = null;
+            return;
+        }
+
+        var changed = Changed ?? new HashSet<string>();
+        var signature = string.Join("|", changed.OrderBy(column => column, StringComparer.Ordinal));
+        if (ReferenceEquals(_source, Table) && _signature == signature && _name == Name)
+            return;
+
+        _source = Table;
+        _signature = signature;
+        _name = Name;
+        _sheet = DashSheets.Build(Name, Table, changed);
+        _version++;
+        if (_selection.Bottom >= _sheet.Rows.Count || _selection.Right >= _sheet.Columns.Count)
+            Choose(0, 0);
+    }
+
+    private RenderFragment<SheetCellContext> Carets => context => __builder =>
+    {
+        if (context.RowIndex == 0 && context.ColumnIndex < Table.Columns.Count)
+        {
+            var column = Table.Columns[context.ColumnIndex];
+            <button type="button" class="caret" aria-label="@($"‘{column}’ 칸 메뉴 열기")" aria-haspopup="menu" @onclick="e => OpenAsync(column, e)">▾</button>
+        }
+    };
+
+    private Task OpenAsync(string column, MouseEventArgs e)
+    {
+        var keyboard = e.ClientX == 0 && e.ClientY == 0;
+        return OnHeader.InvokeAsync(new DashColumnClick(column, keyboard ? KeyboardX : e.ClientX, keyboard ? KeyboardY : e.ClientY));
+    }
+
+    private Task PointAsync(SheetPointer pointer)
+    {
+        _pending = -1;
+        switch (pointer.Phase)
+        {
+            case "down":
+                if (pointer.Shift)
+                    Extend(pointer.Row, pointer.Column);
+                else
+                    Choose(pointer.Row, pointer.Column);
+
+                break;
+            case "move":
+                Extend(pointer.Row, pointer.Column);
+                break;
+            case "column":
+                _selection = SheetRegion.Span(0, pointer.Column, _sheet.Rows.Count - 1, pointer.Column);
+                _pending = pointer.Column < Table.Columns.Count ? pointer.Column : -1;
+                break;
+            case "row":
+                _selection = SheetRegion.Span(pointer.Row, 0, pointer.Row, _sheet.Columns.Count - 1);
+                break;
+            case "all":
+                _selection = SheetRegion.Span(0, 0, _sheet.Rows.Count - 1, _sheet.Columns.Count - 1);
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task ClickAsync(MouseEventArgs e)
+    {
+        var column = _pending;
+        _pending = -1;
+        return column < 0 || Table == null || column >= Table.Columns.Count
+            ? Task.CompletedTask
+            : OnHeader.InvokeAsync(new DashColumnClick(Table.Columns[column], e.ClientX, e.ClientY));
+    }
+
+    private void Choose(int row, int column)
+    {
+        _anchorRow = Math.Max(0, row);
+        _anchorColumn = Math.Max(0, column);
+        _selection = new SheetRegion(_anchorRow, _anchorColumn, _anchorRow, _anchorColumn);
+        _selectedRef = SheetRef.Make(_anchorColumn, _anchorRow);
+    }
+
+    private void Extend(int row, int column) =>
+        _selection = SheetRegion.Span(_anchorRow, _anchorColumn, Math.Max(0, row), Math.Max(0, column));
+}

@@ -24,6 +24,7 @@ namespace DocuHelperEditor.State
         private ChatEntry _working;
         private ChatEntry _retryEntry;
         private string _lastPrompt;
+        private AgentDashMake _lastDashMake;
         private List<AttachmentModel> _lastAttachments = new();
         private DateTime _lastTimeMark;
 
@@ -44,7 +45,7 @@ namespace DocuHelperEditor.State
             if (failed?.Error != null)
                 _entries.Remove(failed);
 
-            await RunAsync(_lastPrompt, _lastAttachments);
+            await RunAsync(_lastPrompt, _lastAttachments, _lastDashMake);
         }
 
         public void OnMessage(string text)
@@ -173,7 +174,7 @@ namespace DocuHelperEditor.State
             }
         }
 
-        private async Task RunAsync(string prompt, List<AttachmentModel> attachments)
+        private async Task RunAsync(string prompt, List<AttachmentModel> attachments, AgentDashMake dashMake = null)
         {
             if (IsRunning)
                 return;
@@ -186,6 +187,7 @@ namespace DocuHelperEditor.State
             }
 
             _lastPrompt = prompt;
+            _lastDashMake = dashMake;
             _lastAttachments = attachments;
             BeginUsage(prompt);
             StopRevising();
@@ -218,6 +220,7 @@ namespace DocuHelperEditor.State
                     AskBigChanges = _settings.AskBigChanges,
                     TrackChanges = _settings.TrackChanges,
                     Attachments = attachments.Select(ToAgentAttachment).ToList(),
+                    DashMake = dashMake,
                 };
                 var result = await _workspace.Workspace.AskAsync(request, this, run.Token);
                 NoteUsageFiles(result);
@@ -473,6 +476,7 @@ namespace DocuHelperEditor.State
                 ".xlsx" or ".xls" => DocuType.Excel,
                 ".pptx" or ".ppt" => DocuType.Ppt,
                 ".hwp" or ".hwpx" => DocuType.Hwp,
+                ".dash" => DocuType.Dash,
                 _ => DocuType.Word,
             };
         }

@@ -1,0 +1,361 @@
+@using System.Globalization
+@using DocuHelper.Dash.Logic
+@using DocuHelper.Dash.Runtime
+@using DocuHelperEditor.Components.Paper
+@using DocuHelperEditor.Components.Paper.Ppt
+@using DocuHelperEditor.State.Papers
+@inherits StoreComponentBase
+@inject IJSRuntime JS
+@inject IClipboardService Clipboard
+@inject IFileDialogService Dialogs
+@inject IPrintService Prints
+
+@if (File?.Paper is DashPaperModel model)
+{
+    <div class="dash" @ref="_root">
+        <DashToolbar File="File" Model="model" State="_state" Commands="_commands" OnZoom="SetZoom" OnChanged="Redraw" />
+        <div class="body @(Locked ? "locked" : null)">
+            @if (Mode == DashViewState.DataMode)
+            {
+                <DashDataView Model="model" State="_state" Commands="_commands" Locked="Locked" OnChanged="Redraw" OnOpenElement="OpenElement" />
+            }
+            else
+            {
+                if (Mode == DashViewState.EditMode)
+                {
+                    <DashSidePane Model="model" State="_state" Commands="_commands" Locked="Locked" OnSelect="pick => PickFromPane(pick.Id, pick.Additive)" OnEditText="StartText" OnChanged="Redraw" />
+                }
+
+                <div class="stage" @ondragover:preventDefault @ondrop="e => DropAsync(model, e)" @ondrop:preventDefault>
+                    <div class="frame @(_state.FitRequested ? "fit" : null)" style="--page-max: @PageMax; --ratio: @DashCss.Num(model.AspectRatio)">
+                        <CascadingValue Value="ContextOf(model)">
+                            <DashCanvas Model="model" State="_state" Label="@File.Name" Locked="Locked" OnGesture="g => GestureAsync(model, g)" OnEditText="StartText" />
+                        </CascadingValue>
+                    </div>
+                </div>
+
+                if (Mode == DashViewState.EditMode)
+                {
+                    <DashInspector Model="model" State="_state" Commands="_commands" File="File" OnChanged="Redraw" OnSelect="id => PickFromPane(id, false)" />
+                }
+            }
+        </div>
+        <DialogHost Presenter="_presenter" />
+        <ChangeNavigator File="File" />
+    </div>
+}
+
+@code {
+    private const int BaseWidth = 760;
+
+    private readonly DialogPresenter _presenter = new();
+    private ElementReference _root;
+    private WheelZoom _wheel;
+    private DashRibbonCommands _commands;
+    private DashViewState _commandState;
+
+    [Parameter]
+    public WorkspaceFile File { get; set; }
+
+    private DashViewState _state => DashViewState.Of(File) ?? new DashViewState();
+
+    private bool Locked => File?.Activity == FileActivity.Editing;
+
+    private string Mode => _state.Mode ?? DashViewState.ViewMode;
+
+    private string PageMax => _state.FitRequested ? "100%" : (BaseWidth * _state.Zoom / 100).ToString(CultureInfo.InvariantCulture) + "px";
+
+    protected override void OnInitialized() => _state.Dialogs = _presenter;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_commandState, _state))
+        {
+            if (_commands != null)
+                _commands.Changed -= OnCommandsChanged;
+
+            _commandState = _state;
+            _commands = new DashRibbonCommands(Workspace, Assistant, JS, _state, Clipboard, Dialogs, Prints);
+            _commands.Changed += OnCommandsChanged;
+        }
+
+        _commands.File = File;
+        if (_state.Mode == null && File?.Paper is DashPaperModel)
+            _state.Mode = DashViewState.ViewMode;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_root.Id != null)
+        {
+            _wheel ??= new WheelZoom(JS, ZoomStepAsync);
+            await _wheel.AttachAsync(_root);
+        }
+
+        var selected = Workspace.SelectedChangeId;
+        if (selected == _seenChangeId && Workspace.ChangePickVersion == _seenPickVersion)
+            return;
+
+        _seenChangeId = selected;
+        _seenPickVersion = Workspace.ChangePickVersion;
+        if (string.IsNullOrEmpty(selected) || File?.Docu?.Changes.Any(change => change.Id == selected) != true)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.scrollIntoView", $"[data-change=\"{selected}\"]");
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private string _seenChangeId;
+    private int _seenPickVersion = -1;
+
+    protected override void OnDispose()
+    {
+        if (_commands != null)
+            _commands.Changed -= OnCommandsChanged;
+
+        _ = _wheel?.Detach();
+    }
+
+    private void OnCommandsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private DashRenderContext ContextOf(DashPaperModel model) => new()
+    {
+        PageWidth = model.PageWidth,
+        PageHeight = model.PageHeight,
+        Mode = Mode,
+        IsLocked = Locked,
+        Selected = _state.Selected,
+        LiveChanges = (File.Docu?.Changes ?? new List<DocuChange>()).SelectMany(change => change.Anchors).ToHashSet(StringComparer.Ordinal),
+        ChangeIds = ChangeIdsOf(File.Docu),
+        EditingId = _state.EditingId,
+        Dependents = Mode == DashViewState.EditMode ? DashDependents.IdsOf(model.Document, _state.Selected) : Array.Empty<string>(),
+        CommitText = (id, text) => CommitTextAsync(model, id, text),
+        CancelText = CancelTextAsync,
+        SetParam = (name, value) => SetParamAsync(model, name, value),
+        RunAction = (action, item) => RunActionAsync(model, action, item),
+    };
+
+    private Task GestureAsync(DashPaperModel model, SlideGesture gesture)
+    {
+        if (gesture == null || Locked || Mode != DashViewState.EditMode)
+            return Task.CompletedTask;
+
+        if (gesture.Kind == "select")
+        {
+            Select(gesture.Id, gesture.Additive);
+            StateHasChanged();
+            return Task.CompletedTask;
+        }
+
+        var commands = DashCanvasEdits.Plan(gesture, model, _state.Selected);
+        if (commands.Count == 0)
+            return Task.CompletedTask;
+
+        var result = commands.Count == 1 ? Workspace.ApplyEdit(File, commands[0]) : Workspace.ApplyEdits(File, commands);
+        if (result.IsError)
+            _commands?.Notify(result.Content);
+        else if (gesture.Kind == "key" && gesture.Key is "Delete" or "Backspace")
+            _state.Selected.Clear();
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void Select(string id, bool additive)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            _state.Selected.Clear();
+            return;
+        }
+
+        if (!additive)
+        {
+            _state.Selected.Clear();
+            _state.Selected.Add(id);
+            return;
+        }
+
+        if (!_state.Selected.Remove(id))
+            _state.Selected.Add(id);
+    }
+
+    private void PickFromPane(string id, bool additive)
+    {
+        if (Locked || Mode != DashViewState.EditMode)
+            return;
+
+        Select(id, additive);
+    }
+
+    private Task OpenElement(string id)
+    {
+        _state.Mode = DashViewState.EditMode;
+        _state.EditingId = null;
+        _state.Selected.Clear();
+        if (!string.IsNullOrEmpty(id))
+            _state.Selected.Add(id);
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void StartText(string id)
+    {
+        if (Locked || Mode != DashViewState.EditMode)
+            return;
+
+        Select(id, false);
+        _state.EditingId = id;
+        StateHasChanged();
+    }
+
+    private Task CommitTextAsync(DashPaperModel model, string id, string text)
+    {
+        _state.EditingId = null;
+        var current = model.Document.Find(id) switch
+        {
+            DocuHelper.Dash.Elements.TextElement element => element.Text,
+            DocuHelper.Dash.Elements.ShapeElement shape => shape.Text,
+            _ => null,
+        };
+        if (!string.Equals(current ?? string.Empty, text ?? string.Empty, StringComparison.Ordinal))
+        {
+            var result = Workspace.ApplyEdit(File, DashCanvasEdits.Text(id, text));
+            if (result.IsError)
+                _commands?.Notify(result.Content);
+        }
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task CancelTextAsync()
+    {
+        _state.EditingId = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task SetParamAsync(DashPaperModel model, string name, object value)
+    {
+        model.SetParam(name, value);
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task RunActionAsync(DashPaperModel model, DashAction action, IReadOnlyDictionary<string, object> item)
+    {
+        switch (action)
+        {
+            case SetAction:
+            case ResetAction:
+                model.RunAction(action, item);
+                break;
+            case RefreshAction:
+                model.Reload();
+                break;
+            case AskAction ask:
+                var text = FillAsk(model, ask.Text, item);
+                if (_commands != null)
+                    await _commands.PrefillAsync(text);
+                break;
+            case OpenAction open:
+                var target = Workspace.Files.FirstOrDefault(file => string.Equals(file.Name, open.File, StringComparison.OrdinalIgnoreCase));
+                if (target != null)
+                    Workspace.Open(target.Id);
+                else
+                    _commands?.Notify($"‘{open.File}’ 파일을 작업 폴더에서 찾을 수 없어요.");
+                break;
+            case PdfAction:
+                if (_commands != null)
+                    await _commands.ExportPdfFromPageAsync();
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    private static string FillAsk(DashPaperModel model, string template, IReadOnlyDictionary<string, object> item)
+    {
+        var text = template ?? string.Empty;
+        if (item != null)
+        {
+            foreach (var pair in item)
+                text = text.Replace("«item." + pair.Key + "»", DashFormats.Display(pair.Value, null), StringComparison.Ordinal);
+        }
+
+        return new DashScope(model.Runtime).FillText(text);
+    }
+
+    private Task ZoomStepAsync(int direction)
+    {
+        SetZoom(_state.Zoom + direction * 10);
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void SetZoom(int value)
+    {
+        _state.Zoom = Math.Clamp(value, DashViewState.MinZoom, DashViewState.MaxZoom);
+        _state.FitRequested = false;
+    }
+
+    private void Redraw() => StateHasChanged();
+
+    private async Task DropAsync(DashPaperModel model, DragEventArgs e)
+    {
+        var drag = _state.Drag;
+        _state.Drag = null;
+        if (drag == null || Locked || Mode != DashViewState.EditMode || _commands == null)
+            return;
+
+        double[] point = null;
+        try
+        {
+            point = await JS.InvokeAsync<double[]>("docuHelperDashCanvas.pointOnPage", _root, e.ClientX, e.ClientY);
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        if (point == null || point.Length < 2)
+            return;
+
+        var at = (point[0] * model.PageWidth, point[1] * model.PageHeight);
+        switch (drag.Kind)
+        {
+            case DashSidePane.ParamKind:
+                _commands.InsertControl(drag.Name, at);
+                break;
+            case DashSidePane.ValueKind:
+                _commands.InsertValue(drag.Name, at);
+                break;
+            case DashSidePane.TableKind:
+                _commands.InsertTable(drag.Name, at);
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    private static Dictionary<string, string> ChangeIdsOf(Docu docu)
+    {
+        var ids = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var change in docu?.Changes ?? new List<DocuChange>())
+        {
+            foreach (var anchor in change.Anchors)
+                ids[anchor] = change.Id;
+        }
+
+        return ids;
+    }
+}

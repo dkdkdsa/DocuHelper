@@ -1,0 +1,88 @@
+.el {
+    box-sizing: border-box;
+    transform: rotate(var(--rot, 0deg));
+}
+
+.el.shape {
+    touch-action: none;
+    transform-origin: 50% 50%;
+}
+
+.el.shape[data-movable="true"] {
+    cursor: move;
+}
+
+.el.live {
+    box-shadow: 0 0 0 2px var(--hl), 0 0 0 3px var(--hl-edge);
+}
+
+.el.shape:hover:not(.on) {
+    outline: 2px solid rgba(var(--ink-rgb), 0.35);
+    outline-offset: 2px;
+}
+
+.el.on {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+.el.dep:not(.on) {
+    outline: 1.5px dashed var(--dash);
+    outline-offset: 2px;
+}
+
+.el.picked {
+    outline: 1.5px dashed var(--rev-3);
+    outline-offset: 2px;
+}
+
+.el.ghost {
+    opacity: 0.35;
+}
+
+.el.editing > :not(.editor) {
+    visibility: hidden;
+}
+
+.flow,
+.canvas {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.editor {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 4px 6px;
+    resize: none;
+    border: 1.5px solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.45;
+    outline: none;
+}
+
+.problem {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--warn);
+    background: var(--warn-soft);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}

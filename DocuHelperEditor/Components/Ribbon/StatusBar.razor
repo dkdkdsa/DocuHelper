@@ -24,7 +24,7 @@
     [Parameter]
     public RenderFragment Right { get; set; }
 
-    private string FormatClass => Format == DocuType.Excel ? "wrap" : Format == DocuType.Ppt ? "tight" : null;
+    private string FormatClass => Format == DocuType.Excel ? "wrap" : Format is DocuType.Ppt or DocuType.Dash ? "tight" : null;
 
     protected override void OnParametersSet() => _format = Format;
 }

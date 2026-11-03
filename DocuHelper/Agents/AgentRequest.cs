@@ -23,5 +23,7 @@ namespace DocuHelper.Agents
         public bool TrackChanges { get; set; }
 
         public List<AgentAttachment> Attachments { get; set; } = new();
+
+        public AgentDashMake DashMake { get; set; }
     }
 }

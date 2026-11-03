@@ -3,6 +3,17 @@ window.docuHelperPptCanvas = (function () {
     var MIN_SIZE = 0.2;
     var EDIT_KEYS = ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Escape'];
 
+    function hookOf(slide) {
+        var name = slide.dataset.dragHook;
+        var hooks = window.docuHelperDragHooks;
+        return name && hooks && hooks[name] ? hooks[name] : null;
+    }
+
+    function endHook(session) {
+        var hook = hookOf(session.slide);
+        if (hook) hook.end(session.slide);
+    }
+
     function send(session, payload) {
         if (!session.reference) return Promise.resolve();
         payload.slideId = session.slide.dataset.slide || null;
@@ -81,6 +92,7 @@ window.docuHelperPptCanvas = (function () {
         var drag = session.drag;
         if (!drag) return;
         session.drag = null;
+        endHook(session);
         if (drag.moved) drag.items.forEach(restoreOverrides);
     }
 
@@ -153,6 +165,7 @@ window.docuHelperPptCanvas = (function () {
         if (session.drag || e.button !== 0 || slide.dataset.locked === 'true') return;
 
         var target = e.target;
+        if (target.closest && target.closest('[data-canvas-ignore]')) return;
         var handle = target.closest ? target.closest('[data-handle]') : null;
         var shape = target.closest ? target.closest('[data-shape]') : null;
 
@@ -251,8 +264,9 @@ window.docuHelperPptCanvas = (function () {
         var fy = dy / drag.box.height * 100;
         var first = drag.items[0];
 
+        var hook = hookOf(session.slide);
         if (drag.kind === 'move') {
-            var snapped = snapOffset(session.slide, first, fx, fy, drag.box);
+            var snapped = hook ? hook.move(session.slide, drag, fx, fy, e) : snapOffset(session.slide, first, fx, fy, drag.box);
             fx = snapped.fx;
             fy = snapped.fy;
             drag.items.forEach(function (item) {
@@ -268,6 +282,11 @@ window.docuHelperPptCanvas = (function () {
             var local = localDelta(first, dx, dy);
             var lx = local.x / drag.box.width * 100;
             var ly = local.y / drag.box.height * 100;
+            if (hook) {
+                var fitted = hook.resize(session.slide, drag, lx, ly, e);
+                lx = fitted.lx;
+                ly = fitted.ly;
+            }
             var right = first.x + first.w;
             var bottom = first.y + first.h;
             var left = first.x;
@@ -298,6 +317,7 @@ window.docuHelperPptCanvas = (function () {
         var drag = session.drag;
         if (!drag || e.pointerId !== drag.pointerId) return;
         session.drag = null;
+        endHook(session);
         if (!drag.moved) return;
 
         var payload;

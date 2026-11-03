@@ -1,0 +1,25 @@
+@using DocuHelper.Dash.Runtime
+
+<div class="toggle" style="@DashCss.Text(Result.Style, Context.PageWidth)" inert="@Inert" tabindex="@TabIndex">
+    <label class="@(HasLabel ? "label" : "sr-only")" for="@_uid">@(HasLabel ? Result.Label : Result.Param)</label>
+    <Switch Id="@_uid" Checked="Result.On" OnChange="ChangeAsync" />
+</div>
+
+@code {
+    private readonly string _uid = "tg" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+    [Parameter]
+    public ToggleResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private bool Inert => !Context.CanInteract;
+
+    private string TabIndex => Context.CanInteract ? null : "-1";
+
+    private bool HasLabel => !string.IsNullOrWhiteSpace(Result.Label);
+
+    private Task ChangeAsync(bool on) =>
+        Context.CanInteract && !string.IsNullOrEmpty(Result.Param) ? Context.SetParam(Result.Param, on) : Task.CompletedTask;
+}

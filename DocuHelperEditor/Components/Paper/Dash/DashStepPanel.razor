@@ -1,0 +1,111 @@
+@using DocuHelper.Dash.Logic
+@using DocuHelperEditor.State.Papers
+
+<aside class="panel" aria-label="@Heading">
+    <h3 class="title">@Heading</h3>
+    <p class="says">@Sentence</p>
+    @if (!string.IsNullOrEmpty(Problem))
+    {
+        <p class="problem" role="alert">@Problem</p>
+    }
+    @if (Target.Kind == DashDataKind.Source)
+    {
+        <p class="hint">원본은 그대로 두고, 새 표를 만들어서 단계를 더해 주세요.</p>
+    }
+    else if (Index > 0)
+    {
+        <div class="use">
+            <label class="use-label" for="@_switch">이 단계 쓰기</label>
+            <Switch Id="@_switch" Checked="@(!IsOff)" OnChange="ToggleAsync" />
+        </div>
+        <ActionButton Kind="ButtonKind.Secondary" Icon="trash" Disabled="@(!CanEdit)" OnClick="RemoveAsync">이 단계 빼기</ActionButton>
+        @if (_follows.Count > 0)
+        {
+            <section class="follow" aria-label="따라가는 조절값">
+                <h4 class="sub">이 단계가 따라가는 조절값</h4>
+                @foreach (var param in _follows)
+                {
+                    <DashParamControl Model="Model" Param="param" OnChanged="OnChanged" />
+                }
+                <ActionButton Kind="ButtonKind.Text" OnClick="ResetAsync">처음 값으로</ActionButton>
+            </section>
+        }
+    }
+</aside>
+
+@code {
+    private readonly string _switch = "dash-step-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private List<DashParam> _follows = new();
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashDataTarget Target { get; set; }
+
+    [Parameter]
+    public int Index { get; set; }
+
+    [Parameter]
+    public string Problem { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public DashRibbonCommands Commands { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnStep { get; set; }
+
+    private bool CanEdit => !Locked && Commands != null;
+
+    private DashStep Step => Index > 0 && Index <= Target.Last ? Target.Table.Steps[Index - 1] : null;
+
+    private bool IsOff => Step?.Off == true;
+
+    private string Heading => Index > 0 ? DashStepText.Label(Step) : Target.Kind == DashDataKind.Source ? "원본 읽기" : "읽어 오기";
+
+    private string Sentence
+    {
+        get
+        {
+            if (Index > 0)
+                return DashStepText.Sentence(Step);
+
+            return Target.Kind == DashDataKind.Source ? DashStepText.Source(Target.Source) : DashStepText.Origin(Model.Document, Target.Table);
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        _follows = Step is FilterStep filter
+            ? filter.Uses().Distinct(StringComparer.Ordinal).Select(Model.Document.FindParam).Where(param => param != null).ToList()
+            : new List<DashParam>();
+    }
+
+    private Task ToggleAsync(bool on)
+    {
+        if (CanEdit && on == IsOff)
+            Commands.Apply(DashStepEdits.Toggle(Target.Table, Index - 1));
+
+        return Task.CompletedTask;
+    }
+
+    private Task RemoveAsync()
+    {
+        if (CanEdit && Commands.Apply(DashStepEdits.Remove(Target.Table, Index - 1)))
+            return OnStep.InvokeAsync(Index - 1);
+
+        return Task.CompletedTask;
+    }
+
+    private Task ResetAsync()
+    {
+        Model.ResetParams();
+        return OnChanged.InvokeAsync();
+    }
+}

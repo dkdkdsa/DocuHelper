@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using DocuHelper.Dash;
 using DocuHelper.Docus;
 using DocuHelper.Editors;
 using DocuHelper.Tools;
@@ -18,10 +19,13 @@ namespace DocuHelper.Agents
     {
         public const string ListFilesTool = "list_files";
         public const string CreateFileTool = "create_file";
+        public const string ReadGuideTool = "read_guide";
         public const string AskUserTool = "ask_user";
         public const string FinishTool = "finish";
 
         private const int MaxFollowUps = 3;
+        private const string ContinueRequest = "이어서 해 줘";
+        private const string PausedText = "할 일이 많아서 여기까지 했어요. 지금까지 바꾼 곳은 그대로 남아 있어요. ‘이어서 해 줘’라고 하시면 이어서 할게요.";
         private const int MaxDetailLength = 24;
 
         private const string ListFilesSchema = """
@@ -32,7 +36,7 @@ namespace DocuHelper.Agents
             {
               "type": "object",
               "properties": {
-                "name": {"type": "string", "description": "New file name ending in .xlsx, .docx, .hwpx or .pptx, e.g. \"7월 회의 보고서.docx\". Use .hwpx for a Hancom 한글 document."},
+                "name": {"type": "string", "description": "New file name ending in .xlsx, .docx, .hwpx, .pptx or .dash, e.g. \"7월 회의 보고서.docx\". Use .hwpx for a Hancom 한글 document and .dash for a dashboard (대시보드) built from other files."},
                 "label": {"type": "string"},
                 "step": {"type": "string"}
               },
@@ -100,6 +104,8 @@ namespace DocuHelper.Agents
         private readonly Dictionary<Docu, DocuState> _before = new();
         private readonly HashSet<Docu> _locked = new();
         private Docu _lastWritten;
+        private Docu _onlyWrite;
+        private DashTemplate _dashTemplate;
         private readonly List<Docu> _read = new();
         private readonly List<AgentChange> _changes = new();
         private readonly List<string> _untouched = new();
@@ -114,6 +120,9 @@ namespace DocuHelper.Agents
             _request = request;
             _notes = notes;
             _types = (keepTypes ?? Enumerable.Empty<DocuType>()).Where(workspace.Editors.ContainsKey).Distinct().OrderBy(type => type).ToList();
+            if (request.DashMake != null)
+                _onlyWrite = StartDashboard(request.DashMake);
+
             Reveal();
         }
 
@@ -159,6 +168,13 @@ namespace DocuHelper.Agents
             if (_request.Attachments.Count > 0)
                 text.AppendLine($"Attached to this message: {string.Join(", ", _request.Attachments.Select(a => a.Name))}");
 
+            if (_onlyWrite != null)
+            {
+                var sources = _request.DashMake.Sources.Count > 0 ? string.Join(", ", _request.DashMake.Sources) : "the Excel files that fit the request";
+                text.AppendLine($"This turn builds a dashboard: the app has just made '{_onlyWrite.Name}' from the '{_dashTemplate.Title}' template ({_dashTemplate.Description}). Its elements are slots with placeholder text and no data yet; read_dash lists them by id and name.");
+                text.AppendLine($"Read the dashboard guide page and the source files ({sources}), then add the sources, params and values, connect every slot to a fitting value or table and replace every placeholder text. Keep the template's layout; remove a slot only when nothing fits it. Add controls only for what the user asked to change, in free space near the top. This turn may only change '{_onlyWrite.Name}'; the source files stay as they are. With no request text, build it from the conversation so far.");
+            }
+
             if (_notes.Count > 0)
             {
                 text.AppendLine("Since your last turn:");
@@ -186,6 +202,8 @@ namespace DocuHelper.Agents
                         return Track(host, args, "작업 폴더 살펴보기", null, ListFiles);
                     case CreateFileTool:
                         return Track(host, args, $"{args.GetString("name")} 만들기", null, () => CreateFile(args));
+                    case ReadGuideTool:
+                        return Track(host, args, "설명서 읽기", null, () => ReadGuide(args));
                     default:
                         return RunFormatTool(name, input, args, host);
                 }
@@ -194,6 +212,14 @@ namespace DocuHelper.Agents
             {
                 return ToolResult.Fail(e.Message);
             }
+        }
+
+        public AgentResult BuildPaused()
+        {
+            var result = BuildResult(PausedText);
+            result.FollowUps.Clear();
+            result.FollowUps.Add(ContinueRequest);
+            return result;
         }
 
         public AgentResult BuildResult(string text)
@@ -261,6 +287,9 @@ namespace DocuHelper.Agents
 
         private ToolResult Write(DocuEditor editor, Docu docu, string name, JsonElement input, ToolInput args)
         {
+            if (_onlyWrite != null && docu != _onlyWrite)
+                return ToolResult.Fail($"This turn builds the dashboard '{_onlyWrite.Name}' and may only change that file. '{docu.Name}' is read-only now: read it, don't change it.");
+
             Prepare(docu);
             var result = editor.Execute(docu, name, input);
             if (result.IsError)
@@ -336,8 +365,33 @@ namespace DocuHelper.Agents
             return ToolResult.Ok(text.ToString().TrimEnd(), $"{_workspace.Docus.Count}개");
         }
 
+        private Docu StartDashboard(AgentDashMake make)
+        {
+            var template = DashTemplates.Find(make.Template) ?? DashTemplates.Find(DashTemplates.Summary);
+            var docu = _workspace.CreateDocu(make.FileName, DashFile.Write(template.Create()));
+            _before[docu] = null;
+            _locked.Add(docu);
+            docu.SetLocked(true);
+            _lastWritten = docu;
+
+            var change = new DocuChange
+            {
+                Label = $"‘{template.Title}’ 모양으로 ‘{docu.Name}’ 파일을 새로 만들어요",
+                Location = "새 파일",
+                Icon = "file-plus",
+            };
+            docu.AddChange(change);
+            _changes.Add(new AgentChange { Docu = docu, Change = change });
+            docu.MarkDirty();
+            _dashTemplate = template;
+            return docu;
+        }
+
         private ToolResult CreateFile(ToolInput args)
         {
+            if (_onlyWrite != null)
+                return ToolResult.Fail($"This turn builds the dashboard '{_onlyWrite.Name}', which already exists. Fill it instead of creating another file.");
+
             var docu = _workspace.CreateDocu(args.GetString("name"));
             _before[docu] = null;
             _locked.Add(docu);
@@ -355,6 +409,15 @@ namespace DocuHelper.Agents
             Reveal();
 
             return ToolResult.Ok($"Created '{docu.Name}' in the working folder. It is blank. Fill it with the {KindName(docu.Type)} tools using file=\"{docu.Name}\".", "새 파일");
+        }
+
+        private ToolResult ReadGuide(ToolInput args)
+        {
+            var topic = args.GetString("topic");
+            var page = _workspace.Guide.Find(topic)
+                ?? throw new ToolInputException($"There is no guide page '{topic}'. Pages: {string.Join(", ", _workspace.Guide.Pages.Select(p => p.Topic))}.");
+
+            return ToolResult.Ok(page.Text, page.Title);
         }
 
         private async Task<ToolResult> AskUserAsync(ToolInput args, IAgentHost host, CancellationToken cancellationToken)
@@ -527,6 +590,7 @@ namespace DocuHelper.Agents
             DocuType.Excel => "Excel",
             DocuType.Word => "Word",
             DocuType.Hwp => "한글",
+            DocuType.Dash => "dashboard (대시보드)",
             _ => "PowerPoint",
         };
 
@@ -602,10 +666,35 @@ namespace DocuHelper.Agents
             }
 
             definitions.Add(Define(ListFilesTool, "List the files in the user's working folder with a one-line summary of each.", ListFilesSchema));
-            definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word, 한글 or PowerPoint file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves. If you have no editing tools for that kind of file yet, you get them on your next step.", CreateFileSchema));
+            definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word, 한글, PowerPoint or dashboard (.dash) file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves. If you have no editing tools for that kind of file yet, you get them on your next step.", CreateFileSchema));
+            if (_workspace.Guide.Pages.Count > 0)
+                definitions.Add(Define(ReadGuideTool, "Read one page of the app's guide: how its screens, menus and buttons work, and how to build a dashboard. Use it when the user asks how to do something in the app or where a button is, and before you build a dashboard. It changes nothing.", GuideSchema()));
+
             definitions.Add(Define(AskUserTool, "Ask the user one question and wait for the answer. Use it only when you cannot pick a sensible default.", AskUserSchema));
             definitions.Add(Define(FinishTool, "Report the result to the user and end the task. Call it once, after all changes are made.", FinishSchema));
             return definitions;
+        }
+
+        private JsonElement GuideSchema()
+        {
+            var pages = _workspace.Guide.Pages;
+            var schema = new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["topic"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["enum"] = new JsonArray(pages.Select(page => (JsonNode)page.Topic).ToArray()),
+                        ["description"] = string.Join("\n", pages.Select(page => $"{page.Topic}: {page.Summary}")),
+                    },
+                    ["step"] = new JsonObject { ["type"] = "string" },
+                },
+                ["required"] = new JsonArray("topic"),
+            };
+
+            return JsonSerializer.SerializeToElement(schema);
         }
 
         private static AgentToolDefinition Define(string name, string description, string schema) =>

@@ -1,0 +1,396 @@
+@using System.Globalization
+@using DocuHelper.Dash.Runtime
+
+<figure class="chart" style="@DashCss.Text(Result.Style, Context.PageWidth)" aria-label="@Name">
+    @if (!_hasData)
+    {
+        <p class="empty">표에 숫자가 없어요</p>
+    }
+    else if (Kind == "pie")
+    {
+        <div class="pie-box">
+            <svg class="pie" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                @foreach (var slice in Slices())
+                {
+                    <path d="@slice.Path" style="@SliceStyle(slice.Index)" />
+                }
+            </svg>
+        </div>
+        <ul class="legend">
+            @foreach (var index in LegendIndexes())
+            {
+                <li style="@FadeOf(index)">
+                    <span class="swatch" style="@("background:" + SliceColor(index))"></span>
+                    <span class="entry">@CategoryName(index)</span>
+                    @if (Result.Labels && !string.IsNullOrEmpty(LabelOf(0, index)))
+                    {
+                        <span class="amount">@LabelOf(0, index)</span>
+                    }
+                </li>
+            }
+        </ul>
+    }
+    else
+    {
+        @if (_seriesCount > 1)
+        {
+            <ul class="legend top">
+                @for (var s = 0; s < _seriesCount; s++)
+                {
+                    <li>
+                        <span class="swatch" style="@("background:" + SeriesColor(s))"></span>
+                        <span class="entry">@SeriesName(s)</span>
+                    </li>
+                }
+            </ul>
+        }
+        @if (Horizontal)
+        {
+            <div class="hframe">
+                <div class="rowcats">
+                    @for (var c = 0; c < _count; c++)
+                    {
+                        <span class="rowcat" style="@FadeOf(c)">
+                            @if (ShowName(c))
+                            {
+                                <span class="name @(c == Result.Emphasis ? "emph" : null)">@CategoryName(c)</span>
+                            }
+                        </span>
+                    }
+                </div>
+                <div class="stage" style="@StageStyle">
+                    <svg class="plot" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        <line class="base" x1="@Num(Along(0))" y1="0" x2="@Num(Along(0))" y2="100" />
+                        @foreach (var point in Points())
+                        {
+                            <rect x="@Num(Math.Min(Along(0), point.X))" y="@Num(point.Y - _thickness / 2)" width="@Num(Math.Abs(point.X - Along(0)))" height="@Num(_thickness)" style="@BarStyle(point.Series, point.Category)" />
+                        }
+                    </svg>
+                    @if (Result.Labels)
+                    {
+                        foreach (var point in LabelPoints())
+                        {
+                            <span class="val @(point.Value < 0 ? "before" : "after")" style="left: @Num(point.X)%; top: @Num(point.Y)%; @FadeOf(point.Category)">@LabelOf(point.Series, point.Category)</span>
+                        }
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="frame">
+                <div class="stage" style="@StageStyle">
+                    <svg class="plot" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        <line class="base" x1="0" y1="@Num(Top(0))" x2="100" y2="@Num(Top(0))" />
+                        @if (Kind == "column")
+                        {
+                            foreach (var point in Points())
+                            {
+                                <rect x="@Num(point.X - _thickness / 2)" y="@Num(Math.Min(Top(0), point.Y))" width="@Num(_thickness)" height="@Num(Math.Abs(Top(0) - point.Y))" style="@BarStyle(point.Series, point.Category)" />
+                            }
+                        }
+                        else
+                        {
+                            for (var s = 0; s < _seriesCount; s++)
+                            {
+                                var series = s;
+                                if (Kind == "area")
+                                {
+                                    foreach (var run in Runs(series, _anyFaded))
+                                    {
+                                        <polygon points="@AreaPoints(run)" style="@AreaStyle(series)" />
+                                    }
+                                }
+
+                                foreach (var run in Runs(series, false))
+                                {
+                                    <polyline class="stroke" points="@LinePoints(run)" style="@StrokeStyle(series, _anyFaded ? 0.28 : 1)" />
+                                }
+
+                                if (_anyFaded)
+                                {
+                                    foreach (var run in Runs(series, true))
+                                    {
+                                        <polyline class="stroke" points="@LinePoints(run)" style="@StrokeStyle(series, 1)" />
+                                    }
+                                }
+                            }
+                        }
+                    </svg>
+                    @if (Kind != "column")
+                    {
+                        foreach (var point in Points())
+                        {
+                            <span class="dot @(point.Series == 0 && point.Category == Result.Emphasis ? "emph" : null)" style="left: @Num(point.X)%; top: @Num(point.Y)%; background: @ColorOf(point.Series, point.Category); @FadeOf(point.Category)"></span>
+                        }
+                    }
+                    @if (Result.Labels)
+                    {
+                        foreach (var point in LabelPoints())
+                        {
+                            <span class="val @(point.Value < 0 ? "below" : "above")" style="left: @Num(point.X)%; top: @Num(point.Y)%; @FadeOf(point.Category)">@LabelOf(point.Series, point.Category)</span>
+                        }
+                    }
+                </div>
+                <div class="cats">
+                    @for (var c = 0; c < _count; c++)
+                    {
+                        <span class="cat" style="@FadeOf(c)">
+                            @if (ShowName(c))
+                            {
+                                <span class="name @(c == Result.Emphasis ? "emph" : null)" style="width: @(_nameStep * 100)%">@CategoryName(c)</span>
+                            }
+                        </span>
+                    }
+                </div>
+            </div>
+        }
+    }
+    @if (Result.Control != null)
+    {
+        <DashRangeSliderView Result="Result.Control" Attached="true" />
+    }
+</figure>
+
+@code {
+    private const int MaxLabels = 16;
+    private const double MaxGroup = 16;
+    private const double LineEm = 1.3;
+
+    private static readonly string[] s_palette = { "var(--docx)", "var(--pptx)", "var(--xlsx)", "var(--rev-3)", "var(--rev-4)", "var(--hwp)" };
+
+    private string _kind = "column";
+    private int _count;
+    private int _seriesCount;
+    private int _nameStep = 1;
+    private int _valueStep = 1;
+    private double _low;
+    private double _high = 1;
+    private double _thickness;
+    private double _pieTotal;
+    private bool _hasData;
+    private bool _hasNegative;
+    private bool _anyFaded;
+
+    [Parameter]
+    public ChartResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private string Kind => _kind;
+
+    private bool Horizontal => _kind == "bar";
+
+    private string Name => string.IsNullOrWhiteSpace(Result.Source?.Name) ? "차트" : Result.Source.Name;
+
+    protected override void OnParametersSet()
+    {
+        _kind = Result.ChartKind is "bar" or "line" or "area" or "pie" ? Result.ChartKind : "column";
+        _seriesCount = Result.Series.Count;
+        _count = Math.Max(Result.Categories.Count, Result.Series.Select(series => series.Values.Count).DefaultIfEmpty(0).Max());
+
+        var values = new List<double>();
+        for (var series = 0; series < _seriesCount; series++)
+        {
+            for (var category = 0; category < _count; category++)
+            {
+                if (Value(series, category) is double value)
+                    values.Add(value);
+            }
+        }
+
+        _low = Math.Min(0, values.Count == 0 ? 0 : values.Min());
+        _high = Math.Max(0, values.Count == 0 ? 0 : values.Max());
+        if (_high - _low <= 0)
+            _high = _low + 1;
+
+        _hasNegative = values.Any(value => value < 0);
+        _pieTotal = 0;
+        for (var category = 0; category < _count && _seriesCount > 0; category++)
+        {
+            if (Value(0, category) is double slice && slice > 0)
+                _pieTotal += slice;
+        }
+
+        _hasData = _kind == "pie" ? _pieTotal > 0 : values.Count > 0;
+        _anyFaded = Result.Dimmed.Any(faded => faded);
+        _thickness = _count == 0 || _seriesCount == 0 ? 0 : Math.Min(100d / _count * 0.7, MaxGroup) / _seriesCount;
+        MeasureSteps();
+    }
+
+    private void MeasureSteps()
+    {
+        _nameStep = 1;
+        _valueStep = 1;
+        if (!_hasData || _kind == "pie")
+            return;
+
+        var font = Result.Style?.FontSize ?? 16;
+        var room = Horizontal
+            ? (Result.Style?.H ?? DashCss.DefaultHeight) - font * (0.8 + (_seriesCount > 1 ? 1.6 : 0) + (Result.Control != null ? 3.6 : 0))
+            : (Result.Style?.W ?? DashCss.DefaultWidth) - font * 1.2;
+        var slot = Math.Max(room / font, 1) / _count;
+        var nameNeed = Horizontal
+            ? LineEm
+            : Enumerable.Range(0, _count).Max(index => Em(CategoryName(index))) + 0.6;
+        var valueNeed = Horizontal
+            ? LineEm * _seriesCount
+            : Enumerable.Range(0, _seriesCount).SelectMany(series => Enumerable.Range(0, _count).Select(category => Em(LabelOf(series, category)))).Max() * _seriesCount + 0.4;
+        var cap = _count <= MaxLabels ? 1 : (int)Math.Ceiling(_count / (double)MaxLabels);
+        _nameStep = Math.Max(cap, (int)Math.Ceiling(nameNeed / slot));
+        _valueStep = Math.Max(1, (int)Math.Ceiling(valueNeed / slot));
+    }
+
+    private static double Em(string text) => string.IsNullOrEmpty(text)
+        ? 0
+        : text.Sum(character => character >= '\u1100' ? 1 : char.IsDigit(character) ? 0.58 : char.IsLetter(character) ? 0.6 : 0.32);
+
+    private static string Num(double value) => DashCss.Num(value);
+
+    private double Along(double value) => (value - _low) / (_high - _low) * 100;
+
+    private double Top(double value) => 100 - Along(value);
+
+    private double? Value(int series, int category)
+    {
+        var values = Result.Series[series].Values;
+        var value = category < values.Count ? values[category] : null;
+        return value.HasValue && double.IsFinite(value.Value) ? value : null;
+    }
+
+    private string LabelOf(int series, int category)
+    {
+        var labels = Result.Series[series].Labels;
+        return category < labels.Count ? labels[category] : null;
+    }
+
+    private string CategoryName(int index) => index < Result.Categories.Count && !string.IsNullOrWhiteSpace(Result.Categories[index])
+        ? Result.Categories[index]
+        : (index + 1).ToString(CultureInfo.InvariantCulture);
+
+    private string SeriesName(int index) => string.IsNullOrWhiteSpace(Result.Series[index].Name)
+        ? "계열 " + (index + 1).ToString(CultureInfo.InvariantCulture)
+        : Result.Series[index].Name;
+
+    private string SeriesColor(int series) => s_palette[series % s_palette.Length];
+
+    private string ColorOf(int series, int category) => series == 0 && category == Result.Emphasis ? "var(--ink)" : SeriesColor(series);
+
+    private string SliceColor(int index) => index == Result.Emphasis ? "var(--ink)" : SeriesColor(index);
+
+    private bool Faded(int category) => category >= 0 && category < Result.Dimmed.Count && Result.Dimmed[category];
+
+    private string FadeOf(int category) => Faded(category) ? "opacity:0.28;" : null;
+
+    private bool ShowName(int category) => OnGrid(category, _nameStep);
+
+    private bool ShowLabel(int category) => OnGrid(category, _valueStep);
+
+    private bool OnGrid(int category, int step)
+    {
+        if (category == Result.Emphasis)
+            return true;
+
+        var crowded = Result.Emphasis >= 0 && Math.Abs(category - Result.Emphasis) * 4 < step * 3;
+        return category % step == 0 && !crowded;
+    }
+
+    private string BarStyle(int series, int category) => "fill:" + ColorOf(series, category) + ";" + FadeOf(category);
+
+    private string AreaStyle(int series) => "fill:" + SeriesColor(series) + ";opacity:0.18;";
+
+    private string StrokeStyle(int series, double opacity) => "stroke:" + SeriesColor(series) + ";opacity:" + Num(opacity) + ";";
+
+    private string SliceStyle(int index) => "fill:" + SliceColor(index) + ";" + FadeOf(index);
+
+    private string StageStyle
+    {
+        get
+        {
+            if (Horizontal)
+                return Result.Labels ? "margin-right:4em;" + (_hasNegative ? "margin-left:4em;" : string.Empty) : string.Empty;
+
+            var top = Result.Labels ? "1.6em" : "0.4em";
+            var bottom = Result.Labels && _hasNegative ? "1.6em" : "0";
+            return "margin-top:" + top + ";margin-bottom:" + bottom + ";";
+        }
+    }
+
+    private IEnumerable<(int Series, int Category, double X, double Y, double Value)> Points()
+    {
+        var slot = 100d / _count;
+        for (var category = 0; category < _count; category++)
+        {
+            for (var series = 0; series < _seriesCount; series++)
+            {
+                if (Value(series, category) is not double value)
+                    continue;
+
+                var across = Kind is "line" or "area"
+                    ? (category + 0.5) * slot
+                    : category * slot + (slot - _thickness * _seriesCount) / 2 + (series + 0.5) * _thickness;
+                var along = Horizontal ? Along(value) : Top(value);
+                yield return Horizontal ? (series, category, along, across, value) : (series, category, across, along, value);
+            }
+        }
+    }
+
+    private IEnumerable<(int Series, int Category, double X, double Y, double Value)> LabelPoints() =>
+        Points().Where(point => ShowLabel(point.Category) && !string.IsNullOrEmpty(LabelOf(point.Series, point.Category)));
+
+    private IEnumerable<List<(double X, double Y)>> Runs(int series, bool activeOnly)
+    {
+        var run = new List<(double X, double Y)>();
+        var previous = -2;
+        foreach (var point in Points().Where(candidate => candidate.Series == series && (!activeOnly || !Faded(candidate.Category))))
+        {
+            if (run.Count > 0 && point.Category != previous + 1)
+            {
+                yield return run;
+                run = new List<(double X, double Y)>();
+            }
+
+            run.Add((point.X, point.Y));
+            previous = point.Category;
+        }
+
+        if (run.Count > 0)
+            yield return run;
+    }
+
+    private static string LinePoints(List<(double X, double Y)> run) => string.Join(" ", run.Select(point => Num(point.X) + "," + Num(point.Y)));
+
+    private string AreaPoints(List<(double X, double Y)> run)
+    {
+        var floor = Num(Top(0));
+        return Num(run[0].X) + "," + floor + " " + LinePoints(run) + " " + Num(run[^1].X) + "," + floor;
+    }
+
+    private IEnumerable<int> LegendIndexes() =>
+        Enumerable.Range(0, Result.Series[0].Values.Count).Where(index => Value(0, index) is > 0).Take(MaxLabels);
+
+    private IEnumerable<(int Index, string Path)> Slices()
+    {
+        var count = Result.Series[0].Values.Count;
+        var positive = Enumerable.Range(0, count).Where(index => Value(0, index) is > 0).ToList();
+        if (positive.Count == 1)
+        {
+            yield return (positive[0], "M0,50 A50,50 0 1 1 100,50 A50,50 0 1 1 0,50 Z");
+            yield break;
+        }
+
+        var angle = -Math.PI / 2;
+        foreach (var index in positive)
+        {
+            var sweep = Value(0, index).Value / _pieTotal * Math.PI * 2;
+            var end = angle + sweep;
+            var large = sweep > Math.PI ? 1 : 0;
+            yield return (index, FormattableString.Invariant($"M50,50 L{Corner(angle)} A50,50 0 {large} 1 {Corner(end)} Z"));
+            angle = end;
+        }
+    }
+
+    private static string Corner(double angle) =>
+        FormattableString.Invariant($"{50 + 50 * Math.Cos(angle):0.###},{50 + 50 * Math.Sin(angle):0.###}");
+}

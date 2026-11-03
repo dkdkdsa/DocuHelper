@@ -1,0 +1,75 @@
+@using DocuHelper.Dash.Runtime
+
+<div class="box" style="@DashCss.Text(Result.Style, Context.PageWidth)">
+    <table class="table" aria-label="@Result.Source?.Name">
+        @if (HasWidths)
+        {
+            <colgroup>
+                @for (var i = 0; i < Columns; i++)
+                {
+                    <col style="@WidthOf(i)" />
+                }
+            </colgroup>
+        }
+        @if (Result.ShowHeader && Columns > 0)
+        {
+            <thead>
+                <tr>
+                    @for (var i = 0; i < Columns; i++)
+                    {
+                        <th scope="col" style="@AlignOf(i)">@Result.Headers[i]</th>
+                    }
+                </tr>
+            </thead>
+        }
+        <tbody>
+            @foreach (var row in Result.Rows.Take(Capacity))
+            {
+                <tr>
+                    @for (var i = 0; i < Columns; i++)
+                    {
+                        <td style="@AlignOf(i)">@(i < row.Count ? row[i] : null)</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private const double RowEm = 2.2;
+
+    [Parameter]
+    public TableResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private int Columns => Result.Headers.Count;
+
+    private bool HasWidths => Result.Widths.Any(width => width.HasValue);
+
+    private int Capacity
+    {
+        get
+        {
+            if (Result.Style?.H is not double height || height <= 0)
+                return int.MaxValue;
+
+            var rowHeight = (Result.Style.FontSize ?? 16) * RowEm;
+            var header = Result.ShowHeader ? 1 : 0;
+            return Math.Max(1, (int)Math.Floor(height / rowHeight + 0.1) - header);
+        }
+    }
+
+    private string WidthOf(int index) => index < Result.Widths.Count && Result.Widths[index] is double width
+        ? "width:" + DashCss.Cq(width, Context.PageWidth) + ";"
+        : null;
+
+    private string AlignOf(int index) => (index < Result.Aligns.Count ? Result.Aligns[index] : null) switch
+    {
+        "right" => "text-align:right;",
+        "center" => "text-align:center;",
+        _ => null,
+    };
+}

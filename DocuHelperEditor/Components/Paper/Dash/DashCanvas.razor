@@ -1,0 +1,130 @@
+@using DocuHelperEditor.Components.Paper.Ppt
+@using DocuHelperEditor.State.Papers
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@if (Model?.Root != null)
+{
+    var page = Model.Root;
+    <div @ref="_stage" class="page @(Editing ? "editing" : null)" style="aspect-ratio: @DashCss.Num(Model.PageWidth) / @DashCss.Num(Model.PageHeight); @DashCss.Box(page.Style, Model.PageWidth)" aria-label="@Label" tabindex="@(Editing && !Locked ? "-1" : null)" data-slide="@(Editing ? "dash" : null)" data-snap="@(Editing ? Snap : null)" data-drag-hook="@(Editing ? "dash" : null)" data-magnet="@(Editing && State?.Magnet == false ? "false" : null)" data-pw="@DashCss.Num(Model.PageWidth)" data-ph="@DashCss.Num(Model.PageHeight)" data-wcm="@DashCss.Num(Model.WidthCm)" data-hcm="@DashCss.Num(Model.HeightCm)" data-locked="@(Editing && Locked ? "true" : null)" data-selected="@(State?.Selected.Count ?? 0)">
+        @foreach (var child in page.Children)
+        {
+            <DashElementView @key="child.Key" Result="child" Root="true" Movable="@DashCanvasEdits.IsMovable(Model, child.Source)" Placement="@DashCss.Absolute(child.Style, Model.PageWidth, Model.PageHeight)" />
+        }
+        @if (State?.Gridlines == true)
+        {
+            <div class="grid-layer" style="@GridStyle" aria-hidden="true"></div>
+        }
+        @if (State?.Guides == true)
+        {
+            <span class="guide x" aria-hidden="true"></span>
+            <span class="guide y" aria-hidden="true"></span>
+        }
+    </div>
+}
+
+@code {
+    private ElementReference _stage;
+    private DotNetObjectReference<DashCanvas> _reference;
+    private bool _attached;
+    private string _focusedEditor;
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashViewState State { get; set; }
+
+    [Parameter]
+    public string Label { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public EventCallback<SlideGesture> OnGesture { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnEditText { get; set; }
+
+    private bool Editing => State?.Mode == DashViewState.EditMode;
+
+    private string Snap => string.Join(" ", new[] { State?.Gridlines == true ? "grid" : null, State?.Guides == true ? "guides" : null }.Where(mode => mode != null));
+
+    private string GridStyle
+    {
+        get
+        {
+            var width = Model.WidthCm > 0 ? 100 / Model.WidthCm : 3.37;
+            var height = Model.HeightCm > 0 ? 100 / Model.HeightCm : 4.76;
+            return $"background-size: {DashCss.Num(width)}% {DashCss.Num(height)}%";
+        }
+    }
+
+    protected override void OnInitialized() => _reference = DotNetObjectReference.Create(this);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Model?.Root == null || _stage.Context == null)
+        {
+            _attached = false;
+            return;
+        }
+
+        try
+        {
+            if (Editing && !_attached)
+            {
+                await JS.InvokeVoidAsync("docuHelperPptCanvas.attach", _stage, _reference);
+                await JS.InvokeVoidAsync("docuHelperDashCanvas.attach", _stage, _reference);
+                _attached = true;
+            }
+            else if (!Editing && _attached)
+            {
+                await DetachAsync();
+            }
+
+            var editing = State?.EditingId;
+            if (editing != null && editing != _focusedEditor && await JS.InvokeAsync<bool>("docuHelperDashCanvas.focusEditor", _stage))
+                _focusedEditor = editing;
+            else if (editing == null)
+                _focusedEditor = null;
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_attached)
+                await DetachAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        _reference?.Dispose();
+    }
+
+    [JSInvokable]
+    public Task Receive(SlideGesture gesture) => OnGesture.InvokeAsync(gesture);
+
+    [JSInvokable]
+    public Task EditText(string id) => OnEditText.InvokeAsync(id);
+
+    private async Task DetachAsync()
+    {
+        _attached = false;
+        await JS.InvokeVoidAsync("docuHelperPptCanvas.detach", _stage);
+        await JS.InvokeVoidAsync("docuHelperDashCanvas.detach", _stage);
+    }
+}

@@ -1,0 +1,38 @@
+@using DocuHelper.Dash.Runtime
+
+<div class="shape @ShapeClass @(IsPlain ? "plain" : null)" style="@(DashCss.Text(Result.Style, Context.PageWidth) + DashCss.Box(Result.Style, Context.PageWidth) + RoundStyle)">
+    @if (Result.Runs.Count > 0)
+    {
+        <p class="label">
+            @foreach (var run in Result.Runs)
+            {
+                switch (run.Kind)
+                {
+                    case TextRunKind.Value:
+                        <span class="@(Context.IsEditing ? "bound" : null)">@run.Text</span>
+                        break;
+                    case TextRunKind.Missing:
+                        <span class="missing" title="@($"‘{run.Name}’ 값을 찾을 수 없어요")">@run.Text</span>
+                        break;
+                    default:
+                        @run.Text
+                        break;
+                }
+            }
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public ShapeResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private string ShapeClass => Result.Shape is "round" or "ellipse" or "pill" ? Result.Shape : "rect";
+
+    private bool IsPlain => DashCss.Color(Result.Style?.Fill) == null && DashCss.Color(Result.Style?.Line) == null;
+
+    private string RoundStyle => Result.Shape == "round" ? "border-radius:" + DashCss.Cq(Result.Style?.Radius ?? 12, Context.PageWidth) + ";" : null;
+}

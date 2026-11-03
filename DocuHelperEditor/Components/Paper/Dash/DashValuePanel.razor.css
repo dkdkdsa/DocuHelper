@@ -1,0 +1,115 @@
+.card {
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+}
+
+.head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+}
+
+.title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.kind {
+    font-size: 13px;
+    color: var(--ink-3);
+}
+
+.says {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-2);
+}
+
+.label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-2);
+}
+
+.line,
+.now {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.field {
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 0;
+    min-height: var(--hit);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 15px;
+}
+
+select.field {
+    flex: none;
+    width: 100%;
+}
+
+.field:focus-visible {
+    outline: 2px solid var(--docx);
+    outline-offset: 2px;
+}
+
+.field:disabled {
+    background: var(--well);
+    color: var(--ink-disabled);
+}
+
+.equals {
+    flex: none;
+    color: var(--ink-3);
+}
+
+.result {
+    flex: none;
+    max-width: 40%;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--dash-soft);
+    color: var(--dash);
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.problem {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--warn-line);
+    border-radius: var(--radius-sm);
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}

@@ -1,0 +1,216 @@
+@using System.Globalization
+@using DocuHelper.Dash
+@using DocuHelper.Dash.Elements
+@using DocuHelper.Dash.Runtime
+
+@if (Result != null && (Result.Visible || (Context.IsEditing && Root)))
+{
+    <div class="@ClassName" style="@(Placement + (Result is ShapeResult or LineResult ? DashCss.Opacity(Result.Style) : DashCss.Box(Result.Style, Context.PageWidth)))" data-el="@Result.Source?.Id" data-key="@Result.Key" data-change="@Context.ChangeOf(Id)" @attributes="EditAttributes">
+        @switch (Result)
+        {
+            case RepeatResult repeat:
+                <DashRepeatView Result="repeat" />
+                break;
+            case ShapeResult shape:
+                <DashShapeView Result="shape" />
+                break;
+            case TextResult text:
+                <DashTextView Result="text" />
+                break;
+            case LineResult line:
+                <DashLineView Result="line" />
+                break;
+            case ChartResult chart:
+                <DashChartView Result="chart" />
+                break;
+            case TableResult table:
+                <DashTableView Result="table" />
+                break;
+            case MeterResult meter:
+                <DashMeterView Result="meter" />
+                break;
+            case SliderResult slider:
+                <DashSliderView Result="slider" />
+                break;
+            case RangeSliderResult range:
+                <DashRangeSliderView Result="range" />
+                break;
+            case ToggleResult toggle:
+                <DashToggleView Result="toggle" />
+                break;
+            case ChoiceResult choice when choice.Source is SelectElement:
+                <DashSelectView Result="choice" />
+                break;
+            case ChoiceResult choice:
+                <DashSegmentedView Result="choice" />
+                break;
+            case ButtonResult button:
+                <DashButtonView Result="button" />
+                break;
+            default:
+                @if (Result.Source is FlowElement flow)
+                {
+                    <div class="flow" style="@DashCss.Flow(Result.Style, flow is RowElement ? "row" : "column", Context.PageWidth)">
+                        @foreach (var child in Result.Children)
+                        {
+                            <DashElementView @key="child.Key" Result="child" Placement="@DashCss.FlowItem(child.Style, Context.PageWidth)" />
+                        }
+                    </div>
+                }
+                else if (Result.Source is CanvasElement)
+                {
+                    <div class="canvas">
+                        @foreach (var child in Result.Children)
+                        {
+                            <DashElementView @key="child.Key" Result="child" Placement="@DashCss.Absolute(child.Style, Result.Style?.W ?? DashCss.DefaultWidth, Result.Style?.H ?? DashCss.DefaultHeight)" />
+                        }
+                    </div>
+                }
+                break;
+        }
+        @if (IsEditingText)
+        {
+            <textarea class="editor" data-canvas-ignore="true" aria-label="글 고치기. «값 이름»처럼 쓰면 엑셀 값이 들어가요" spellcheck="false" @bind="_draft" @bind:event="oninput" @onblur="CommitAsync" @onkeydown="OnEditorKeyAsync"></textarea>
+        }
+        @if (Context.IsEditing && !string.IsNullOrEmpty(Result.Problem))
+        {
+            <span class="problem" title="@Result.Problem">@Result.Problem</span>
+        }
+        @if (IsShape && Selected && Movable)
+        {
+            <SelectionHandles />
+        }
+    </div>
+}
+
+@code {
+    private string _draft;
+    private string _draftFor;
+    private bool _closing;
+
+    [Parameter]
+    public ElementResult Result { get; set; }
+
+    [Parameter]
+    public string Placement { get; set; }
+
+    [Parameter]
+    public bool Root { get; set; }
+
+    [Parameter]
+    public bool Movable { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private string Id => Result?.Source?.Id;
+
+    private bool IsShape => Context.IsEditing && Root;
+
+    private bool Selected => Context.IsSelected(Id);
+
+    private bool HasText => Result?.Source is TextElement or ShapeElement;
+
+    private bool IsEditingText => IsShape && HasText && Id != null && Id == Context.EditingId;
+
+    private string ClassName
+    {
+        get
+        {
+            var name = "el k-" + (Result?.Source?.Kind ?? "unknown");
+            if (Context.IsLive(Id))
+                name += " live";
+
+            if (!Result.Visible)
+                name += " ghost";
+
+            if (IsShape)
+                name += Selected ? " shape on" : " shape";
+            else if (Context.IsEditing && Selected)
+                name += " picked";
+
+            if (IsEditingText)
+                name += " editing";
+
+            if (Context.IsDependent(Id))
+                name += " dep";
+
+            return name;
+        }
+    }
+
+    private Dictionary<string, object> EditAttributes
+    {
+        get
+        {
+            if (!IsShape || Id == null)
+                return null;
+
+            var style = Result.Style;
+            var attributes = new Dictionary<string, object>
+            {
+                ["data-shape"] = Id,
+                ["data-x"] = Percent(style?.X ?? 0, Context.PageWidth),
+                ["data-y"] = Percent(style?.Y ?? 0, Context.PageHeight),
+                ["data-w"] = Percent(style?.W ?? DashCss.DefaultWidth, Context.PageWidth),
+                ["data-h"] = Percent(style?.H ?? DashCss.DefaultHeight, Context.PageHeight),
+                ["data-rot"] = DashCss.Num(style?.Rotation ?? 0),
+                ["role"] = "button",
+                ["tabindex"] = Selected ? "0" : "-1",
+                ["aria-pressed"] = Selected ? "true" : "false",
+                ["aria-label"] = DashLabels.Of(Result.Source),
+            };
+            if (Movable && !Context.IsLocked)
+                attributes["data-movable"] = "true";
+
+            if (HasText)
+                attributes["data-text"] = "true";
+
+            return attributes;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (IsEditingText && _draftFor != Id)
+        {
+            _draftFor = Id;
+            _draft = Result.Source switch
+            {
+                TextElement text => text.Text ?? string.Empty,
+                ShapeElement shape => shape.Text ?? string.Empty,
+                _ => string.Empty,
+            };
+            _closing = false;
+        }
+        else if (!IsEditingText)
+        {
+            _draftFor = null;
+        }
+    }
+
+    private async Task CommitAsync()
+    {
+        if (_closing || _draftFor == null)
+            return;
+
+        _closing = true;
+        await Context.CommitText(_draftFor, _draft ?? string.Empty);
+    }
+
+    private async Task OnEditorKeyAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _closing = true;
+            await Context.CancelText();
+        }
+        else if (e.Key == "Enter" && e.CtrlKey)
+        {
+            await CommitAsync();
+        }
+    }
+
+    private static string Percent(double value, double total) =>
+        (value / (total > 0 ? total : 1) * 100).ToString("0.####", CultureInfo.InvariantCulture);
+}

@@ -1,0 +1,87 @@
+@using DocuHelper.Dash.Runtime
+
+<div class="host" style="@DashCss.Text(Result.Style, Context.PageWidth)" inert="@Inert">
+    <div class="group" role="radiogroup" aria-label="@Name" @onkeydown="KeyDownAsync">
+        @for (var i = 0; i < Result.Options.Count; i++)
+        {
+            var index = i;
+            var option = Result.Options[index];
+            var selected = index == Selected;
+            <button type="button" class="opt @(selected ? "on" : null)" role="radio" aria-checked="@(selected ? "true" : "false")" tabindex="@TabIndexOf(index)" @ref="_refs[index]" @onclick="() => PickAsync(option)">@option</button>
+        }
+    </div>
+</div>
+
+@code {
+    private ElementReference[] _refs = Array.Empty<ElementReference>();
+    private int _focusIndex = -1;
+
+    [Parameter]
+    public ChoiceResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private bool Inert => !Context.CanInteract;
+
+    private string Name => string.IsNullOrWhiteSpace(Result.Label) ? Result.Param : Result.Label;
+
+    private int Selected => Result.Options.IndexOf(Result.Selected);
+
+    private int Active => Math.Max(Selected, 0);
+
+    protected override void OnParametersSet()
+    {
+        if (_refs.Length != Result.Options.Count)
+            _refs = new ElementReference[Result.Options.Count];
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusIndex < 0)
+            return;
+
+        var index = _focusIndex;
+        _focusIndex = -1;
+        if (index >= _refs.Length)
+            return;
+
+        try
+        {
+            await _refs[index].FocusAsync();
+        }
+        catch (JSException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private string TabIndexOf(int index) => Context.CanInteract && index == Active ? "0" : "-1";
+
+    private Task PickAsync(string option) =>
+        Context.CanInteract && !string.IsNullOrEmpty(Result.Param) ? Context.SetParam(Result.Param, option) : Task.CompletedTask;
+
+    private Task KeyDownAsync(KeyboardEventArgs e)
+    {
+        var count = Result.Options.Count;
+        if (!Context.CanInteract || count == 0)
+            return Task.CompletedTask;
+
+        var next = e.Key switch
+        {
+            "ArrowLeft" or "ArrowUp" => (Active - 1 + count) % count,
+            "ArrowRight" or "ArrowDown" => (Active + 1) % count,
+            "Home" => 0,
+            "End" => count - 1,
+            _ => -1,
+        };
+
+        if (next < 0 || next == Active)
+            return Task.CompletedTask;
+
+        _focusIndex = next;
+        return PickAsync(Result.Options[next]);
+    }
+}

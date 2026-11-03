@@ -1,0 +1,44 @@
+.toggle {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8em;
+    color: var(--ink);
+    line-height: 1.3;
+}
+
+.label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.toggle ::deep .switch-row {
+    min-height: 0;
+    gap: 0.5em;
+}
+
+.toggle ::deep .switch {
+    width: 2.6em;
+    height: 1.6em;
+    border-width: 0.1em;
+}
+
+.toggle ::deep .switch::after {
+    left: 0.2em;
+    top: 0.2em;
+    width: 1em;
+    height: 1em;
+}
+
+.toggle ::deep .switch:checked::after {
+    left: 1.2em;
+}
+
+.toggle ::deep .switch-text {
+    font-size: 0.875em;
+}

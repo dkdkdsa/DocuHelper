@@ -308,3 +308,225 @@
     min-height: 52px;
     padding: 5px 10px;
 }
+
+.under {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.box.dm {
+    border-color: var(--dash);
+}
+
+.dash-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--hit);
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dash-toggle:not(:disabled):hover {
+    background: var(--bubble);
+}
+
+.dash-toggle.on {
+    background: var(--dash-soft);
+    color: var(--dash);
+}
+
+.dash-toggle:disabled {
+    color: var(--ink-disabled);
+    cursor: not-allowed;
+}
+
+.dash-pick {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.dash-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dash);
+}
+
+.dash-sources {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.dash-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--bubble);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.dash-link {
+    min-height: 28px;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: var(--dash);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.dash-files {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-card);
+    background: var(--paper);
+}
+
+.dash-files legend,
+.dash-shapes legend {
+    padding: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dash);
+}
+
+.dash-hint,
+.dash-desc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.dash-warn {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #8A3A0F;
+}
+
+.dash-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.dash-done {
+    align-self: flex-end;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--paper);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dash-shapes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.dash-shape {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 4px 6px;
+    border: 1.5px solid #CBD1DB;
+    border-radius: 10px;
+    background: var(--paper);
+    color: var(--ink-2);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dash-shape:focus-within {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+.dash-shape.on {
+    border-color: var(--dash);
+    background: var(--dash-soft);
+    color: var(--dash);
+    box-shadow: inset 0 0 0 1px var(--dash);
+}
+
+.dash-mark {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--dash);
+    color: #FFFFFF;
+}
+
+.dash-extras {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.dash-extra {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: var(--hit);
+    padding: 0 12px;
+    border: 1px solid #CBD1DB;
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dash-extra.on {
+    border-color: var(--dash);
+    background: var(--dash-soft);
+    color: var(--dash);
+}

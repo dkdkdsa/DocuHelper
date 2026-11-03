@@ -1,0 +1,55 @@
+.host {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    color: var(--ink);
+    line-height: 1.3;
+}
+
+.group {
+    flex: 1;
+    min-width: 0;
+    height: min(100%, 2.6em);
+    display: flex;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    background: var(--paper);
+}
+
+.opt {
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+    padding: 0 0.6em;
+    overflow: hidden;
+    border: 0;
+    border-left: 1px solid var(--rule);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.opt:first-child {
+    border-left: 0;
+}
+
+.opt:hover:not(.on) {
+    background: var(--well);
+}
+
+.opt.on {
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.opt:focus-visible {
+    outline: 2px solid var(--docx);
+    outline-offset: -3px;
+}

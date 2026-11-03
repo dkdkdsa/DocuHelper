@@ -71,8 +71,6 @@
     [Parameter]
     public EventCallback<SlideBoxModel> OnBoxCommitted { get; set; }
 
-    private static readonly string[] s_handles = { "nw", "n", "ne", "e", "se", "s", "sw", "w" };
-
     private string LayoutClass => Slide?.Layout switch
     {
         SlideLayout.Cover => "cover",
@@ -187,11 +185,7 @@
         }
         @if (IsSelected(shape) && shape.Movable && !Locked)
         {
-            @foreach (var handle in s_handles)
-            {
-                <span class="handle @handle" data-handle="@handle" role="presentation"></span>
-            }
-            <span class="handle rot" data-handle="rot" role="presentation"></span>
+            <SelectionHandles />
         }
     </div>;
 

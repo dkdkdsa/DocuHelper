@@ -1,0 +1,99 @@
+@using System.Globalization
+@using DocuHelper.Dash.Logic
+@using DocuHelperEditor.State.Papers
+
+@if (Model?.Document != null)
+{
+    <aside class="pane" aria-label="데이터 목록">
+        @if (!HasAny)
+        {
+            <p class="empty">연결한 데이터가 아직 없어요.</p>
+        }
+        @if (Tables.Count > 0 || Sources.Count > 0)
+        {
+            <section class="section" aria-labelledby="@TableId">
+                <h2 id="@TableId" class="title">표</h2>
+                <ul class="list">
+                    @foreach (var table in Tables)
+                    {
+                        @Item(table.Name, RowsText(table.Name))
+                    }
+                    @foreach (var source in Sources)
+                    {
+                        @Item(source.Name, "원본 · " + RowsText(source.Name))
+                    }
+                </ul>
+            </section>
+        }
+        @if (Values.Count > 0)
+        {
+            <section class="section" aria-labelledby="@ValueId">
+                <h2 id="@ValueId" class="title">값</h2>
+                <ul class="list">
+                    @foreach (var value in Values)
+                    {
+                        @Item(value.Name, Model.Runtime.Display(value.Name))
+                    }
+                </ul>
+            </section>
+        }
+        @if (Params.Count > 0)
+        {
+            <section class="section" aria-labelledby="@ParamId">
+                <h2 id="@ParamId" class="title">조절값</h2>
+                <ul class="list">
+                    @foreach (var param in Params)
+                    {
+                        @Item(param.Name, Model.Runtime.Display(param.Name))
+                    }
+                </ul>
+            </section>
+        }
+    </aside>
+}
+
+@code {
+    private readonly string _uid = "dash-data-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public string Selected { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnPick { get; set; }
+
+    private string TableId => _uid + "-table";
+
+    private string ValueId => _uid + "-value";
+
+    private string ParamId => _uid + "-param";
+
+    private List<StepsTable> Tables => Model.Document.Values.OfType<StepsTable>().Where(table => !string.IsNullOrWhiteSpace(table.Name)).ToList();
+
+    private List<DashSource> Sources => Model.Document.Sources.Where(source => source != null && !string.IsNullOrWhiteSpace(source.Name)).ToList();
+
+    private List<DashValue> Values => Model.Document.Values.Where(value => value != null && value is not StepsTable && !string.IsNullOrWhiteSpace(value.Name)).ToList();
+
+    private List<DashParam> Params => Model.Document.Params.Where(param => param != null && !string.IsNullOrWhiteSpace(param.Name)).ToList();
+
+    private bool HasAny => Tables.Count > 0 || Sources.Count > 0 || Values.Count > 0 || Params.Count > 0;
+
+    private string RowsText(string name)
+    {
+        var data = Model.Runtime.TryTable(name);
+        return data == null ? "읽지 못했어요" : data.Rows.Count.ToString(CultureInfo.InvariantCulture) + "줄";
+    }
+
+    private RenderFragment Item(string name, string note) => __builder =>
+    {
+        var picked = string.Equals(name, Selected, StringComparison.Ordinal);
+        <li>
+            <button type="button" class="row @(picked ? "on" : null)" aria-pressed="@(picked ? "true" : "false")" @onclick="() => OnPick.InvokeAsync(name)">
+                <span class="name">@name</span>
+                <span class="note">@note</span>
+            </button>
+        </li>
+    };
+}

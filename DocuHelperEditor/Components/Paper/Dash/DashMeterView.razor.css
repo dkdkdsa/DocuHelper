@@ -1,0 +1,49 @@
+.meter {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    container-type: inline-size;
+    color: var(--ink);
+    line-height: 1.3;
+}
+
+.track {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: min(100%, 0.8em);
+    border-radius: 9999px;
+    background: var(--hair);
+}
+
+.fill {
+    height: 100%;
+    border-radius: inherit;
+    transition: width 0.2s ease;
+}
+
+.notch {
+    position: absolute;
+    top: -0.2em;
+    right: -0.05em;
+    bottom: -0.2em;
+    width: 0.22em;
+    border-radius: 9999px;
+}
+
+.text {
+    flex: none;
+    min-width: 2.4em;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+@container (max-width: 8em) {
+    .text {
+        display: none;
+    }
+}

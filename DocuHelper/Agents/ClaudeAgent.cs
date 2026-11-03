@@ -129,6 +129,12 @@ namespace DocuHelper.Agents
                         return toolbox.BuildResult(text);
                     }
 
+                    if (turn == MaxTurns - 1 && !calledFromCode)
+                    {
+                        _pendingResults.AddRange(results);
+                        return toolbox.BuildPaused();
+                    }
+
                     _messages.Add(new BetaUserMessageParam { Content = results });
                 }
 
@@ -231,8 +237,10 @@ namespace DocuHelper.Agents
                     System = system,
                     Tools = [.. tools, new BetaWebSearchTool20250305 { MaxUses = MaxWebUses }, new BetaWebFetchTool20250910 { MaxUses = MaxWebUses }],
                     Messages = _messages.ToList(),
+                    Thinking = Thinking(),
                     OutputConfig = new BetaOutputConfig { Effort = effort },
                     CacheControl = new BetaCacheControlEphemeral(),
+                    Betas = [AnthropicBeta.ThinkingBindingControls2026_08_01],
                 };
             }
 
@@ -243,12 +251,18 @@ namespace DocuHelper.Agents
                 System = system,
                 Tools = [.. tools, new BetaWebSearchTool20260209 { MaxUses = MaxWebUses }, new BetaWebFetchTool20260209 { MaxUses = MaxWebUses }],
                 Messages = _messages.ToList(),
+                Thinking = Thinking(),
                 OutputConfig = new BetaOutputConfig { Effort = effort },
                 CacheControl = new BetaCacheControlEphemeral(),
                 Fallbacks = new Default(),
-                Betas = [AnthropicBeta.ServerSideFallback2026_07_01],
+                Betas = [AnthropicBeta.ServerSideFallback2026_07_01, AnthropicBeta.ThinkingBindingControls2026_08_01],
             };
         }
+
+        private static BetaThinkingConfigAdaptive Thinking() => new()
+        {
+            BlockBinding = new BetaThinkingBlockBinding { PrefixMismatchBehavior = BetaThinkingPrefixMismatchBehavior.DropBlock },
+        };
 
         private static string PromptText(string prompt, int attachmentCount)
         {

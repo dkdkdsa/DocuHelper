@@ -1,0 +1,131 @@
+@using DocuHelper.Dash.Logic
+@using DocuHelper.Dash.Runtime
+@using DocuHelperEditor.State.Papers
+
+<section class="card" aria-label="@($"‘{Value.Name}’ 값")">
+    <header class="head">
+        <h2 class="title">@Value.Name</h2>
+        <span class="kind">@KindText</span>
+    </header>
+    <p class="says">@DashStepText.Value(Value)</p>
+    @if (Value is ExpressionValue)
+    {
+        <label class="label" for="@_expression">식</label>
+        <div class="line">
+            <input id="@_expression" type="text" class="field" spellcheck="false" autocomplete="off" disabled="@(!CanEdit)" @bind="_text" @bind:event="oninput" @onkeydown="KeyAsync" />
+            <span class="equals" aria-hidden="true">=</span>
+            <output class="result" for="@_expression" aria-live="polite">@Shown</output>
+        </div>
+        <div class="actions">
+            <ActionButton Kind="ButtonKind.Primary" Disabled="@(!CanEdit)" OnClick="ChangeAsync">식 바꾸기</ActionButton>
+        </div>
+    }
+    else
+    {
+        <div class="now">
+            <span class="label">지금 값</span>
+            <output class="result" aria-live="polite">@Shown</output>
+        </div>
+    }
+    <label class="label" for="@_format">모양</label>
+    <select id="@_format" class="field" disabled="@(!CanEdit)" @onchange="e => FormatAsync(e.Value?.ToString())">
+        @foreach (var format in DashValueFormats.With(Value.Format))
+        {
+            <option value="@format.Value" selected="@(string.Equals(format.Value, DashValueFormats.Selected(Value.Format), StringComparison.Ordinal))">@format.Label</option>
+        }
+    </select>
+    @if (!string.IsNullOrEmpty(_problem))
+    {
+        <p class="problem" role="alert">@_problem</p>
+    }
+    @foreach (var problem in Problems)
+    {
+        <p class="problem" role="alert">@problem</p>
+    }
+</section>
+
+@code {
+    private readonly string _expression = "dash-expr-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private readonly string _format = "dash-form-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private DashValue _value;
+    private string _text = string.Empty;
+    private string _problem;
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashValue Value { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public DashRibbonCommands Commands { get; set; }
+
+    private bool CanEdit => !Locked && Commands != null;
+
+    private string Shown => Model.Runtime.Display(Value.Name);
+
+    private string KindText => Value switch
+    {
+        ExpressionValue => "식으로 셈한 값",
+        PickValue => "표에서 뽑은 값",
+        FixedValue => "정해 둔 값",
+        _ => "값",
+    };
+
+    private IReadOnlyList<string> Problems
+    {
+        get
+        {
+            var found = new List<string>();
+            if (Model.Runtime.Value(Value.Name) is DashError error)
+                found.Add($"식의 결과가 오류예요 ({error.Code}). 식과 쓰는 이름을 확인해 주세요.");
+
+            var prefix = "‘" + Value.Name + "’";
+            found.AddRange(Model.Document.Check().Problems.Where(problem => problem.StartsWith(prefix, StringComparison.Ordinal)));
+            return found;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_value, Value))
+            return;
+
+        _value = Value;
+        _text = (Value as ExpressionValue)?.Expression ?? string.Empty;
+        _problem = null;
+    }
+
+    private Task KeyAsync(KeyboardEventArgs e) => e.Key == "Enter" ? ChangeAsync() : Task.CompletedTask;
+
+    private Task ChangeAsync()
+    {
+        if (!CanEdit)
+            return Task.CompletedTask;
+
+        var expression = (_text ?? string.Empty).Trim();
+        _problem = DashDataForms.ExpressionProblem(expression);
+        if (_problem != null)
+            return Task.CompletedTask;
+
+        if (string.Equals(expression, (Value as ExpressionValue)?.Expression, StringComparison.Ordinal))
+        {
+            _problem = "바뀐 곳이 없어요.";
+            return Task.CompletedTask;
+        }
+
+        Commands.Apply(EditCommand.Create(DashCanvasEdits.UpdateTool, new { kind = "value", name = Value.Name, patch = new { expression } }));
+        return Task.CompletedTask;
+    }
+
+    private Task FormatAsync(string format)
+    {
+        if (CanEdit && !string.IsNullOrEmpty(format) && !string.Equals(format, DashValueFormats.Selected(Value.Format), StringComparison.Ordinal))
+            Commands.Apply(EditCommand.Create(DashCanvasEdits.UpdateTool, new { kind = "value", name = Value.Name, patch = new { format } }));
+
+        return Task.CompletedTask;
+    }
+}

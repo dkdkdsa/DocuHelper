@@ -1,0 +1,164 @@
+@using DocuHelper.Dash.Logic
+@using DocuHelperEditor.State.Papers
+
+<section class="card" aria-label="@($"‘{Param.Name}’ 조절값")">
+    <header class="head">
+        <h2 class="title">@Param.Name</h2>
+        <span class="kind">@DashParamForm.KindLabel(Param.Kind) 조절값</span>
+    </header>
+    @if (_form == null)
+    {
+        <p class="says">이 앱이 모르는 종류의 조절값이라 여기서는 고칠 수 없어요.</p>
+    }
+    else
+    {
+        <div class="fields">
+            <label class="label" for="@Id("label")">화면에 보일 이름</label>
+            <input id="@Id("label")" type="text" class="field" autocomplete="off" disabled="@(!CanEdit)" @bind="_form.Label" @bind:event="oninput" />
+            @switch (_form.Kind)
+            {
+                case DashParamForm.NumberKind:
+                    <div class="pair">
+                        @Number("min", "가장 작은 값", _form.Min, value => _form.Min = value)
+                        @Number("max", "가장 큰 값", _form.Max, value => _form.Max = value)
+                    </div>
+                    <div class="pair">
+                        @Number("step", "한 칸 크기", _form.Step, value => _form.Step = value)
+                        @Number("initial", "처음 값", _form.Initial, value => _form.Initial = value)
+                    </div>
+                    break;
+                case DashParamForm.RangeKind:
+                    <div class="pair">
+                        @Number("min", "가장 작은 값", _form.Min, value => _form.Min = value)
+                        @Number("max", "가장 큰 값", _form.Max, value => _form.Max = value)
+                    </div>
+                    <div class="pair">
+                        @Number("from", "처음 시작", _form.From, value => _form.From = value)
+                        @Number("to", "처음 끝", _form.To, value => _form.To = value)
+                    </div>
+                    break;
+                case DashParamForm.PickKind:
+                    if (string.IsNullOrEmpty(_form.OptionsFrom))
+                    {
+                        <label class="label" for="@Id("options")">고를 것들 (한 줄에 하나씩)</label>
+                        <textarea id="@Id("options")" class="field area" rows="4" spellcheck="false" disabled="@(!CanEdit)" @bind="_form.Options" @bind:event="oninput"></textarea>
+                    }
+                    else
+                    {
+                        <p class="says">고를 것들은 ‘@(_form.OptionsFrom)’ 칸에서 가져와요.</p>
+                    }
+
+                    <div class="pair">
+                        @Text("all", "‘전체’ 항목 이름", _form.All, value => _form.All = value)
+                        @Text("choice", "처음 값", _form.Choice, value => _form.Choice = value)
+                    </div>
+                    break;
+                default:
+                    <label class="check" for="@Id("on")">
+                        <input id="@Id("on")" type="checkbox" disabled="@(!CanEdit)" checked="@_form.On" @onchange="e => _form.On = e.Value is true" />
+                        <span>처음에 켜 두기</span>
+                    </label>
+                    break;
+            }
+        </div>
+        @if (!string.IsNullOrEmpty(_problem))
+        {
+            <p class="problem" role="alert">@_problem</p>
+        }
+        <div class="actions">
+            <ActionButton Kind="ButtonKind.Primary" Disabled="@(!CanEdit)" OnClick="ApplyAsync">바꾸기</ActionButton>
+        </div>
+    }
+    <section class="try" aria-label="미리 써 보기">
+        <h3 class="sub">미리 써 보기 <span class="note">바꿔 봐도 파일에는 적히지 않아요</span></h3>
+        <DashParamControl Model="Model" Param="Param" OnChanged="OnChanged" />
+        <div class="actions">
+            <ActionButton Kind="ButtonKind.Text" OnClick="ResetAsync">처음 값으로</ActionButton>
+        </div>
+    </section>
+</section>
+
+@code {
+    private readonly string _uid = "dash-param-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private DashParam _param;
+    private DashParamForm _form;
+    private string _problem;
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashParam Param { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public DashRibbonCommands Commands { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private bool CanEdit => !Locked && Commands != null;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_param, Param))
+            return;
+
+        _param = Param;
+        _form = DashParamForm.Of(Param);
+        _problem = null;
+    }
+
+    private string Id(string part) => _uid + "-" + part;
+
+    private RenderFragment Number(string part, string label, string value, Action<string> set) => __builder =>
+    {
+        <div class="cell">
+            <label class="label" for="@Id(part)">@label</label>
+            <input id="@Id(part)" type="number" step="any" class="field" disabled="@(!CanEdit)" value="@value" @oninput="e => set(e.Value?.ToString())" />
+        </div>
+    };
+
+    private RenderFragment Text(string part, string label, string value, Action<string> set) => __builder =>
+    {
+        <div class="cell">
+            <label class="label" for="@Id(part)">@label</label>
+            <input id="@Id(part)" type="text" class="field" autocomplete="off" disabled="@(!CanEdit)" value="@value" @oninput="e => set(e.Value?.ToString())" />
+        </div>
+    };
+
+    private Task ApplyAsync()
+    {
+        if (!CanEdit)
+            return Task.CompletedTask;
+
+        _problem = _form.Problem();
+        if (_problem != null)
+            return Task.CompletedTask;
+
+        var patch = _form.Patch(Param);
+        if (patch.Count == 0)
+        {
+            _problem = "바뀐 곳이 없어요.";
+            return Task.CompletedTask;
+        }
+
+        var name = Param.Name;
+        var settings = patch.Any(pair => pair.Key != "label");
+        if (Commands.Apply(EditCommand.Create(DashCanvasEdits.UpdateTool, new { kind = "param", name, patch })) && settings && Commands.File?.Paper is DashPaperModel fresh && !ReferenceEquals(fresh, Model))
+        {
+            fresh.Runtime.Reset(new[] { name });
+            fresh.Render();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task ResetAsync()
+    {
+        Model.ResetParams();
+        return OnChanged.InvokeAsync();
+    }
+}

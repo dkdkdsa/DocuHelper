@@ -371,6 +371,54 @@ window.docuHelper = (function () {
             document.body.classList.add('docu-printing');
             return slides.length;
         },
+        dashPrintEnter: function (widthCm, heightCm) {
+            var source = document.querySelector('.dash .page');
+            if (!source || !(widthCm > 0) || !(heightCm > 0))
+                return 0;
+
+            removeSheetPrint();
+            removeSlidePrint();
+            var style = document.createElement('style');
+            style.id = 'docu-slide-page';
+            style.textContent = '@page { size: ' + widthCm + 'cm ' + heightCm + 'cm; margin: 0; }';
+            document.head.appendChild(style);
+
+            var container = document.createElement('div');
+            container.className = 'docu-slide-print';
+            document.body.appendChild(container);
+            var page = document.createElement('div');
+            page.className = 'page';
+            page.style.setProperty('width', widthCm + 'cm', 'important');
+            page.style.setProperty('height', heightCm + 'cm', 'important');
+            page.style.setProperty('padding', '0', 'important');
+            page.style.setProperty('box-sizing', 'border-box', 'important');
+            var copy = source.cloneNode(true);
+            copy.removeAttribute('id');
+            copy.classList.remove('editing');
+            copy.querySelectorAll('[data-handle], textarea.editor, .el.ghost, .problem, .grid-layer, .guide').forEach(function (node) {
+                node.remove();
+            });
+            copy.querySelectorAll('.el.on, .el.picked').forEach(function (node) {
+                node.classList.remove('on');
+                node.classList.remove('picked');
+            });
+            copy.querySelectorAll('.bound').forEach(function (node) {
+                node.classList.remove('bound');
+            });
+            copy.style.setProperty('width', '100%', 'important');
+            copy.style.setProperty('max-width', 'none', 'important');
+            copy.style.setProperty('box-shadow', 'none', 'important');
+            copy.style.setProperty('margin', '0', 'important');
+            copy.style.setProperty('break-after', 'auto', 'important');
+            copy.style.setProperty('page-break-after', 'auto', 'important');
+            page.appendChild(copy);
+            container.appendChild(page);
+
+            markPrintTree(document.body, '.docu-slide-print');
+            container.lastElementChild.classList.add('docu-print-last');
+            document.body.classList.add('docu-printing');
+            return 1;
+        },
         printExit: function () {
             removeSheetPrint();
             removeSlidePrint();

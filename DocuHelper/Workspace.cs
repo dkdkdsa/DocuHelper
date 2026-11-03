@@ -21,6 +21,7 @@ namespace DocuHelper
         private static readonly CultureInfo s_korean = CultureInfo.GetCultureInfo("ko-KR");
 
         private readonly List<Docu> _docus = new();
+        private Dash.Runtime.DashDocuments _dashDocuments;
         private readonly Dictionary<DocuType, DocuEditor> _editors = new();
         private readonly List<WorkspaceEdit> _undo = new();
         private readonly List<WorkspaceEdit> _redo = new();
@@ -42,6 +43,8 @@ namespace DocuHelper
         public IReadOnlyDictionary<DocuType, DocuEditor> Editors => _editors;
 
         public Agent Agent { get; set; }
+
+        public AgentGuide Guide { get; } = new();
 
         public bool IsAgentRunning { get; private set; }
 
@@ -127,9 +130,14 @@ namespace DocuHelper
 
         public void AddDocu(Docu docu)
         {
+            if (docu is DashDocu dash)
+                dash.Documents ??= DashDocuments;
+
             _docus.Add(docu);
             DocusChanged?.Invoke();
         }
+
+        public Dash.Runtime.DashDocuments DashDocuments => _dashDocuments ??= Dash.Runtime.DashDocuments.Of(this);
 
         public void RemoveDocu(Docu docu)
         {
@@ -154,7 +162,9 @@ namespace DocuHelper
                 ?? _docus.FirstOrDefault(d => d.Name.Contains(key, StringComparison.CurrentCultureIgnoreCase));
         }
 
-        public Docu CreateDocu(string fileName)
+        public Docu CreateDocu(string fileName) => CreateDocu(fileName, null);
+
+        public Docu CreateDocu(string fileName, byte[] content)
         {
             var name = fileName?.Trim() ?? string.Empty;
             var problem = FileNames.Problem(Path.GetFileNameWithoutExtension(name));
@@ -163,12 +173,15 @@ namespace DocuHelper
 
             var editor = FindEditor(name);
             if (editor == null)
-                throw new InvalidOperationException("파일 이름은 .xlsx, .docx, .hwpx, .pptx 중 하나로 끝나야 해요.");
+                throw new InvalidOperationException("파일 이름은 .xlsx, .docx, .hwpx, .pptx, .dash 중 하나로 끝나야 해요.");
 
             if (editor.IsLegacyPath(name))
                 name = Path.ChangeExtension(name, editor.Extension);
 
             var docu = editor.CreateBlank(UniquePath(name));
+            if (content != null)
+                docu.Load(content);
+
             editor.Save(docu);
             History.Record(docu.FilePath, "새로 만든 상태");
             docu.MarkSaved();

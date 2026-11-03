@@ -29,6 +29,7 @@
         DocuType.Excel => "xlsx",
         DocuType.Word => "docx",
         DocuType.Hwp => "hwp",
+        DocuType.Dash => "dash",
         _ => "pptx",
     };
 
@@ -39,6 +40,7 @@
         (DocuType.Word, "list") => "file-text",
         (DocuType.Word, "tab") => "file-lines",
         (DocuType.Word, _) => "page-lines",
+        (DocuType.Dash, _) => "dashboard",
         _ => "presentation",
     };
 

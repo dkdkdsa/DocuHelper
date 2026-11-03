@@ -1,0 +1,35 @@
+@using DocuHelper.Dash.Runtime
+
+<div class="select" style="@DashCss.Text(Result.Style, Context.PageWidth)" inert="@Inert">
+    @if (HasLabel)
+    {
+        <label class="label" for="@_uid">@Result.Label</label>
+    }
+    <select id="@_uid" class="pick" aria-label="@Name" tabindex="@TabIndex" @bind:get="Result.Selected" @bind:set="PickAsync" @bind:event="onchange">
+        @foreach (var option in Result.Options)
+        {
+            <option value="@option">@option</option>
+        }
+    </select>
+</div>
+
+@code {
+    private readonly string _uid = "se" + Guid.NewGuid().ToString("N").Substring(0, 8);
+
+    [Parameter]
+    public ChoiceResult Result { get; set; }
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private bool Inert => !Context.CanInteract;
+
+    private string TabIndex => Context.CanInteract ? null : "-1";
+
+    private bool HasLabel => !string.IsNullOrWhiteSpace(Result.Label);
+
+    private string Name => HasLabel ? Result.Label : Result.Param;
+
+    private Task PickAsync(string option) =>
+        Context.CanInteract && !string.IsNullOrEmpty(Result.Param) ? Context.SetParam(Result.Param, option) : Task.CompletedTask;
+}
