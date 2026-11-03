@@ -1,4 +1,5 @@
 using DocuHelper.Dash;
+using DocuHelper.Dash.Runtime;
 
 namespace DocuHelper.Docus
 {
@@ -13,6 +14,8 @@ namespace DocuHelper.Docus
         public override DocuType Type => DocuType.Dash;
 
         public DashDocument Document { get; private set; }
+
+        public IDashDocuments Documents { get; set; }
 
         public override byte[] ToBytes() => DashFile.Write(Document);
 

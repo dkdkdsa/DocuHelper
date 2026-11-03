@@ -21,6 +21,7 @@ namespace DocuHelper
         private static readonly CultureInfo s_korean = CultureInfo.GetCultureInfo("ko-KR");
 
         private readonly List<Docu> _docus = new();
+        private Dash.Runtime.DashDocuments _dashDocuments;
         private readonly Dictionary<DocuType, DocuEditor> _editors = new();
         private readonly List<WorkspaceEdit> _undo = new();
         private readonly List<WorkspaceEdit> _redo = new();
@@ -127,9 +128,14 @@ namespace DocuHelper
 
         public void AddDocu(Docu docu)
         {
+            if (docu is DashDocu dash)
+                dash.Documents ??= DashDocuments;
+
             _docus.Add(docu);
             DocusChanged?.Invoke();
         }
+
+        public Dash.Runtime.DashDocuments DashDocuments => _dashDocuments ??= Dash.Runtime.DashDocuments.Of(this);
 
         public void RemoveDocu(Docu docu)
         {

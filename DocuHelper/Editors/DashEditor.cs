@@ -10,6 +10,8 @@ namespace DocuHelper.Editors
     {
         public DashEditor()
         {
+            AddTool(new ReadDashTool());
+            AddTool(new PreviewDashTool());
             AddTool(new AddDashItemTool());
             AddTool(new UpdateDashItemTool());
             AddTool(new MoveDashItemTool());

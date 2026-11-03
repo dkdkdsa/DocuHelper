@@ -32,7 +32,7 @@ namespace DocuHelper.Agents
             {
               "type": "object",
               "properties": {
-                "name": {"type": "string", "description": "New file name ending in .xlsx, .docx, .hwpx or .pptx, e.g. \"7월 회의 보고서.docx\". Use .hwpx for a Hancom 한글 document."},
+                "name": {"type": "string", "description": "New file name ending in .xlsx, .docx, .hwpx, .pptx or .dash, e.g. \"7월 회의 보고서.docx\". Use .hwpx for a Hancom 한글 document and .dash for a dashboard (현황판) built from other files."},
                 "label": {"type": "string"},
                 "step": {"type": "string"}
               },
@@ -603,7 +603,7 @@ namespace DocuHelper.Agents
             }
 
             definitions.Add(Define(ListFilesTool, "List the files in the user's working folder with a one-line summary of each.", ListFilesSchema));
-            definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word, 한글 or PowerPoint file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves. If you have no editing tools for that kind of file yet, you get them on your next step.", CreateFileSchema));
+            definitions.Add(Define(CreateFileTool, "Create a new blank Excel, Word, 한글, PowerPoint or dashboard (.dash) file in the working folder and open it. The blank file is written right away; your edits to it stay unsaved until the user saves. If you have no editing tools for that kind of file yet, you get them on your next step.", CreateFileSchema));
             definitions.Add(Define(AskUserTool, "Ask the user one question and wait for the answer. Use it only when you cannot pick a sensible default.", AskUserSchema));
             definitions.Add(Define(FinishTool, "Report the result to the user and end the task. Call it once, after all changes are made.", FinishSchema));
             return definitions;

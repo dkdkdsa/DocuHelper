@@ -7,11 +7,11 @@ namespace DocuHelperEditor.State.Mapping
 {
     public class DashPaperMapper : IPaperMapper
     {
-        private readonly DashDocuments _documents;
+        private readonly Workspace _workspace;
 
         public DashPaperMapper(Workspace workspace)
         {
-            _documents = DashDocuments.Of(workspace);
+            _workspace = workspace;
         }
 
         public DocuType Type => DocuType.Dash;
@@ -22,8 +22,9 @@ namespace DocuHelperEditor.State.Mapping
                 return previous;
 
             var document = dash.Document;
+            var documents = dash.Documents ?? _workspace.DashDocuments;
             var state = (previous as DashPaperModel)?.Runtime?.State;
-            return new DashPaperModel(document, kept => new DashRuntime(document, _documents, kept), state);
+            return new DashPaperModel(document, kept => new DashRuntime(document, documents, kept), state);
         }
     }
 }

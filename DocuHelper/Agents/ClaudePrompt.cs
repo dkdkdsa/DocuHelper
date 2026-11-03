@@ -61,6 +61,7 @@ namespace DocuHelper.Agents
             (DocuType.Word, "Word", ".docx"),
             (DocuType.Hwp, "한글", ".hwp, .hwpx"),
             (DocuType.Ppt, "PowerPoint", ".pptx"),
+            (DocuType.Dash, "dashboard (현황판)", ".dash"),
         };
 
         public static string Compose(IEnumerable<DocuType> types, bool webTools)
@@ -83,7 +84,7 @@ namespace DocuHelper.Agents
         {
             var formats = s_formats.Where(format => relevant.Contains(format.Type)).ToList();
             if (formats.Count == 0)
-                formats = s_formats.ToList();
+                formats = s_formats.Where(format => format.Type != DocuType.Dash).ToList();
 
             var kinds = Join(formats.Select(format => $"{format.Name} ({format.Extensions})").ToList());
             return $"""You are 문서 도우미 ("document helper"), the assistant inside a Windows desktop app that helps Korean office workers edit the {kinds} files in their working folder. The people using you are not technical.""";
@@ -96,7 +97,7 @@ namespace DocuHelper.Agents
                 rules.AddRange(Lines(ExcelRules));
 
             var documents = s_formats
-                .Where(format => format.Type != DocuType.Excel && relevant.Contains(format.Type))
+                .Where(format => format.Type != DocuType.Excel && format.Type != DocuType.Dash && relevant.Contains(format.Type))
                 .Select(format => format.Name)
                 .ToList();
             if (documents.Count > 0)
@@ -110,6 +111,9 @@ namespace DocuHelper.Agents
 
             if (relevant.Contains(DocuType.Hwp))
                 rules.AddRange(Lines(HwpRules));
+
+            if (relevant.Contains(DocuType.Dash))
+                rules.AddRange(Lines(DashRules));
 
             return rules;
         }
