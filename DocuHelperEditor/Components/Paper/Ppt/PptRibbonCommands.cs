@@ -271,7 +271,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return null;
         }
 
-        private string DialogBlocker(string dialog)
+        private string DialogBlocker(DialogSpec dialog)
         {
             if (dialog == null || ColorFieldOf(dialog) != null)
                 return null;
@@ -577,7 +577,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 }
                 else
                 {
-                    var values = await _state.Dialogs.ShowAsync(target, dialog, ValidatorOf(spec, entry, arg));
+                    var values = await _state.Dialogs.AskFieldsAsync(target, dialog with { Validate = ValidatorOf(spec, entry, arg) }, null);
                     if (values == null)
                         return false;
 
@@ -733,13 +733,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             return s_hex.IsMatch(arg) ? "#" + arg.ToUpperInvariant() : null;
         }
 
-        private static string ColorFieldOf(string dialog)
-        {
-            var fields = (JsonNode.Parse(dialog) as JsonObject)?["fields"] as JsonArray;
-            if (fields == null || fields.Count != 1 || fields[0] is not JsonObject only)
-                return null;
-
-            return only["type"]?.GetValue<string>() == "color" ? only["name"]?.GetValue<string>() : null;
-        }
+        private static string ColorFieldOf(DialogSpec dialog) =>
+            dialog.Fields.Count == 1 && dialog.Fields[0].Type == "color" ? dialog.Fields[0].Name : null;
     }
 }

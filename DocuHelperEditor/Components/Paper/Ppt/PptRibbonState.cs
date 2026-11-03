@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using DocuHelperEditor.State;
 using DocuHelperEditor.State.Papers;
+using DocuHelperEditor.State.Ribbon;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
 {
@@ -63,7 +64,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         public Action<int> ActivateSlide { get; set; }
 
-        public IPptDialogHost Dialogs { get; set; }
+        public IDialogPresenter Dialogs { get; set; }
 
         public ISet<string> Rendered { get; } = new HashSet<string>(StringComparer.Ordinal) { "view:normal", "view:sorter", "view:outline", "view:show", "view:read", "preview:transition", "notesOpen", "rulers", "gridlines", "guides", "zoom" };
 

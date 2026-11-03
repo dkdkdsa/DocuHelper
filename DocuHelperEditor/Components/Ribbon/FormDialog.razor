@@ -80,7 +80,7 @@
     private bool _submitted;
 
     [Parameter]
-    public WordDialogRequest Request { get; set; }
+    public DialogRequest Request { get; set; }
 
     [Parameter]
     public EventCallback Closed { get; set; }
@@ -88,7 +88,7 @@
     [Parameter]
     public string ReturnFocus { get; set; }
 
-    private WordDialogRequest _shown;
+    private DialogRequest _shown;
 
     protected override void OnParametersSet()
     {
@@ -127,24 +127,24 @@
         _ = JS.InvokeVoidAsync("docuHelperDialog.close").AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
     }
 
-    private string Value(WordDialogField field) => _values.TryGetValue(field.Name, out var value) ? value : string.Empty;
+    private string Value(DialogField field) => _values.TryGetValue(field.Name, out var value) ? value : string.Empty;
 
-    private void SetValue(WordDialogField field, string value)
+    private void SetValue(DialogField field, string value)
     {
         _values[field.Name] = value ?? string.Empty;
         _error = null;
     }
 
-    private string ColorValue(WordDialogField field)
+    private string ColorValue(DialogField field)
     {
         var value = Value(field).TrimStart('#');
         return value.Length == 6 ? "#" + value : "#000000";
     }
 
-    private static string OptionLabel(WordDialogField field, int index) =>
+    private static string OptionLabel(DialogField field, int index) =>
         index < field.Labels.Count ? field.Labels[index] : field.Options[index];
 
-    private string InitialValue(WordDialogField field)
+    private string InitialValue(DialogField field)
     {
         if (Request.Defaults.TryGetValue(field.Name, out var node) && Text(node) is string given)
             return given;
@@ -231,7 +231,7 @@
         }
     }
 
-    private static string InputType(WordDialogField field) => field.Type switch
+    private static string InputType(DialogField field) => field.Type switch
     {
         "number" => "number",
         "password" => "password",

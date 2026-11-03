@@ -82,7 +82,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("Segoe UI", """{}""", null),
                     new WordMenuSpec("Courier New", """{}""", null),
                 },
-                new WordDialogSpec("글꼴 고르기", new[] { new WordDialogField("value", "글꼴 이름", "text", "\"맑은 고딕\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("글꼴 고르기", new[] { new DialogField("value", "글꼴 이름", "text", "\"맑은 고딕\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.home.font.size",
                 "글꼴 크기",
@@ -112,7 +112,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("48", """{}""", null),
                     new WordMenuSpec("72", """{}""", null),
                 },
-                new WordDialogSpec("글꼴 크기", new[] { new WordDialogField("value", "크기(pt)", "number", "\"11\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("글꼴 크기", new[] { new DialogField("value", "크기(pt)", "number", "\"11\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.home.font.grow",
                 "글꼴 크기 크게",
@@ -189,7 +189,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("글꼴 색", new[] { new WordDialogField("color", "색", "color", "\"C0392B\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("글꼴 색", new[] { new DialogField("color", "색", "color", "\"C0392B\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.home.font.highlight",
                 "텍스트 강조 색",
@@ -200,7 +200,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("텍스트 강조 색", new[] { new WordDialogField("color", "색", "color", "\"FFE35A\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("텍스트 강조 색", new[] { new DialogField("color", "색", "color", "\"FFE35A\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.home.para.bullets",
                 "글머리 기호",
@@ -434,7 +434,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("바꾸기", new[] { new WordDialogField("find", "찾을 말", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("replace", "바꿀 말", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("match_case", "대/소문자 구분", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("whole_word", "단어 단위로", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("바꾸기", new[] { new DialogField("find", "찾을 말", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("replace", "바꿀 말", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("match_case", "대/소문자 구분", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("whole_word", "단어 단위로", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.insert.pages.cover",
                 "표지",
@@ -453,7 +453,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("사이드 막대", """{"cover_page":{"design":"sidebar"}}""", "왼쪽에 굵은 세로 막대"),
                     new WordMenuSpec("현재 표지 삭제", """{"cover_page":null,"remove":true}""", "문서 맨 앞 표지 블록을 지워요"),
                 },
-                new WordDialogSpec("표지 정보", new[] { new WordDialogField("title", "제목", "text", "\"{문서 제목 속성 또는 첫 제목}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("subtitle", "부제", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("author", "작성자", "text", "\"{문서 속성 작성자}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("date", "날짜", "text", "\"{오늘 날짜: yyyy년 M월 d일}\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("표지 정보", new[] { new DialogField("title", "제목", "text", "\"{문서 제목 속성 또는 첫 제목}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("subtitle", "부제", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("author", "작성자", "text", "\"{문서 속성 작성자}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("date", "날짜", "text", "\"{오늘 날짜: yyyy년 M월 d일}\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.insert.pages.blank",
                 "빈 페이지",
@@ -490,7 +490,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("칸 고르기 (10열 × 8행)", """{"rows":"{hover rows}","columns":"{hover columns}"}""", "마우스를 올린 칸 수만큼 미리 보이고 누르면 넣어요"),
                     new WordMenuSpec("표 삽입…", """{"dialog":"insertTable"}""", "열·행 수를 직접 정해요"),
                 },
-                new WordDialogSpec("표 삽입", new[] { new WordDialogField("columns", "열 수", "number", "3", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("rows", "행 수", "number", "3", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("header", "첫 줄은 제목 줄", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("column_widths", "열 너비", "choice", "\"equal\"", new string[] { "equal" }, System.Array.Empty<string>()) })),
+                new DialogSpec("표 삽입", new[] { new DialogField("columns", "열 수", "number", "3", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("rows", "행 수", "number", "3", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("header", "첫 줄은 제목 줄", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("column_widths", "열 너비", "choice", "\"equal\"", new string[] { "equal" }, System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.insert.illus.picture",
                 "그림",
@@ -546,7 +546,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("차트 넣기", new[] { new WordDialogField("type", "종류", "choice", "\"column\"", new string[] { "column", "bar", "line", "pie", "area", "scatter" }, new string[] { "세로 막대", "가로 막대", "꺾은선", "원", "영역", "분산형" }), new WordDialogField("title", "제목", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("data_source", "자료", "choice", "\"table\"", new string[] { "table", "sample" }, new string[] { "고른 표의 값", "예시 값" }), new WordDialogField("legend", "범례", "choice", "\"bottom\"", new string[] { "none", "bottom", "right" }, new string[] { "없음", "아래", "오른쪽" }) })),
+                new DialogSpec("차트 넣기", new[] { new DialogField("type", "종류", "choice", "\"column\"", new string[] { "column", "bar", "line", "pie", "area", "scatter" }, new string[] { "세로 막대", "가로 막대", "꺾은선", "원", "영역", "분산형" }), new DialogField("title", "제목", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("data_source", "자료", "choice", "\"table\"", new string[] { "table", "sample" }, new string[] { "고른 표의 값", "예시 값" }), new DialogField("legend", "범례", "choice", "\"bottom\"", new string[] { "none", "bottom", "right" }, new string[] { "없음", "아래", "오른쪽" }) })),
             new WordCommandSpec(
                 "word.insert.links.link",
                 "링크",
@@ -562,7 +562,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("책갈피…", """{"kind":"bookmark","bookmark":{"name":"{name}"}}""", "고른 글자에 이름표를 달아요"),
                     new WordMenuSpec("링크 제거", """{"action":"delete","kind":"hyperlink"}""", "링크만 없애고 글자는 그대로"),
                 },
-                new WordDialogSpec("링크 삽입", new[] { new WordDialogField("text", "표시할 글자", "text", "\"{고른 글자}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("url", "주소", "text", "\"https://\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("tooltip", "풍선 도움말", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("링크 삽입", new[] { new DialogField("text", "표시할 글자", "text", "\"{고른 글자}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("url", "주소", "text", "\"https://\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("tooltip", "풍선 도움말", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.insert.comments.new",
                 "메모",
@@ -573,7 +573,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("새 메모", new[] { new WordDialogField("text", "메모 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("새 메모", new[] { new DialogField("text", "메모 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.insert.hf.header",
                 "머리글",
@@ -636,7 +636,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("페이지 번호 서식…", """{"dialog":"pageNumberFormat"}""", "1,2,3 / I,II,III / i,ii,iii / A,B,C / a,b,c, 시작 번호, '1 / 3' 꼴"),
                     new WordMenuSpec("페이지 번호 제거", """{"page_number":{"position":"none"}}""", null),
                 },
-                new WordDialogSpec("페이지 번호 서식", new[] { new WordDialogField("format", "번호 모양", "choice", "\"decimal\"", new string[] { "decimal", "upper_roman", "lower_roman", "upper_alpha", "lower_alpha" }, System.Array.Empty<string>()), new WordDialogField("style", "꼴", "choice", "\"plain\"", new string[] { "plain", "page_x_of_y", "dash", "brackets" }, new string[] { "1", "1 / 3", "- 1 -", "[1]" }), new WordDialogField("start_at", "시작 번호", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("페이지 번호 서식", new[] { new DialogField("format", "번호 모양", "choice", "\"decimal\"", new string[] { "decimal", "upper_roman", "lower_roman", "upper_alpha", "lower_alpha" }, System.Array.Empty<string>()), new DialogField("style", "꼴", "choice", "\"plain\"", new string[] { "plain", "page_x_of_y", "dash", "brackets" }, new string[] { "1", "1 / 3", "- 1 -", "[1]" }), new DialogField("start_at", "시작 번호", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.insert.text.textbox",
                 "텍스트 상자",
@@ -662,7 +662,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("날짜 및 시간", new[] { new WordDialogField("format", "모양", "choice", "\"yyyy. M. d.\"", new string[] { "yyyy. M. d.", "yyyy년 M월 d일", "yyyy-MM-dd", "M월 d일 dddd", "yyyy년 M월 d일 dddd", "tt h:mm", "HH:mm", "yyyy년 M월 d일 tt h:mm" }, System.Array.Empty<string>()), new WordDialogField("update_automatically", "자동으로 업데이트", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("날짜 및 시간", new[] { new DialogField("format", "모양", "choice", "\"yyyy. M. d.\"", new string[] { "yyyy. M. d.", "yyyy년 M월 d일", "yyyy-MM-dd", "M월 d일 dddd", "yyyy년 M월 d일 dddd", "tt h:mm", "HH:mm", "yyyy년 M월 d일 tt h:mm" }, System.Array.Empty<string>()), new DialogField("update_automatically", "자동으로 업데이트", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.insert.text.symbol",
                 "기호",
@@ -844,7 +844,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("색 고르기", new[] { new WordDialogField("color", "색", "color", "\"FFFFFF\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("색 고르기", new[] { new DialogField("color", "색", "color", "\"FFFFFF\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.design.bg.pageborder",
                 "페이지 테두리",
@@ -855,7 +855,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("페이지 테두리", new[] { new WordDialogField("style", "설정", "choice", "\"none\"", new string[] { "none", "box", "shadow", "3d" }, new string[] { "없음", "상자", "그림자", "3차원" }), new WordDialogField("line", "선 모양", "choice", "\"single\"", new string[] { "single", "double", "dashed", "dotted" }, new string[] { "실선", "이중선", "파선", "점선" }), new WordDialogField("width_pt", "두께(pt)", "number", "0.75", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("color", "색", "color", "\"000000\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("offset_from", "테두리 위치", "choice", "\"text\"", new string[] { "text", "page" }, new string[] { "본문에서", "용지 가장자리에서" }), new WordDialogField("apply_to", "적용 대상", "choice", "\"document\"", new string[] { "document", "section" }, new string[] { "문서 전체", "이 구역" }) })),
+                new DialogSpec("페이지 테두리", new[] { new DialogField("style", "설정", "choice", "\"none\"", new string[] { "none", "box", "shadow", "3d" }, new string[] { "없음", "상자", "그림자", "3차원" }), new DialogField("line", "선 모양", "choice", "\"single\"", new string[] { "single", "double", "dashed", "dotted" }, new string[] { "실선", "이중선", "파선", "점선" }), new DialogField("width_pt", "두께(pt)", "number", "0.75", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("color", "색", "color", "\"000000\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("offset_from", "테두리 위치", "choice", "\"text\"", new string[] { "text", "page" }, new string[] { "본문에서", "용지 가장자리에서" }), new DialogField("apply_to", "적용 대상", "choice", "\"document\"", new string[] { "document", "section" }, new string[] { "문서 전체", "이 구역" }) })),
             new WordCommandSpec(
                 "word.layout.setup.margins",
                 "여백",
@@ -875,7 +875,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("공문서", """{"margins":"official"}""", "위 3.0cm · 아래 1.5cm · 좌우 2.0cm"),
                     new WordMenuSpec("사용자 지정 여백…", """{"dialog":"margins"}""", "위·아래·왼쪽·오른쪽·제본·머리글·바닥글(cm)"),
                 },
-                new WordDialogSpec("여백", new[] { new WordDialogField("top_cm", "위쪽", "number", "3.0", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("bottom_cm", "아래쪽", "number", "2.54", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("left_cm", "왼쪽", "number", "2.54", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("right_cm", "오른쪽", "number", "2.54", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("gutter_cm", "제본 여백", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("header_cm", "머리글 위치", "number", "1.5", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("footer_cm", "바닥글 위치", "number", "1.75", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("scope", "적용 대상", "choice", "\"document\"", new string[] { "document", "section", "from_here" }, new string[] { "문서 전체", "이 구역", "여기부터" }) })),
+                new DialogSpec("여백", new[] { new DialogField("top_cm", "위쪽", "number", "3.0", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("bottom_cm", "아래쪽", "number", "2.54", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("left_cm", "왼쪽", "number", "2.54", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("right_cm", "오른쪽", "number", "2.54", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("gutter_cm", "제본 여백", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("header_cm", "머리글 위치", "number", "1.5", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("footer_cm", "바닥글 위치", "number", "1.75", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("scope", "적용 대상", "choice", "\"document\"", new string[] { "document", "section", "from_here" }, new string[] { "문서 전체", "이 구역", "여기부터" }) })),
             new WordCommandSpec(
                 "word.layout.setup.orientation",
                 "용지 방향",
@@ -913,7 +913,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("Executive (18.41 × 26.67cm)", """{"size":"Executive"}""", null),
                     new WordMenuSpec("사용자 지정 크기…", """{"dialog":"paperSize"}""", "너비·높이(cm)"),
                 },
-                new WordDialogSpec("용지 크기", new[] { new WordDialogField("width_cm", "너비", "number", "21.0", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("height_cm", "높이", "number", "29.7", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("scope", "적용 대상", "choice", "\"document\"", new string[] { "document", "section", "from_here" }, new string[] { "문서 전체", "이 구역", "여기부터" }) })),
+                new DialogSpec("용지 크기", new[] { new DialogField("width_cm", "너비", "number", "21.0", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("height_cm", "높이", "number", "29.7", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("scope", "적용 대상", "choice", "\"document\"", new string[] { "document", "section", "from_here" }, new string[] { "문서 전체", "이 구역", "여기부터" }) })),
             new WordCommandSpec(
                 "word.layout.setup.columns",
                 "단",
@@ -932,7 +932,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("오른쪽", """{"columns":{"preset":"right"}}""", "오른쪽 단이 좁아요"),
                     new WordMenuSpec("사용자 지정 단…", """{"dialog":"columns"}""", "단 수, 간격, 구분선"),
                 },
-                new WordDialogSpec("단", new[] { new WordDialogField("count", "단 수", "number", "2", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("space_cm", "간격(cm)", "number", "1.25", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("line_between", "구분선", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("equal", "너비 같게", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("scope", "적용 대상", "choice", "\"document\"", new string[] { "document", "section", "from_here" }, new string[] { "문서 전체", "이 구역", "여기부터" }) })),
+                new DialogSpec("단", new[] { new DialogField("count", "단 수", "number", "2", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("space_cm", "간격(cm)", "number", "1.25", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("line_between", "구분선", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("equal", "너비 같게", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("scope", "적용 대상", "choice", "\"document\"", new string[] { "document", "section", "from_here" }, new string[] { "문서 전체", "이 구역", "여기부터" }) })),
             new WordCommandSpec(
                 "word.layout.setup.breaks",
                 "나누기",
@@ -981,7 +981,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("왼쪽 들여쓰기", new[] { new WordDialogField("value", "왼쪽 들여쓰기", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("왼쪽 들여쓰기", new[] { new DialogField("value", "왼쪽 들여쓰기", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.layout.para.indentright",
                 "오른쪽 들여쓰기",
@@ -992,7 +992,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("오른쪽 들여쓰기", new[] { new WordDialogField("value", "오른쪽 들여쓰기", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("오른쪽 들여쓰기", new[] { new DialogField("value", "오른쪽 들여쓰기", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.layout.para.spacebefore",
                 "단락 앞 간격",
@@ -1003,7 +1003,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("단락 앞 간격", new[] { new WordDialogField("value", "단락 앞 간격", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("단락 앞 간격", new[] { new DialogField("value", "단락 앞 간격", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.layout.para.spaceafter",
                 "단락 뒤 간격",
@@ -1014,7 +1014,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("단락 뒤 간격", new[] { new WordDialogField("value", "단락 뒤 간격", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("단락 뒤 간격", new[] { new DialogField("value", "단락 뒤 간격", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.layout.arrange.position",
                 "위치",
@@ -1107,7 +1107,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("사용자 지정 목차…", """{"dialog":"tocOptions"}""", "단계 범위, 쪽 번호 표시, 탭 채움선"),
                     new WordMenuSpec("목차 제거", """{"action":"remove"}""", null),
                 },
-                new WordDialogSpec("목차", new[] { new WordDialogField("from", "처음 단계", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("to", "마지막 단계", "number", "3", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("page_numbers", "쪽 번호 표시", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("right_align", "쪽 번호 오른쪽 맞춤", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("tab_leader", "채움선", "choice", "\"dot\"", new string[] { "dot", "hyphen", "underline", "none" }, new string[] { "점선", "하이픈", "밑줄", "없음" }), new WordDialogField("hyperlinks", "누르면 이동", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("목차", new[] { new DialogField("from", "처음 단계", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("to", "마지막 단계", "number", "3", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("page_numbers", "쪽 번호 표시", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("right_align", "쪽 번호 오른쪽 맞춤", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("tab_leader", "채움선", "choice", "\"dot\"", new string[] { "dot", "hyphen", "underline", "none" }, new string[] { "점선", "하이픈", "밑줄", "없음" }), new DialogField("hyperlinks", "누르면 이동", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.refs.toc.addtext",
                 "텍스트 추가",
@@ -1146,7 +1146,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("각주", new[] { new WordDialogField("text", "각주 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("각주", new[] { new DialogField("text", "각주 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.refs.notes.endnote",
                 "미주 삽입",
@@ -1157,7 +1157,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("미주", new[] { new WordDialogField("text", "미주 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("미주", new[] { new DialogField("text", "미주 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.refs.notes.next",
                 "다음 각주",
@@ -1185,7 +1185,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("캡션", new[] { new WordDialogField("label", "레이블", "choice", "\"표\"", new string[] { "표", "그림", "수식" }, System.Array.Empty<string>()), new WordDialogField("text", "캡션 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("position", "위치", "choice", "\"above\"", new string[] { "above", "below" }, new string[] { "선택 항목 위", "선택 항목 아래" }), new WordDialogField("include_label", "번호 붙이기", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("캡션", new[] { new DialogField("label", "레이블", "choice", "\"표\"", new string[] { "표", "그림", "수식" }, System.Array.Empty<string>()), new DialogField("text", "캡션 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("position", "위치", "choice", "\"above\"", new string[] { "above", "below" }, new string[] { "선택 항목 위", "선택 항목 아래" }), new DialogField("include_label", "번호 붙이기", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.refs.captions.tof",
                 "그림 목차 삽입",
@@ -1196,7 +1196,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("그림 목차", new[] { new WordDialogField("label", "캡션 레이블", "choice", "\"그림\"", new string[] { "그림", "표", "수식" }, System.Array.Empty<string>()) })),
+                new DialogSpec("그림 목차", new[] { new DialogField("label", "캡션 레이블", "choice", "\"그림\"", new string[] { "그림", "표", "수식" }, System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.refs.captions.crossref",
                 "상호 참조",
@@ -1207,7 +1207,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("상호 참조", new[] { new WordDialogField("type", "참조 대상", "choice", "\"caption_table\"", new string[] { "caption_table", "caption_figure", "caption_equation", "heading", "bookmark", "footnote", "endnote" }, new string[] { "표", "그림", "수식", "제목", "책갈피", "각주", "미주" }), new WordDialogField("show", "삽입할 내용", "choice", "\"label_and_number\"", new string[] { "label_and_number", "only_label", "number", "text", "page_number", "above_below" }, new string[] { "레이블 및 번호", "레이블만", "번호만", "텍스트", "쪽 번호", "위/아래" }), new WordDialogField("target", "대상", "choice", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("상호 참조", new[] { new DialogField("type", "참조 대상", "choice", "\"caption_table\"", new string[] { "caption_table", "caption_figure", "caption_equation", "heading", "bookmark", "footnote", "endnote" }, new string[] { "표", "그림", "수식", "제목", "책갈피", "각주", "미주" }), new DialogField("show", "삽입할 내용", "choice", "\"label_and_number\"", new string[] { "label_and_number", "only_label", "number", "text", "page_number", "above_below" }, new string[] { "레이블 및 번호", "레이블만", "번호만", "텍스트", "쪽 번호", "위/아래" }), new DialogField("target", "대상", "choice", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.refs.index.mark",
                 "항목 표시",
@@ -1218,7 +1218,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("색인 항목", new[] { new WordDialogField("entry", "기본 항목", "text", "\"{고른 글자}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("subentry", "하위 항목", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("bold", "쪽 번호 굵게", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("italic", "쪽 번호 기울임", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("색인 항목", new[] { new DialogField("entry", "기본 항목", "text", "\"{고른 글자}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("subentry", "하위 항목", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("bold", "쪽 번호 굵게", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("italic", "쪽 번호 기울임", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.mail.create.envelope",
                 "봉투",
@@ -1229,7 +1229,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("봉투", new[] { new WordDialogField("recipient", "받는 사람 주소", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("sender", "보내는 사람 주소", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("size", "봉투 크기", "choice", "\"korean_small\"", new string[] { "korean_small", "DL", "C5", "C6", "size10" }, new string[] { "소봉투 (220×105mm)", "DL (220×110mm)", "C5 (229×162mm)", "C6 (162×114mm)", "10호 (241×105mm)" }) })),
+                new DialogSpec("봉투", new[] { new DialogField("recipient", "받는 사람 주소", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("sender", "보내는 사람 주소", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("size", "봉투 크기", "choice", "\"korean_small\"", new string[] { "korean_small", "DL", "C5", "C6", "size10" }, new string[] { "소봉투 (220×105mm)", "DL (220×110mm)", "C5 (229×162mm)", "C6 (162×114mm)", "10호 (241×105mm)" }) })),
             new WordCommandSpec(
                 "word.mail.create.labels",
                 "레이블",
@@ -1240,7 +1240,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("레이블", new[] { new WordDialogField("text", "주소", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("layout", "규격", "choice", "\"A4_3x8\"", new string[] { "A4_2x7", "A4_2x8", "A4_3x7", "A4_3x8", "A4_3x10" }, new string[] { "2열×7행 (99.1×38.1mm)", "2열×8행 (99.1×33.9mm)", "3열×7행 (63.5×38.1mm)", "3열×8행 (70×36mm)", "3열×10행 (70×29.7mm)" }), new WordDialogField("fill", "채우기", "choice", "\"all\"", new string[] { "all", "first" }, new string[] { "한 장 모두 같은 주소", "첫 칸만" }) })),
+                new DialogSpec("레이블", new[] { new DialogField("text", "주소", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("layout", "규격", "choice", "\"A4_3x8\"", new string[] { "A4_2x7", "A4_2x8", "A4_3x7", "A4_3x8", "A4_3x10" }, new string[] { "2열×7행 (99.1×38.1mm)", "2열×8행 (99.1×33.9mm)", "3열×7행 (63.5×38.1mm)", "3열×8행 (70×36mm)", "3열×10행 (70×29.7mm)" }), new DialogField("fill", "채우기", "choice", "\"all\"", new string[] { "all", "first" }, new string[] { "한 장 모두 같은 주소", "첫 칸만" }) })),
             new WordCommandSpec(
                 "word.mail.merge.start",
                 "편지 병합 시작",
@@ -1295,7 +1295,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("받는 사람 목록 편집", new[] { new WordDialogField("rows", "받는 사람", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("받는 사람 목록 편집", new[] { new DialogField("rows", "받는 사람", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.mail.fields.insert",
                 "병합 필드 삽입",
@@ -1310,7 +1310,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("{받는 사람 목록의 필드 이름마다 한 줄}", """{"name":"{field}"}""", null),
                     new WordMenuSpec("필드 이름 직접 입력…", """{"dialog":"mergeFieldName"}""", null),
                 },
-                new WordDialogSpec("병합 필드", new[] { new WordDialogField("name", "필드 이름", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("병합 필드", new[] { new DialogField("name", "필드 이름", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.mail.preview.preview",
                 "결과 미리 보기",
@@ -1391,7 +1391,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("새 메모", new[] { new WordDialogField("text", "메모 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("새 메모", new[] { new DialogField("text", "메모 내용", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.review.comments.show",
                 "메모 표시",
@@ -1545,7 +1545,7 @@ namespace DocuHelperEditor.State.Ribbon
                     new WordMenuSpec("비교…", """{"dialog":"compare"}""", "원본과 고친 문서를 골라 달라진 곳을 추적 변경으로 보여 주는 새 문서를 만들어요"),
                     new WordMenuSpec("결합…", """{"command":"word.review.compare.combine"}""", "여러 사람이 고친 문서 합치기는 Word에서 해요"),
                 },
-                new WordDialogSpec("문서 비교", new[] { new WordDialogField("original", "원본 문서", "choice", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("revised", "고친 문서", "choice", "\"{지금 문서}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("author", "고친 사람 이름", "text", "\"{Windows 사용자 이름}\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("문서 비교", new[] { new DialogField("original", "원본 문서", "choice", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("revised", "고친 문서", "choice", "\"{지금 문서}\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("author", "고친 사람 이름", "text", "\"{Windows 사용자 이름}\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.review.protect.restrict",
                 "편집 제한",
@@ -1556,7 +1556,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("편집 제한", new[] { new WordDialogField("mode", "허용할 편집", "choice", "\"none\"", new string[] { "none", "read_only", "comments_only", "tracked_changes_only" }, new string[] { "제한 없음", "읽기만", "메모 달기만", "변경 내용 추적만" }) })),
+                new DialogSpec("편집 제한", new[] { new DialogField("mode", "허용할 편집", "choice", "\"none\"", new string[] { "none", "read_only", "comments_only", "tracked_changes_only" }, new string[] { "제한 없음", "읽기만", "메모 달기만", "변경 내용 추적만" }) })),
             new WordCommandSpec(
                 "word.view.views.read",
                 "읽기 모드",
@@ -1677,7 +1677,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("확대/축소", new[] { new WordDialogField("zoom", "배율", "choice", "\"100\"", new string[] { "200", "150", "120", "100", "90", "80", "70", "60", "50" }, new string[] { "200%", "150%", "120%", "100%", "90%", "80%", "70%", "60%", "50%" }), new WordDialogField("custom", "직접 입력(50~200)", "number", "", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("확대/축소", new[] { new DialogField("zoom", "배율", "choice", "\"100\"", new string[] { "200", "150", "120", "100", "90", "80", "70", "60", "50" }, new string[] { "200%", "150%", "120%", "100%", "90%", "80%", "70%", "60%", "50%" }), new DialogField("custom", "직접 입력(50~200)", "number", "", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.view.zoom.100",
                 "100%",
@@ -1831,7 +1831,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("이동", new[] { new WordDialogField("page", "몇 쪽으로 갈까요?", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("이동", new[] { new DialogField("page", "몇 쪽으로 갈까요?", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.status.prevchange",
                 "이전 바뀐 곳",
@@ -2161,7 +2161,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("셀 분할", new[] { new WordDialogField("columns", "열 수", "number", "2", System.Array.Empty<string>(), System.Array.Empty<string>()), new WordDialogField("rows", "행 수", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("셀 분할", new[] { new DialogField("columns", "열 수", "number", "2", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("rows", "행 수", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.table.align.left",
                 "칸 왼쪽 맞춤",
@@ -2317,7 +2317,7 @@ namespace DocuHelperEditor.State.Ribbon
                 null,
                 null,
                 Array.Empty<WordMenuSpec>(),
-                new WordDialogSpec("음영", new[] { new WordDialogField("color", "색", "color", "\"F2F2F2\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
+                new DialogSpec("음영", new[] { new DialogField("color", "색", "color", "\"F2F2F2\"", System.Array.Empty<string>(), System.Array.Empty<string>()) })),
             new WordCommandSpec(
                 "word.table.style.preset",
                 "표 스타일",

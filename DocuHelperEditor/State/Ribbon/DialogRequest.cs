@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    public sealed class WordDialogRequest
+    public sealed class DialogRequest
     {
-        public WordDialogRequest(string title, IReadOnlyList<WordDialogField> fields, IReadOnlyDictionary<string, JsonNode> defaults, Func<IReadOnlyDictionary<string, JsonNode>, string> validate)
+        public DialogRequest(string title, IReadOnlyList<DialogField> fields, IReadOnlyDictionary<string, JsonNode> defaults, Func<IReadOnlyDictionary<string, JsonNode>, string> validate)
         {
             Title = title;
             Fields = fields;
@@ -17,7 +17,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         public string Title { get; }
 
-        public IReadOnlyList<WordDialogField> Fields { get; }
+        public IReadOnlyList<DialogField> Fields { get; }
 
         public IReadOnlyDictionary<string, JsonNode> Defaults { get; }
 

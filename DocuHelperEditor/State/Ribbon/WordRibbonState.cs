@@ -23,7 +23,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private static WordRibbonState Create()
         {
-            var state = new WordRibbonState { Dialogs = new WordDialogPresenter() };
+            var state = new WordRibbonState { Dialogs = new DialogPresenter() };
             foreach (var feature in s_features)
                 state.Enable(feature);
 
@@ -86,7 +86,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         public int? PageTarget { get; set; }
 
-        public IWordDialogPresenter Dialogs { get; set; }
+        public IDialogPresenter Dialogs { get; set; }
 
         public IReadOnlyCollection<string> Features => _features;
 

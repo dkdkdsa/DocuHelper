@@ -18,11 +18,11 @@ namespace DocuHelperEditor.State.Ribbon
 
             var fields = new[]
             {
-                new WordDialogField("query", "찾을 글", "text", JsonSerializer.Serialize(State.SearchText ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()),
-                new WordDialogField("match_case", "대/소문자 구분", "bool", State.SearchMatchCase ? "true" : "false", Array.Empty<string>(), Array.Empty<string>()),
-                new WordDialogField("whole_word", "단어 단위로 찾기", "bool", State.SearchWholeWord ? "true" : "false", Array.Empty<string>(), Array.Empty<string>()),
+                new DialogField("query", "찾을 글", "text", JsonSerializer.Serialize(State.SearchText ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()),
+                new DialogField("match_case", "대/소문자 구분", "bool", State.SearchMatchCase ? "true" : "false", Array.Empty<string>(), Array.Empty<string>()),
+                new DialogField("whole_word", "단어 단위로 찾기", "bool", State.SearchWholeWord ? "true" : "false", Array.Empty<string>(), Array.Empty<string>()),
             };
-            var values = await State.Dialogs.AskFieldsAsync("word.home.editing.findadv", new WordDialogSpec("고급 찾기", fields), null);
+            var values = await State.Dialogs.AskFieldsAsync("word.home.editing.findadv", new DialogSpec("고급 찾기", fields), null);
             if (values == null)
                 return;
 

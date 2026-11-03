@@ -45,8 +45,8 @@
 
     private async Task ReplyAsync()
     {
-        var fields = new[] { new WordDialogField("text", "답글 내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()) };
-        var values = await Ribbon.Dialogs.AskFieldsAsync("word.review.comments.reply", new WordDialogSpec("답글 달기", fields), null);
+        var fields = new[] { new DialogField("text", "답글 내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()) };
+        var values = await Ribbon.Dialogs.AskFieldsAsync("word.review.comments.reply", new DialogSpec("답글 달기", fields), null);
         var text = values?["text"]?.GetValue<string>()?.Trim();
         if (string.IsNullOrEmpty(text))
             return;

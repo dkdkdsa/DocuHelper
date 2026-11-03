@@ -22,7 +22,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private static HwpRibbonState Create()
         {
-            var state = new HwpRibbonState { Dialogs = new WordDialogPresenter() };
+            var state = new HwpRibbonState { Dialogs = new DialogPresenter() };
             foreach (var feature in s_features)
                 state.Enable(feature);
 
@@ -73,7 +73,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         public HwpCommandRouter Router { get; set; }
 
-        public IWordDialogPresenter Dialogs { get; set; }
+        public IDialogPresenter Dialogs { get; set; }
 
         public int? SelectedObjectId { get; set; }
 

@@ -46,6 +46,20 @@ namespace DocuHelperEditor.Components.Dev
             return string.Join(",", written);
         }
 
+        [JSInvokable]
+        public static string InvokeRibbon(string id, string arg)
+        {
+            RibbonRouter router;
+            lock (s_routers)
+                router = s_routers.Select(r => r.TryGetTarget(out var t) ? t : null).LastOrDefault(t => t != null && t.File != null && t.File == t.Workspace.ActiveFile && t is not RibbonPlaygroundHost);
+
+            if (router == null)
+                return "no router";
+
+            _ = router.InvokeAsync(id, arg);
+            return router.GetType().Name;
+        }
+
         private static JsonObject Commands(RibbonRouter router)
         {
             var root = new JsonObject();
@@ -148,14 +162,14 @@ namespace DocuHelperEditor.Components.Dev
         private static JsonObject Dialogs()
         {
             var root = new JsonObject();
-            foreach (var (key, dialog) in NamedDialogs(typeof(WordNamedDialogs)).Concat(NamedDialogs(typeof(WordNamedDialogs).Assembly.GetType("DocuHelperEditor.State.Ribbon.HwpNamedDialogs"))))
-                root["named:" + key] = Named(dialog.Title, dialog.Fields, dialog.Validate, v => dialog.Build(v));
+            foreach (var (key, dialog) in NamedDialogs.All)
+                root["named:" + key] = Named(dialog.Title, dialog.Fields, dialog.Validate, dialog.Build);
 
             var context = new ExcelDialogContext("Sheet1", "A1:C5", "B2", "메모", "글자");
             foreach (var id in ExcelNamedDialogs.Ids.OrderBy(i => i, StringComparer.Ordinal))
             {
                 var dialog = ExcelNamedDialogs.Create(id, context);
-                var node = Named(dialog.Title, dialog.Fields, dialog.Validate, v => dialog.Build(v, context));
+                var node = Named(dialog.Title, dialog.Fields, dialog.Validate, dialog.Build);
                 node["tool"] = dialog.Tool;
                 root["excel:" + id] = node;
             }
@@ -163,13 +177,13 @@ namespace DocuHelperEditor.Components.Dev
             foreach (var (id, dialog) in SpecDialogs("DocuHelperEditor.State.Ribbon.WordCommandTable").Concat(SpecDialogs("DocuHelperEditor.State.Ribbon.HwpCommandTable")))
                 root["spec:" + id] = Named(dialog.Title, dialog.Fields, dialog.Validate, null);
 
-            foreach (var (id, json) in PptDialogs())
-                root["ppt:" + id] = Named(PptTitle(json), PptFields(json), null, null);
+            foreach (var (id, dialog) in PptDialogs())
+                root["ppt:" + id] = Named(dialog.Title, dialog.Fields, null, null);
 
             return root;
         }
 
-        private static JsonObject Named(string title, IReadOnlyList<WordDialogField> fields, Func<IReadOnlyDictionary<string, JsonNode>, string> validate, Func<IReadOnlyDictionary<string, JsonNode>, JsonObject> build)
+        private static JsonObject Named(string title, IReadOnlyList<DialogField> fields, Func<IReadOnlyDictionary<string, JsonNode>, string> validate, Func<IReadOnlyDictionary<string, JsonNode>, JsonObject> build)
         {
             var values = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
             foreach (var field in fields)
@@ -210,49 +224,34 @@ namespace DocuHelperEditor.Components.Dev
             return node;
         }
 
-        private static IEnumerable<(string, WordNamedDialog)> NamedDialogs(Type type)
+        private static IEnumerable<(string, DialogSpec)> SpecDialogs(string tableType)
         {
-            var field = type.GetField("s_dialogs", BindingFlags.NonPublic | BindingFlags.Static);
-            var map = (IDictionary)field.GetValue(null);
-            foreach (DictionaryEntry pair in map)
-                yield return ((string)pair.Key, (WordNamedDialog)pair.Value);
-        }
-
-        private static IEnumerable<(string, WordDialogSpec)> SpecDialogs(string tableType)
-        {
-            var type = typeof(WordNamedDialogs).Assembly.GetType(tableType);
+            var type = typeof(DialogSpec).Assembly.GetType(tableType);
             var all = (IEnumerable)type.GetProperty("All", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static).GetValue(null);
             foreach (var spec in all)
             {
-                var dialog = spec.GetType().GetProperty("Dialog").GetValue(spec) as WordDialogSpec;
+                var dialog = spec.GetType().GetProperty("Dialog").GetValue(spec) as DialogSpec;
                 if (dialog != null)
                     yield return ((string)spec.GetType().GetProperty("Id").GetValue(spec), dialog);
             }
         }
 
-        private static IEnumerable<(string, string)> PptDialogs()
+        private static IEnumerable<(string, DialogSpec)> PptDialogs()
         {
-            var type = typeof(WordNamedDialogs).Assembly.GetType("DocuHelperEditor.Components.Paper.Ppt.PptCommandData");
-            var member = (MemberInfo)type.GetProperty("All", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
-                ?? type.GetField("All", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
-            var all = member is PropertyInfo p ? p.GetValue(null) : ((FieldInfo)member).GetValue(null);
-            var specs = all is IDictionary map ? map.Values : (IEnumerable)all;
-            foreach (var spec in specs)
+            foreach (var spec in DocuHelperEditor.Components.Paper.Ppt.PptCommandData.All)
             {
-                var json = spec.GetType().GetProperty("Dialog").GetValue(spec) as string;
-                if (json != null)
-                    yield return ((string)spec.GetType().GetProperty("Id").GetValue(spec), json);
+                if (spec.Dialog != null)
+                    yield return (spec.Id, spec.Dialog);
+
+                var index = 0;
+                foreach (var entry in spec.Menu ?? Array.Empty<DocuHelperEditor.Components.Paper.Ppt.PptMenuSpec>())
+                {
+                    if (entry.Dialog != null)
+                        yield return (spec.Id + "#" + index, entry.Dialog);
+
+                    index++;
+                }
             }
-        }
-
-        private static string PptTitle(string json) => (string)Invoke("TitleOf", JsonNode.Parse(json) as JsonObject);
-
-        private static IReadOnlyList<WordDialogField> PptFields(string json) => (IReadOnlyList<WordDialogField>)Invoke("FieldsOf", JsonNode.Parse(json) as JsonObject);
-
-        private static object Invoke(string method, JsonObject dialog)
-        {
-            var type = typeof(WordNamedDialogs).Assembly.GetType("DocuHelperEditor.Components.Paper.Ppt.PptDialogPresenter");
-            return type.GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[] { dialog });
         }
     }
 }

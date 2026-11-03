@@ -805,7 +805,7 @@
 
     private RibbonRouter ObjectRouter => Ribbon != null ? Ribbon.Router : Hwp?.Router;
 
-    private IWordDialogPresenter ObjectDialogs => Ribbon?.Dialogs ?? Hwp?.Dialogs;
+    private IDialogPresenter ObjectDialogs => Ribbon?.Dialogs ?? Hwp?.Dialogs;
 
     private string BlockClassOf(WordBlockModel block) => block.Objects.Count > 0 && string.IsNullOrEmpty(block.Text) ? BlockClass(block) + " obj-only" : BlockClass(block);
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DocuHelperEditor.State.Ribbon;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
 {
@@ -20,7 +21,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 
         public string Reason { get; init; }
 
-        public string Dialog { get; init; }
+        public DialogSpec Dialog { get; init; }
 
         public string Pressed { get; init; }
 

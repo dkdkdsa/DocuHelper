@@ -92,9 +92,9 @@ namespace DocuHelperEditor.State.Ribbon
                 return;
 
             var fields = s_properties
-                .Select(p => new WordDialogField(p.Name, p.Label, "text", JsonSerializer.Serialize(WordDocumentProperties.Get(word, p.Name) ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()))
+                .Select(p => new DialogField(p.Name, p.Label, "text", JsonSerializer.Serialize(WordDocumentProperties.Get(word, p.Name) ?? string.Empty), Array.Empty<string>(), Array.Empty<string>()))
                 .ToArray();
-            var values = await State.Dialogs.AskFieldsAsync("word.file.info", new WordDialogSpec("문서 정보", fields), null);
+            var values = await State.Dialogs.AskFieldsAsync("word.file.info", new DialogSpec("문서 정보", fields), null);
             if (values == null)
                 return;
 

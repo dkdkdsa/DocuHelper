@@ -27,6 +27,6 @@ namespace DocuHelperEditor.State.Ribbon
 
         public IReadOnlyList<HwpMenuSpec> Menu { get; init; } = Array.Empty<HwpMenuSpec>();
 
-        public WordDialogSpec Dialog { get; init; }
+        public DialogSpec Dialog { get; init; }
     }
 }

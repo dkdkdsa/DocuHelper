@@ -61,19 +61,19 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_text",
                 Args = """{"targets":"{targets}","font":"{font}","size":"{size}","bold":"{bold}","italic":"{italic}","underline":"{underline}","strike":"{strike}","color":"{color}","highlight":"{shade}","vertical_align":"{vertical_align}","scale_percent":"{scale}","spacing_pt":"{spacing*cur.size/100}"}""",
-                Dialog = new WordDialogSpec("글자 모양", new[]
+                Dialog = new DialogSpec("글자 모양", new[]
                 {
-                    new WordDialogField("font", "글꼴", "text", "\"{cur.font}\"", new string[] { "함초롬바탕", "함초롬돋움", "맑은 고딕", "바탕", "돋움", "굴림", "궁서", "나눔고딕", "나눔명조", "HY견고딕", "HY헤드라인M", "Arial", "Times New Roman", "Calibri", "Consolas" }, Array.Empty<string>()),
-                    new WordDialogField("size", "기준 크기 (pt)", "number", "\"{cur.size}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("scale", "장평 (%)", "number", "100", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("spacing", "자간 (%)", "number", "0", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("color", "글자 색", "color", "\"auto\"", new string[] { "auto" }, Array.Empty<string>()),
-                    new WordDialogField("shade", "음영 색", "color", "\"none\"", new string[] { "none" }, Array.Empty<string>()),
-                    new WordDialogField("bold", "진하게", "bool", "\"{cur.bold}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("italic", "기울임", "bool", "\"{cur.italic}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("underline", "밑줄", "choice", "\"none\"", new string[] { "none", "single" }, Array.Empty<string>()),
-                    new WordDialogField("strike", "취소선", "choice", "\"none\"", new string[] { "none", "single" }, Array.Empty<string>()),
-                    new WordDialogField("vertical_align", "위/아래 첨자", "choice", "\"baseline\"", new string[] { "baseline", "superscript", "subscript" }, Array.Empty<string>()),
+                    new DialogField("font", "글꼴", "text", "\"{cur.font}\"", new string[] { "함초롬바탕", "함초롬돋움", "맑은 고딕", "바탕", "돋움", "굴림", "궁서", "나눔고딕", "나눔명조", "HY견고딕", "HY헤드라인M", "Arial", "Times New Roman", "Calibri", "Consolas" }, Array.Empty<string>()),
+                    new DialogField("size", "기준 크기 (pt)", "number", "\"{cur.size}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("scale", "장평 (%)", "number", "100", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("spacing", "자간 (%)", "number", "0", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("color", "글자 색", "color", "\"auto\"", new string[] { "auto" }, Array.Empty<string>()),
+                    new DialogField("shade", "음영 색", "color", "\"none\"", new string[] { "none" }, Array.Empty<string>()),
+                    new DialogField("bold", "진하게", "bool", "\"{cur.bold}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("italic", "기울임", "bool", "\"{cur.italic}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("underline", "밑줄", "choice", "\"none\"", new string[] { "none", "single" }, Array.Empty<string>()),
+                    new DialogField("strike", "취소선", "choice", "\"none\"", new string[] { "none", "single" }, Array.Empty<string>()),
+                    new DialogField("vertical_align", "위/아래 첨자", "choice", "\"baseline\"", new string[] { "baseline", "superscript", "subscript" }, Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -83,18 +83,18 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "format_paragraph",
                 Args = """{"ids":"{ids}","align":"{align}","indent_left_cm":"{left_pt/28.3465}","indent_right_cm":"{right_pt/28.3465}","first_line_cm":"{first_pt/28.3465}","hanging_cm":"{first_pt/28.3465}","line_spacing":{"mode":"multiple","value":"{line_value/160}"},"space_before_pt":"{space_before_pt}","space_after_pt":"{space_after_pt}","keep_with_next":"{keep_with_next}","page_break_before":"{page_break_before}"}""",
-                Dialog = new WordDialogSpec("문단 모양", new[]
+                Dialog = new DialogSpec("문단 모양", new[]
                 {
-                    new WordDialogField("align", "정렬", "choice", "\"{cur.align}\"", new string[] { "justify", "left", "center", "right", "distribute", "divide" }, new string[] { "양쪽", "왼쪽", "가운데", "오른쪽", "배분", "나눔" }),
-                    new WordDialogField("left_pt", "왼쪽 여백 (pt)", "number", "\"{cur.indentLeftPt}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("right_pt", "오른쪽 여백 (pt)", "number", "\"{cur.indentRightPt}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("first_mode", "첫 줄", "choice", "\"none\"", new string[] { "none", "indent", "outdent" }, new string[] { "보통", "들여쓰기", "내어쓰기" }),
-                    new WordDialogField("first_pt", "첫 줄 크기 (pt)", "number", "10", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("line_mode", "줄 간격 종류", "choice", "\"percent\"", new string[] { "percent", "fixed", "at_least" }, new string[] { "글자에 따라 (%)", "고정 값 (pt)", "최소 (pt)" }),
-                    new WordDialogField("line_value", "줄 간격 값", "number", "\"{cur.lineSpacingPercent}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("space_before_pt", "문단 위 (pt)", "number", "\"{cur.spaceBeforePt}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("space_after_pt", "문단 아래 (pt)", "number", "\"{cur.spaceAfterPt}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("keep_with_next", "다음 문단과 함께", "bool", "\"{cur.keepWithNext}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("align", "정렬", "choice", "\"{cur.align}\"", new string[] { "justify", "left", "center", "right", "distribute", "divide" }, new string[] { "양쪽", "왼쪽", "가운데", "오른쪽", "배분", "나눔" }),
+                    new DialogField("left_pt", "왼쪽 여백 (pt)", "number", "\"{cur.indentLeftPt}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("right_pt", "오른쪽 여백 (pt)", "number", "\"{cur.indentRightPt}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("first_mode", "첫 줄", "choice", "\"none\"", new string[] { "none", "indent", "outdent" }, new string[] { "보통", "들여쓰기", "내어쓰기" }),
+                    new DialogField("first_pt", "첫 줄 크기 (pt)", "number", "10", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("line_mode", "줄 간격 종류", "choice", "\"percent\"", new string[] { "percent", "fixed", "at_least" }, new string[] { "글자에 따라 (%)", "고정 값 (pt)", "최소 (pt)" }),
+                    new DialogField("line_value", "줄 간격 값", "number", "\"{cur.lineSpacingPercent}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("space_before_pt", "문단 위 (pt)", "number", "\"{cur.spaceBeforePt}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("space_after_pt", "문단 아래 (pt)", "number", "\"{cur.spaceAfterPt}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("keep_with_next", "다음 문단과 함께", "bool", "\"{cur.keepWithNext}\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -173,12 +173,12 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
                     new HwpMenuSpec { Label = "단 설정…", Args = """{"dialog":"columns"}""", Detail = "단 개수, 간격, 사이 선", Gates = new[] { "Columns" }, Reason = "여러 단은 아직 한글 파일에 저장되지 않아서 쓸 수 없어요." },
                 },
-                Dialog = new WordDialogSpec("단 설정", new[]
+                Dialog = new DialogSpec("단 설정", new[]
                 {
-                    new WordDialogField("count", "단 개수", "number", "2", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("space_mm", "단 사이 간격 (mm)", "number", "8", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("line_between", "단 사이 선", "bool", "false", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("equal", "같은 너비", "bool", "true", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("count", "단 개수", "number", "2", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("space_mm", "단 사이 간격 (mm)", "number", "8", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("line_between", "단 사이 선", "bool", "false", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("equal", "같은 너비", "bool", "true", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -227,12 +227,12 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
                     new HwpMenuSpec { Label = "표 만들기…", Args = """{"dialog":"tableMake"}""", Detail = "줄 수와 칸 수를 정해요" },
                 },
-                Dialog = new WordDialogSpec("표 만들기", new[]
+                Dialog = new DialogSpec("표 만들기", new[]
                 {
-                    new WordDialogField("rows", "줄 수", "number", "3", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("columns", "칸 수", "number", "3", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("header", "첫 줄을 제목 줄로", "bool", "true", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("align", "표 맞춤", "choice", "\"left\"", new string[] { "left", "center", "right" }, new string[] { "왼쪽", "가운데", "오른쪽" }),
+                    new DialogField("rows", "줄 수", "number", "3", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("columns", "칸 수", "number", "3", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("header", "첫 줄을 제목 줄로", "bool", "true", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("align", "표 맞춤", "choice", "\"left\"", new string[] { "left", "center", "right" }, new string[] { "왼쪽", "가운데", "오른쪽" }),
                 }),
             },
             new HwpCommandSpec
@@ -284,10 +284,10 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_text",
                 Args = """{"ops":[{"op":"insert","id":"{id}","offset":"{offset}","text":"{char}"}]}""",
-                Dialog = new WordDialogSpec("문자표", new[]
+                Dialog = new DialogSpec("문자표", new[]
                 {
-                    new WordDialogField("set", "종류", "choice", "\"일반 기호\"", new string[] { "문장 부호", "일반 기호", "수학 기호", "단위", "원 숫자·괄호", "로마 숫자", "괘선", "한글 자모", "위·아래 첨자", "분수" }, Array.Empty<string>()),
-                    new WordDialogField("char", "넣을 문자", "char", null, Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("set", "종류", "choice", "\"일반 기호\"", new string[] { "문장 부호", "일반 기호", "수학 기호", "단위", "원 숫자·괄호", "로마 숫자", "괘선", "한글 자모", "위·아래 첨자", "분수" }, Array.Empty<string>()),
+                    new DialogField("char", "넣을 문자", "char", null, Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -310,14 +310,14 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "replace_text",
                 Args = """{"find":"{find}","replace":"{replace}","match_case":"{match_case}","whole_word":"{whole_word}","regex":"{regex}","scope":"{scope}"}""",
-                Dialog = new WordDialogSpec("찾아 바꾸기", new[]
+                Dialog = new DialogSpec("찾아 바꾸기", new[]
                 {
-                    new WordDialogField("find", "찾을 내용", "text", "\"{selection or last search}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("replace", "바꿀 내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("match_case", "대소문자 구분", "bool", "false", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("whole_word", "낱말 단위로", "bool", "false", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("regex", "정규식", "bool", "false", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("scope", "찾는 범위", "choice", "\"document\"", new string[] { "document", "selection" }, new string[] { "문서 전체", "고른 부분" }),
+                    new DialogField("find", "찾을 내용", "text", "\"{selection or last search}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("replace", "바꿀 내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("match_case", "대소문자 구분", "bool", "false", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("whole_word", "낱말 단위로", "bool", "false", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("regex", "정규식", "bool", "false", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("scope", "찾는 범위", "choice", "\"document\"", new string[] { "document", "selection" }, new string[] { "문서 전체", "고른 부분" }),
                 }),
             },
             new HwpCommandSpec
@@ -446,11 +446,11 @@ namespace DocuHelperEditor.State.Ribbon
                 Tool = "edit_form_field",
                 Args = """{"action":"insert","at":"{caret}","name":"{name}","hint":"{hint}"}""",
                 Gates = new[] { "ClickHere" },
-                Dialog = new WordDialogSpec("누름틀 넣기", new[]
+                Dialog = new DialogSpec("누름틀 넣기", new[]
                 {
-                    new WordDialogField("name", "필드 이름", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("hint", "안내문", "text", "\"여기에 입력하세요\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("memo", "설명(메모)", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("name", "필드 이름", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("hint", "안내문", "text", "\"여기에 입력하세요\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("memo", "설명(메모)", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -462,9 +462,9 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"kind":"footnote","at":"{caret}","note":{"text":"{text}"}}""",
                 Reason = "각주는 아직 한글 파일에 저장되지 않아요. 한글에서 넣어 주세요.",
                 Gates = new[] { "Notes" },
-                Dialog = new WordDialogSpec("각주 내용", new[]
+                Dialog = new DialogSpec("각주 내용", new[]
                 {
-                    new WordDialogField("text", "내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("text", "내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -476,9 +476,9 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"kind":"endnote","at":"{caret}","note":{"text":"{text}"}}""",
                 Reason = "미주는 아직 한글 파일에 저장되지 않아요. 한글에서 넣어 주세요.",
                 Gates = new[] { "Notes" },
-                Dialog = new WordDialogSpec("미주 내용", new[]
+                Dialog = new DialogSpec("미주 내용", new[]
                 {
-                    new WordDialogField("text", "내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("text", "내용", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -498,9 +498,9 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"kind":"bookmark","at":"{caret}","bookmark":{"name":"{name}"}}""",
                 Reason = "책갈피는 아직 한글 파일에 저장되지 않아요. 한글에서 넣어 주세요.",
                 Gates = new[] { "Bookmarks" },
-                Dialog = new WordDialogSpec("책갈피", new[]
+                Dialog = new DialogSpec("책갈피", new[]
                 {
-                    new WordDialogField("name", "책갈피 이름", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("name", "책갈피 이름", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -512,11 +512,11 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"kind":"hyperlink","at":"{targets or caret}","hyperlink":{"url":"{target}","text":"{text}"}}""",
                 Reason = "하이퍼링크는 아직 한글 파일에 저장되지 않아요. 한글에서 넣어 주세요.",
                 Gates = new[] { "Hyperlinks" },
-                Dialog = new WordDialogSpec("하이퍼링크", new[]
+                Dialog = new DialogSpec("하이퍼링크", new[]
                 {
-                    new WordDialogField("kind", "연결할 곳", "choice", "\"url\"", new string[] { "url", "email", "bookmark" }, new string[] { "웹 주소", "전자 메일", "책갈피" }),
-                    new WordDialogField("target", "주소 / 책갈피", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("text", "보일 글", "text", "\"{selection}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("kind", "연결할 곳", "choice", "\"url\"", new string[] { "url", "email", "bookmark" }, new string[] { "웹 주소", "전자 메일", "책갈피" }),
+                    new DialogField("target", "주소 / 책갈피", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("text", "보일 글", "text", "\"{selection}\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -569,9 +569,9 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
                     new HwpMenuSpec { Label = "직접 입력…", Args = """{"dialog":"fontName"}""", Detail = "글꼴 이름을 써 넣어요. 깔려 있지 않은 글꼴은 대신 쓸 글꼴로 보여요" },
                 },
-                Dialog = new WordDialogSpec("글꼴 이름", new[]
+                Dialog = new DialogSpec("글꼴 이름", new[]
                 {
-                    new WordDialogField("value", "글꼴", "text", "\"{cur.font}\"", new string[] { "함초롬바탕", "함초롬돋움", "맑은 고딕", "바탕", "돋움", "굴림", "궁서", "나눔고딕", "나눔명조", "HY견고딕", "HY헤드라인M", "Arial", "Times New Roman", "Calibri", "Consolas" }, Array.Empty<string>()),
+                    new DialogField("value", "글꼴", "text", "\"{cur.font}\"", new string[] { "함초롬바탕", "함초롬돋움", "맑은 고딕", "바탕", "돋움", "굴림", "궁서", "나눔고딕", "나눔명조", "HY견고딕", "HY헤드라인M", "Arial", "Times New Roman", "Calibri", "Consolas" }, Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -608,9 +608,9 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Kind = HwpMenuKind.Separator },
                     new HwpMenuSpec { Label = "직접 입력…", Args = """{"dialog":"fontSize"}""", Detail = "1~400pt, 0.5 단위" },
                 },
-                Dialog = new WordDialogSpec("글자 크기", new[]
+                Dialog = new DialogSpec("글자 크기", new[]
                 {
-                    new WordDialogField("value", "크기 (pt)", "number", "\"{cur.size}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("value", "크기 (pt)", "number", "\"{cur.size}\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -720,10 +720,10 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Label = "직접 입력…", Args = """{"dialog":"lineSpacing"}""", Detail = "50~500 %" },
                     new HwpMenuSpec { Label = "고정 값 (pt)…", Args = """{"dialog":"lineSpacing","mode":"fixed"}""", Detail = "줄 간격을 pt로 고정해요", Gates = new[] { "ParaFixedLine" }, Reason = "고정 값 줄 간격은 한글 파일에 저장돼요. 이 대화상자는 아직 이 앱에서 열 수 없어요." },
                 },
-                Dialog = new WordDialogSpec("줄 간격", new[]
+                Dialog = new DialogSpec("줄 간격", new[]
                 {
-                    new WordDialogField("mode", "종류", "choice", "\"percent\"", new string[] { "percent", "fixed", "at_least" }, new string[] { "글자에 따라 (%)", "고정 값 (pt)", "최소 (pt)" }),
-                    new WordDialogField("value", "값", "number", "\"{cur.lineSpacingPercent}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("mode", "종류", "choice", "\"percent\"", new string[] { "percent", "fixed", "at_least" }, new string[] { "글자에 따라 (%)", "고정 값 (pt)", "최소 (pt)" }),
+                    new DialogField("value", "값", "number", "\"{cur.lineSpacingPercent}\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -903,11 +903,11 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"action":"define","style":"{name}","based_on":"{based_on}","next_style":"{next_style}","copy_from":{"id":"{id}"}}""",
                 Reason = "스타일 이름과 바탕 스타일을 정하는 대화상자는 아직 이 앱에서 열 수 없어요.",
                 Gates = new[] { "NamedStyles" },
-                Dialog = new WordDialogSpec("스타일 추가하기", new[]
+                Dialog = new DialogSpec("스타일 추가하기", new[]
                 {
-                    new WordDialogField("name", "스타일 이름", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("based_on", "바탕 스타일", "choice", "\"바탕글\"", new string[] { "바탕글", "본문", "개요 1", "개요 2" }, Array.Empty<string>()),
-                    new WordDialogField("next_style", "다음 스타일", "choice", "\"바탕글\"", new string[] { "바탕글", "본문" }, Array.Empty<string>()),
+                    new DialogField("name", "스타일 이름", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("based_on", "바탕 스타일", "choice", "\"바탕글\"", new string[] { "바탕글", "본문", "개요 1", "개요 2" }, Array.Empty<string>()),
+                    new DialogField("next_style", "다음 스타일", "choice", "\"바탕글\"", new string[] { "바탕글", "본문" }, Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -927,19 +927,19 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "set_page_setup",
                 Args = """{"scope":"document","size":"{size}","width_cm":"{width_mm/10}","height_cm":"{height_mm/10}","orientation":"{orientation}","margins":{"top_cm":"{(top_mm+header_mm)/10}","header_cm":"{top_mm/10}","bottom_cm":"{(bottom_mm+footer_mm)/10}","footer_cm":"{bottom_mm/10}","left_cm":"{left_mm/10}","right_cm":"{right_mm/10}"}}""",
-                Dialog = new WordDialogSpec("편집 용지", new[]
+                Dialog = new DialogSpec("편집 용지", new[]
                 {
-                    new WordDialogField("size", "용지 종류", "choice", "\"A4\"", new string[] { "A3", "A4", "A5", "B4", "B5", "Letter", "Legal", "Tabloid", "Executive", "custom" }, Array.Empty<string>()),
-                    new WordDialogField("width_mm", "폭 (mm)", "number", "\"{cur.pageWidthMm}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("height_mm", "길이 (mm)", "number", "\"{cur.pageHeightMm}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("orientation", "용지 방향", "choice", "\"portrait\"", new string[] { "portrait", "landscape" }, new string[] { "세로", "가로" }),
-                    new WordDialogField("top_mm", "위쪽 (mm)", "number", "\"{cur.marginTopMm}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("header_mm", "머리말 (mm)", "number", "\"{cur.marginHeaderMm}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("bottom_mm", "아래쪽 (mm)", "number", "\"{cur.marginBottomMm}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("footer_mm", "꼬리말 (mm)", "number", "\"{cur.marginFooterMm}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("left_mm", "왼쪽 (mm)", "number", "\"{cur.marginLeftMm}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("right_mm", "오른쪽 (mm)", "number", "\"{cur.marginRightMm}\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("gutter_mm", "제본 (mm)", "number", "0", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("size", "용지 종류", "choice", "\"A4\"", new string[] { "A3", "A4", "A5", "B4", "B5", "Letter", "Legal", "Tabloid", "Executive", "custom" }, Array.Empty<string>()),
+                    new DialogField("width_mm", "폭 (mm)", "number", "\"{cur.pageWidthMm}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("height_mm", "길이 (mm)", "number", "\"{cur.pageHeightMm}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("orientation", "용지 방향", "choice", "\"portrait\"", new string[] { "portrait", "landscape" }, new string[] { "세로", "가로" }),
+                    new DialogField("top_mm", "위쪽 (mm)", "number", "\"{cur.marginTopMm}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("header_mm", "머리말 (mm)", "number", "\"{cur.marginHeaderMm}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("bottom_mm", "아래쪽 (mm)", "number", "\"{cur.marginBottomMm}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("footer_mm", "꼬리말 (mm)", "number", "\"{cur.marginFooterMm}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("left_mm", "왼쪽 (mm)", "number", "\"{cur.marginLeftMm}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("right_mm", "오른쪽 (mm)", "number", "\"{cur.marginRightMm}\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("gutter_mm", "제본 (mm)", "number", "0", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -960,13 +960,13 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Label = "머리말 내용 고치기…", Args = """{"dialog":"headerEdit"}""", Detail = "왼쪽·가운데·오른쪽 글과 쪽 번호", Gates = new[] { "HeaderFooter" }, Reason = "머리말은 아직 한글 파일에 저장되지 않아서 쓸 수 없어요." },
                     new HwpMenuSpec { Label = "머리말 없애기", Args = """{"remove":true}""", Gates = new[] { "HeaderFooter" }, Reason = "머리말은 아직 한글 파일에 저장되지 않아서 쓸 수 없어요." },
                 },
-                Dialog = new WordDialogSpec("머리말 고치기", new[]
+                Dialog = new DialogSpec("머리말 고치기", new[]
                 {
-                    new WordDialogField("left", "왼쪽", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("center", "가운데", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("right", "오른쪽", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("page_number", "쪽 번호 넣기", "choice", "\"none\"", new string[] { "none", "left", "center", "right" }, new string[] { "넣지 않음", "왼쪽", "가운데", "오른쪽" }),
-                    new WordDialogField("variant", "적용할 쪽", "choice", "\"default\"", new string[] { "default", "even", "odd" }, new string[] { "양쪽", "짝수 쪽", "홀수 쪽" }),
+                    new DialogField("left", "왼쪽", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("center", "가운데", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("right", "오른쪽", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("page_number", "쪽 번호 넣기", "choice", "\"none\"", new string[] { "none", "left", "center", "right" }, new string[] { "넣지 않음", "왼쪽", "가운데", "오른쪽" }),
+                    new DialogField("variant", "적용할 쪽", "choice", "\"default\"", new string[] { "default", "even", "odd" }, new string[] { "양쪽", "짝수 쪽", "홀수 쪽" }),
                 }),
             },
             new HwpCommandSpec
@@ -987,13 +987,13 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Label = "꼬리말 내용 고치기…", Args = """{"dialog":"footerEdit"}""", Detail = "왼쪽·가운데·오른쪽 글과 쪽 번호", Gates = new[] { "HeaderFooter" }, Reason = "꼬리말은 아직 한글 파일에 저장되지 않아서 쓸 수 없어요." },
                     new HwpMenuSpec { Label = "꼬리말 없애기", Args = """{"remove":true}""", Gates = new[] { "HeaderFooter" }, Reason = "꼬리말은 아직 한글 파일에 저장되지 않아서 쓸 수 없어요." },
                 },
-                Dialog = new WordDialogSpec("꼬리말 고치기", new[]
+                Dialog = new DialogSpec("꼬리말 고치기", new[]
                 {
-                    new WordDialogField("left", "왼쪽", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("center", "가운데", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("right", "오른쪽", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("page_number", "쪽 번호 넣기", "choice", "\"none\"", new string[] { "none", "left", "center", "right" }, new string[] { "넣지 않음", "왼쪽", "가운데", "오른쪽" }),
-                    new WordDialogField("variant", "적용할 쪽", "choice", "\"default\"", new string[] { "default", "even", "odd" }, new string[] { "양쪽", "짝수 쪽", "홀수 쪽" }),
+                    new DialogField("left", "왼쪽", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("center", "가운데", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("right", "오른쪽", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("page_number", "쪽 번호 넣기", "choice", "\"none\"", new string[] { "none", "left", "center", "right" }, new string[] { "넣지 않음", "왼쪽", "가운데", "오른쪽" }),
+                    new DialogField("variant", "적용할 쪽", "choice", "\"default\"", new string[] { "default", "even", "odd" }, new string[] { "양쪽", "짝수 쪽", "홀수 쪽" }),
                 }),
             },
             new HwpCommandSpec
@@ -1005,12 +1005,12 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"page_number":{"position":"{top|bottom}","align":"{left|center|right|outside|inside}","style":"{plain|dash}","format":"{format}","start_at":"{start_at}"}}""",
                 Reason = "쪽 번호는 아직 한글 파일에 저장되지 않아요. 한글에서 매겨 주세요.",
                 Gates = new[] { "HeaderFooter", "PageNumber" },
-                Dialog = new WordDialogSpec("쪽 번호 매기기", new[]
+                Dialog = new DialogSpec("쪽 번호 매기기", new[]
                 {
-                    new WordDialogField("position", "번호 위치", "choice", "\"가운데 아래\"", new string[] { "없음", "왼쪽 위", "가운데 위", "오른쪽 위", "왼쪽 아래", "가운데 아래", "오른쪽 아래", "바깥쪽 위", "바깥쪽 아래", "안쪽 위", "안쪽 아래" }, Array.Empty<string>()),
-                    new WordDialogField("format", "번호 모양", "choice", "\"1, 2, 3\"", new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c" }, new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c" }),
-                    new WordDialogField("dash", "줄표 넣기 (- 1 -)", "bool", "true", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("start_at", "시작 번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("position", "번호 위치", "choice", "\"가운데 아래\"", new string[] { "없음", "왼쪽 위", "가운데 위", "오른쪽 위", "왼쪽 아래", "가운데 아래", "오른쪽 아래", "바깥쪽 위", "바깥쪽 아래", "안쪽 위", "안쪽 아래" }, Array.Empty<string>()),
+                    new DialogField("format", "번호 모양", "choice", "\"1, 2, 3\"", new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c" }, new string[] { "1, 2, 3", "I, II, III", "i, ii, iii", "A, B, C", "a, b, c" }),
+                    new DialogField("dash", "줄표 넣기 (- 1 -)", "bool", "true", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("start_at", "시작 번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -1022,9 +1022,9 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"action":"restart_page_number","at":"{caret}","start_at":"{start_at}"}""",
                 Reason = "쪽 번호 다시 시작은 아직 한글 파일에 저장되지 않아요. 한글에서 해 주세요.",
                 Gates = new[] { "PageControl" },
-                Dialog = new WordDialogSpec("새 번호로 시작", new[]
+                Dialog = new DialogSpec("새 번호로 시작", new[]
                 {
-                    new WordDialogField("start_at", "시작 번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("start_at", "시작 번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -1046,13 +1046,13 @@ namespace DocuHelperEditor.State.Ribbon
                 Args = """{"scope":"document","page_borders":{"style":"{border}","line":"{line}","width_pt":"{width_pt}","color":"{color}"},"page_color":"{page_color}"}""",
                 Reason = "쪽 테두리와 배경은 아직 한글 파일에 저장되지 않아요. 한글에서 해 주세요.",
                 Gates = new[] { "PageBorder" },
-                Dialog = new WordDialogSpec("쪽 테두리/배경", new[]
+                Dialog = new DialogSpec("쪽 테두리/배경", new[]
                 {
-                    new WordDialogField("border", "테두리", "choice", "\"none\"", new string[] { "none", "box" }, Array.Empty<string>()),
-                    new WordDialogField("line", "선 종류", "choice", "\"single\"", new string[] { "single", "double", "dashed", "dotted" }, Array.Empty<string>()),
-                    new WordDialogField("width_pt", "굵기 (pt)", "number", "0.5", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("color", "선 색", "color", "\"#000000\"", Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("page_color", "배경 색", "color", "\"none\"", new string[] { "none" }, Array.Empty<string>()),
+                    new DialogField("border", "테두리", "choice", "\"none\"", new string[] { "none", "box" }, Array.Empty<string>()),
+                    new DialogField("line", "선 종류", "choice", "\"single\"", new string[] { "single", "double", "dashed", "dotted" }, Array.Empty<string>()),
+                    new DialogField("width_pt", "굵기 (pt)", "number", "0.5", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("color", "선 색", "color", "\"#000000\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("page_color", "배경 색", "color", "\"none\"", new string[] { "none" }, Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -1089,7 +1089,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "delete_paragraphs",
                 Args = """{"ids":"{page blocks}"}""",
-                Dialog = new WordDialogSpec("쪽 지우기", Array.Empty<WordDialogField>()),
+                Dialog = new DialogSpec("쪽 지우기", Array.Empty<DialogField>()),
             },
             new HwpCommandSpec
             {
@@ -1203,9 +1203,9 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "문서 비교",
                 Class = RibbonCommandClass.File,
                 Action = "compareDocuments",
-                Dialog = new WordDialogSpec("문서 비교", new[]
+                Dialog = new DialogSpec("문서 비교", new[]
                 {
-                    new WordDialogField("other", "비교할 파일", "choice", null, Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("other", "비교할 파일", "choice", null, Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -1242,11 +1242,11 @@ namespace DocuHelperEditor.State.Ribbon
                     new HwpMenuSpec { Label = "메일 머지 표시 달기…", Args = """{"command":"hwp.tool.doc.mailmerge.mark"}""", Detail = "문서에 {{이름}} 꼴로 자리를 만들어요" },
                     new HwpMenuSpec { Label = "메일 머지 만들기…", Args = """{"dialog":"mailMergeMake"}""", Detail = "엑셀 표의 줄마다 한 부씩 새 한글 파일을 만들어요" },
                 },
-                Dialog = new WordDialogSpec("메일 머지 만들기", new[]
+                Dialog = new DialogSpec("메일 머지 만들기", new[]
                 {
-                    new WordDialogField("source", "자료 파일(엑셀)", "choice", null, Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("sheet", "시트", "choice", null, Array.Empty<string>(), Array.Empty<string>()),
-                    new WordDialogField("output", "만드는 방법", "choice", "\"one\"", new string[] { "one", "many" }, new string[] { "한 파일에 쪽 나눠 모으기", "줄마다 파일 하나씩" }),
+                    new DialogField("source", "자료 파일(엑셀)", "choice", null, Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("sheet", "시트", "choice", null, Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("output", "만드는 방법", "choice", "\"one\"", new string[] { "one", "many" }, new string[] { "한 파일에 쪽 나눠 모으기", "줄마다 파일 하나씩" }),
                 }),
             },
             new HwpCommandSpec
@@ -1256,9 +1256,9 @@ namespace DocuHelperEditor.State.Ribbon
                 Class = RibbonCommandClass.Tool,
                 Tool = "edit_text",
                 Args = """{"ops":[{"op":"insert","id":"{id}","offset":"{offset}","text":"{{{name}}}"}]}""",
-                Dialog = new WordDialogSpec("메일 머지 표시 달기", new[]
+                Dialog = new DialogSpec("메일 머지 표시 달기", new[]
                 {
-                    new WordDialogField("name", "필드 이름", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("name", "필드 이름", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -1354,10 +1354,10 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "쪽 찾아가기",
                 Class = RibbonCommandClass.View,
                 Action = "goToPage",
-                Dialog = new WordDialogSpec("찾아가기", new[]
+                Dialog = new DialogSpec("찾아가기", new[]
                 {
-                    new WordDialogField("kind", "이동 종류", "choice", "\"page\"", new string[] { "page", "line" }, new string[] { "쪽", "줄" }),
-                    new WordDialogField("number", "번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("kind", "이동 종류", "choice", "\"page\"", new string[] { "page", "line" }, new string[] { "쪽", "줄" }),
+                    new DialogField("number", "번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec
@@ -1366,10 +1366,10 @@ namespace DocuHelperEditor.State.Ribbon
                 Label = "줄 찾아가기",
                 Class = RibbonCommandClass.View,
                 Action = "goToLine",
-                Dialog = new WordDialogSpec("찾아가기", new[]
+                Dialog = new DialogSpec("찾아가기", new[]
                 {
-                    new WordDialogField("kind", "이동 종류", "choice", "\"page\"", new string[] { "page", "line" }, new string[] { "쪽", "줄" }),
-                    new WordDialogField("number", "번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
+                    new DialogField("kind", "이동 종류", "choice", "\"page\"", new string[] { "page", "line" }, new string[] { "쪽", "줄" }),
+                    new DialogField("number", "번호", "number", "1", Array.Empty<string>(), Array.Empty<string>()),
                 }),
             },
             new HwpCommandSpec

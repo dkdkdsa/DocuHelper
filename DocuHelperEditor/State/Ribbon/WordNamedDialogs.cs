@@ -1,23 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text.Json;
 using System.Text.Json.Nodes;
+using static DocuHelperEditor.State.Ribbon.DialogFields;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    public sealed record WordNamedDialog(
-        string Title,
-        IReadOnlyList<WordDialogField> Fields,
-        Func<IReadOnlyDictionary<string, JsonNode>, string> Validate,
-        Func<IReadOnlyDictionary<string, JsonNode>, JsonObject> Build);
-
-    public static class WordNamedDialogs
+    internal static class WordNamedDialogs
     {
-        internal static readonly string[] s_none = Array.Empty<string>();
-
-        private static readonly Dictionary<string, WordNamedDialog> s_dialogs = new(StringComparer.Ordinal)
+        internal static readonly Dictionary<string, DialogSpec> All = new(StringComparer.Ordinal)
         {
             [Key("word.insert.table.table", "insertTable")] = InsertTable(),
             [Key("word.insert.links.link", "hyperlink")] = Hyperlink(),
@@ -33,18 +23,7 @@ namespace DocuHelperEditor.State.Ribbon
             [Key("word.mail.fields.insert", "mergeFieldName")] = MergeFieldName(),
         };
 
-        public static bool TryGet(string commandId, string dialogName, out WordNamedDialog dialog)
-        {
-            dialog = null;
-            if (commandId == null || dialogName == null)
-                return false;
-
-            return s_dialogs.TryGetValue(Key(commandId, dialogName), out dialog) || HwpNamedDialogs.TryGet(commandId, dialogName, out dialog);
-        }
-
-        internal static string Key(string commandId, string dialogName) => commandId + "|" + dialogName;
-
-        private static WordNamedDialog InsertTable() => new(
+        private static DialogSpec InsertTable() => new(
             "표 삽입",
             new[]
             {
@@ -68,7 +47,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return new JsonObject { ["rows"] = rows, ["header"] = Flag(v, "header") };
             });
 
-        private static WordNamedDialog Hyperlink() => new(
+        private static DialogSpec Hyperlink() => new(
             "하이퍼링크",
             new[]
             {
@@ -83,7 +62,7 @@ namespace DocuHelperEditor.State.Ribbon
                 ["hyperlink"] = new JsonObject { ["url"] = Text(v, "url"), ["text"] = Text(v, "text") },
             });
 
-        private static WordNamedDialog HeaderFooter(string part, string title) => new(
+        private static DialogSpec HeaderFooter(string part, string title) => new(
             title,
             new[]
             {
@@ -101,7 +80,7 @@ namespace DocuHelperEditor.State.Ribbon
                 ["right"] = Tokens(Text(v, "right")),
             });
 
-        private static WordNamedDialog PageNumberFormat() => new(
+        private static DialogSpec PageNumberFormat() => new(
             "쪽 번호 서식",
             new[]
             {
@@ -124,7 +103,7 @@ namespace DocuHelperEditor.State.Ribbon
                 },
             });
 
-        private static WordNamedDialog Symbols() => new(
+        private static DialogSpec Symbols() => new(
             "기호",
             new[] { Text("code", "유니코드 번호(예: 2605) 또는 글자 하나", string.Empty) },
             v => SymbolOf(Text(v, "code")) == null ? "유니코드 번호나 글자 하나를 써 주세요." : null,
@@ -139,7 +118,7 @@ namespace DocuHelperEditor.State.Ribbon
                 }),
             });
 
-        private static WordNamedDialog Watermark() => new(
+        private static DialogSpec Watermark() => new(
             "워터마크",
             new[]
             {
@@ -167,7 +146,7 @@ namespace DocuHelperEditor.State.Ribbon
                 return new JsonObject { ["section"] = "all", ["watermark"] = watermark };
             });
 
-        private static WordNamedDialog Margins() => new(
+        private static DialogSpec Margins() => new(
             "사용자 지정 여백 (cm)",
             new[]
             {
@@ -198,7 +177,7 @@ namespace DocuHelperEditor.State.Ribbon
                 },
             });
 
-        private static WordNamedDialog PaperSize() => new(
+        private static DialogSpec PaperSize() => new(
             "사용자 지정 크기 (cm)",
             new[]
             {
@@ -214,7 +193,7 @@ namespace DocuHelperEditor.State.Ribbon
                 ["height_cm"] = Num(v, "height_cm"),
             });
 
-        private static WordNamedDialog Columns() => new(
+        private static DialogSpec Columns() => new(
             "단 설정",
             new[]
             {
@@ -235,13 +214,13 @@ namespace DocuHelperEditor.State.Ribbon
                 },
             });
 
-        private static WordNamedDialog MergeFieldName() => new(
+        private static DialogSpec MergeFieldName() => new(
             "병합 필드",
             new[] { Text("name", "필드 이름", string.Empty) },
             v => string.IsNullOrWhiteSpace(Text(v, "name")) ? "필드 이름을 써 주세요." : null,
             v => new JsonObject { ["name"] = Text(v, "name").Trim() });
 
-        private static WordNamedDialog TocOptions() => new(
+        private static DialogSpec TocOptions() => new(
             "목차 옵션",
             new[]
             {
@@ -262,74 +241,5 @@ namespace DocuHelperEditor.State.Ribbon
                     ["levels"] = new JsonObject { ["from"] = Count(v, "from"), ["to"] = Count(v, "to") },
                 },
             });
-
-        internal static WordDialogField Text(string name, string label, string value) =>
-            new(name, label, "text", JsonSerializer.Serialize(value), s_none, s_none);
-
-        internal static WordDialogField Number(string name, string label, string value) =>
-            new(name, label, "number", value, s_none, s_none);
-
-        internal static WordDialogField Flag(string name, string label, string value) =>
-            new(name, label, "bool", value, s_none, s_none);
-
-        internal static WordDialogField Color(string name, string label, string value) =>
-            new(name, label, "color", JsonSerializer.Serialize(value), s_none, s_none);
-
-        internal static WordDialogField Choice(string name, string label, string value, IReadOnlyList<string> options, IReadOnlyList<string> labels) =>
-            new(name, label, "choice", JsonSerializer.Serialize(value), options, labels);
-
-        internal static string Text(IReadOnlyDictionary<string, JsonNode> values, string name) =>
-            values.TryGetValue(name, out var node) && node is JsonValue value && value.TryGetValue<string>(out var text) ? text : string.Empty;
-
-        internal static double Num(IReadOnlyDictionary<string, JsonNode> values, string name) =>
-            values.TryGetValue(name, out var node) && node is JsonValue value && value.TryGetValue<double>(out var number) ? number : 0;
-
-        internal static int Count(IReadOnlyDictionary<string, JsonNode> values, string name) => (int)Num(values, name);
-
-        internal static bool Flag(IReadOnlyDictionary<string, JsonNode> values, string name) =>
-            values.TryGetValue(name, out var node) && node is JsonValue value && value.TryGetValue<bool>(out var flag) && flag;
-
-        internal static string Range(IReadOnlyDictionary<string, JsonNode> values, string name, double min, double max, string label)
-        {
-            var number = Num(values, name);
-            return number < min || number > max
-                ? $"{label}은(는) {min.ToString(CultureInfo.InvariantCulture)}~{max.ToString(CultureInfo.InvariantCulture)} 사이로 써 주세요."
-                : null;
-        }
-
-        internal static string Length(string text, int min, int max) =>
-            text.Length < min || text.Length > max ? $"글은 {min}~{max}자로 써 주세요." : null;
-
-        private static bool Link(string url) =>
-            url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-            || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            || url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase);
-
-        internal static string Tokens(string text) =>
-            text.Replace("{쪽}", "{page}", StringComparison.Ordinal)
-                .Replace("{전체쪽}", "{pages}", StringComparison.Ordinal)
-                .Replace("{날짜}", "{date}", StringComparison.Ordinal);
-
-        internal static string SymbolOf(string text)
-        {
-            var trimmed = text.Trim();
-            if (trimmed.Length == 0)
-                return null;
-
-            if (trimmed.Length == 1 || (trimmed.Length == 2 && char.IsSurrogatePair(trimmed, 0)))
-                return trimmed;
-
-            var prefixed = trimmed.StartsWith("U+", StringComparison.OrdinalIgnoreCase);
-            var hex = prefixed ? trimmed.Substring(2) : trimmed;
-            if (hex.Length == 0 || hex.Length > 6 || (!prefixed && hex.Length < 4) || !hex.All(Uri.IsHexDigit))
-                return null;
-
-            var code = Convert.ToInt32(hex, 16);
-            if (code < 0x20 || code >= 0x110000 || (code >= 0xD800 && code <= 0xDFFF))
-                return null;
-
-            var symbol = char.ConvertFromUtf32(code);
-            return char.IsControl(symbol, 0) ? null : symbol;
-        }
     }
 }

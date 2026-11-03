@@ -6,23 +6,23 @@ using System.Threading.Tasks;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    public sealed class WordDialogPresenter : IWordDialogPresenter
+    public sealed class DialogPresenter : IDialogPresenter
     {
         private static readonly IReadOnlyDictionary<string, JsonNode> s_none = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
 
-        private WordDialogRequest _active;
+        private DialogRequest _active;
 
-        public event Action<WordDialogRequest> Requested;
+        public event Action<DialogRequest> Requested;
 
         public bool CanOpen(string commandId, string dialogName) =>
-            dialogName == null || WordNamedDialogs.TryGet(commandId, dialogName, out _);
+            dialogName == null || NamedDialogs.TryGet(commandId, dialogName, out _);
 
-        public Task<IReadOnlyDictionary<string, JsonNode>> AskFieldsAsync(string commandId, WordDialogSpec spec, IReadOnlyDictionary<string, JsonNode> defaults) =>
+        public Task<IReadOnlyDictionary<string, JsonNode>> AskFieldsAsync(string commandId, DialogSpec spec, IReadOnlyDictionary<string, JsonNode> defaults) =>
             OpenAsync(spec.Title, spec.Fields, defaults ?? s_none, spec.Validate);
 
         public async Task<JsonObject> AskArgsAsync(string commandId, string dialogName, JsonObject current)
         {
-            if (!WordNamedDialogs.TryGet(commandId, dialogName, out var dialog))
+            if (!NamedDialogs.TryGet(commandId, dialogName, out var dialog))
                 return null;
 
             var defaults = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
@@ -41,7 +41,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         public void Cancel() => _active?.Completion.TrySetResult(null);
 
-        public static IReadOnlyDictionary<string, JsonNode> DefaultsOf(IEnumerable<WordDialogField> fields)
+        public static IReadOnlyDictionary<string, JsonNode> DefaultsOf(IEnumerable<DialogField> fields)
         {
             var defaults = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
             foreach (var field in fields)
@@ -61,18 +61,18 @@ namespace DocuHelperEditor.State.Ribbon
             return defaults;
         }
 
-        private Task<IReadOnlyDictionary<string, JsonNode>> OpenAsync(string title, IReadOnlyList<WordDialogField> fields, IReadOnlyDictionary<string, JsonNode> defaults, Func<IReadOnlyDictionary<string, JsonNode>, string> validate)
+        private Task<IReadOnlyDictionary<string, JsonNode>> OpenAsync(string title, IReadOnlyList<DialogField> fields, IReadOnlyDictionary<string, JsonNode> defaults, Func<IReadOnlyDictionary<string, JsonNode>, string> validate)
         {
             if (_active != null || Requested == null)
                 return Task.FromResult<IReadOnlyDictionary<string, JsonNode>>(null);
 
-            var request = new WordDialogRequest(title, fields, defaults, validate);
+            var request = new DialogRequest(title, fields, defaults, validate);
             _active = request;
             Requested?.Invoke(request);
             return Completed(request);
         }
 
-        private async Task<IReadOnlyDictionary<string, JsonNode>> Completed(WordDialogRequest request)
+        private async Task<IReadOnlyDictionary<string, JsonNode>> Completed(DialogRequest request)
         {
             try
             {

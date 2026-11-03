@@ -88,10 +88,10 @@ namespace DocuHelperEditor.State.Ribbon
 
             var fields = new[]
             {
-                new WordDialogField("file", "엑셀 파일", "choice", JsonSerializer.Serialize(sheets[0]), sheets, sheets),
-                new WordDialogField("sheet", "시트 이름(비우면 첫 시트)", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
+                new DialogField("file", "엑셀 파일", "choice", JsonSerializer.Serialize(sheets[0]), sheets, sheets),
+                new DialogField("sheet", "시트 이름(비우면 첫 시트)", "text", "\"\"", Array.Empty<string>(), Array.Empty<string>()),
             };
-            var values = await State.Dialogs.AskFieldsAsync("word.mail.recipients", new WordDialogSpec("받는 사람 목록", fields), null);
+            var values = await State.Dialogs.AskFieldsAsync("word.mail.recipients", new DialogSpec("받는 사람 목록", fields), null);
             if (values == null)
                 return;
 

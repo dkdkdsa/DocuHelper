@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DocuHelperEditor.State.Ribbon;
 
 namespace DocuHelperEditor.Components.Paper.Ppt
 {
@@ -179,7 +180,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_font",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","range":"{range}","color":"{color}"}""",
                 Need = PptNeed.Text,
-                Dialog = """{"title":"글꼴 색","fields":[{"name":"color","label":"색","type":"color","default":"#B5462A","options":["theme:테마 색 (10열 × 6행)","standard:표준 색","auto:자동","hex:다른 색 직접 고르기"]}],"kind":"popover"}""",
+                Dialog = new DialogSpec("글꼴 색", new[] { new DialogField("color", "색", "color", "\"#B5462A\"", new string[] { "theme", "standard", "auto", "hex" }, new string[] { "테마 색 (10열 × 6행)", "표준 색", "자동", "다른 색 직접 고르기" }) }),
             },
             new PptCommandSpec
             {
@@ -224,7 +225,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "format_slide_paragraphs",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","line_spacing":"{line_spacing}","space_before":"{space_before}","space_after":"{space_after}"}""",
                 Need = PptNeed.Text,
-                Dialog = """{"title":"줄 간격","fields":[{"name":"line_spacing","label":"줄 간격","type":"choice","default":1.0,"options":["1.0","1.15","1.5","2.0","2.5","3.0"]},{"name":"space_before","label":"단락 앞 간격(pt)","type":"number","default":0,"options":[]},{"name":"space_after","label":"단락 뒤 간격(pt)","type":"number","default":0,"options":[]}],"kind":"popover"}""",
+                Dialog = new DialogSpec("줄 간격", new[] { new DialogField("line_spacing", "줄 간격", "choice", "1.0", new string[] { "1.0", "1.15", "1.5", "2.0", "2.5", "3.0" }, new string[] { "1.0", "1.15", "1.5", "2.0", "2.5", "3.0" }), new DialogField("space_before", "단락 앞 간격(pt)", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("space_after", "단락 뒤 간격(pt)", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()) }),
             },
             new PptCommandSpec
             {
@@ -376,7 +377,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Need = PptNeed.Slide,
                 Menu = new[]
                 {
-                    new PptMenuSpec { Label = "표 삽입…", Detail = "창", Dialog = """{"title":"표 넣기","fields":[{"name":"columns","label":"열 개수","type":"number","default":5,"options":[]},{"name":"rows","label":"행 개수","type":"number","default":4,"options":[]}]}""" },
+                    new PptMenuSpec { Label = "표 삽입…", Detail = "창", Dialog = new DialogSpec("표 넣기", new[] { new DialogField("columns", "열 개수", "number", "5", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("rows", "행 개수", "number", "4", System.Array.Empty<string>(), System.Array.Empty<string>()) }) },
                     new PptMenuSpec { Label = "엑셀 표 가져오기", Detail = "도우미", Kind = PptCommandKind.Assistant, Prompt = "{slideText} 엑셀 파일의 표를 가져와서 이 슬라이드에 표로 넣어 줘. 어느 범위를 넣을지 모르겠으면 먼저 물어봐 줘." },
                 },
             },
@@ -456,7 +457,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "add_slide_diagram",
                 Args = """{"slide":"{slide}","kind":"{kind}","items":"{items}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"SmartArt 넣기","fields":[{"name":"kind","label":"종류","type":"choice","default":"process","options":["list:목록","process:프로세스","cycle:순환","hierarchy:계층 구조","pyramid:피라미드","matrix:행렬"]},{"name":"items","label":"항목(한 줄에 하나)","type":"text","default":"첫째\n둘째\n셋째","options":[],"multiline":true}]}""",
+                Dialog = new DialogSpec("SmartArt 넣기", new[] { new DialogField("kind", "종류", "choice", "\"process\"", new string[] { "list", "process", "cycle", "hierarchy", "pyramid", "matrix" }, new string[] { "목록", "프로세스", "순환", "계층 구조", "피라미드", "행렬" }), new DialogField("items", "항목(한 줄에 하나)", "text", "\"첫째\\n둘째\\n셋째\"", System.Array.Empty<string>(), System.Array.Empty<string>()) }),
             },
             new PptCommandSpec
             {
@@ -465,7 +466,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "edit_slide_chart",
                 Args = """{"slide":"{slide}","action":"create","chart_type":"{chart_type}","title":"{title}","categories":"{categories}","series":"{series}","legend":"{legend}","data_labels":"{data_labels}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"차트 넣기","fields":[{"name":"chart_type","label":"종류","type":"choice","default":"column","options":["column:세로 막대","stacked_column:누적 세로 막대","bar:가로 막대","stacked_bar:누적 가로 막대","line:꺾은선","pie:원형","doughnut:도넛형","area:영역형"]},{"name":"title","label":"차트 제목","type":"text","default":"","options":[]},{"name":"data","label":"데이터(엑셀에서 복사해 붙여넣기)","type":"text","default":"\t매출\n1월\t3820\n2월\t3610\n3월\t4150","options":[],"multiline":true},{"name":"legend","label":"범례","type":"choice","default":"bottom","options":["none:없음","bottom:아래","right:오른쪽","top:위","left:왼쪽"]},{"name":"data_labels","label":"값 표시","type":"bool","default":false,"options":[]}]}""",
+                Dialog = new DialogSpec("차트 넣기", new[] { new DialogField("chart_type", "종류", "choice", "\"column\"", new string[] { "column", "stacked_column", "bar", "stacked_bar", "line", "pie", "doughnut", "area" }, new string[] { "세로 막대", "누적 세로 막대", "가로 막대", "누적 가로 막대", "꺾은선", "원형", "도넛형", "영역형" }), new DialogField("title", "차트 제목", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("data", "데이터(엑셀에서 복사해 붙여넣기)", "text", "\"\\t매출\\n1월\\t3820\\n2월\\t3610\\n3월\\t4150\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("legend", "범례", "choice", "\"bottom\"", new string[] { "none", "bottom", "right", "top", "left" }, new string[] { "없음", "아래", "오른쪽", "위", "왼쪽" }), new DialogField("data_labels", "값 표시", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()) }),
             },
             new PptCommandSpec
             {
@@ -476,13 +477,13 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Need = PptNeed.Shape,
                 Menu = new[]
                 {
-                    new PptMenuSpec { Label = "웹 주소…", Detail = "링크", Args = """{"target":{"type":"url","url":"{url}","tooltip":"{tooltip}"}}""", Dialog = """{"title":"웹 주소 연결","fields":[{"name":"url","label":"웹 주소","type":"text","default":"https://","options":[]},{"name":"tooltip","label":"설명 말풍선","type":"text","default":"","options":[]}]}""" },
-                    new PptMenuSpec { Label = "이 문서의 슬라이드…", Detail = "링크", Args = """{"target":{"type":"slide","slide":"{slideNumber}"}}""", Dialog = """{"title":"슬라이드 연결","fields":[{"name":"slideNumber","label":"슬라이드 번호","type":"number","default":"1","options":[]}]}""" },
+                    new PptMenuSpec { Label = "웹 주소…", Detail = "링크", Args = """{"target":{"type":"url","url":"{url}","tooltip":"{tooltip}"}}""", Dialog = new DialogSpec("웹 주소 연결", new[] { new DialogField("url", "웹 주소", "text", "\"https://\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("tooltip", "설명 말풍선", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) }) },
+                    new PptMenuSpec { Label = "이 문서의 슬라이드…", Detail = "링크", Args = """{"target":{"type":"slide","slide":"{slideNumber}"}}""", Dialog = new DialogSpec("슬라이드 연결", new[] { new DialogField("slideNumber", "슬라이드 번호", "number", "\"1\"", System.Array.Empty<string>(), System.Array.Empty<string>()) }) },
                     new PptMenuSpec { Label = "이전 슬라이드", Detail = "링크", Args = """{"target":{"type":"previous_slide"}}""" },
                     new PptMenuSpec { Label = "다음 슬라이드", Detail = "링크", Args = """{"target":{"type":"next_slide"}}""" },
                     new PptMenuSpec { Label = "처음 슬라이드", Detail = "링크", Args = """{"target":{"type":"first_slide"}}""" },
                     new PptMenuSpec { Label = "마지막 슬라이드", Detail = "링크", Args = """{"target":{"type":"last_slide"}}""" },
-                    new PptMenuSpec { Label = "전자 메일…", Detail = "링크", Args = """{"target":{"type":"email","address":"{address}","subject":"{subject}"}}""", Dialog = """{"title":"전자 메일 연결","fields":[{"name":"address","label":"받는 사람","type":"text","default":"","options":[]},{"name":"subject","label":"제목","type":"text","default":"","options":[]}]}""" },
+                    new PptMenuSpec { Label = "전자 메일…", Detail = "링크", Args = """{"target":{"type":"email","address":"{address}","subject":"{subject}"}}""", Dialog = new DialogSpec("전자 메일 연결", new[] { new DialogField("address", "받는 사람", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("subject", "제목", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) }) },
                     new PptMenuSpec { Label = "링크 지우기", Detail = "링크", Args = """{"target":{"type":"none"}}""", Need = PptNeed.Shape },
                 },
             },
@@ -493,7 +494,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "edit_slide_comment",
                 Args = """{"slide":"{slide}","action":"add","text":"{text}","author":"{userName}","shape":"{shape}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"새 메모","fields":[{"name":"text","label":"메모","type":"text","default":"","options":[],"multiline":true}]}""",
+                Dialog = new DialogSpec("새 메모", new[] { new DialogField("text", "메모", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) }),
             },
             new PptCommandSpec
             {
@@ -510,7 +511,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_slide_footer",
                 Args = """{"slides":"{scopeSlides}","footer":{"show":"{footer_show}","text":"{footer_text}"},"slide_number":"{slide_number}","date":{"show":"{date_show}","mode":"{date_mode}","format":"{date_format}","text":"{date_text}"},"skip_title_slide":"{skip_title_slide}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"머리글/바닥글","fields":[{"name":"date_show","label":"날짜 및 시간","type":"bool","default":false,"options":[]},{"name":"date_mode","label":"날짜 방식","type":"choice","default":"auto","options":["auto:자동으로 오늘 날짜","fixed:직접 쓰기"]},{"name":"date_format","label":"날짜 모양","type":"choice","default":"short","options":["short:2026-10-31","long:2026년 10월 31일 토요일","time:오후 4:30"]},{"name":"date_text","label":"직접 쓸 날짜","type":"text","default":"","options":[]},{"name":"slide_number","label":"슬라이드 번호","type":"bool","default":false,"options":[]},{"name":"footer_show","label":"바닥글","type":"bool","default":false,"options":[]},{"name":"footer_text","label":"바닥글 글","type":"text","default":"","options":[]},{"name":"skip_title_slide","label":"제목 슬라이드에는 보이지 않기","type":"bool","default":false,"options":[]},{"name":"scope","label":"적용 범위","type":"choice","default":"slide","options":["slide:이 슬라이드만","all:모든 슬라이드"]}],"buttons":["적용","모두 적용"],"note":"적용 = scope slide, 모두 적용 = scope all."}""",
+                Dialog = new DialogSpec("머리글/바닥글", new[] { new DialogField("date_show", "날짜 및 시간", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("date_mode", "날짜 방식", "choice", "\"auto\"", new string[] { "auto", "fixed" }, new string[] { "자동으로 오늘 날짜", "직접 쓰기" }), new DialogField("date_format", "날짜 모양", "choice", "\"short\"", new string[] { "short", "long", "time" }, new string[] { "2026-10-31", "2026년 10월 31일 토요일", "오후 4:30" }), new DialogField("date_text", "직접 쓸 날짜", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("slide_number", "슬라이드 번호", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("footer_show", "바닥글", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("footer_text", "바닥글 글", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("skip_title_slide", "제목 슬라이드에는 보이지 않기", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("scope", "적용 범위", "choice", "\"slide\"", new string[] { "slide", "all" }, new string[] { "이 슬라이드만", "모든 슬라이드" }) }),
             },
             new PptCommandSpec
             {
@@ -519,7 +520,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_slide_footer",
                 Args = """{"slides":"{scopeSlides}","footer":{"show":"{footer_show}","text":"{footer_text}"},"slide_number":"{slide_number}","date":{"show":"{date_show}","mode":"{date_mode}","format":"{date_format}","text":"{date_text}"},"skip_title_slide":"{skip_title_slide}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"머리글/바닥글","fields":[{"name":"date_show","label":"날짜 및 시간","type":"bool","default":false,"options":[]},{"name":"date_mode","label":"날짜 방식","type":"choice","default":"auto","options":["auto:자동으로 오늘 날짜","fixed:직접 쓰기"]},{"name":"date_format","label":"날짜 모양","type":"choice","default":"short","options":["short:2026-10-31","long:2026년 10월 31일 토요일","time:오후 4:30"]},{"name":"date_text","label":"직접 쓸 날짜","type":"text","default":"","options":[]},{"name":"slide_number","label":"슬라이드 번호","type":"bool","default":true,"options":[]},{"name":"footer_show","label":"바닥글","type":"bool","default":false,"options":[]},{"name":"footer_text","label":"바닥글 글","type":"text","default":"","options":[]},{"name":"skip_title_slide","label":"제목 슬라이드에는 보이지 않기","type":"bool","default":false,"options":[]},{"name":"scope","label":"적용 범위","type":"choice","default":"slide","options":["slide:이 슬라이드만","all:모든 슬라이드"]}],"buttons":["적용","모두 적용"]}""",
+                Dialog = new DialogSpec("머리글/바닥글", new[] { new DialogField("date_show", "날짜 및 시간", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("date_mode", "날짜 방식", "choice", "\"auto\"", new string[] { "auto", "fixed" }, new string[] { "자동으로 오늘 날짜", "직접 쓰기" }), new DialogField("date_format", "날짜 모양", "choice", "\"short\"", new string[] { "short", "long", "time" }, new string[] { "2026-10-31", "2026년 10월 31일 토요일", "오후 4:30" }), new DialogField("date_text", "직접 쓸 날짜", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("slide_number", "슬라이드 번호", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("footer_show", "바닥글", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("footer_text", "바닥글 글", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("skip_title_slide", "제목 슬라이드에는 보이지 않기", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("scope", "적용 범위", "choice", "\"slide\"", new string[] { "slide", "all" }, new string[] { "이 슬라이드만", "모든 슬라이드" }) }),
             },
             new PptCommandSpec
             {
@@ -528,7 +529,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_slide_footer",
                 Args = """{"slides":"{scopeSlides}","footer":{"show":"{footer_show}","text":"{footer_text}"},"slide_number":"{slide_number}","date":{"show":"{date_show}","mode":"{date_mode}","format":"{date_format}","text":"{date_text}"},"skip_title_slide":"{skip_title_slide}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"머리글/바닥글","fields":[{"name":"date_show","label":"날짜 및 시간","type":"bool","default":true,"options":[]},{"name":"date_mode","label":"날짜 방식","type":"choice","default":"auto","options":["auto:자동으로 오늘 날짜","fixed:직접 쓰기"]},{"name":"date_format","label":"날짜 모양","type":"choice","default":"short","options":["short:2026-10-31","long:2026년 10월 31일 토요일","time:오후 4:30"]},{"name":"date_text","label":"직접 쓸 날짜","type":"text","default":"","options":[]},{"name":"slide_number","label":"슬라이드 번호","type":"bool","default":false,"options":[]},{"name":"footer_show","label":"바닥글","type":"bool","default":false,"options":[]},{"name":"footer_text","label":"바닥글 글","type":"text","default":"","options":[]},{"name":"skip_title_slide","label":"제목 슬라이드에는 보이지 않기","type":"bool","default":false,"options":[]},{"name":"scope","label":"적용 범위","type":"choice","default":"slide","options":["slide:이 슬라이드만","all:모든 슬라이드"]}],"buttons":["적용","모두 적용"]}""",
+                Dialog = new DialogSpec("머리글/바닥글", new[] { new DialogField("date_show", "날짜 및 시간", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("date_mode", "날짜 방식", "choice", "\"auto\"", new string[] { "auto", "fixed" }, new string[] { "자동으로 오늘 날짜", "직접 쓰기" }), new DialogField("date_format", "날짜 모양", "choice", "\"short\"", new string[] { "short", "long", "time" }, new string[] { "2026-10-31", "2026년 10월 31일 토요일", "오후 4:30" }), new DialogField("date_text", "직접 쓸 날짜", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("slide_number", "슬라이드 번호", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("footer_show", "바닥글", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("footer_text", "바닥글 글", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("skip_title_slide", "제목 슬라이드에는 보이지 않기", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("scope", "적용 범위", "choice", "\"slide\"", new string[] { "slide", "all" }, new string[] { "이 슬라이드만", "모든 슬라이드" }) }),
             },
             new PptCommandSpec
             {
@@ -600,7 +601,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                     new PptMenuSpec { Label = "와이드스크린 (16:10)", Detail = "30.48 x 19.05 cm", Args = """{"preset":"widescreen_16_10"}""" },
                     new PptMenuSpec { Label = "A4 용지", Detail = "29.7 x 21 cm", Args = """{"preset":"a4"}""" },
                     new PptMenuSpec { Label = "레터 용지", Detail = "27.94 x 21.59 cm", Args = """{"preset":"letter"}""" },
-                    new PptMenuSpec { Label = "사용자 지정…", Detail = "창", Args = """{"preset":"custom"}""", Dialog = """{"title":"슬라이드 크기","fields":[{"name":"width_cm","label":"너비(cm)","type":"number","default":33.87,"options":[]},{"name":"height_cm","label":"높이(cm)","type":"number","default":19.05,"options":[]},{"name":"scaling","label":"크기가 바뀔 때","type":"choice","default":"ensure_fit","options":["ensure_fit:맞춤 확인(내용이 안 잘려요)","maximize:최대화(내용이 커져요)"]}]}""" },
+                    new PptMenuSpec { Label = "사용자 지정…", Detail = "창", Args = """{"preset":"custom"}""", Dialog = new DialogSpec("슬라이드 크기", new[] { new DialogField("width_cm", "너비(cm)", "number", "33.87", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("height_cm", "높이(cm)", "number", "19.05", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("scaling", "크기가 바뀔 때", "choice", "\"ensure_fit\"", new string[] { "ensure_fit", "maximize" }, new string[] { "맞춤 확인(내용이 안 잘려요)", "최대화(내용이 커져요)" }) }) },
                 },
             },
             new PptCommandSpec
@@ -610,7 +611,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_slide_background",
                 Args = """{"slides":"{scopeSlides}","fill":{"type":"{fill_type}","color":"{color}","color2":"{color2}","angle":"{angle}","transparency":"{transparency}","image_base64":"{image}"},"hide_graphics":"{hide_graphics}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"배경 서식","fields":[{"name":"fill_type","label":"채우기","type":"choice","default":"solid","options":["solid:단색","gradient:그라데이션","picture:그림","inherit:마스터를 따라가기"]},{"name":"color","label":"색","type":"color","default":"#FFFFFF","options":[]},{"name":"color2","label":"두 번째 색","type":"color","default":"#EEF1F6","options":[]},{"name":"angle","label":"각도","type":"number","default":90,"options":[]},{"name":"transparency","label":"투명도(%)","type":"number","default":0,"options":[]},{"name":"image","label":"그림 파일","type":"text","default":null,"options":[],"picker":"image","extensions":[".png",".jpg",".jpeg",".gif",".bmp"]},{"name":"hide_graphics","label":"배경 그래픽 숨기기","type":"bool","default":false,"options":[]},{"name":"scope","label":"적용 범위","type":"choice","default":"slide","options":["slide:이 슬라이드만","all:모든 슬라이드에 적용"]}],"kind":"popover","buttons":["적용","모든 슬라이드에 적용"],"note":"Popover under the button (360px wide) like the other dialogs; the picker field shows the chosen file name. Initial values come from SlideModel.Background."}""",
+                Dialog = new DialogSpec("배경 서식", new[] { new DialogField("fill_type", "채우기", "choice", "\"solid\"", new string[] { "solid", "gradient", "picture", "inherit" }, new string[] { "단색", "그라데이션", "그림", "마스터를 따라가기" }), new DialogField("color", "색", "color", "\"#FFFFFF\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("color2", "두 번째 색", "color", "\"#EEF1F6\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("angle", "각도", "number", "90", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("transparency", "투명도(%)", "number", "0", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("image", "그림 파일", "text", null, System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("hide_graphics", "배경 그래픽 숨기기", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("scope", "적용 범위", "choice", "\"slide\"", new string[] { "slide", "all" }, new string[] { "이 슬라이드만", "모든 슬라이드에 적용" }) }),
             },
             new PptCommandSpec
             {
@@ -914,7 +915,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Need = PptNeed.Slide,
                 Menu = new[]
                 {
-                    new PptMenuSpec { Label = "사용자 지정 쇼…", Detail = "창", Dialog = """{"title":"사용자 지정 쇼","fields":[{"name":"name","label":"쇼 이름","type":"text","default":"","options":[]},{"name":"pickedSlides","label":"넣을 슬라이드 번호 (쉼표로 구분, 예: 1,3)","type":"text","default":"","options":[]}],"buttons":["저장","지우기"]}""" },
+                    new PptMenuSpec { Label = "사용자 지정 쇼…", Detail = "창", Dialog = new DialogSpec("사용자 지정 쇼", new[] { new DialogField("name", "쇼 이름", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("pickedSlides", "넣을 슬라이드 번호 (쉼표로 구분, 예: 1,3)", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) }) },
                 },
             },
             new PptCommandSpec
@@ -924,7 +925,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_slide_show",
                 Args = """{"show_type":"{show_type}","loop":"{loop}","show_animation":"{show_animation}","show_narration":"{show_narration}","use_timings":"{use_timings}","range":{"type":"{range}","from":"{range_from}","to":"{range_to}","custom_show":"{custom_show}"}}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"슬라이드 쇼 설정","fields":[{"name":"show_type","label":"진행 방식","type":"choice","default":"presenter","options":["presenter:발표자가 진행(전체 화면)","browse:웹 형식으로 진행(창)","kiosk:전시용(처음부터 반복)"]},{"name":"loop","label":"[Esc]를 누를 때까지 반복","type":"bool","default":false,"options":[]},{"name":"show_animation","label":"애니메이션 보이기","type":"bool","default":true,"options":[]},{"name":"show_narration","label":"내레이션 재생","type":"bool","default":true,"options":[]},{"name":"use_timings","label":"저장된 시간 사용","type":"bool","default":true,"options":[]},{"name":"range","label":"보여 줄 슬라이드","type":"choice","default":"all","options":["all:전체","slides:시작~끝 번호","custom_show:사용자 지정 쇼"]},{"name":"range_from","label":"시작 번호","type":"number","default":1,"options":[]},{"name":"range_to","label":"끝 번호","type":"number","default":1,"options":[]},{"name":"custom_show","label":"사용자 지정 쇼","type":"choice","default":"","options":["names of the existing custom shows"]}],"kind":"popover","note":"range_from/range_to show only for range slides, custom_show only for range custom_show. Initial values come from p:showPr."}""",
+                Dialog = new DialogSpec("슬라이드 쇼 설정", new[] { new DialogField("show_type", "진행 방식", "choice", "\"presenter\"", new string[] { "presenter", "browse", "kiosk" }, new string[] { "발표자가 진행(전체 화면)", "웹 형식으로 진행(창)", "전시용(처음부터 반복)" }), new DialogField("loop", "[Esc]를 누를 때까지 반복", "bool", "false", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("show_animation", "애니메이션 보이기", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("show_narration", "내레이션 재생", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("use_timings", "저장된 시간 사용", "bool", "true", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("range", "보여 줄 슬라이드", "choice", "\"all\"", new string[] { "all", "slides", "custom_show" }, new string[] { "전체", "시작~끝 번호", "사용자 지정 쇼" }), new DialogField("range_from", "시작 번호", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("range_to", "끝 번호", "number", "1", System.Array.Empty<string>(), System.Array.Empty<string>()), new DialogField("custom_show", "사용자 지정 쇼", "choice", null, new string[] { "names of the existing custom shows" }, new string[] { "names of the existing custom shows" }) }),
             },
             new PptCommandSpec
             {
@@ -1004,7 +1005,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Id = "ppt.review.translate",
                 Kind = PptCommandKind.Assistant,
                 Prompt = "{scopeText} 글을 {language}로 번역해서 바꿔 줘. 글 구성과 서식은 그대로 두고 말만 옮겨 줘.",
-                Dialog = """{"title":"번역","fields":[{"name":"language","label":"어느 말로 옮길까요","type":"choice","default":"영어","options":["영어","일본어","중국어(간체)","중국어(번체)","한국어"]},{"name":"scope","label":"범위","type":"choice","default":"slide","options":["selection:고른 글상자","slide:이 슬라이드","deck:전체"]}]}""",
+                Dialog = new DialogSpec("번역", new[] { new DialogField("language", "어느 말로 옮길까요", "choice", "\"영어\"", new string[] { "영어", "일본어", "중국어(간체)", "중국어(번체)", "한국어" }, new string[] { "영어", "일본어", "중국어(간체)", "중국어(번체)", "한국어" }), new DialogField("scope", "범위", "choice", "\"slide\"", new string[] { "selection", "slide", "deck" }, new string[] { "고른 글상자", "이 슬라이드", "전체" }) }),
             },
             new PptCommandSpec
             {
@@ -1013,7 +1014,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "edit_slide_comment",
                 Args = """{"slide":"{slide}","action":"add","text":"{text}","author":"{userName}","shape":"{shape}"}""",
                 Need = PptNeed.Slide,
-                Dialog = """{"title":"새 메모","fields":[{"name":"text","label":"메모","type":"text","default":"","options":[],"multiline":true}]}""",
+                Dialog = new DialogSpec("새 메모", new[] { new DialogField("text", "메모", "text", "\"\"", System.Array.Empty<string>(), System.Array.Empty<string>()) }),
             },
             new PptCommandSpec
             {
@@ -1102,7 +1103,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Id = "ppt.view.zoom",
                 Kind = PptCommandKind.View,
                 Args = """{"set":{"zoom":"{value}"}}""",
-                Dialog = """{"title":"확대/축소","fields":[{"name":"value","label":"배율","type":"choice","default":100,"options":["200","150","100","75","66","50","fit:창에 맞춤","custom:직접 쓰기(50~200)"]}],"kind":"popover"}""",
+                Dialog = new DialogSpec("확대/축소", new[] { new DialogField("value", "배율", "choice", "100", new string[] { "200", "150", "100", "75", "66", "50", "fit", "custom" }, new string[] { "200", "150", "100", "75", "66", "50", "창에 맞춤", "직접 쓰기(50~200)" }) }),
             },
             new PptCommandSpec
             {

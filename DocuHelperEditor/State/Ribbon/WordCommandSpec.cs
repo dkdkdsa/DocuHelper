@@ -12,5 +12,5 @@ namespace DocuHelperEditor.State.Ribbon
         string Prompt,
         string Reason,
         IReadOnlyList<WordMenuSpec> Menu,
-        WordDialogSpec Dialog);
+        DialogSpec Dialog);
 }
