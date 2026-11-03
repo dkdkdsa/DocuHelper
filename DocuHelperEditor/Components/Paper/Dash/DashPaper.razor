@@ -2,6 +2,7 @@
 @using DocuHelper.Dash.Logic
 @using DocuHelper.Dash.Runtime
 @using DocuHelperEditor.Components.Paper
+@using DocuHelperEditor.Components.Paper.Ppt
 @using DocuHelperEditor.State.Papers
 @inherits StoreComponentBase
 @inject IJSRuntime JS
@@ -20,7 +21,7 @@
                 {
                     <div class="frame" style="--page-max: @PageMax">
                         <CascadingValue Value="ContextOf(model)">
-                            <DashCanvas Model="model" State="_state" Label="@File.Name" />
+                            <DashCanvas Model="model" State="_state" Label="@File.Name" Locked="Locked" OnGesture="g => GestureAsync(model, g)" OnEditText="StartText" />
                         </CascadingValue>
                     </div>
                 }
@@ -81,9 +82,94 @@
         IsLocked = Locked,
         Selected = _state.Selected,
         LiveChanges = (File.Docu?.Changes ?? new List<DocuChange>()).SelectMany(change => change.Anchors).ToHashSet(StringComparer.Ordinal),
+        EditingId = _state.EditingId,
+        CommitText = (id, text) => CommitTextAsync(model, id, text),
+        CancelText = CancelTextAsync,
         SetParam = (name, value) => SetParamAsync(model, name, value),
         RunAction = (action, item) => RunActionAsync(model, action, item),
     };
+
+    private Task GestureAsync(DashPaperModel model, SlideGesture gesture)
+    {
+        if (gesture == null || Locked || Mode != DashViewState.EditMode)
+            return Task.CompletedTask;
+
+        if (gesture.Kind == "select")
+        {
+            Select(gesture.Id, gesture.Additive);
+            StateHasChanged();
+            return Task.CompletedTask;
+        }
+
+        var commands = DashCanvasEdits.Plan(gesture, model, _state.Selected);
+        if (commands.Count == 0)
+            return Task.CompletedTask;
+
+        var result = commands.Count == 1 ? Workspace.ApplyEdit(File, commands[0]) : Workspace.ApplyEdits(File, commands);
+        if (result.IsError)
+            _ribbonHost?.Commands?.Notify(result.Content);
+        else if (gesture.Kind == "key" && gesture.Key is "Delete" or "Backspace")
+            _state.Selected.Clear();
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void Select(string id, bool additive)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            _state.Selected.Clear();
+            return;
+        }
+
+        if (!additive)
+        {
+            _state.Selected.Clear();
+            _state.Selected.Add(id);
+            return;
+        }
+
+        if (!_state.Selected.Remove(id))
+            _state.Selected.Add(id);
+    }
+
+    private void StartText(string id)
+    {
+        if (Locked || Mode != DashViewState.EditMode)
+            return;
+
+        Select(id, false);
+        _state.EditingId = id;
+        StateHasChanged();
+    }
+
+    private Task CommitTextAsync(DashPaperModel model, string id, string text)
+    {
+        _state.EditingId = null;
+        var current = model.Document.Find(id) switch
+        {
+            DocuHelper.Dash.Elements.TextElement element => element.Text,
+            DocuHelper.Dash.Elements.ShapeElement shape => shape.Text,
+            _ => null,
+        };
+        if (!string.Equals(current ?? string.Empty, text ?? string.Empty, StringComparison.Ordinal))
+        {
+            var result = Workspace.ApplyEdit(File, DashCanvasEdits.Text(id, text));
+            if (result.IsError)
+                _ribbonHost?.Commands?.Notify(result.Content);
+        }
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task CancelTextAsync()
+    {
+        _state.EditingId = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
 
     private Task SetParamAsync(DashPaperModel model, string name, object value)
     {

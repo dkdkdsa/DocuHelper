@@ -153,6 +153,7 @@ window.docuHelperPptCanvas = (function () {
         if (session.drag || e.button !== 0 || slide.dataset.locked === 'true') return;
 
         var target = e.target;
+        if (target.closest && target.closest('[data-canvas-ignore]')) return;
         var handle = target.closest ? target.closest('[data-handle]') : null;
         var shape = target.closest ? target.closest('[data-shape]') : null;
 

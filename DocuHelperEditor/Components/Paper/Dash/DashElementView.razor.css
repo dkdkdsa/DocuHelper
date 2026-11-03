@@ -3,12 +3,59 @@
     transform: rotate(var(--rot, 0deg));
 }
 
+.el.shape {
+    touch-action: none;
+    transform-origin: 50% 50%;
+}
+
+.el.shape[data-movable="true"] {
+    cursor: move;
+}
+
+.el.on {
+    outline: 1.5px dashed var(--ink);
+    outline-offset: 4px;
+}
+
+.el.picked {
+    outline: 1.5px dashed var(--rev-3);
+    outline-offset: 2px;
+}
+
+.el.ghost {
+    opacity: 0.35;
+}
+
+.el.editing > :not(.editor) {
+    visibility: hidden;
+}
+
 .flow,
 .canvas {
     position: relative;
     width: 100%;
     height: 100%;
     box-sizing: border-box;
+}
+
+.editor {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 4px 6px;
+    resize: none;
+    border: 1.5px solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.45;
+    outline: none;
 }
 
 .problem {

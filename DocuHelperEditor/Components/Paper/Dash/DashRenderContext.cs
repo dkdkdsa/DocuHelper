@@ -24,6 +24,12 @@ namespace DocuHelperEditor.Components.Paper.Dash
 
         public string HighlightId { get; init; }
 
+        public string EditingId { get; init; }
+
+        public Func<string, string, Task> CommitText { get; init; } = (_, _) => Task.CompletedTask;
+
+        public Func<Task> CancelText { get; init; } = () => Task.CompletedTask;
+
         public Func<string, object, Task> SetParam { get; init; } = (_, _) => Task.CompletedTask;
 
         public Func<DashAction, IReadOnlyDictionary<string, object>, Task> RunAction { get; init; } = (_, _) => Task.CompletedTask;

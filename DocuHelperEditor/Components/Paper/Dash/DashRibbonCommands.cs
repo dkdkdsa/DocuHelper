@@ -73,6 +73,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
             if (action.StartsWith(ModePrefix, StringComparison.Ordinal))
             {
                 _state.Mode = action.Substring(ModePrefix.Length);
+                _state.EditingId = null;
                 if (_state.Mode != DashViewState.EditMode)
                     _state.Selected.Clear();
                 return;

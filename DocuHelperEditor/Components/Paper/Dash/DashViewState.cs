@@ -31,6 +31,8 @@ namespace DocuHelperEditor.Components.Paper.Dash
 
         public List<string> Selected { get; } = new();
 
+        public string EditingId { get; set; }
+
         public IDialogPresenter Dialogs { get; set; }
 
         public string DataTable { get; set; }

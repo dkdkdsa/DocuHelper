@@ -9,6 +9,11 @@
     font-family: var(--font-body);
 }
 
+.page.editing {
+    overflow: clip;
+    overflow-clip-margin: 36px;
+}
+
 .grid-layer {
     position: absolute;
     inset: 0;

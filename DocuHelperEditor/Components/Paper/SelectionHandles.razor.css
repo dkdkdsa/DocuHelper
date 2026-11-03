@@ -1,0 +1,52 @@
+.handle {
+    position: absolute;
+    z-index: 2;
+    width: 9px;
+    height: 9px;
+    box-sizing: border-box;
+    border: 1.5px solid var(--ink);
+    background: var(--paper);
+    transform: translate(-50%, -50%);
+}
+
+.handle::before {
+    content: "";
+    position: absolute;
+    inset: -18px;
+}
+
+.handle.nw,
+.handle.se {
+    cursor: nwse-resize;
+}
+
+.handle.ne,
+.handle.sw {
+    cursor: nesw-resize;
+}
+
+.handle.n,
+.handle.s {
+    cursor: ns-resize;
+}
+
+.handle.e,
+.handle.w {
+    cursor: ew-resize;
+}
+
+.handle.nw { left: 0; top: 0; }
+.handle.n { left: 50%; top: 0; }
+.handle.ne { left: 100%; top: 0; }
+.handle.e { left: 100%; top: 50%; }
+.handle.se { left: 100%; top: 100%; }
+.handle.s { left: 50%; top: 100%; }
+.handle.sw { left: 0; top: 100%; }
+.handle.w { left: 0; top: 50%; }
+
+.handle.rot {
+    left: 50%;
+    top: -28px;
+    border-radius: 50%;
+    cursor: grab;
+}
