@@ -30,7 +30,7 @@ namespace DocuHelper.Agents
 
             Items as written in the file. Pass one as item; "type" picks the kind.
             Sources (kind source):
-            {"type":"excel","name":"유월","file":"6월 매출정리.xlsx","sheet":"6월 매출"}, with "header": the sheet row number of the header when it is not the first row, and "range": "A3:F200" to read only part of the sheet.
+            {"type":"excel","name":"유월","file":"6월 매출정리.xlsx","sheet":"6월 매출"}, with "header": the sheet row number of the header when it is not the first row, and "range": "A3:F200" to read only part of the sheet. A two-row header with merged group cells (1학기 over 1차(일시), 2차(일시)) is found on its own and read as columns such as 1학기 1차(일시); "headerRows": 1 or 2 overrides that. Read the source as it is; don't add helper sheets or reshape the user's workbook for the dashboard.
             {"type":"word","name":"목표표","file":"거래처 목표.docx","table":1} reads a Word or 한글 table, counted from 1; "noHeader": true when the first row is already data.
             {"type":"pptTable","name":"실적표","file":"상반기 실적.pptx","slide":2,"table":1} and {"type":"pptChart","name":"실적차트","file":"상반기 실적.pptx","slide":3,"chart":1}, counted from 1.
             Params (kind param), each with name and label:

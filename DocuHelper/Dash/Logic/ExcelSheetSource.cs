@@ -12,6 +12,8 @@ namespace DocuHelper.Dash.Logic
 
         public int Header { get; set; } = 1;
 
+        public int? HeaderRows { get; set; }
+
         public string Range { get; set; }
 
         public override DashTable Read(Docu docu)
@@ -23,16 +25,16 @@ namespace DocuHelper.Dash.Logic
             var sheet = FindSheet(book);
             var range = FindRange(sheet);
             var headerRow = Math.Clamp(Header - 1, range.Top, range.Bottom);
+            var depth = HeaderRows is int rows ? Math.Clamp(rows, 1, 2) : IsTwoRowHeader(book, sheet, range, headerRow) ? 2 : 1;
+            if (headerRow + depth - 1 > range.Bottom)
+                depth = 1;
 
             var headers = new List<string>();
             for (var column = range.Left; column <= range.Right; column++)
-            {
-                var cell = sheet.FindCell(column, headerRow);
-                headers.Add(book.DisplayText(book.ReadValue(cell), book.StyleOf(cell)));
-            }
+                headers.Add(HeaderName(book, sheet, column, headerRow, depth));
 
             var table = new DashTable(DashTables.Names(headers, i => CellAddress.ColumnName(range.Left + i) + "열"));
-            for (var row = headerRow + 1; row <= range.Bottom; row++)
+            for (var row = headerRow + depth; row <= range.Bottom; row++)
             {
                 var values = new object[headers.Count];
                 var filled = false;
@@ -51,6 +53,53 @@ namespace DocuHelper.Dash.Logic
             }
 
             return table;
+        }
+
+        private static bool IsTwoRowHeader(ExcelBook book, ExcelSheet sheet, CellRange range, int headerRow)
+        {
+            if (headerRow + 1 > range.Bottom)
+                return false;
+
+            foreach (var merge in sheet.MergedRanges())
+            {
+                if (merge.Top != headerRow || merge.Right < range.Left || merge.Left > range.Right)
+                    continue;
+
+                if (merge.Bottom > merge.Top)
+                    return true;
+
+                for (var column = merge.Left; column <= merge.Right; column++)
+                {
+                    if (sheet.FindCell(column, headerRow + 1) is { } below && !string.IsNullOrWhiteSpace(DashCells.Text(book.ReadValue(below))))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string HeaderName(ExcelBook book, ExcelSheet sheet, int column, int headerRow, int depth)
+        {
+            var top = TextAt(book, sheet, column, headerRow);
+            if (depth == 1)
+                return top;
+
+            var merge = sheet.MergeAt(column, headerRow + 1);
+            if (merge != null && merge.Top <= headerRow)
+                return top;
+
+            var sub = TextAt(book, sheet, column, headerRow + 1);
+            if (string.IsNullOrWhiteSpace(sub))
+                return top;
+
+            return string.IsNullOrWhiteSpace(top) || string.Equals(top.Trim(), sub.Trim(), StringComparison.Ordinal) ? sub : top.Trim() + " " + sub.Trim();
+        }
+
+        private static string TextAt(ExcelBook book, ExcelSheet sheet, int column, int row)
+        {
+            var merge = sheet.MergeAt(column, row);
+            var cell = merge == null ? sheet.FindCell(column, row) : sheet.FindCell(merge.Left, merge.Top);
+            return book.DisplayText(book.ReadValue(cell), book.StyleOf(cell));
         }
 
         private ExcelSheet FindSheet(ExcelBook book)
