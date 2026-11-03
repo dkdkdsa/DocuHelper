@@ -13,6 +13,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Class = RibbonCommandClass.Tool,
                 Tool = "add_slide",
                 Args = """{"after":"{slide}","layout":"same_as_current"}""",
+                MenuStyle = "newSlide",
+                Legacy = "addSlide",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "제목 슬라이드", Detail = "표준 레이아웃", Args = """{"layout":"title"}""" },
@@ -62,6 +64,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_font",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","range":"{range}","name":"{value}"}""",
                 Need = "text",
+                MenuStyle = "fontName",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "제목 글꼴", Detail = "테마 글꼴", Args = """{"name":"heading"}""" },
@@ -89,6 +92,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_font",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","range":"{range}","size":"{value}"}""",
                 Need = "text",
+                Value = "fontSize",
+                MenuStyle = "fontSize",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "8", Args = """{"size":8}""" },
@@ -124,6 +129,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_font",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","range":"{range}","size_step":1}""",
                 Need = "text",
+                Legacy = "fontGrow",
             },
             new CommandSpec
             {
@@ -132,6 +138,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_font",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","range":"{range}","size_step":-1}""",
                 Need = "text",
+                Legacy = "fontShrink",
             },
             new CommandSpec
             {
@@ -180,6 +187,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Tool = "set_font",
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","range":"{range}","color":"{color}"}""",
                 Need = "text",
+                ColorOwner = true,
                 Dialog = new DialogSpec("글꼴 색", new[] { new DialogField("color", "색", "color", "\"#B5462A\"", new string[] { "theme", "standard", "auto", "hex" }, new string[] { "테마 색 (10열 × 6행)", "표준 색", "자동", "다른 색 직접 고르기" }) }),
             },
             new CommandSpec
@@ -235,6 +243,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Args = """{"slide":"{slide}","shape":"{shape}","paragraphs":"{paragraphs}","align":"left"}""",
                 Need = "text",
                 Pressed = "align:left",
+                Legacy = "alignLeft",
             },
             new CommandSpec
             {
@@ -245,6 +254,7 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 ArgsOff = """{"align":"left"}""",
                 Need = "text",
                 Pressed = "align:center",
+                Legacy = "alignCenter",
             },
             new CommandSpec
             {
@@ -354,6 +364,8 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Class = RibbonCommandClass.Tool,
                 Tool = "add_slide",
                 Args = """{"after":"{slide}","layout":"same_as_current"}""",
+                MenuStyle = "newSlide",
+                Legacy = "addSlide",
                 Menu = new[]
                 {
                     new CommandMenuSpec { Label = "제목 슬라이드", Detail = "표준 레이아웃", Args = """{"layout":"title"}""" },
@@ -1111,6 +1123,23 @@ namespace DocuHelperEditor.Components.Paper.Ppt
                 Class = RibbonCommandClass.View,
                 Args = """{"set":{"zoom":"fit"}}""",
             },
+            new CommandSpec { Id = "ppt.trailing.undo", Class = RibbonCommandClass.File, Action = "undo" },
+            new CommandSpec { Id = "ppt.trailing.redo", Class = RibbonCommandClass.File, Action = "redo" },
+            new CommandSpec { Id = "ppt.file.save", Class = RibbonCommandClass.File, Action = "save" },
+            new CommandSpec { Id = "ppt.file.saveAs", Class = RibbonCommandClass.File, Action = "saveAs" },
+            new CommandSpec { Id = "ppt.file.info", Class = RibbonCommandClass.File, Action = "showInfo", WhileLocked = true },
+            new CommandSpec { Id = "ppt.file.pdf", Class = RibbonCommandClass.File, Action = "exportPdf", Need = "realSlides" },
+            new CommandSpec { Id = "ppt.file.print", Class = RibbonCommandClass.File, Action = "print", Need = "realSlides" },
+            new CommandSpec { Id = "ppt.file.printHandout", Class = RibbonCommandClass.Disabled, Reason = "인쇄와 PDF 저장은 아직 준비 중이에요." },
+            new CommandSpec { Id = "ppt.view.slideMaster", Class = RibbonCommandClass.External },
+            new CommandSpec { Id = "ppt.view.handoutMaster", Class = RibbonCommandClass.External },
+            new CommandSpec { Id = "ppt.view.notesMaster", Class = RibbonCommandClass.External },
+            new CommandSpec { Id = "ppt.file.openOriginal", Class = RibbonCommandClass.External },
+            new CommandSpec { Id = "ppt.insert.symbol", Class = RibbonCommandClass.Tool, Action = "insertSymbol", Need = "text" },
+            new CommandSpec { Id = "ppt.home.copy", Class = RibbonCommandClass.Clipboard, Action = "copy", Need = "text" },
+            new CommandSpec { Id = "ppt.home.cut", Class = RibbonCommandClass.Clipboard, Action = "cut", Need = "text" },
+            new CommandSpec { Id = "ppt.home.paste", Class = RibbonCommandClass.Clipboard, Action = "paste", Need = "text" },
+            new CommandSpec { Id = "ppt.home.formatPainter", Class = RibbonCommandClass.Clipboard, Action = "formatPainter", Need = "text" },
         };
     }
 }

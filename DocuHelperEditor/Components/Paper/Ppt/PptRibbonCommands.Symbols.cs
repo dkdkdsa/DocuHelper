@@ -8,7 +8,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 {
     public sealed partial class PptRibbonCommands
     {
-        private const string SymbolId = "ppt.insert.symbol";
         private const string SymbolHeading = "자주 쓰는 기호";
 
         private static readonly string[] s_symbols =
@@ -16,10 +15,10 @@ namespace DocuHelperEditor.Components.Paper.Ppt
             "★", "☆", "♥", "♪", "→", "←", "↑", "↓", "※", "©", "®", "™", "…", "·", "◎", "○", "●", "□", "■", "△", "▲", "✓", "±", "×", "÷", "≠", "≤", "≥", "∞", "°", "€", "₩", "¥", "§",
         };
 
-        private void RegisterSymbol()
+        private void RegisterSymbol(CommandSpec spec)
         {
-            AddTool(SymbolId, symbol => SymbolEdit(symbol))
-                .Unless(() => NeedBlocker("text"))
+            AddTool(spec.Id, symbol => SymbolEdit(symbol))
+                .Unless(() => NeedBlocker(spec))
                 .MenuFrom(SymbolMenu);
         }
 

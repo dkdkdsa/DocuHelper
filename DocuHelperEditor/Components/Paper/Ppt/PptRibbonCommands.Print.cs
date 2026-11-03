@@ -8,15 +8,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 {
     public sealed partial class PptRibbonCommands
     {
-        private const string PdfId = "ppt.file.pdf";
-        private const string PrintId = "ppt.file.print";
-
-        private void RegisterPrint()
-        {
-            AddFile(PdfId, _ => ExportPdfAsync()).Unless(() => PrintBlocker());
-            AddFile(PrintId, _ => PrintAsync()).Unless(() => PrintBlocker());
-        }
-
         private string PrintBlocker() => _state.ModelSource?.Invoke()?.Slides?.Any(PptRibbonSelection.IsRealSlide) == true ? null : NoSlideReason;
 
         private SlidePrintJob JobOf()

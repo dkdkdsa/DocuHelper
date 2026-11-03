@@ -9,19 +9,15 @@ using Microsoft.JSInterop;
 
 namespace DocuHelperEditor.State.Ribbon
 {
-    public abstract partial class DocumentCommandRouter<TState> : RibbonRouter
+    public abstract partial class DocumentCommandRouter<TState> : SpecRouter
         where TState : class, IDocumentRibbonState
     {
         protected const string SelectParagraphReason = "고칠 문단을 먼저 눌러 골라 주세요.";
         protected const string SelectTextReason = "글자를 먼저 골라 주세요.";
-        protected const string NoChangeReason = "도우미가 바꾼 곳이 없어요.";
         protected const string MenuPrefix = "menu:";
         private const string SelectedTextMarker = "{선택한 글}";
 
-        private readonly Dictionary<string, CommandSpec> _specs = new Dictionary<string, CommandSpec>(StringComparer.Ordinal);
-        private readonly Dictionary<string, Func<string, Task>> _provided = new Dictionary<string, Func<string, Task>>(StringComparer.Ordinal);
-        private readonly Dictionary<string, Func<string>> _providedBlockers = new Dictionary<string, Func<string>>(StringComparer.Ordinal);
-        private CommandHandlers _handlers = new CommandHandlers();
+        private Dictionary<string, Action<Run, JsonObject>> _finishes = new Dictionary<string, Action<Run, JsonObject>>(StringComparer.Ordinal);
         private HashSet<string> _tablesBefore;
 
         protected DocumentCommandRouter(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, IClipboardService clipboard, IFileDialogService files, TState state)
@@ -41,8 +37,6 @@ namespace DocuHelperEditor.State.Ribbon
 
         protected IJSRuntime ScriptJs { get; }
 
-        protected IReadOnlyDictionary<string, CommandSpec> Specs => _specs;
-
         protected Run CurrentRun { get; private set; }
 
         protected Dictionary<string, string> Colors { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -55,12 +49,12 @@ namespace DocuHelperEditor.State.Ribbon
 
         public override bool IsOn(string id)
         {
-            return _specs.TryGetValue(id ?? string.Empty, out var spec) ? IsPressed(spec) : base.IsOn(id);
+            return Specs.TryGetValue(id ?? string.Empty, out var spec) ? IsPressed(spec) : base.IsOn(id);
         }
 
         public override async Task InvokeAsync(string id, string arg)
         {
-            if (!_specs.TryGetValue(id ?? string.Empty, out var spec) || base.IsDisabled(id))
+            if (!Specs.TryGetValue(id ?? string.Empty, out var spec) || base.IsDisabled(id))
             {
                 await base.InvokeAsync(id, arg);
                 return;
@@ -93,46 +87,16 @@ namespace DocuHelperEditor.State.Ribbon
             }
         }
 
-        protected void Load(IEnumerable<CommandSpec> specs, CommandHandlers handlers)
+        protected void Load(IEnumerable<CommandSpec> specs, CommandHandlers handlers, Dictionary<string, Action<Run, JsonObject>> finishes)
         {
-            _handlers = handlers;
-            foreach (var spec in specs)
-            {
-                _specs[spec.Id] = spec;
-                Register(spec);
-            }
+            _finishes = finishes ?? _finishes;
+            Load(specs, handlers);
         }
-
-        protected void Provide(string action, Func<string, Task> run, Func<string> blocker = null)
-        {
-            if (string.IsNullOrWhiteSpace(action) || run == null)
-                throw new ArgumentException("A provided ribbon command needs an action and a handler.");
-
-            if (!_specs.Values.Any(s => s.Action == action))
-                throw new ArgumentException($"No ribbon command uses the action '{action}'.", nameof(action));
-
-            _provided[action] = run;
-            if (blocker != null)
-                _providedBlockers[action] = blocker;
-
-            RaiseChanged();
-        }
-
-        protected bool IsProvided(CommandSpec spec) => spec.Action != null && _provided.ContainsKey(spec.Action);
-
-        protected Task RunProvidedAsync(CommandSpec spec, string arg)
-        {
-            return spec.Action != null && _provided.TryGetValue(spec.Action, out var run) ? run(arg) : Task.CompletedTask;
-        }
-
-        protected bool IsPressed(CommandSpec spec) => spec.Pressed != null && _handlers.Pressed[spec.Pressed]();
-
-        protected string NeedBlocker(CommandSpec spec) => spec.Need == null ? null : _handlers.Needs[spec.Need](spec);
 
         protected void Finish(CommandSpec spec, Run run, JsonObject args)
         {
             if (spec.Finish != null)
-                _handlers.Finishes[spec.Finish](run, args);
+                _finishes[spec.Finish](run, args);
         }
 
         protected void RememberTables()
@@ -193,7 +157,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Workspace.Notify();
         }
 
-        private void Register(CommandSpec spec)
+        protected override void Register(CommandSpec spec)
         {
             RibbonCommand command;
             switch (spec.Class)
@@ -228,36 +192,11 @@ namespace DocuHelperEditor.State.Ribbon
                 command.ColorFrom(() => Colors.TryGetValue(spec.Id, out var color) ? color : null);
 
             if (spec.Value != null)
-                command.ValueFrom(_handlers.Values[spec.Value]);
+                command.ValueFrom(Handlers.Values[spec.Value]);
 
-            Require(spec, "pressed state", spec.Pressed, _handlers.Pressed);
-            Require(spec, "need", spec.Need, _handlers.Needs);
-            Require(spec, "menu", spec.MenuStyle, _handlers.Menus);
-            Require(spec, "finish", spec.Finish, _handlers.Finishes);
+            if (spec.Finish != null && !_finishes.ContainsKey(spec.Finish))
+                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown finish '{spec.Finish}'.");
         }
-
-        private static void Require<T>(CommandSpec spec, string what, string name, IReadOnlyDictionary<string, T> handlers)
-        {
-            if (name != null && !handlers.ContainsKey(name))
-                throw new ArgumentException($"Ribbon command '{spec.Id}' names an unknown {what} '{name}'.");
-        }
-
-        private RibbonCommand RegisterFile(CommandSpec spec)
-        {
-            var command = spec.Action switch
-            {
-                "undo" => AddUndo(spec.Id),
-                "redo" => AddRedo(spec.Id),
-                "save" => AddSave(spec.Id),
-                "saveAs" => AddSaveCopy(spec.Id),
-                "revertAll" => AddFile(spec.Id, _ => Workspace.RevertAllAsync(File.Id)).EnabledWhen(() => File.Changes.Count > 0, NoChangeReason),
-                _ => AddFile(spec.Id, arg => RunProvidedAsync(spec, arg)).Unless(() => IsProvided(spec) ? null : spec.Need == null ? PendingReason : NeedBlocker(spec)),
-            };
-
-            return spec.WhileLocked ? command.AllowWhileLocked() : command;
-        }
-
-        private string ProvidedBlocker(CommandSpec spec) => _providedBlockers.TryGetValue(spec.Action, out var blocker) ? blocker() : null;
 
         private string PromptOf(CommandSpec spec)
         {
@@ -272,21 +211,6 @@ namespace DocuHelperEditor.State.Ribbon
                 return SelectWordReason;
 
             return null;
-        }
-
-        protected sealed class CommandHandlers
-        {
-            public Dictionary<string, Func<bool>> Pressed { get; init; } = new Dictionary<string, Func<bool>>(StringComparer.Ordinal);
-
-            public Dictionary<string, Func<string>> Values { get; init; } = new Dictionary<string, Func<string>>(StringComparer.Ordinal);
-
-            public Dictionary<string, Func<CommandSpec, string>> Needs { get; init; } = new Dictionary<string, Func<CommandSpec, string>>(StringComparer.Ordinal);
-
-            public Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>> Menus { get; init; } = new Dictionary<string, Func<CommandSpec, IReadOnlyList<RibbonMenuItem>>>(StringComparer.Ordinal);
-
-            public Dictionary<string, Func<CommandSpec, CommandMenuSpec, JsonObject, bool?>> Checks { get; init; } = new Dictionary<string, Func<CommandSpec, CommandMenuSpec, JsonObject, bool?>>(StringComparer.Ordinal);
-
-            public Dictionary<string, Action<Run, JsonObject>> Finishes { get; init; } = new Dictionary<string, Action<Run, JsonObject>>(StringComparer.Ordinal);
         }
 
         protected sealed class Run

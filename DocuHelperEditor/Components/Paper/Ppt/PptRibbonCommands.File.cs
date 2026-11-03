@@ -8,17 +8,6 @@ namespace DocuHelperEditor.Components.Paper.Ppt
 {
     public sealed partial class PptRibbonCommands
     {
-        private const string InfoId = "ppt.file.info";
-
-        private void RegisterFile()
-        {
-            AddFile(InfoId, _ =>
-            {
-                Notify(DocumentInfoText());
-                return Task.CompletedTask;
-            }).AllowWhileLocked();
-        }
-
         private string DocumentInfoText()
         {
             var slides = _state.ModelSource?.Invoke()?.Slides?.Where(PptRibbonSelection.IsRealSlide).ToList() ?? new List<SlideModel>();

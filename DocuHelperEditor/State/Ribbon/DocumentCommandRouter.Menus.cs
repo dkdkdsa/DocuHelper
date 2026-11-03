@@ -19,7 +19,7 @@ namespace DocuHelperEditor.State.Ribbon
             if (HidesMenu(spec))
                 return null;
 
-            return spec.MenuStyle == null ? Entries(spec) : _handlers.Menus[spec.MenuStyle](spec);
+            return spec.MenuStyle == null ? Entries(spec) : Handlers.Menus[spec.MenuStyle](spec);
         }
 
         protected List<RibbonMenuItem> Entries(CommandSpec spec, bool labelAsFont = false)
@@ -83,7 +83,7 @@ namespace DocuHelperEditor.State.Ribbon
 
         private bool? CheckOf(CommandSpec spec, MenuEntry entry)
         {
-            if (spec.Value == null || !_handlers.Checks.TryGetValue(spec.Value, out var check))
+            if (spec.Value == null || !Handlers.Checks.TryGetValue(spec.Value, out var check))
                 return null;
 
             return check(spec, entry.Spec, entry.Args);

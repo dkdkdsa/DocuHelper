@@ -29,8 +29,7 @@ namespace DocuHelperEditor.State.Ribbon
                 Checks = CheckHandlers(),
                 Needs = NeedHandlers(),
                 Menus = MenuHandlers(),
-                Finishes = FinishHandlers(),
-            });
+            }, FinishHandlers());
 
             Provide("showInfo", _ =>
             {
