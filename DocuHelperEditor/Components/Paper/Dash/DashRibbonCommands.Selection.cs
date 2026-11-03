@@ -24,6 +24,11 @@ namespace DocuHelperEditor.Components.Paper.Dash
                 1 => _state.Dialogs == null ? PendingReason : null,
                 _ => OneOnlyReason,
             },
+            [DashCommandData.AnyFileNeed] = _ => Model == null ? NoModelReason : DashSourceFiles.Any(Workspace) ? null : NoFileOfKindReason,
+            [DashCommandData.ExcelFileNeed] = _ => FilesBlocker(DashSourceFiles.Excel),
+            [DashCommandData.WordFileNeed] = _ => FilesBlocker(DashSourceFiles.Word),
+            [DashCommandData.PptFileNeed] = _ => FilesBlocker(DashSourceFiles.PptTable),
+            [DashCommandData.TableOriginNeed] = _ => OriginBlocker(),
         };
 
         protected override void RefreshSelection()

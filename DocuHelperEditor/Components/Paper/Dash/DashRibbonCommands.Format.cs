@@ -75,13 +75,16 @@ namespace DocuHelperEditor.Components.Paper.Dash
                     : spec.Color != null
                         ? RibbonColor.SameColor(current, entry.Swatch)
                         : string.Equals(current, entry.Label, StringComparison.Ordinal);
+                var blocker = NeedBlocker(entry.Need, spec);
                 items.Add(RibbonMenus.Item(
                     EntryPrefix + i.ToString(CultureInfo.InvariantCulture),
                     entry.Label,
                     detail: entry.Detail,
                     swatch: entry.Swatch,
                     font: spec.Value == "fontName" ? entry.Label : null,
-                    check: check));
+                    check: check,
+                    disabled: blocker != null,
+                    reason: blocker));
             }
 
             return items;

@@ -5,7 +5,7 @@
 
 @if (Result != null && (Result.Visible || (Context.IsEditing && Root)))
 {
-    <div class="@ClassName" style="@(Placement + (Result is ShapeResult or LineResult ? DashCss.Opacity(Result.Style) : DashCss.Box(Result.Style, Context.PageWidth)))" data-el="@Result.Source?.Id" data-key="@Result.Key" @attributes="EditAttributes">
+    <div class="@ClassName" style="@(Placement + (Result is ShapeResult or LineResult ? DashCss.Opacity(Result.Style) : DashCss.Box(Result.Style, Context.PageWidth)))" data-el="@Result.Source?.Id" data-key="@Result.Key" data-change="@Context.ChangeOf(Id)" @attributes="EditAttributes">
         @switch (Result)
         {
             case RepeatResult repeat:

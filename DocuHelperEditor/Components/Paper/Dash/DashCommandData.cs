@@ -10,14 +10,12 @@ namespace DocuHelperEditor.Components.Paper.Dash
         public const string ModelNeed = "model";
         public const string SelectionNeed = "selection";
         public const string OneNeed = "one";
+        public const string AnyFileNeed = "files";
+        public const string ExcelFileNeed = "files:excel";
+        public const string WordFileNeed = "files:word";
+        public const string PptFileNeed = "files:ppt";
+        public const string TableOriginNeed = "origin";
 
-        private const string Later = "아직 준비 중이에요.";
-
-        private static readonly string[] s_later =
-        {
-            "dash.data.source", "dash.data.param", "dash.data.table", "dash.data.formula",
-            "dash.file.pdf", "dash.file.print",
-        };
 
         private static readonly string[] s_fontNames = { "Gothic A1", "Hahmlet", "맑은 고딕", "굴림", "바탕" };
 
@@ -78,6 +76,30 @@ namespace DocuHelperEditor.Components.Paper.Dash
             Entry("맨 뒤로", """{"to":"back"}"""),
         };
 
+        private static readonly CommandMenuSpec[] s_sources =
+        {
+            new() { Label = "엑셀 시트", Args = """{"type":"excel"}""", Need = ExcelFileNeed },
+            new() { Label = "워드·한글 표", Args = """{"type":"word"}""", Need = WordFileNeed },
+            new() { Label = "PPT 표", Args = """{"type":"pptTable"}""", Need = PptFileNeed },
+            new() { Label = "PPT 차트", Args = """{"type":"pptChart"}""", Need = PptFileNeed },
+        };
+
+        private static readonly CommandMenuSpec[] s_params =
+        {
+            Entry("고르기", """{"type":"pick"}"""),
+            Entry("범위", """{"type":"range"}"""),
+            Entry("숫자", """{"type":"number"}"""),
+            Entry("켜고 끄기", """{"type":"bool"}"""),
+        };
+
+        private static readonly CommandSpec[] s_data =
+        {
+            new() { Id = "dash.data.source", Class = RibbonCommandClass.Tool, Action = "source", Need = AnyFileNeed, Menu = s_sources },
+            new() { Id = "dash.data.param", Class = RibbonCommandClass.Tool, Action = "param", Need = ModelNeed, Menu = s_params },
+            new() { Id = "dash.data.table", Class = RibbonCommandClass.Tool, Action = "table", Need = TableOriginNeed },
+            new() { Id = "dash.data.formula", Class = RibbonCommandClass.Tool, Action = "formula", Need = ModelNeed },
+        };
+
         private static readonly CommandSpec[] s_home =
         {
             new() { Id = "dash.home.paste", Class = RibbonCommandClass.Clipboard, Action = "paste", Need = ModelNeed },
@@ -122,6 +144,8 @@ namespace DocuHelperEditor.Components.Paper.Dash
             new CommandSpec { Id = "dash.file.save", Class = RibbonCommandClass.File, Action = "save" },
             new CommandSpec { Id = "dash.file.saveAs", Class = RibbonCommandClass.File, Action = "saveAs" },
             new CommandSpec { Id = "dash.file.info", Class = RibbonCommandClass.File, Action = "showInfo", WhileLocked = true },
+            new CommandSpec { Id = "dash.file.pdf", Class = RibbonCommandClass.File, Action = "exportPdf", Need = ModelNeed },
+            new CommandSpec { Id = "dash.file.print", Class = RibbonCommandClass.File, Action = "print", Need = ModelNeed },
             new CommandSpec { Id = "dash.view.show", Class = RibbonCommandClass.View, Action = "mode:" + DashViewState.ViewMode, Pressed = "mode:" + DashViewState.ViewMode },
             new CommandSpec { Id = "dash.view.edit", Class = RibbonCommandClass.View, Action = "mode:" + DashViewState.EditMode, Pressed = "mode:" + DashViewState.EditMode },
             new CommandSpec { Id = "dash.view.data", Class = RibbonCommandClass.View, Action = "mode:" + DashViewState.DataMode, Pressed = "mode:" + DashViewState.DataMode },
@@ -137,7 +161,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
             new CommandSpec { Id = "dash.view.fit", Class = RibbonCommandClass.View, Action = "fit" },
             new CommandSpec { Id = "dash.data.refresh", Class = RibbonCommandClass.View, Action = "refresh" },
             new CommandSpec { Id = "dash.data.resetParams", Class = RibbonCommandClass.View, Action = "resetParams" },
-        }.Concat(s_home).Concat(s_insert).Concat(s_later.Select(id => new CommandSpec { Id = id, Class = RibbonCommandClass.Disabled, Reason = Later })).ToList();
+        }.Concat(s_home).Concat(s_insert).Concat(s_data).ToList();
 
         private static CommandMenuSpec Entry(string label, string args) => new() { Label = label, Args = args };
     }

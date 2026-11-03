@@ -12,24 +12,25 @@
     <div class="dash" @ref="_root">
         <DashRibbon @ref="_ribbonHost" File="File" State="_state" OnChanged="Redraw" />
         <div class="body @(Locked ? "locked" : null)">
-            @if (Mode == DashViewState.EditMode)
+            @if (Mode == DashViewState.DataMode)
             {
-                <DashSidePane Model="model" State="_state" Commands="_ribbonHost?.Commands" Locked="Locked" OnSelect="pick => PickFromPane(pick.Id, pick.Additive)" OnEditText="StartText" />
+                <DashDataView Model="model" State="_state" Commands="_ribbonHost?.Commands" Locked="Locked" OnChanged="Redraw" OnOpenElement="OpenElement" />
             }
-            <div class="stage">
-                @if (Mode == DashViewState.DataMode)
+            else
+            {
+                if (Mode == DashViewState.EditMode)
                 {
-                    <p class="later">데이터 보기는 아직 준비 중이에요.</p>
+                    <DashSidePane Model="model" State="_state" Commands="_ribbonHost?.Commands" Locked="Locked" OnSelect="pick => PickFromPane(pick.Id, pick.Additive)" OnEditText="StartText" />
                 }
-                else
-                {
+
+                <div class="stage">
                     <div class="frame" style="--page-max: @PageMax">
                         <CascadingValue Value="ContextOf(model)">
                             <DashCanvas Model="model" State="_state" Label="@File.Name" Locked="Locked" OnGesture="g => GestureAsync(model, g)" OnEditText="StartText" />
                         </CascadingValue>
                     </div>
-                }
-            </div>
+                </div>
+            }
         </div>
         <DashStatusBar Model="model" State="_state" Commands="_ribbonHost?.Commands" OnZoom="SetZoom" />
         <DialogHost Presenter="_presenter" />
@@ -74,7 +75,27 @@
 
         if (firstRender && _ribbonHost != null)
             StateHasChanged();
+
+        var selected = Workspace.SelectedChangeId;
+        if (selected == _seenChangeId && Workspace.ChangePickVersion == _seenPickVersion)
+            return;
+
+        _seenChangeId = selected;
+        _seenPickVersion = Workspace.ChangePickVersion;
+        if (string.IsNullOrEmpty(selected) || File?.Docu?.Changes.Any(change => change.Id == selected) != true)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("docuHelper.scrollIntoView", $"[data-change=\"{selected}\"]");
+        }
+        catch (JSException)
+        {
+        }
     }
+
+    private string _seenChangeId;
+    private int _seenPickVersion = -1;
 
     protected override void OnDispose() => _ = _wheel?.Detach();
 
@@ -86,6 +107,7 @@
         IsLocked = Locked,
         Selected = _state.Selected,
         LiveChanges = (File.Docu?.Changes ?? new List<DocuChange>()).SelectMany(change => change.Anchors).ToHashSet(StringComparer.Ordinal),
+        ChangeIds = ChangeIdsOf(File.Docu),
         EditingId = _state.EditingId,
         CommitText = (id, text) => CommitTextAsync(model, id, text),
         CancelText = CancelTextAsync,
@@ -144,6 +166,18 @@
             return;
 
         Select(id, additive);
+    }
+
+    private Task OpenElement(string id)
+    {
+        _state.Mode = DashViewState.EditMode;
+        _state.EditingId = null;
+        _state.Selected.Clear();
+        if (!string.IsNullOrEmpty(id))
+            _state.Selected.Add(id);
+
+        StateHasChanged();
+        return Task.CompletedTask;
     }
 
     private void StartText(string id)
@@ -214,7 +248,8 @@
                     _ribbonHost?.Commands?.Notify($"‘{open.File}’ 파일을 작업 폴더에서 찾을 수 없어요.");
                 break;
             case PdfAction:
-                _ribbonHost?.Commands?.Notify("PDF로 저장은 아직 준비 중이에요.");
+                if (_ribbonHost?.Commands != null)
+                    await _ribbonHost.Commands.ExportPdfFromPageAsync();
                 break;
         }
 
@@ -247,4 +282,16 @@
     }
 
     private void Redraw() => StateHasChanged();
+
+    private static Dictionary<string, string> ChangeIdsOf(Docu docu)
+    {
+        var ids = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var change in docu?.Changes ?? new List<DocuChange>())
+        {
+            foreach (var anchor in change.Anchors)
+                ids[anchor] = change.Id;
+        }
+
+        return ids;
+    }
 }

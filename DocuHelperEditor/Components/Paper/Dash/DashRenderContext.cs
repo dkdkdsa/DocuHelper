@@ -22,6 +22,10 @@ namespace DocuHelperEditor.Components.Paper.Dash
 
         public IReadOnlyCollection<string> LiveChanges { get; init; } = Array.Empty<string>();
 
+        public IReadOnlyDictionary<string, string> ChangeIds { get; init; } = new Dictionary<string, string>();
+
+        public string ChangeOf(string id) => id != null && ChangeIds.TryGetValue(id, out var change) ? change : null;
+
         public string HighlightId { get; init; }
 
         public string EditingId { get; init; }

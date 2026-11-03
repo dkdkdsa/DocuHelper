@@ -23,12 +23,16 @@ namespace DocuHelperEditor.Components.Paper.Dash
 
         private readonly DashViewState _state;
         private readonly IClipboardService _clipboard;
+        private readonly IFileDialogService _files;
+        private readonly IPrintService _prints;
 
-        public DashRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, DashViewState state, IClipboardService clipboard)
+        public DashRibbonCommands(WorkspaceStore workspace, AssistantStore assistant, IJSRuntime js, DashViewState state, IClipboardService clipboard, IFileDialogService dialogs, IPrintService prints)
             : base(workspace, assistant, js)
         {
             _state = state;
             _clipboard = clipboard;
+            _files = dialogs;
+            _prints = prints;
             Load(DashCommandData.All, new CommandHandlers
             {
                 Pressed = PressedHandlers(),
@@ -42,6 +46,8 @@ namespace DocuHelperEditor.Components.Paper.Dash
                 Notify(InfoText());
                 return Task.CompletedTask;
             });
+            Provide("exportPdf", _ => ExportPdfAsync());
+            Provide("print", _ => PrintAsync());
             ReportMissing("Dash", DashRibbonData.Tabs, DashRibbonData.FileItems);
         }
 
@@ -85,9 +91,12 @@ namespace DocuHelperEditor.Components.Paper.Dash
                 command.EnabledWhen(() => Model != null, NoModelReason);
         }
 
-        private RibbonCommand RegisterTool(CommandSpec spec) => spec.Action == "settings"
-            ? AddView(spec.Id, _ => SettingsAsync()).Unless(Editable)
-            : AddTools(spec.Id, arg => Build(spec, arg));
+        private RibbonCommand RegisterTool(CommandSpec spec) => spec.Action switch
+        {
+            "settings" => AddView(spec.Id, _ => SettingsAsync()).Unless(Editable),
+            "source" or "param" or "table" or "formula" => AddView(spec.Id, arg => DataAsync(spec, arg)).Unless(Editable),
+            _ => AddTools(spec.Id, arg => Build(spec, arg)),
+        };
 
         private void Decorate(RibbonCommand command, CommandSpec spec)
         {

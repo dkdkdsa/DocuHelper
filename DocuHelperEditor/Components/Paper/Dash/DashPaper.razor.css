@@ -32,8 +32,3 @@
     flex: none;
     width: var(--page-max, 760px);
 }
-
-.later {
-    margin: 40px auto;
-    color: var(--ink-2);
-}

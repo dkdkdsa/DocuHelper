@@ -146,7 +146,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
                 item["label"] = string.IsNullOrWhiteSpace(label) ? name : label;
         }
 
-        private static JsonObject NewParam(DashDocument document, string kind)
+        public static JsonObject NewParam(DashDocument document, string kind)
         {
             switch (kind)
             {

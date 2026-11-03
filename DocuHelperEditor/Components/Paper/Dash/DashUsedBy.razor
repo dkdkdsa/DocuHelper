@@ -1,0 +1,91 @@
+@using DocuHelper.Dash
+@using DocuHelper.Dash.Elements
+@using DocuHelper.Dash.Logic
+@using DocuHelperEditor.State.Papers
+
+<section class="used" aria-labelledby="@_title">
+    <h3 id="@_title" class="title">쓰는 곳</h3>
+    @if (_elements.Count + _values.Count + _params.Count == 0)
+    {
+        <p class="none">아직 쓰는 곳이 없어요.</p>
+    }
+    else
+    {
+        <ul class="list">
+            @foreach (var element in _elements)
+            {
+                var id = element.Id;
+                var label = DashLabels.Of(element);
+                var kind = DashLabels.Kind(element.Kind);
+                <li>
+                    <button type="button" class="use" aria-label="@($"‘{label}’ {kind} 고르러 가기")" @onclick="() => OnElement.InvokeAsync(id)">
+                        <span class="name">@label</span>
+                        @if (!string.Equals(label, kind, StringComparison.Ordinal))
+                        {
+                            <span class="kind">@kind</span>
+                        }
+                    </button>
+                </li>
+            }
+            @foreach (var value in _values)
+            {
+                var name = value.Name;
+                var kind = value is StepsTable ? "표" : "값";
+                <li>
+                    <button type="button" class="use" aria-label="@($"‘{name}’ {kind} 보러 가기")" @onclick="() => OnValue.InvokeAsync(name)">
+                        <span class="name">@name</span>
+                        <span class="kind">@kind</span>
+                    </button>
+                </li>
+            }
+            @foreach (var param in _params)
+            {
+                var name = param.Name;
+                <li>
+                    <button type="button" class="use" aria-label="@($"‘{name}’ 조절값 보러 가기")" @onclick="() => OnValue.InvokeAsync(name)">
+                        <span class="name">@name</span>
+                        <span class="kind">조절값</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private readonly string _title = "dash-used-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    private List<Element> _elements = new();
+    private List<DashValue> _values = new();
+    private List<DashParam> _params = new();
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public string Name { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnElement { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnValue { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var document = Model.Document;
+        _elements = document.Walk()
+            .Where(element => element != document.Root && Uses(element.Uses()))
+            .ToList();
+        _values = document.Values
+            .Where(value => value != null && !string.Equals(value.Name, Name, StringComparison.Ordinal) && Uses(value.Uses()))
+            .ToList();
+        _params = document.Params
+            .OfType<PickParam>()
+            .Where(param => !string.IsNullOrEmpty(param.OptionsFrom) && Uses(new[] { param.OptionsFrom }))
+            .Cast<DashParam>()
+            .ToList();
+    }
+
+    private bool Uses(IEnumerable<string> names) =>
+        (names ?? Enumerable.Empty<string>()).Any(used => string.Equals(used, Name, StringComparison.Ordinal) || (used != null && used.StartsWith(Name + ".", StringComparison.Ordinal)));
+}

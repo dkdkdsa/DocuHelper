@@ -13,5 +13,9 @@ namespace DocuHelperEditor.Services
         Task<PrintResult> PrintSlidesAsync(SlidePrintJob job);
 
         Task<PrintResult> ExportSlidesPdfAsync(string path, SlidePrintJob job);
+
+        Task<PrintResult> PrintDashAsync(SlidePrintJob job);
+
+        Task<PrintResult> ExportDashPdfAsync(string path, SlidePrintJob job);
     }
 }

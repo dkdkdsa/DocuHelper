@@ -1,0 +1,152 @@
+@using DocuHelper.Dash.Runtime
+@using DocuHelperEditor.State.Papers
+
+<div class="table">
+    <DashStepChips Chips="_chips" Selected="_step" OnPick="PickAsync" />
+    <div class="work">
+        <div class="sheet">
+            <DashDataGrid Name="@Target.Name" Table="_current" Changed="_changed" Problem="@_problem" OnHeader="HeaderAsync" />
+            @if (_total > DashSheets.MaxRows)
+            {
+                <p class="cut">@(DashSheets.MaxRows)줄만 보여요 (모두 @(_total)줄)</p>
+            }
+        </div>
+        <DashStepPanel Model="Model" Target="Target" Index="_step" Problem="@_problem" Locked="Locked" Commands="Commands" OnChanged="OnChanged" OnStep="StepAsync" />
+    </div>
+</div>
+@if (_menu != null)
+{
+    <SheetMenu Label="@($"‘{_menu.Column}’ 칸")" X="_menu.X" Y="_menu.Y" Items="s_items" OnPick="ColumnAsync" OnClose="CloseMenu" />
+}
+
+@code {
+    private const string SourceHint = "원본은 그대로 두고, 새 표를 만들어서 단계를 더해 주세요.";
+
+    private static readonly IReadOnlyList<SheetMenuItem> s_items = new[]
+    {
+        new SheetMenuItem("group", "이 칸으로 묶기"),
+        new SheetMenuItem("desc", "큰 것부터 줄 세우기"),
+        new SheetMenuItem("asc", "작은 것부터 줄 세우기"),
+        new SheetMenuItem("top", "앞의 5개만"),
+        new SheetMenuItem("hide", "이 칸 숨기기"),
+    };
+
+    private DashPaperModel _model;
+    private int _version = -1;
+    private string _name;
+    private DashStages _stages;
+    private List<DashStepChip> _chips = new();
+    private DashTable _current;
+    private ISet<string> _changed = new HashSet<string>();
+    private string _problem;
+    private int _step;
+    private int _total;
+    private DashColumnClick _menu;
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashDataTarget Target { get; set; }
+
+    [Parameter]
+    public DashViewState State { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public DashRibbonCommands Commands { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private bool CanEdit => !Locked && Commands != null;
+
+    protected override void OnParametersSet() => Refresh();
+
+    private void Refresh()
+    {
+        if (!ReferenceEquals(_model, Model) || _version != Model.Version || _name != Target.Name)
+        {
+            _model = Model;
+            _version = Model.Version;
+            _name = Target.Name;
+            _stages = DashStages.Of(Model.Runtime, Target.Name, Target.Last);
+            _menu = null;
+        }
+
+        _step = State.DataStep < 0 || State.DataStep > Target.Last ? Target.Last : State.DataStep;
+        State.DataStep = _step;
+        _chips = ChipsOf();
+        _current = _stages.Tables[_step];
+        _problem = _stages.Problems[_step];
+        _total = _current?.Rows.Count ?? 0;
+        _changed = _step > 0 ? DashTableDiff.Changed(_stages.Tables[_step - 1], _current) : new HashSet<string>();
+    }
+
+    private List<DashStepChip> ChipsOf()
+    {
+        var chips = new List<DashStepChip> { ChipAt(Target.Kind == DashDataKind.Source ? "읽기" : $"‘{Target.Table.Source}’에서", 0, false) };
+        for (var i = 0; i < Target.Last; i++)
+        {
+            var step = Target.Table.Steps[i];
+            chips.Add(ChipAt(DashStepText.Label(step), i + 1, step?.Off == true));
+        }
+
+        return chips;
+    }
+
+    private DashStepChip ChipAt(string label, int stage, bool off)
+    {
+        var table = _stages.Tables[stage];
+        return new DashStepChip(table == null ? $"{label} · 오류" : $"{label} · {table.Rows.Count}줄", off, table == null);
+    }
+
+    private Task PickAsync(int index)
+    {
+        State.DataStep = index;
+        _menu = null;
+        Refresh();
+        return Task.CompletedTask;
+    }
+
+    private Task StepAsync(int index)
+    {
+        State.DataStep = index;
+        Refresh();
+        return Task.CompletedTask;
+    }
+
+    private Task HeaderAsync(DashColumnClick click)
+    {
+        if (Target.Kind == DashDataKind.Source)
+            Commands?.Notify(SourceHint);
+        else if (!CanEdit)
+            Commands?.Notify(DashRibbonCommands.LockedReason);
+        else if (_current != null)
+            _menu = click;
+
+        return Task.CompletedTask;
+    }
+
+    private Task ColumnAsync(string action)
+    {
+        var click = _menu;
+        _menu = null;
+        if (click == null || _current == null || !CanEdit)
+            return Task.CompletedTask;
+
+        var edit = DashStepEdits.Insert(Target.Table, _step, DashStepEdits.ForColumn(action, _current, click.Column));
+        if (edit != null && Commands.Apply(edit))
+            State.DataStep = _step + 1;
+
+        return Task.CompletedTask;
+    }
+
+    private Task CloseMenu()
+    {
+        _menu = null;
+        return Task.CompletedTask;
+    }
+}

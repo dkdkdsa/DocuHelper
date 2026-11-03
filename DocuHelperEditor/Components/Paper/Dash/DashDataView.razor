@@ -1,0 +1,94 @@
+@using DocuHelperEditor.State.Papers
+
+@if (Model?.Document != null)
+{
+    <div class="data">
+        <DashDataList Model="Model" Selected="@_target?.Name" OnPick="PickAsync" />
+        <section class="main" aria-label="데이터 보기">
+            @if (Model.IsPreviewing)
+            {
+                <div class="banner" role="status">
+                    <span>미리 보기 중 · 바꾼 조절값은 파일에 적히지 않아요</span>
+                    <button type="button" class="reset" @onclick="ResetAsync">처음 값으로</button>
+                </div>
+            }
+            <div class="content">
+                @if (_target == null)
+                {
+                    <p class="empty">아직 연결한 데이터가 없어요. 데이터 탭에서 원본을 연결하면 여기서 볼 수 있어요.</p>
+                }
+                else if (_target.Kind is DashDataKind.Table or DashDataKind.Source)
+                {
+                    <DashDataTable @key="_target.Name" Model="Model" Target="_target" State="State" Locked="Locked" Commands="Commands" OnChanged="OnChanged" />
+                }
+                else if (_target.Kind == DashDataKind.Value)
+                {
+                    <DashValuePanel Model="Model" Value="_target.Value" Locked="Locked" Commands="Commands" />
+                }
+                else
+                {
+                    <DashParamPanel Model="Model" Param="_target.Param" Locked="Locked" Commands="Commands" OnChanged="OnChanged" />
+                }
+            </div>
+            @if (_target != null)
+            {
+                <DashUsedBy Model="Model" Name="@_target.Name" OnElement="OpenElementAsync" OnValue="PickAsync" />
+            }
+        </section>
+    </div>
+}
+
+@code {
+    private DashDataTarget _target;
+
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashViewState State { get; set; }
+
+    [Parameter]
+    public DashRibbonCommands Commands { get; set; }
+
+    [Parameter]
+    public bool Locked { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnOpenElement { get; set; }
+
+    protected override void OnParametersSet() => Resolve();
+
+    private void Resolve()
+    {
+        var document = Model?.Document;
+        _target = DashDataTarget.Find(document, State?.DataTable) ?? DashDataTarget.First(document);
+        if (State != null && _target != null && !string.Equals(State.DataTable, _target.Name, StringComparison.Ordinal))
+        {
+            State.DataTable = _target.Name;
+            State.DataStep = _target.Last;
+        }
+    }
+
+    private Task PickAsync(string name)
+    {
+        var target = DashDataTarget.Find(Model.Document, name);
+        if (target == null)
+            return Task.CompletedTask;
+
+        State.DataTable = target.Name;
+        State.DataStep = target.Last;
+        Resolve();
+        return Task.CompletedTask;
+    }
+
+    private Task OpenElementAsync(string id) => OnOpenElement.InvokeAsync(id);
+
+    private Task ResetAsync()
+    {
+        Model.ResetParams();
+        return OnChanged.InvokeAsync();
+    }
+}

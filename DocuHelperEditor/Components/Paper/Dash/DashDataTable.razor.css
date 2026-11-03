@@ -1,0 +1,42 @@
+.table {
+    flex: 1;
+    min-height: 0;
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.work {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: 12px;
+}
+
+.sheet {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cut {
+    flex: none;
+    margin: 0;
+    font-size: 12px;
+    color: var(--ink-3);
+}
+
+@container (max-width: 760px) {
+    .work {
+        flex-direction: column;
+    }
+
+    .sheet {
+        flex: 1 1 0;
+        min-height: 140px;
+    }
+}

@@ -1,0 +1,87 @@
+@using System.Globalization
+@using DocuHelper.Dash.Logic
+@using DocuHelper.Dash.Runtime
+@using DocuHelperEditor.State.Papers
+
+@if (Param != null && Model != null)
+{
+    <div class="control">
+        <div class="head">
+            <span class="name">@Title</span>
+            <span class="now">지금 @Model.Runtime.Display(Param.Name)</span>
+        </div>
+        @switch (Param)
+        {
+            case NumberParam number:
+                <input type="number" class="field" aria-label="@Title" min="@DashParamForm.Show(number.Min)" max="@DashParamForm.Show(number.Max)" step="@StepOf(number.Step)" value="@NumberText" @onchange="e => SetNumberAsync(e.Value?.ToString())" />
+                break;
+            case RangeParam range:
+                <div class="pair">
+                    <input type="number" class="field" aria-label="@($"{Title} 시작")" min="@DashParamForm.Show(range.Min)" max="@DashParamForm.Show(range.Max)" step="@StepOf(range.Step)" value="@DashParamForm.Show(Range.From)" @onchange="e => SetRangeAsync(e.Value?.ToString(), true)" />
+                    <span class="tilde" aria-hidden="true">~</span>
+                    <input type="number" class="field" aria-label="@($"{Title} 끝")" min="@DashParamForm.Show(range.Min)" max="@DashParamForm.Show(range.Max)" step="@StepOf(range.Step)" value="@DashParamForm.Show(Range.To)" @onchange="e => SetRangeAsync(e.Value?.ToString(), false)" />
+                </div>
+                break;
+            case PickParam pick:
+                <select class="field" aria-label="@Title" @onchange="e => SetTextAsync(e.Value?.ToString())">
+                    @foreach (var option in Model.Runtime.OptionsOf(pick))
+                    {
+                        <option value="@option" selected="@(string.Equals(option, TextValue, StringComparison.Ordinal))">@option</option>
+                    }
+                </select>
+                break;
+            case BoolParam:
+                <Switch Checked="@FlagValue" OnChange="SetFlagAsync" />
+                break;
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public DashPaperModel Model { get; set; }
+
+    [Parameter]
+    public DashParam Param { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private string Title => string.IsNullOrWhiteSpace(Param.Label) ? $"‘{Param.Name}’ 조절값" : $"‘{Param.Name}’ 조절값 · {Param.Label.Trim()}";
+
+    private object Current => Model.Runtime.State.Get(Param.Name);
+
+    private string NumberText => Current is double number ? DashParamForm.Show(number) : string.Empty;
+
+    private DashRange Range => Current as DashRange ?? new DashRange(0, 0);
+
+    private string TextValue => Current as string ?? string.Empty;
+
+    private bool FlagValue => Current is true;
+
+    private static string StepOf(double step) => step > 0 ? DashParamForm.Show(step) : "any";
+
+    private static bool TryNumber(string text, out double number) =>
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number) && double.IsFinite(number);
+
+    private Task SetNumberAsync(string text) => TryNumber(text, out var number) ? SetAsync(number) : OnChanged.InvokeAsync();
+
+    private Task SetRangeAsync(string text, bool start)
+    {
+        if (!TryNumber(text, out var number))
+            return OnChanged.InvokeAsync();
+
+        var range = Range;
+        return SetAsync(start ? new DashRange(number, range.To) : new DashRange(range.From, number));
+    }
+
+    private Task SetTextAsync(string text) => SetAsync(text);
+
+    private Task SetFlagAsync(bool on) => SetAsync(on);
+
+    private Task SetAsync(object value)
+    {
+        Model.SetParam(Param.Name, value);
+        return OnChanged.InvokeAsync();
+    }
+}

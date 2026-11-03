@@ -12,6 +12,10 @@
     cursor: move;
 }
 
+.el.live {
+    box-shadow: 0 0 0 2px var(--hl), 0 0 0 3px var(--hl-edge);
+}
+
 .el.on {
     outline: 1.5px dashed var(--ink);
     outline-offset: 4px;

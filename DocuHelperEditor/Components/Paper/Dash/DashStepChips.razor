@@ -1,0 +1,22 @@
+<ol class="chips" aria-label="계산 순서">
+    @for (var i = 0; i < Chips.Count; i++)
+    {
+        var index = i;
+        var chip = Chips[index];
+        var picked = index == Selected;
+        <li>
+            <button type="button" class="chip @(picked ? "on" : null) @(chip.Off ? "off" : null) @(chip.Failed ? "bad" : null)" aria-pressed="@(picked ? "true" : "false")" aria-label="@(chip.Off ? chip.Text + ", 꺼져 있음" : null)" @onclick="() => OnPick.InvokeAsync(index)">@chip.Text</button>
+        </li>
+    }
+</ol>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<DashStepChip> Chips { get; set; } = Array.Empty<DashStepChip>();
+
+    [Parameter]
+    public int Selected { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnPick { get; set; }
+}
