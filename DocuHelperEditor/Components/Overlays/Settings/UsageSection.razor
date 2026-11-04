@@ -206,6 +206,34 @@
         }
     </div>
 
+    @if (v.Tasks.Count > 0)
+    {
+        var s = new UsageStats(v.Tasks);
+        <div class="card">
+            <div class="card-head">
+                <h3>캐시와 호출</h3>
+            </div>
+            <dl class="stats">
+                <div class="stat">
+                    <dt>부탁 한 번에 호출</dt>
+                    <dd><b>@s.CallsPerTask.ToString("0.#", s_korean)번</b><small>호출마다 입력 평균 @ShortTokens((long)Math.Round(s.InputPerCall))</small></dd>
+                </div>
+                <div class="stat">
+                    <dt>둘째 호출부터 캐시 적중</dt>
+                    <dd><b>@(s.HasLater ? Math.Round(s.HitRate * 100) + "%" : "–")</b><small>입력 가운데 캐시에서 읽은 몫</small></dd>
+                </div>
+                <div class="stat">
+                    <dt>새 부탁 첫 호출의 캐시 쓰기</dt>
+                    <dd><b>@(s.CachedTasks > 0 ? "평균 " + ShortTokens((long)Math.Round(s.FirstWrite)) : "–")</b><small>@ColdLine(s)</small></dd>
+                </div>
+                <div class="stat">
+                    <dt>부탁 사이 간격</dt>
+                    <dd><b>@GapLine(s)</b><small>5분 안 · 5~60분 · 1시간 넘게</small></dd>
+                </div>
+            </dl>
+        </div>
+    }
+
     <div class="card">
         <div class="card-head">
             <h3>부탁 기록</h3>
@@ -534,6 +562,14 @@
         var line = $"{MonthName(v.Month)} 토큰: 입력 {ShortTokens(v.Tasks.Sum(t => t.Input))}, 캐시 쓰기 {ShortTokens(v.Tasks.Sum(t => t.CacheWrite))}, 캐시 읽기 {ShortTokens(v.Tasks.Sum(t => t.CacheRead))}, 출력 {ShortTokens(v.Tasks.Sum(t => t.Output))}.";
         return saved >= 1 ? line + $" 캐시 덕분에 약 {UsageStore.FormatNumber(saved)}원 아꼈어요." : line;
     }
+
+    private static string ColdLine(UsageStats s) => s.CachedTasks > 0
+        ? $"{s.CachedTasks}번 중 {s.ColdStarts}번은 도구 설명과 시스템 프롬프트를 다시 썼어요"
+        : "Claude로 한 부탁이 없어요";
+
+    private static string GapLine(UsageStats s) => s.Gaps > 0
+        ? $"{s.GapsUnder5} · {s.GapsUnderHour} · {s.GapsOverHour}번"
+        : "–";
 
     private string ListHead(UsageView v) => v.Selected > 0
         ? $"{v.Selected}일 ({Weekday(v.Month, v.Selected)}) · 부탁 {v.DayCount[v.Selected]}번 · {Usage.FormatWon(v.DayUsd[v.Selected])}"

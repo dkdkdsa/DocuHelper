@@ -1,4 +1,4 @@
-section {
+﻿section {
     display: flex;
     flex-direction: column;
 }
@@ -504,6 +504,36 @@ button.day-row:hover {
 
 .day-row span:nth-child(n+2) {
     text-align: right;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px 16px;
+    margin: 0;
+}
+
+.stat dt {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+}
+
+.stat dd {
+    margin: 4px 0 0;
+}
+
+.stat b {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.stat small {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--ink-2);
 }
 
 .split {
