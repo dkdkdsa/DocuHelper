@@ -89,6 +89,17 @@
 
     <div class="row center">
         <div class="row-head">
+            <label for="settings-web" class="row-title">웹에서 찾아보기 허용</label>
+            <span id="settings-web-d" class="row-note">Claude가 환율이나 규정처럼 파일에 없는 것을 웹에서 찾아봐요. 끄면 조금 덜 들고, 새 대화부터 적용돼요.</span>
+        </div>
+        <div class="row-body switch-row">
+            <input type="checkbox" role="switch" id="settings-web" class="switch" checked="@Settings.AllowWeb" aria-describedby="settings-web-d" @onchange="e => Settings.SetAllowWeb(IsOn(e))" />
+            <span class="switch-text" aria-hidden="true">@OnOff(Settings.AllowWeb)</span>
+        </div>
+    </div>
+
+    <div class="row center">
+        <div class="row-head">
             <label for="settings-ask" class="row-title">큰 변경은 먼저 물어보기</label>
             <span id="settings-ask-d" class="row-note">한 번에 20곳 넘게 바꿀 때 시작하기 전에 확인해요.</span>
         </div>

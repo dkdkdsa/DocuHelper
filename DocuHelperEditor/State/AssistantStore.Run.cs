@@ -220,6 +220,7 @@ namespace DocuHelperEditor.State
                     AskBigChanges = _settings.AskBigChanges,
                     TrackChanges = _settings.TrackChanges,
                     TrimHistoryAbove = _settings.TrimAbove,
+                    AllowWeb = _settings.AllowWeb,
                     Attachments = attachments.Select(ToAgentAttachment).ToList(),
                     DashMake = dashMake,
                 };

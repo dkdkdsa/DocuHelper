@@ -285,6 +285,7 @@ namespace DocuHelperEditor.State
                     UsageShowCost = UsageShowCost,
                     UsdRate = UsdRate,
                     TrimAbove = TrimAbove,
+                    AllowWeb = AllowWeb,
                 };
                 var temp = s_settingsPath + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));

@@ -24,6 +24,8 @@ namespace DocuHelper.Agents
 
         public long TrimHistoryAbove { get; set; }
 
+        public bool AllowWeb { get; set; } = true;
+
         public List<AgentAttachment> Attachments { get; set; } = new();
 
         public AgentDashMake DashMake { get; set; }

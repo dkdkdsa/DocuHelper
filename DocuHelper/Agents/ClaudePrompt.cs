@@ -128,7 +128,7 @@ namespace DocuHelper.Agents
                 rules.AddRange(Lines(HwpRules));
 
             if (relevant.Contains(DocuType.Dash))
-                rules.AddRange(Lines(DashRules));
+                rules.AddRange(Lines(DashNote));
 
             return rules;
         }

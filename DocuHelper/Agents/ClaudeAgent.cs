@@ -31,6 +31,7 @@ namespace DocuHelper.Agents
         private string _clientKey;
         private string _containerId;
         private HashSet<string> _loaded;
+        private bool? _web;
         private long _attachedBytes;
         private int _attachedImages;
 
@@ -49,6 +50,7 @@ namespace DocuHelper.Agents
             var pending = _pendingResults.ToList();
             var startContainer = _containerId;
             var startLoaded = _loaded;
+            var startWeb = _web;
 
             var opening = new List<BetaContentBlockParam>(pending);
             opening.AddRange(attachments.Select(ToBlock));
@@ -152,6 +154,7 @@ namespace DocuHelper.Agents
                 _pendingResults.AddRange(pending);
                 _containerId = startContainer;
                 _loaded = startLoaded;
+                _web = startWeb;
                 _attachedBytes -= addedBytes;
                 _attachedImages -= addedImages;
                 throw;
@@ -164,6 +167,7 @@ namespace DocuHelper.Agents
             _pendingResults.Clear();
             _containerId = null;
             _loaded = null;
+            _web = null;
             LastPromptTokens = 0;
             _attachedBytes = 0;
             _attachedImages = 0;
@@ -234,11 +238,12 @@ namespace DocuHelper.Agents
         {
             var model = string.IsNullOrWhiteSpace(request.Model) ? DefaultModel : request.Model.Trim();
             var effort = ParseEffort(request.Effort);
+            _web ??= request.AllowWeb;
             List<BetaTextBlockParam> system =
             [
                 new BetaTextBlockParam
                 {
-                    Text = ClaudePrompt.Compose(toolbox.Types, webTools: true, toolSearch: true),
+                    Text = ClaudePrompt.Compose(toolbox.Types, webTools: _web.Value, toolSearch: true),
                     CacheControl = new BetaCacheControlEphemeral { Ttl = "1h" },
                 },
             ];
@@ -252,7 +257,7 @@ namespace DocuHelper.Agents
                     Model = model,
                     MaxTokens = MaxTokens,
                     System = system,
-                    Tools = [.. tools, new BetaWebSearchTool20250305 { MaxUses = MaxWebUses }, new BetaWebFetchTool20250910 { MaxUses = MaxWebUses }],
+                    Tools = _web.Value ? [.. tools, new BetaWebSearchTool20250305 { MaxUses = MaxWebUses }, new BetaWebFetchTool20250910 { MaxUses = MaxWebUses }] : tools,
                     Messages = _messages.ToList(),
                     Thinking = Thinking(),
                     OutputConfig = new BetaOutputConfig { Effort = effort },
@@ -266,7 +271,7 @@ namespace DocuHelper.Agents
                 Model = model,
                 MaxTokens = MaxTokens,
                 System = system,
-                Tools = [.. tools, new BetaWebSearchTool20260209 { MaxUses = MaxWebUses }, new BetaWebFetchTool20260209 { MaxUses = MaxWebUses }],
+                Tools = _web.Value ? [.. tools, new BetaWebSearchTool20260209 { MaxUses = MaxWebUses }, new BetaWebFetchTool20260209 { MaxUses = MaxWebUses }] : tools,
                 Messages = _messages.ToList(),
                 Thinking = Thinking(),
                 OutputConfig = new BetaOutputConfig { Effort = effort },

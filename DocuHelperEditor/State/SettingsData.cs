@@ -43,5 +43,7 @@ namespace DocuHelperEditor.State
         public int? UsdRate { get; set; }
 
         public int? TrimAbove { get; set; }
+
+        public bool AllowWeb { get; set; } = true;
     }
 }
