@@ -120,11 +120,12 @@ namespace DocuHelperEditor.State
         public string ToCsv()
         {
             var text = new StringBuilder();
-            text.AppendLine("시각,부탁,파일,모델,노력,단계,입력,캐시 쓰기,캐시 읽기,출력,달러,원,가격표");
+            text.AppendLine("시각,작업,부탁,파일,모델,노력,단계,입력,캐시 쓰기,캐시 읽기,출력,달러,원,가격표");
             foreach (var record in Records.OrderBy(r => r.At))
             {
                 text.AppendLine(string.Join(",",
                     Cell(record.At.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
+                    Cell(record.TaskId),
                     Cell(record.Ask),
                     Cell(record.File),
                     Cell(ModelName(record.Model)),

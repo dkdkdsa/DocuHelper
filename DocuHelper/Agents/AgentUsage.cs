@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace DocuHelper.Agents
 {
@@ -9,6 +9,8 @@ namespace DocuHelper.Agents
         public long InputTokens { get; set; }
 
         public long CacheWriteTokens { get; set; }
+
+        public long CacheWriteHourTokens { get; set; }
 
         public long CacheReadTokens { get; set; }
 

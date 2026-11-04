@@ -8,6 +8,8 @@ namespace DocuHelper.Agents
     {
         public abstract string Name { get; }
 
+        public long LastPromptTokens { get; protected set; }
+
         public abstract Task<AgentResult> RunAsync(AgentRequest request, AgentToolbox toolbox, IAgentHost host, CancellationToken cancellationToken);
 
         public abstract void ResetConversation();

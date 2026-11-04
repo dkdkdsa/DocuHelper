@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using DocuHelper.Agents;
@@ -38,10 +38,11 @@ namespace DocuHelperEditor.State
                 Effort = _settings.EffortId,
                 Input = usage.InputTokens,
                 CacheWrite = usage.CacheWriteTokens,
+                CacheWriteHour = usage.CacheWriteHourTokens,
                 CacheRead = usage.CacheReadTokens,
                 Output = usage.OutputTokens,
-                Usd = UsagePrices.Dollars(model, usage.InputTokens, usage.CacheWriteTokens, usage.CacheReadTokens, usage.OutputTokens),
-                Saved = UsagePrices.Saved(model, usage.InputTokens, usage.CacheWriteTokens, usage.CacheReadTokens),
+                Usd = UsagePrices.Dollars(model, usage.InputTokens, usage.CacheWriteTokens, usage.CacheWriteHourTokens, usage.CacheReadTokens, usage.OutputTokens),
+                Saved = UsagePrices.Saved(model, usage.InputTokens, usage.CacheWriteTokens, usage.CacheWriteHourTokens, usage.CacheReadTokens),
                 Prices = UsagePrices.Version,
             };
 

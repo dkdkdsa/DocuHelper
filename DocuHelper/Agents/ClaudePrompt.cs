@@ -33,6 +33,10 @@ namespace DocuHelper.Agents
             - You can search the web and read web pages. Use them when the task needs information that is not in the files or the conversation, such as current exchange rates, a regulation, public facts about a company, or a link the user pasted. Don't search for things the files already answer. When you put facts from the web into a file or an answer, mention the source site in summary.
             """;
 
+        private const string SearchNote = """
+            - Editing tools for file kinds other than the one the user is looking at start unloaded. When you need one, find it with the tool search tool, such as "PowerPoint slide text" or "Word paragraph style"; the tools it finds can be called right away.
+            """;
+
         private const string WorkRules = """
             Read before you write: look at the relevant sheet, paragraphs or slides first. Never guess at content or invent numbers; take them from the files, the user or the web.
             Change only what the request needs. Keep the existing layout, styles, fonts and number formats, and leave other sheets, sections and slides alone.
@@ -74,14 +78,14 @@ namespace DocuHelper.Agents
             (DocuType.Dash, "dashboard (대시보드)", ".dash"),
         };
 
-        public static string Compose(IEnumerable<DocuType> types, bool webTools)
+        public static string Compose(IEnumerable<DocuType> types, bool webTools, bool toolSearch)
         {
             var relevant = new HashSet<DocuType>(types ?? Enumerable.Empty<DocuType>());
             var sections = new[]
             {
                 Intro(relevant),
                 AppMap,
-                webTools ? AppNotes + "\n" + WebNote : AppNotes,
+                AppNotes + (toolSearch ? "\n" + SearchNote : string.Empty) + (webTools ? "\n" + WebNote : string.Empty),
                 "How to work\n" + Numbered(Lines(WorkRules).Concat(FormatRules(relevant))),
                 AskingGuide,
                 FinishingGuide,
@@ -124,7 +128,7 @@ namespace DocuHelper.Agents
                 rules.AddRange(Lines(HwpRules));
 
             if (relevant.Contains(DocuType.Dash))
-                rules.AddRange(Lines(DashRules));
+                rules.AddRange(Lines(DashNote));
 
             return rules;
         }

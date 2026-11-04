@@ -130,6 +130,9 @@ namespace DocuHelper.Agents
 
         public IReadOnlyList<AgentToolDefinition> Definitions => _definitions;
 
+        public DocuType? ActiveType => _onlyWrite?.Type
+            ?? _workspace.Docus.FirstOrDefault(d => string.Equals(d.Name, _request.ActiveFile, StringComparison.OrdinalIgnoreCase))?.Type;
+
         public IReadOnlyDictionary<Docu, DocuState> Before => _before;
 
         public IReadOnlyList<AgentChange> Changes => _changes;
@@ -660,8 +663,13 @@ namespace DocuHelper.Agents
 
                 foreach (var tool in editor.Tools.Values)
                 {
-                    if (defined.Add(tool.Name))
-                        definitions.Add(Define(tool.Name, tool.Description, WithCommonFields(tool.InputSchema, !tool.IsReadOnly, kind)));
+                    if (!defined.Add(tool.Name))
+                        continue;
+
+                    var definition = Define(tool.Name, tool.Description, WithCommonFields(tool.InputSchema, !tool.IsReadOnly, kind));
+                    definition.Kind = editor.TargetType;
+                    definition.IsWrite = !tool.IsReadOnly;
+                    definitions.Add(definition);
                 }
             }
 

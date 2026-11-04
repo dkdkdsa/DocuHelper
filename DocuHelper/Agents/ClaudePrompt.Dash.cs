@@ -1,7 +1,11 @@
-namespace DocuHelper.Agents
+﻿namespace DocuHelper.Agents
 {
     public static partial class ClaudePrompt
     {
+        private const string DashNote = """
+            Dashboards (.dash): before you add or change dashboard items, read the dashboard page of the guide (read_guide) once in the conversation; it has the build order, the item formats and every rule, and they are not repeated here. Build in a few large add_dash_item calls with items, check tables with preview_dash, and fix what read_dash lists before you finish.
+            """;
+
         internal const string DashRules = """
             A dashboard (.dash) is one page the viewer can play with: elements on the page read values and tables by name, and controls change params. You never compute numbers for it; the app reads the source files and calculates everything again whenever a param changes.
             Build a dashboard in this order: read the source files with their own tools (read_sheet, read_document, read_slides) to learn sheet names and columns; add_dash_item kind source (excel with file, sheet and header row, word for Word or 한글 tables, pptTable, pptChart); kind param (pick, range, number, bool) for what the viewer may change; kind value (table with steps, formula, pick, fixed); then the elements. Check each table with preview_dash before you use it, and call read_dash to see the whole dashboard and its problems.
