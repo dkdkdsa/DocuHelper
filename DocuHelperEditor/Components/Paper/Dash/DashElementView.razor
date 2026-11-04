@@ -50,7 +50,7 @@
             default:
                 @if (Result.Source is FlowElement flow)
                 {
-                    <div class="flow" style="@DashCss.Flow(Result.Style, flow is RowElement ? "row" : "column", Context.PageWidth)">
+                    <div class="@(flow is ScrollElement ? "flow scroll" : "flow")" style="@DashCss.Flow(Result.Style, flow is RowElement ? "row" : "column", Context.PageWidth)">
                         @foreach (var child in Result.Children)
                         {
                             <DashElementView @key="child.Key" Result="child" Placement="@DashCss.FlowItem(child.Style, Context.PageWidth)" />

@@ -52,6 +52,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
                 Grid("묶음",
                     S("dash.insert.row", "가로로 늘어놓기", "cols"),
                     S("dash.insert.column", "세로로 쌓기", "stack"),
+                    S("dash.insert.scroll", "스크롤 칸", "stack", tip: "스크롤 칸\n넘치는 내용을 칸 안에서 위아래로 넘겨 봐요"),
                     S("dash.insert.canvas", "자유 배치 칸", "normal"))),
             Tab("data", "데이터",
                 Grid("원본",

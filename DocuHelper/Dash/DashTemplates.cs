@@ -60,18 +60,21 @@ namespace DocuHelper.Dash
             """;
 
         private const string CardsBody = """
-                { "type": "repeat", "id": "gallery", "name": "카드 목록", "direction": "grid", "max": 8, "empty": "보여 줄 줄이 없어요", "style": { "x": 56, "y": 160, "w": 1011, "h": 600, "gap": 16 },
-                  "template": [
-                    { "type": "column", "id": "card", "name": "카드", "style": { "w": 240, "h": 284, "gap": 0, "fill": "#FFFFFF", "line": "#E3E7EE", "lineWidth": 1, "radius": 6 },
-                      "children": [
-                        { "type": "shape", "id": "cover", "name": "표지", "shape": "rect", "style": { "h": 110, "fill": "#F1F2F4", "radius": 6 } },
-                        { "type": "column", "id": "cardBody", "name": "카드 내용", "style": { "grow": 1, "padding": 14, "gap": 6 },
+                { "type": "scroll", "id": "galleryScroll", "name": "카드 스크롤", "style": { "x": 56, "y": 160, "w": 1011, "h": 600, "gap": 0 },
+                  "children": [
+                    { "type": "repeat", "id": "gallery", "name": "카드 목록", "direction": "grid", "empty": "보여 줄 줄이 없어요", "style": { "gap": 16 },
+                      "template": [
+                        { "type": "column", "id": "card", "name": "카드", "style": { "w": 236, "h": 284, "gap": 0, "fill": "#FFFFFF", "line": "#E3E7EE", "lineWidth": 1, "radius": 6 },
                           "children": [
-                            { "type": "text", "id": "cardTitle", "name": "제목", "style": { "h": 26, "fontSize": 16, "fontWeight": 700 }, "text": "«item.이름»" },
-                            { "type": "text", "id": "field1Label", "name": "항목 1 이름", "style": { "h": 18, "fontSize": 12, "color": "#4A5570" }, "text": "항목 1" },
-                            { "type": "text", "id": "field1", "name": "항목 1", "style": { "h": 22, "fontSize": 14 }, "text": "«item.항목1»" },
-                            { "type": "text", "id": "tagLabel", "name": "태그 이름", "style": { "h": 18, "fontSize": 12, "color": "#4A5570" }, "text": "태그" },
-                            { "type": "shape", "id": "tag", "name": "태그", "shape": "round", "style": { "w": 84, "h": 22, "fontSize": 12, "fill": "#FBEFA3", "line": "#E6CF5A", "lineWidth": 1, "radius": 4 }, "text": "«item.태그»" }
+                            { "type": "shape", "id": "cover", "name": "표지", "shape": "rect", "style": { "h": 110, "fill": "#F1F2F4", "radius": 6 } },
+                            { "type": "column", "id": "cardBody", "name": "카드 내용", "style": { "grow": 1, "padding": 14, "gap": 6 },
+                              "children": [
+                                { "type": "text", "id": "cardTitle", "name": "제목", "style": { "h": 26, "fontSize": 16, "fontWeight": 700 }, "text": "«item.이름»" },
+                                { "type": "text", "id": "field1Label", "name": "항목 1 이름", "style": { "h": 18, "fontSize": 12, "color": "#4A5570" }, "text": "항목 1" },
+                                { "type": "text", "id": "field1", "name": "항목 1", "style": { "h": 22, "fontSize": 14 }, "text": "«item.항목1»" },
+                                { "type": "text", "id": "tagLabel", "name": "태그 이름", "style": { "h": 18, "fontSize": 12, "color": "#4A5570" }, "text": "태그" },
+                                { "type": "shape", "id": "tag", "name": "태그", "shape": "round", "style": { "w": 84, "h": 22, "fontSize": 12, "fill": "#FBEFA3", "line": "#E6CF5A", "lineWidth": 1, "radius": 4 }, "text": "«item.태그»" }
+                              ] }
                           ] }
                       ] }
                   ] }

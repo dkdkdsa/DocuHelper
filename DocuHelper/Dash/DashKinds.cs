@@ -14,6 +14,7 @@ namespace DocuHelper.Dash
             ["canvas"] = typeof(CanvasElement),
             ["row"] = typeof(RowElement),
             ["column"] = typeof(ColumnElement),
+            ["scroll"] = typeof(ScrollElement),
             ["repeat"] = typeof(RepeatElement),
             ["text"] = typeof(TextElement),
             ["shape"] = typeof(ShapeElement),

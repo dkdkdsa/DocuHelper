@@ -60,6 +60,6 @@ namespace DocuHelperEditor.Components.Paper.Dash
         }
 
         private static bool IsContainer(Element element) =>
-            element is RowElement or ColumnElement or RepeatElement or (CanvasElement and not PageElement);
+            element is FlowElement or RepeatElement or (CanvasElement and not PageElement);
     }
 }

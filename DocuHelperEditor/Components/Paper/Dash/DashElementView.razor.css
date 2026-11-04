@@ -52,6 +52,24 @@
     box-sizing: border-box;
 }
 
+.flow.scroll {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--ink-rgb), 0.28) transparent;
+}
+
+.flow.scroll > .el {
+    flex-shrink: 0;
+}
+
+@media print {
+    .flow.scroll {
+        overflow-y: hidden;
+    }
+}
+
 .editor {
     position: absolute;
     inset: 0;

@@ -11,6 +11,7 @@ namespace DocuHelper.Dash
             ["canvas"] = "자유 배치 칸",
             ["row"] = "가로 묶음",
             ["column"] = "세로 묶음",
+            ["scroll"] = "스크롤 칸",
             ["repeat"] = "반복 목록",
             ["text"] = "글자",
             ["shape"] = "도형",
