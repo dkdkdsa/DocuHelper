@@ -36,6 +36,28 @@
     width: auto;
 }
 
+.repeat.virtual {
+    display: block;
+    height: auto;
+    overflow: visible;
+}
+
+.line {
+    display: flex;
+    flex-direction: row;
+    box-sizing: border-box;
+}
+
+.repeat.virtual .line > .item {
+    flex: none;
+    width: auto;
+}
+
+.repeat.virtual .line.wide > .item {
+    flex: 1 1 auto;
+    width: 100%;
+}
+
 .click {
     margin: 0;
     padding: 0;

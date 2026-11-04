@@ -51,19 +51,23 @@
                 @if (Result.Source is FlowElement flow)
                 {
                     <div class="@(flow is ScrollElement ? "flow scroll" : "flow")" style="@DashCss.Flow(Result.Style, flow is RowElement ? "row" : "column", Context.PageWidth)">
-                        @foreach (var child in Result.Children)
-                        {
-                            <DashElementView @key="child.Key" Result="child" Placement="@DashCss.FlowItem(child.Style, Context.PageWidth)" />
-                        }
+                        <CascadingValue Value="ScrollBoxOf(flow)" Name="DashScroll">
+                            @foreach (var child in Result.Children)
+                            {
+                                <DashElementView @key="child.Key" Result="child" Placement="@DashCss.FlowItem(child.Style, Context.PageWidth)" />
+                            }
+                        </CascadingValue>
                     </div>
                 }
                 else if (Result.Source is CanvasElement)
                 {
                     <div class="canvas">
-                        @foreach (var child in Result.Children)
-                        {
-                            <DashElementView @key="child.Key" Result="child" Placement="@DashCss.Absolute(child.Style, Result.Style?.W ?? DashCss.DefaultWidth, Result.Style?.H ?? DashCss.DefaultHeight)" />
-                        }
+                        <CascadingValue Value="NoScroll" Name="DashScroll">
+                            @foreach (var child in Result.Children)
+                            {
+                                <DashElementView @key="child.Key" Result="child" Placement="@DashCss.Absolute(child.Style, Result.Style?.W ?? DashCss.DefaultWidth, Result.Style?.H ?? DashCss.DefaultHeight)" />
+                            }
+                        </CascadingValue>
                     </div>
                 }
                 break;
@@ -108,6 +112,17 @@
     private bool IsShape => Context.IsEditing && Root;
 
     private bool Selected => Context.IsSelected(Id);
+
+    private static DashScrollBox NoScroll => null;
+
+    private DashScrollBox ScrollBoxOf(FlowElement flow)
+    {
+        if (flow is not ScrollElement || Result.Style?.W is not double width)
+            return null;
+
+        var border = DashCss.Color(Result.Style.Line) != null ? Result.Style.LineWidth ?? 1 : 0;
+        return new DashScrollBox(width - 2 * ((Result.Style.Padding ?? 0) + border));
+    }
 
     private bool HasText => Result?.Source is TextElement or ShapeElement;
 
