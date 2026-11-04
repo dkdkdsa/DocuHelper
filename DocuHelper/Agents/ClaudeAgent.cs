@@ -231,7 +231,14 @@ namespace DocuHelper.Agents
         {
             var model = string.IsNullOrWhiteSpace(request.Model) ? DefaultModel : request.Model.Trim();
             var effort = ParseEffort(request.Effort);
-            var system = ClaudePrompt.Compose(toolbox.Types, webTools: true, toolSearch: true);
+            List<BetaTextBlockParam> system =
+            [
+                new BetaTextBlockParam
+                {
+                    Text = ClaudePrompt.Compose(toolbox.Types, webTools: true, toolSearch: true),
+                    CacheControl = new BetaCacheControlEphemeral { Ttl = "1h" },
+                },
+            ];
             _loaded ??= LoadedTools(toolbox);
             var tools = toolbox.Definitions.Select(d => ToTool(d, !_loaded.Contains(d.Name))).ToList();
             tools.Add(new BetaToolSearchToolBm25_20251119 { Type = "tool_search_tool_bm25_20251119" });
@@ -382,6 +389,7 @@ namespace DocuHelper.Agents
             {
                 usage.InputTokens = counts.InputTokens;
                 usage.CacheWriteTokens = counts.CacheCreationInputTokens ?? 0;
+                usage.CacheWriteHourTokens = counts.CacheCreation?.Ephemeral1hInputTokens ?? 0;
                 usage.CacheReadTokens = counts.CacheReadInputTokens ?? 0;
                 usage.OutputTokens = counts.OutputTokens;
             }

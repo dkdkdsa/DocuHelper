@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace DocuHelperEditor.State
 {
@@ -23,6 +23,8 @@ namespace DocuHelperEditor.State
         public long Input { get; set; }
 
         public long CacheWrite { get; set; }
+
+        public long CacheWriteHour { get; set; }
 
         public long CacheRead { get; set; }
 

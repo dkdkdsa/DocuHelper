@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,7 +6,7 @@ namespace DocuHelperEditor.State
 {
     public static class UsagePrices
     {
-        public const string Version = "2026-10-27";
+        public const string Version = "2026-11-04";
 
         private const double PerToken = 1e-6;
 
@@ -37,16 +37,22 @@ namespace DocuHelperEditor.State
             return price.Long != null && promptTokens > price.LongAbove ? price.Long : price;
         }
 
-        public static double Dollars(string model, long input, long cacheWrite, long cacheRead, long output)
+        public static double Dollars(string model, long input, long cacheWrite, long cacheWriteHour, long cacheRead, long output)
         {
             var price = For(model, input + cacheWrite + cacheRead);
-            return (input * price.Input + cacheWrite * price.CacheWrite + cacheRead * price.CacheRead + output * price.Output) * PerToken;
+            return (input * price.Input + WriteCost(price, cacheWrite, cacheWriteHour) + cacheRead * price.CacheRead + output * price.Output) * PerToken;
         }
 
-        public static double Saved(string model, long input, long cacheWrite, long cacheRead)
+        public static double Saved(string model, long input, long cacheWrite, long cacheWriteHour, long cacheRead)
         {
             var price = For(model, input + cacheWrite + cacheRead);
-            return (cacheRead * (price.Input - price.CacheRead) - cacheWrite * Math.Max(0, price.CacheWrite - price.Input)) * PerToken;
+            return (cacheRead * (price.Input - price.CacheRead) - Math.Max(0, WriteCost(price, cacheWrite, cacheWriteHour) - cacheWrite * price.Input)) * PerToken;
+        }
+
+        private static double WriteCost(UsagePrice price, long cacheWrite, long cacheWriteHour)
+        {
+            var hour = Math.Min(cacheWriteHour, cacheWrite);
+            return (cacheWrite - hour) * price.CacheWrite + hour * (price.CacheWrite > 0 ? price.Input * 2 : 0);
         }
     }
 
