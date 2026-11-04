@@ -10,6 +10,7 @@ using Anthropic;
 using Anthropic.Exceptions;
 using Anthropic.Models.Beta;
 using Anthropic.Models.Beta.Messages;
+using DocuHelper.Docus;
 
 namespace DocuHelper.Agents
 {
@@ -29,6 +30,7 @@ namespace DocuHelper.Agents
         private AnthropicClient _client;
         private string _clientKey;
         private string _containerId;
+        private HashSet<string> _loaded;
         private long _attachedBytes;
         private int _attachedImages;
 
@@ -46,6 +48,7 @@ namespace DocuHelper.Agents
             var startCount = _messages.Count;
             var pending = _pendingResults.ToList();
             var startContainer = _containerId;
+            var startLoaded = _loaded;
 
             var opening = new List<BetaContentBlockParam>(pending);
             opening.AddRange(attachments.Select(ToBlock));
@@ -146,6 +149,7 @@ namespace DocuHelper.Agents
                 _pendingResults.Clear();
                 _pendingResults.AddRange(pending);
                 _containerId = startContainer;
+                _loaded = startLoaded;
                 _attachedBytes -= addedBytes;
                 _attachedImages -= addedImages;
                 throw;
@@ -157,6 +161,7 @@ namespace DocuHelper.Agents
             _messages.Clear();
             _pendingResults.Clear();
             _containerId = null;
+            _loaded = null;
             _attachedBytes = 0;
             _attachedImages = 0;
         }
@@ -226,8 +231,10 @@ namespace DocuHelper.Agents
         {
             var model = string.IsNullOrWhiteSpace(request.Model) ? DefaultModel : request.Model.Trim();
             var effort = ParseEffort(request.Effort);
-            var system = ClaudePrompt.Compose(toolbox.Types, webTools: true);
-            var tools = toolbox.Definitions.Select(ToTool).ToList();
+            var system = ClaudePrompt.Compose(toolbox.Types, webTools: true, toolSearch: true);
+            _loaded ??= LoadedTools(toolbox);
+            var tools = toolbox.Definitions.Select(d => ToTool(d, !_loaded.Contains(d.Name))).ToList();
+            tools.Add(new BetaToolSearchToolBm25_20251119 { Type = "tool_search_tool_bm25_20251119" });
             if (model.StartsWith("claude-haiku", StringComparison.Ordinal))
             {
                 return new MessageCreateParams
@@ -257,6 +264,23 @@ namespace DocuHelper.Agents
                 Fallbacks = new Default(),
                 Betas = [AnthropicBeta.ServerSideFallback2026_07_01, AnthropicBeta.ThinkingBindingControls2026_08_01],
             };
+        }
+
+        private static HashSet<string> LoadedTools(AgentToolbox toolbox)
+        {
+            var kinds = new HashSet<DocuType>();
+            if (toolbox.ActiveType is DocuType active)
+                kinds.Add(active);
+            else if (toolbox.Types.Count == 1)
+                kinds.Add(toolbox.Types[0]);
+
+            if (kinds.Contains(DocuType.Hwp))
+                kinds.Add(DocuType.Word);
+
+            return toolbox.Definitions
+                .Where(d => !d.IsWrite || d.Kind is not DocuType kind || kinds.Contains(kind))
+                .Select(d => d.Name)
+                .ToHashSet();
         }
 
         private static BetaThinkingConfigAdaptive Thinking() => new()
@@ -371,7 +395,7 @@ namespace DocuHelper.Agents
             return usage;
         }
 
-        private static BetaToolUnion ToTool(AgentToolDefinition definition)
+        private static BetaToolUnion ToTool(AgentToolDefinition definition, bool deferred)
         {
             var schema = definition.InputSchema;
             var properties = new Dictionary<string, JsonElement>();
@@ -390,6 +414,7 @@ namespace DocuHelper.Agents
                 Name = definition.Name,
                 Description = definition.Description,
                 InputSchema = new InputSchema { Properties = properties, Required = required },
+                DeferLoading = deferred ? true : null,
             };
         }
 
@@ -427,6 +452,7 @@ namespace DocuHelper.Agents
                     || block.TryPickServerToolUse(out _)
                     || block.TryPickWebSearchToolResult(out _)
                     || block.TryPickWebFetchToolResult(out _)
+                    || block.TryPickToolSearchToolResult(out _)
                     || block.TryPickCodeExecutionToolResult(out _)
                     || block.TryPickBashCodeExecutionToolResult(out _)
                     || block.TryPickTextEditorCodeExecutionToolResult(out _))
@@ -436,6 +462,12 @@ namespace DocuHelper.Agents
             }
 
             return echo;
+        }
+
+        private static bool IsWebTool(BetaServerToolUseBlock use)
+        {
+            var name = use.Name.Raw();
+            return name == "web_search" || name == "web_fetch";
         }
 
         private static bool IsCalledFromCode(BetaToolUseBlock use) => use.Caller != null && !use.Caller.TryPickBetaDirect(out _);
@@ -464,7 +496,7 @@ namespace DocuHelper.Agents
         {
             foreach (var block in blocks)
             {
-                if (!block.TryPickServerToolUse(out var use))
+                if (!block.TryPickServerToolUse(out var use) || !IsWebTool(use))
                     continue;
 
                 var isFetch = use.Input.TryGetValue("url", out var url);

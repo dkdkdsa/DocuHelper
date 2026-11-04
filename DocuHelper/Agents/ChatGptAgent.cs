@@ -255,7 +255,7 @@ namespace DocuHelper.Agents
             return new JsonObject
             {
                 ["model"] = model,
-                ["instructions"] = ClaudePrompt.Compose(toolbox.Types, webTools: false),
+                ["instructions"] = ClaudePrompt.Compose(toolbox.Types, webTools: false, toolSearch: false),
                 ["input"] = new JsonArray(_items.Select(item => item.DeepClone()).ToArray()),
                 ["tools"] = new JsonArray(toolbox.Definitions.Select(definition => (JsonNode)ChatGptTranslator.ToTool(definition)).ToArray()),
                 ["tool_choice"] = "auto",
