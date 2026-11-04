@@ -31,6 +31,10 @@ namespace DocuHelper.Agents
                 agent.RestoreConversation(_turns);
                 _active = agent;
             }
+            else if (request.TrimHistoryAbove > 0 && agent.LastPromptTokens > request.TrimHistoryAbove)
+            {
+                agent.RestoreConversation(_turns);
+            }
 
             var result = await agent.RunAsync(request, toolbox, host, cancellationToken);
 

@@ -219,6 +219,7 @@ namespace DocuHelperEditor.State
                     Effort = _settings.EffortId,
                     AskBigChanges = _settings.AskBigChanges,
                     TrackChanges = _settings.TrackChanges,
+                    TrimHistoryAbove = _settings.TrimAbove,
                     Attachments = attachments.Select(ToAgentAttachment).ToList(),
                     DashMake = dashMake,
                 };

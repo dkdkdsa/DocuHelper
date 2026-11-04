@@ -67,7 +67,9 @@ namespace DocuHelper.Agents
                         parameters = parameters with { Container = _containerId };
 
                     var response = await CreateWithRetryAsync(client, parameters, host, cancellationToken);
-                    host.OnUsage(UsageOf(response));
+                    var usage = UsageOf(response);
+                    LastPromptTokens = usage.InputTokens + usage.CacheWriteTokens + usage.CacheReadTokens;
+                    host.OnUsage(usage);
                     if (response.StopReason == "refusal")
                         throw new AgentException(AgentFailure.Refused, "이 부탁은 도와드리기 어려워요. 다르게 말해 주시면 다시 해 볼게요.");
 
@@ -162,6 +164,7 @@ namespace DocuHelper.Agents
             _pendingResults.Clear();
             _containerId = null;
             _loaded = null;
+            LastPromptTokens = 0;
             _attachedBytes = 0;
             _attachedImages = 0;
         }

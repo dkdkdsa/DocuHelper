@@ -1,4 +1,5 @@
-﻿@using DocuHelper.Agents
+﻿@using System.Globalization
+@using DocuHelper.Agents
 <section aria-labelledby="settings-ai-h">
     <h2 id="settings-ai-h">도우미</h2>
     <p class="lead">입력창 아래에서 바꾼 것도 여기에 같이 바뀌어요.</p>
@@ -64,6 +65,28 @@
         </fieldset>
     </div>
 
+    <div class="row">
+        <div class="row-head">
+            <span class="row-title">긴 대화 정리</span>
+            <span class="row-note">대화가 길어지면 새 부탁을 시작할 때 지난 작업에서 읽은 내용을 비우고 화면에 보인 글만 남겨요. 도우미는 필요한 파일을 다시 읽고 이어서 해요.</span>
+        </div>
+        <fieldset class="row-body options">
+            <legend class="sr-only">긴 대화 정리</legend>
+            @foreach (var tokens in SettingsStore.TrimOptions)
+            {
+                <RadioOption @key="tokens" Group="settings-trim" Value="@tokens.ToString(CultureInfo.InvariantCulture)" Class="compact" Selected="@(Settings.TrimAbove == tokens)" OnSelect="v => Settings.SetTrimAbove(int.Parse(v, CultureInfo.InvariantCulture))">
+                    <span class="opt-line">
+                        <span class="opt-name">@TrimName(tokens)</span>
+                        @if (tokens == SettingsStore.DefaultTrimAbove)
+                        {
+                            <span class="default-tag">기본</span>
+                        }
+                    </span>
+                </RadioOption>
+            }
+        </fieldset>
+    </div>
+
     <div class="row center">
         <div class="row-head">
             <label for="settings-ask" class="row-title">큰 변경은 먼저 물어보기</label>
@@ -110,6 +133,8 @@
     }
 
     private static bool IsOn(ChangeEventArgs e) => e.Value is bool on ? on : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+    private static string TrimName(int tokens) => tokens > 0 ? $"입력이 {tokens / 10000}만 토큰을 넘으면" : "정리하지 않기";
 
     private static string OnOff(bool on) => on ? "켜짐" : "꺼짐";
 }

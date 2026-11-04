@@ -41,5 +41,7 @@ namespace DocuHelperEditor.State
         public bool UsageShowCost { get; set; }
 
         public int? UsdRate { get; set; }
+
+        public int? TrimAbove { get; set; }
     }
 }

@@ -116,6 +116,7 @@ namespace DocuHelperEditor.State
             UpdateCheck = data?.UpdateCheck ?? true;
             UpdateAuto = data?.UpdateAuto ?? true;
             LoadUsage(data);
+            LoadContext(data);
             ApplyHwp();
             LoadKeys(data);
             IsKeyVisible = false;
@@ -283,6 +284,7 @@ namespace DocuHelperEditor.State
                     UsageAtCap = UsageAtCap,
                     UsageShowCost = UsageShowCost,
                     UsdRate = UsdRate,
+                    TrimAbove = TrimAbove,
                 };
                 var temp = s_settingsPath + ".tmp";
                 File.WriteAllText(temp, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));

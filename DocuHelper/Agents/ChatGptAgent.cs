@@ -70,7 +70,9 @@ namespace DocuHelper.Agents
                 {
                     var response = await CreateWithRetryAsync(request, toolbox, host, cancellationToken);
                     var output = ChatGptTranslator.Output(response);
-                    host.OnUsage(ChatGptTranslator.Usage(response, output, request.Model ?? DefaultModel));
+                    var usage = ChatGptTranslator.Usage(response, output, request.Model ?? DefaultModel);
+                    LastPromptTokens = usage.InputTokens + usage.CacheWriteTokens + usage.CacheReadTokens;
+                    host.OnUsage(usage);
                     if (ChatGptTranslator.IsRefusal(output))
                         throw new AgentException(AgentFailure.Refused, "이 부탁은 도와드리기 어려워요. 다르게 말해 주시면 다시 해 볼게요.");
 
@@ -153,6 +155,7 @@ namespace DocuHelper.Agents
         {
             _items.Clear();
             _pendingResults.Clear();
+            LastPromptTokens = 0;
             _attachedBytes = 0;
             _attachedImages = 0;
         }
