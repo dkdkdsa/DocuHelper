@@ -117,3 +117,108 @@
     white-space: nowrap;
     text-overflow: ellipsis;
 }
+
+.el[role="button"] {
+    cursor: pointer;
+}
+
+.el[role="button"]:hover {
+    filter: brightness(0.97);
+}
+
+.el[role="button"]:focus-visible {
+    outline: 2px solid var(--docx);
+    outline-offset: 2px;
+}
+
+.el.k-popup {
+    background: var(--paper, #FFFFFF);
+    border-radius: 1cqw;
+    box-shadow: 0 1.2cqw 3.6cqw rgba(28, 42, 72, 0.28), 0 0 0 1px rgba(28, 42, 72, 0.12);
+}
+
+.el.k-popup.shape:not(.on) {
+    outline: 1.5px dashed rgba(var(--ink-rgb), 0.45);
+    outline-offset: 2px;
+}
+
+.popup {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: inherit;
+}
+
+.popup-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+    border-bottom: 1px solid rgba(28, 42, 72, 0.12);
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.popup-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.popup-x {
+    flex: none;
+    width: 1.6em;
+    height: 1.6em;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0.3em;
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+
+.popup-x:hover:not(:disabled) {
+    background: var(--well);
+    color: var(--ink);
+}
+
+.popup-x:disabled {
+    cursor: default;
+}
+
+.popup-x svg {
+    width: 1em;
+    height: 1em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+}
+
+.popup-body {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    height: auto;
+    overflow-y: auto;
+}
+
+.popup-body > .el {
+    flex-shrink: 0;
+}
+
+.el.k-popup.ghost.shape:not(.on) {
+    pointer-events: none;
+}
+
+.el.k-popup.ghost.shape:not(.on) .popup-head {
+    pointer-events: auto;
+    cursor: pointer;
+}

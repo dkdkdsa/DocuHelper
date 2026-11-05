@@ -48,7 +48,8 @@ namespace DocuHelperEditor.Components.Paper.Dash
             if (model == null)
                 return null;
 
-            var plan = DashInserts.Plan(model, item, inSelection ? InsertParent() : null);
+            var popup = string.Equals(DocuHelper.Dash.DashRaw.Text(item, "type"), "popup", StringComparison.Ordinal);
+            var plan = DashInserts.Plan(model, item, inSelection && !popup ? InsertParent() : null);
             _select = new[] { plan.Id };
             return plan.Commands;
         }
@@ -60,6 +61,6 @@ namespace DocuHelperEditor.Components.Paper.Dash
         }
 
         private static bool IsContainer(Element element) =>
-            element is FlowElement or RepeatElement or (CanvasElement and not PageElement);
+            element is FlowElement or RepeatElement or PopupElement or (CanvasElement and not PageElement);
     }
 }

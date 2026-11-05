@@ -43,3 +43,22 @@
     top: 50%;
     border-top-width: 1px;
 }
+
+.popup-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    outline: none;
+}
+
+.popup-shade {
+    position: absolute;
+    inset: 0;
+    background: rgba(28, 42, 72, 0.32);
+}
+
+@media print {
+    .popup-layer {
+        display: none;
+    }
+}

@@ -31,23 +31,30 @@ namespace DocuHelper.Dash.Elements
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public bool Locked { get; set; }
 
+        [JsonPropertyOrder(-3)]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Logic.DashAction OnClick { get; set; }
+
         [JsonIgnore]
         public string Kind => DashKinds.ElementName(GetType());
 
         public virtual IEnumerable<Element> Nested() => Array.Empty<Element>();
 
-        public virtual IEnumerable<string> Uses() => DashNames.InExpression(When);
+        public virtual IEnumerable<string> Uses() => With(null);
 
         public virtual void Validate(DashCheck check)
         {
             foreach (var name in DashNames.InExpression(When))
                 check.RequireName(this, name);
+
+            OnClick?.Validate(check, this);
         }
 
         public virtual ElementResult Resolve(DashScope scope) => scope.Base(this, new ElementResult());
 
         protected IEnumerable<string> With(IEnumerable<string> own) => DashNames.InExpression(When)
             .Concat(own ?? Array.Empty<string>())
+            .Concat(OnClick?.Uses() ?? Array.Empty<string>())
             .Where(name => !string.IsNullOrEmpty(name))
             .Distinct(StringComparer.Ordinal)
             .ToList();

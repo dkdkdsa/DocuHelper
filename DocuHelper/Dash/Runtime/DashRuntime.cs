@@ -75,6 +75,14 @@ namespace DocuHelper.Dash.Runtime
                     break;
                 case ResetAction reset:
                     Reset(reset.Params);
+                    if (reset.Params == null)
+                        State.Close();
+                    break;
+                case PopupAction popup:
+                    if (popup.Close)
+                        State.Close(string.IsNullOrWhiteSpace(popup.Id) ? null : popup.Id);
+                    else
+                        State.Open(popup.Id, item);
                     break;
             }
         }

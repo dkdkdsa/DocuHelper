@@ -12,7 +12,8 @@
             <svg class="pie" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
                 @foreach (var slice in Slices())
                 {
-                    <path d="@slice.Path" style="@SliceStyle(slice.Index)" />
+                    var index = slice.Index;
+                    <path class="@(Clickable ? "slice click" : null)" d="@slice.Path" style="@SliceStyle(slice.Index)" @onclick="@(Clickable ? () => ClickAsync(index) : null)" />
                 }
             </svg>
         </div>
@@ -66,6 +67,16 @@
                             <rect x="@Num(Math.Min(Along(0), point.X))" y="@Num(point.Y - _thickness / 2)" width="@Num(Math.Abs(point.X - Along(0)))" height="@Num(_thickness)" style="@BarStyle(point.Series, point.Category)" />
                         }
                     </svg>
+                    @if (Clickable)
+                    {
+                        <div class="hits across">
+                            @for (var c = 0; c < _count; c++)
+                            {
+                                var at = c;
+                                <button type="button" class="hit" aria-label="@CategoryName(at)" @onclick="() => ClickAsync(at)"></button>
+                            }
+                        </div>
+                    }
                     @if (Result.Labels)
                     {
                         foreach (var point in LabelPoints())
@@ -117,6 +128,16 @@
                             }
                         }
                     </svg>
+                    @if (Clickable)
+                    {
+                        <div class="hits">
+                            @for (var c = 0; c < _count; c++)
+                            {
+                                var at = c;
+                                <button type="button" class="hit" aria-label="@CategoryName(at)" @onclick="() => ClickAsync(at)"></button>
+                            }
+                        </div>
+                    }
                     @if (Kind != "column")
                     {
                         foreach (var point in Points())
@@ -179,6 +200,11 @@
     public DashRenderContext Context { get; set; }
 
     private string Kind => _kind;
+
+    private bool Clickable => Context.CanInteract && Result.Source?.OnClick != null && Result.RowItems.Count > 0;
+
+    private Task ClickAsync(int category) =>
+        Clickable && category >= 0 && category < Result.RowItems.Count ? Context.RunAction(Result.Source.OnClick, Result.RowItems[category]) : Task.CompletedTask;
 
     private bool Horizontal => _kind == "bar";
 

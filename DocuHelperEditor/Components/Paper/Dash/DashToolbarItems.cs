@@ -17,6 +17,7 @@ namespace DocuHelperEditor.Components.Paper.Dash
             new("그래프", "그래프 넣기", "M3 3v18h18 M7 16v-5 M12 16V8 M17 16v-9", "dash.insert.chart", "m:0"),
             new("표", "표 넣기", "M3 5h18v14H3Z M3 10h18 M3 15h18 M9 5v14", "dash.insert.table"),
             new("반복", "표의 줄마다 같은 모양 만들기", "M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01", "dash.insert.repeat"),
+            new("창", "누르면 뜨는 팝업 창 넣기", "M4 5h16v14H4Z M4 9h16 M15 7h2", "dash.insert.popup"),
         };
 
         public static DashToolbarItem[] Controls { get; } =

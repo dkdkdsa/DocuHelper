@@ -15,6 +15,8 @@ namespace DocuHelper.Dash.Runtime
 
         public string Problem { get; set; }
 
+        public IReadOnlyDictionary<string, object> ClickItem { get; set; }
+
         public List<ElementResult> Children { get; } = new();
     }
 }

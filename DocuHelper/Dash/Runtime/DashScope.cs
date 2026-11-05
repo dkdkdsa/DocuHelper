@@ -40,6 +40,16 @@ namespace DocuHelper.Dash.Runtime
 
         public DashScope ForItem(DashTable table, int row) => new(this, table, row);
 
+        public DashScope ForValues(IReadOnlyDictionary<string, object> values)
+        {
+            if (values == null || values.Count == 0)
+                return this;
+
+            var table = new DashTable(values.Keys.ToList());
+            table.Rows.Add(values.Values.ToArray());
+            return new DashScope(this, table, 0);
+        }
+
         public Dictionary<string, object> ItemValues()
         {
             var values = new Dictionary<string, object>(System.StringComparer.Ordinal);
@@ -58,6 +68,9 @@ namespace DocuHelper.Dash.Runtime
             result.Key = Suffix == null ? element.Id : element.Id + "#" + Suffix;
             result.Style = StyleOf(element);
             result.Visible = Runtime.IsVisible(element, ItemRow);
+            if (element.OnClick != null && Item != null)
+                result.ClickItem = ItemValues();
+
             return result;
         }
 

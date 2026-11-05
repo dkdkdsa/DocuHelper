@@ -188,6 +188,27 @@ namespace DocuHelperEditor.Components.Paper.Dash
         private static bool SameColor(string a, string b) =>
             string.Equals((a ?? string.Empty).Trim().TrimStart('#'), (b ?? string.Empty).Trim().TrimStart('#'), StringComparison.OrdinalIgnoreCase);
 
+        private bool CanClick => _el is not (PageElement or ButtonElement or PopupElement or SliderElement or RangeSliderElement or ToggleElement or SegmentedElement or SelectElement);
+
+        private void SetTitle(ChangeEventArgs e) => Edit(Pair("title", Str(e.Value?.ToString() ?? string.Empty)));
+
+        private void SetClick(string popup) =>
+            Edit(Pair("onClick", popup == null ? null : new JsonObject { ["type"] = "popup", ["id"] = popup }));
+
+        private string ClickNote(int popups)
+        {
+            if (popups == 0)
+                return "먼저 툴바의 ‘창’으로 팝업 창을 넣으면 여기서 고를 수 있어요.";
+
+            return _el switch
+            {
+                TableElement => "표의 줄을 누르면 창이 뜨고, 창 안의 «item.열이름»에 그 줄의 값이 들어가요.",
+                ChartElement => "막대나 조각을 누르면 창이 뜨고, 창 안의 «item.열이름»에 그 줄의 값이 들어가요.",
+                RepeatElement => "칸을 누르면 창이 뜨고, 창 안의 «item.열이름»에 그 칸의 값이 들어가요.",
+                _ => "누르면 창이 떠요. 반복 목록의 칸 안에 있으면 그 칸의 값이 창에 들어가요.",
+            };
+        }
+
         private bool Send(string id, JsonObject patch)
         {
             if (Commands == null || id == null || patch == null || patch.Count == 0)

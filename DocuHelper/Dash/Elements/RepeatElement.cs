@@ -16,17 +16,17 @@ namespace DocuHelper.Dash.Elements
 
         public string Empty { get; set; }
 
-        public DashAction OnClick { get; set; }
-
         public List<Element> Template { get; set; } = new();
 
         public override IEnumerable<Element> Nested() => Template ?? new List<Element>();
 
-        public override IEnumerable<string> Uses() => With(new[] { Data }.Concat(OnClick?.Uses() ?? Array.Empty<string>()));
+        public override IEnumerable<string> Uses() => With(new[] { Data });
 
         public override void Validate(DashCheck check)
         {
-            base.Validate(check);
+            foreach (var name in DashNames.InExpression(When))
+                check.RequireName(this, name);
+
             check.RequireTable(this, Data);
             check.PushItem(Data);
             foreach (var element in Nested())

@@ -1,3 +1,4 @@
+@using DocuHelper.Dash.Logic
 @using System.Globalization
 @using DocuHelper.Dash
 @using DocuHelper.Dash.Elements
@@ -5,11 +6,29 @@
 
 @if (Result != null && (Result.Visible || (Context.IsEditing && Root)))
 {
-    <div class="@ClassName" style="@(Placement + (Result is ShapeResult or LineResult ? DashCss.Opacity(Result.Style) : DashCss.Box(Result.Style, Context.PageWidth)))" data-el="@Result.Source?.Id" data-key="@Result.Key" data-change="@Context.ChangeOf(Id)" @attributes="EditAttributes">
+    <div class="@ClassName" style="@(Placement + (Result is ShapeResult or LineResult ? DashCss.Opacity(Result.Style) : DashCss.Box(Result.Style, Context.PageWidth)))" data-el="@Result.Source?.Id" data-key="@Result.Key" data-change="@Context.ChangeOf(Id)" role="@(Clickable ? "button" : null)" tabindex="@(Clickable ? "0" : null)" aria-label="@(Clickable ? DashLabels.Of(Result.Source) : null)" @onclick="@(Clickable ? ClickAsync : null)" @onclick:stopPropagation="Clickable" @onkeydown="@(Clickable ? KeyAsync : null)" @attributes="EditAttributes">
         @switch (Result)
         {
             case RepeatResult repeat:
                 <DashRepeatView Result="repeat" />
+                break;
+            case PopupResult popup:
+                <div class="popup">
+                    <div class="popup-head" style="@PopupHeadStyle">
+                        <span class="popup-title">@popup.Title</span>
+                        <button type="button" class="popup-x" aria-label="창 닫기" title="닫기 (Esc)" disabled="@(!Context.CanInteract)" @onclick="ClosePopupAsync" @onclick:stopPropagation>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                        </button>
+                    </div>
+                    <div class="flow popup-body" style="@DashCss.Flow(Result.Style, "column", Context.PageWidth)">
+                        <CascadingValue Value="NoScroll" Name="DashScroll">
+                            @foreach (var child in Result.Children)
+                            {
+                                <DashElementView @key="child.Key" Result="child" Placement="@DashCss.FlowItem(child.Style, Context.PageWidth)" />
+                            }
+                        </CascadingValue>
+                    </div>
+                </div>
                 break;
             case ShapeResult shape:
                 <DashShapeView Result="shape" />
@@ -114,6 +133,18 @@
     private bool Selected => Context.IsSelected(Id);
 
     private static DashScrollBox NoScroll => null;
+
+    private bool Clickable => Context.CanInteract && Result?.Source?.OnClick != null
+        && Result is not (RepeatResult or TableResult or ChartResult or ButtonResult or PopupResult or ControlResult);
+
+    private Task ClickAsync() => Clickable ? Context.RunAction(Result.Source.OnClick, Result.ClickItem) : Task.CompletedTask;
+
+    private Task KeyAsync(KeyboardEventArgs e) => e.Key is "Enter" or " " ? ClickAsync() : Task.CompletedTask;
+
+    private Task ClosePopupAsync() =>
+        Context.CanInteract && Id != null ? Context.RunAction(new PopupAction { Id = Id, Close = true }, null) : Task.CompletedTask;
+
+    private string PopupHeadStyle => "font-size:" + DashCss.Cq(18, Context.PageWidth) + ";padding:" + DashCss.Cq(14, Context.PageWidth) + " " + DashCss.Cq(18, Context.PageWidth) + ";";
 
     private DashScrollBox ScrollBoxOf(FlowElement flow)
     {
