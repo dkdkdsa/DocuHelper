@@ -11,6 +11,8 @@ namespace DocuHelper.Dash
             ["canvas"] = "자유 배치 칸",
             ["row"] = "가로 묶음",
             ["column"] = "세로 묶음",
+            ["scroll"] = "스크롤 칸",
+            ["popup"] = "팝업 창",
             ["repeat"] = "반복 목록",
             ["text"] = "글자",
             ["shape"] = "도형",
@@ -38,6 +40,9 @@ namespace DocuHelper.Dash
 
             if (element is TextElement text && !string.IsNullOrWhiteSpace(text.Text))
                 return Shorten(text.Text);
+
+            if (element is PopupElement popup && !string.IsNullOrWhiteSpace(popup.Title))
+                return Shorten(popup.Title) + " 창";
 
             if (element is ButtonElement button && !string.IsNullOrWhiteSpace(button.Label))
                 return button.Label.Trim() + " 단추";

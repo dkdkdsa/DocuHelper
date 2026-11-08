@@ -35,6 +35,15 @@ namespace DocuHelper.Dash.Runtime
 
         public object[] NewRow() => new object[Columns.Count];
 
+        public Dictionary<string, object> ValuesOf(object[] row)
+        {
+            var values = new Dictionary<string, object>(StringComparer.Ordinal);
+            for (var i = 0; i < Columns.Count; i++)
+                values[Columns[i]] = Get(row, i);
+
+            return values;
+        }
+
         public DashTable Copy()
         {
             var copy = new DashTable(Columns);

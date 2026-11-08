@@ -68,7 +68,11 @@ namespace DocuHelper.Dash.Elements
 
             var limit = Max.HasValue ? Math.Max(0, Max.Value) : int.MaxValue;
             foreach (var row in table.Rows.Take(limit))
+            {
                 result.Rows.Add(shown.Select(item => DashFormats.Display(DashTable.Get(row, item.Index), item.Column?.Format)).ToList());
+                if (OnClick != null)
+                    result.RowItems.Add(table.ValuesOf(row));
+            }
 
             return result;
         }

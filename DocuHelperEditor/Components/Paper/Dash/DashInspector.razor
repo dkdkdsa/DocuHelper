@@ -134,7 +134,63 @@
             <text>@ButtonView(button)</text>
         }
 
+        if (_el is PopupElement popupElement)
+        {
+            <text>@PopupView(popupElement)</text>
+        }
+        else if (CanClick)
+        {
+            <text>@ClickView</text>
+        }
+
         <text>@WhenView</text>
+    };
+
+    private RenderFragment PopupView(PopupElement popup) => __builder =>
+    {
+        var parts = popup.Nested().Where(child => child != null).ToList();
+        <div class="sec">
+            <label class="lbl" for="@(_uid + "-title")">창 제목</label>
+            <input id="@(_uid + "-title")" class="sel" type="text" value="@(popup.Title ?? string.Empty)" @onchange="SetTitle" />
+            <p class="hint">다른 것의 ‘보는 화면에서 누르면’에서 이 창을 고르면, 보기에서 눌렀을 때 대시보드 위에 떠요. 제목과 안의 글에 «item.열이름»을 쓰면 누른 줄의 값이 들어가요.</p>
+            <span class="lbl">창 안에 있는 것 (눌러서 고치기)</span>
+            @if (parts.Count == 0)
+            {
+                <p class="hint">창을 고른 채로 글자나 표를 넣으면 창 안에 들어가요.</p>
+            }
+            else
+            {
+                <div class="ppk">
+                    @foreach (var part in parts)
+                    {
+                        var id = part.Id;
+                        <button type="button" class="chip" @onclick="() => OnSelect.InvokeAsync(id)">@DashLabels.Of(part)</button>
+                    }
+                </div>
+            }
+        </div>
+    };
+
+    private RenderFragment ClickView => __builder =>
+    {
+        var popups = Document.Walk().OfType<PopupElement>().ToList();
+        var current = _el.OnClick as PopupAction;
+        <div class="sec">
+            <span class="lbl" id="@(_uid + "-click")">보는 화면에서 누르면</span>
+            <div class="ppk" role="group" aria-labelledby="@(_uid + "-click")">
+                <button type="button" class="chip" aria-pressed="@Pressed(_el.OnClick == null)" @onclick="() => SetClick(null)">아무것도 안 함</button>
+                @foreach (var popup in popups)
+                {
+                    var id = popup.Id;
+                    <button type="button" class="chip" aria-pressed="@Pressed(current != null && !current.Close && current.Id == id)" @onclick="() => SetClick(id)">‘@DashLabels.Of(popup)’ 열기</button>
+                }
+                @if (_el.OnClick != null && (current == null || current.Close))
+                {
+                    <button type="button" class="chip" aria-pressed="true">지금 동작</button>
+                }
+            </div>
+            <p class="hint">@ClickNote(popups.Count)</p>
+        </div>
     };
 
     private RenderFragment GeometryView => __builder =>

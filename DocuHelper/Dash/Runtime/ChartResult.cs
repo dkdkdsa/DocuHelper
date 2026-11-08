@@ -19,5 +19,7 @@ namespace DocuHelper.Dash.Runtime
         public List<double?> Positions { get; set; } = new();
 
         public RangeSliderResult Control { get; set; }
+
+        public List<IReadOnlyDictionary<string, object>> RowItems { get; } = new();
     }
 }

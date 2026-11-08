@@ -14,6 +14,8 @@ namespace DocuHelper.Dash
             ["canvas"] = typeof(CanvasElement),
             ["row"] = typeof(RowElement),
             ["column"] = typeof(ColumnElement),
+            ["scroll"] = typeof(ScrollElement),
+            ["popup"] = typeof(PopupElement),
             ["repeat"] = typeof(RepeatElement),
             ["text"] = typeof(TextElement),
             ["shape"] = typeof(ShapeElement),
@@ -76,6 +78,7 @@ namespace DocuHelper.Dash
             ["open"] = typeof(OpenAction),
             ["refresh"] = typeof(RefreshAction),
             ["pdf"] = typeof(PdfAction),
+            ["popup"] = typeof(PopupAction),
         };
 
         public static string ElementName(Type type) => NameOf(Elements, type);

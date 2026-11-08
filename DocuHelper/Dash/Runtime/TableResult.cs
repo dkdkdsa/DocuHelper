@@ -13,5 +13,7 @@ namespace DocuHelper.Dash.Runtime
         public List<List<string>> Rows { get; set; } = new();
 
         public bool ShowHeader { get; set; } = true;
+
+        public List<IReadOnlyDictionary<string, object>> RowItems { get; } = new();
     }
 }

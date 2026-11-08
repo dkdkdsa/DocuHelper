@@ -1,5 +1,21 @@
+@using Microsoft.AspNetCore.Components.Web.Virtualization
 @using DocuHelper.Dash.Runtime
 
+@if (_lines != null)
+{
+    <div class="repeat virtual" style="@VirtualStyle">
+        <Virtualize Items="_lines" ItemSize="_lineSize" OverscanCount="3" Context="line">
+            <div class="@(Grid ? "line" : "line wide")" style="@LineStyle">
+                @foreach (var row in line)
+                {
+                    @Item(row)
+                }
+            </div>
+        </Virtualize>
+    </div>
+}
+else
+{
 <div class="repeat @(Grid ? "grid" : Across ? "across" : null)" style="@ContainerStyle">
     @if (Result.Children.Count == 0)
     {
@@ -12,33 +28,108 @@
     {
         foreach (var child in Result.Children)
         {
-            if (child is not RepeatRowResult row)
+            if (child is RepeatRowResult row)
             {
-                continue;
-            }
-
-            if (row.OnClick != null && Context.CanInteract)
-            {
-                <button type="button" @key="row.Key" class="item click" style="@RowStyle" @onclick="() => ClickAsync(row)">
-                    @Cells(row)
-                </button>
-            }
-            else
-            {
-                <div @key="row.Key" class="item" style="@RowStyle">
-                    @Cells(row)
-                </div>
+                @Item(row)
             }
         }
     }
 </div>
+}
 
 @code {
+    private const int VirtualFrom = 40;
+
+    private List<RepeatRowResult[]> _lines;
+    private float _lineSize;
+    private RepeatResult _linesOf;
+    private double _linesWidth;
+
     [Parameter]
     public RepeatResult Result { get; set; }
 
     [CascadingParameter]
     public DashRenderContext Context { get; set; }
+
+    [CascadingParameter(Name = "DashScroll")]
+    public DashScrollBox Scroll { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var width = Scroll?.InnerWidth ?? 0;
+        if (ReferenceEquals(_linesOf, Result) && _linesWidth == width)
+            return;
+
+        _linesOf = Result;
+        _linesWidth = width;
+        _lines = Lines(width);
+    }
+
+    private List<RepeatRowResult[]> Lines(double width)
+    {
+        if (Scroll == null || Across || Result.Children.Count < VirtualFrom)
+            return null;
+
+        var rows = Result.Children.OfType<RepeatRowResult>().ToArray();
+        if (rows.Length == 0)
+            return null;
+
+        var gap = Result.Style?.Gap ?? 6;
+        var perLine = 1;
+        if (Grid)
+        {
+            var itemWidth = ItemWidth(rows[0], gap);
+            if (itemWidth is not double item || item <= 0)
+                return null;
+
+            var space = (Result.Style?.W ?? width) - 2 * (Result.Style?.Padding ?? 0);
+            perLine = Math.Max(1, (int)Math.Floor((space + gap + 0.5) / (item + gap)));
+        }
+
+        _lineSize = (float)Math.Max(1, (ItemHeight(rows[0]) ?? 40) + gap);
+        return rows.Chunk(perLine).ToList();
+    }
+
+    private static double? ItemWidth(RepeatRowResult row, double gap)
+    {
+        if (row.Children.Count == 0 || row.Children.Any(child => child.Style?.W == null))
+            return null;
+
+        return row.Children.Sum(child => child.Style.W.Value) + gap * (row.Children.Count - 1);
+    }
+
+    private static double? ItemHeight(RepeatRowResult row) =>
+        row.Children.Select(child => child.Style?.H).Where(height => height != null).DefaultIfEmpty(null).Max();
+
+    private string VirtualStyle
+    {
+        get
+        {
+            var css = DashCss.Text(Result.Style, Context.PageWidth);
+            if (Result.Style?.Padding is double padding)
+                css += "padding:" + DashCss.Cq(padding, Context.PageWidth) + ";";
+
+            return css;
+        }
+    }
+
+    private string LineStyle => "gap:" + Gap + ";padding-bottom:" + Gap + ";";
+
+    private RenderFragment Item(RepeatRowResult row) => __builder =>
+    {
+        if (row.OnClick != null && Context.CanInteract)
+        {
+            <button type="button" @key="row.Key" class="item click" style="@RowStyle" @onclick="() => ClickAsync(row)">
+                @Cells(row)
+            </button>
+        }
+        else
+        {
+            <div @key="row.Key" class="item" style="@RowStyle">
+                @Cells(row)
+            </div>
+        }
+    };
 
     private bool Across => string.Equals(Result.Direction, "row", StringComparison.OrdinalIgnoreCase);
 
@@ -70,11 +161,15 @@
 
     private RenderFragment Cells(RepeatRowResult row) => __builder =>
     {
-        foreach (var child in row.Children)
-        {
-            <DashElementView @key="child.Key" Result="child" Placement="@DashCss.FlowItem(child.Style, Context.PageWidth)" />
-        }
+        <CascadingValue Value="NoScroll" Name="DashScroll">
+            @foreach (var child in row.Children)
+            {
+                <DashElementView @key="child.Key" Result="child" Placement="@DashCss.FlowItem(child.Style, Context.PageWidth)" />
+            }
+        </CascadingValue>
     };
+
+    private static DashScrollBox NoScroll => null;
 
     private Task ClickAsync(RepeatRowResult row) =>
         Context.CanInteract && row.OnClick != null ? Context.RunAction(row.OnClick, row.Item) : Task.CompletedTask;

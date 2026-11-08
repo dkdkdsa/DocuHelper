@@ -75,6 +75,14 @@ namespace DocuHelper.Dash.Runtime
                     break;
                 case ResetAction reset:
                     Reset(reset.Params);
+                    if (reset.Params == null)
+                        State.Close();
+                    break;
+                case PopupAction popup:
+                    if (popup.Close)
+                        State.Close(string.IsNullOrWhiteSpace(popup.Id) ? null : popup.Id);
+                    else
+                        State.Open(popup.Id, item);
                     break;
             }
         }
@@ -255,15 +263,19 @@ namespace DocuHelper.Dash.Runtime
             if (table.Rows.Count == 0)
                 return result;
 
+            var quoted = DashFormulaText.QuoteColumns(expression, table.Columns);
+            expression = quoted.Expression;
+            int ColumnOf(string name) => quoted.Columns.TryGetValue(name, out var at) ? at : table.IndexOf(name);
+
             using var host = new DashFormulaHost();
-            AddConstants(host, DashNames.InExpression(expression).Where(name => table.IndexOf(name) < 0).ToList());
+            AddConstants(host, DashNames.InExpression(expression).Where(name => ColumnOf(name) < 0).ToList());
             var sheet = host.Table(null, table);
             for (var row = 0; row < table.Rows.Count; row++)
             {
                 var line = row + 2;
                 var text = DashFormulaText.ReplaceNames(expression, name =>
                 {
-                    var at = table.IndexOf(name);
+                    var at = ColumnOf(name);
                     return at < 0 ? null : "'" + sheet + "'!" + Tools.Excel.CellAddress.ColumnName(at) + line.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 });
                 host.Formula("r" + row.ToString(System.Globalization.CultureInfo.InvariantCulture), text);

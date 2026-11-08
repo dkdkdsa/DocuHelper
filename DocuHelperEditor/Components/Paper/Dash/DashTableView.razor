@@ -23,9 +23,11 @@
             </thead>
         }
         <tbody>
-            @foreach (var row in Result.Rows.Take(Capacity))
+            @for (var r = 0; r < Math.Min(Result.Rows.Count, Capacity); r++)
             {
-                <tr>
+                var row = Result.Rows[r];
+                var at = r;
+                <tr class="@(Clickable ? "click" : null)" @onclick="@(Clickable ? () => ClickAsync(at) : null)">
                     @for (var i = 0; i < Columns; i++)
                     {
                         <td style="@AlignOf(i)">@(i < row.Count ? row[i] : null)</td>
@@ -46,6 +48,11 @@
     public DashRenderContext Context { get; set; }
 
     private int Columns => Result.Headers.Count;
+
+    private bool Clickable => Context.CanInteract && Result.Source?.OnClick != null && Result.RowItems.Count > 0;
+
+    private Task ClickAsync(int row) =>
+        Clickable && row < Result.RowItems.Count ? Context.RunAction(Result.Source.OnClick, Result.RowItems[row]) : Task.CompletedTask;
 
     private bool HasWidths => Result.Widths.Any(width => width.HasValue);
 

@@ -18,7 +18,7 @@ namespace DocuHelper.Tools.Dash
               "type": "object",
               "properties": {
                 "id": {"type": "string"},
-                "parent": {"type": "string", "description": "New parent id (page, row, column, canvas or repeat). Default the current parent."},
+                "parent": {"type": "string", "description": "New parent id (page, row, column, scroll, canvas, popup or repeat). Default the current parent."},
                 "index": {"type": "integer", "minimum": 0, "description": "New position among the parent's children. Default the end (front)."}
               },
               "required": ["id"]
@@ -39,6 +39,9 @@ namespace DocuHelper.Tools.Dash
 
             var children = DashItems.ChildrenOf(target)
                 ?? throw new ToolInputException($"‘{DashLabels.Of(target)}’ 안에는 요소를 넣을 수 없어요.");
+
+            if (element is PopupElement && target != document.Root)
+                throw new ToolInputException("팝업 창은 페이지에만 둘 수 있어요.");
 
             DashItems.ChildrenOf(from).RemoveAt(at);
             var index = input.GetOptionalInt("index");

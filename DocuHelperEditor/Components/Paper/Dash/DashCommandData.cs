@@ -134,6 +134,8 @@ namespace DocuHelperEditor.Components.Paper.Dash
             new() { Id = "dash.insert.meter", Class = RibbonCommandClass.Tool, Action = "insert", Need = ModelNeed, Args = """{"type":"meter"}""" },
             new() { Id = "dash.insert.row", Class = RibbonCommandClass.Tool, Action = "insert", Need = ModelNeed, Args = """{"type":"row"}""" },
             new() { Id = "dash.insert.column", Class = RibbonCommandClass.Tool, Action = "insert", Need = ModelNeed, Args = """{"type":"column"}""" },
+            new() { Id = "dash.insert.scroll", Class = RibbonCommandClass.Tool, Action = "insert", Need = ModelNeed, Args = """{"type":"scroll"}""" },
+            new() { Id = "dash.insert.popup", Class = RibbonCommandClass.Tool, Action = "insert", Need = ModelNeed, Args = """{"type":"popup","title":"자세히 보기"}""" },
             new() { Id = "dash.insert.canvas", Class = RibbonCommandClass.Tool, Action = "insert", Need = ModelNeed, Args = """{"type":"canvas"}""" },
         };
 

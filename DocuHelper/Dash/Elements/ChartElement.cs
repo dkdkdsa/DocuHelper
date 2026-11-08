@@ -93,6 +93,8 @@ namespace DocuHelper.Dash.Elements
                 result.Categories.Add(DashFormats.Display(raw, null));
                 result.Positions.Add(day);
                 result.Dimmed.Add(range != null && day.HasValue && !range.Contains(day.Value));
+                if (OnClick != null)
+                    result.RowItems.Add(table.ValuesOf(row));
             }
 
             foreach (var column in series)

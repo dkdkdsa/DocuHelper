@@ -1,3 +1,5 @@
+@using DocuHelper.Dash.Logic
+@using DocuHelper.Dash.Runtime
 @using DocuHelperEditor.Components.Paper.Ppt
 @using DocuHelperEditor.State.Papers
 @implements IAsyncDisposable
@@ -9,7 +11,23 @@
     <div @ref="_stage" class="page @(Editing ? "editing" : null)" style="aspect-ratio: @DashCss.Num(Model.PageWidth) / @DashCss.Num(Model.PageHeight); @DashCss.Box(page.Style, Model.PageWidth)" aria-label="@Label" tabindex="@(Editing && !Locked ? "-1" : null)" data-slide="@(Editing ? "dash" : null)" data-snap="@(Editing ? Snap : null)" data-drag-hook="@(Editing ? "dash" : null)" data-magnet="@(Editing && State?.Magnet == false ? "false" : null)" data-pw="@DashCss.Num(Model.PageWidth)" data-ph="@DashCss.Num(Model.PageHeight)" data-wcm="@DashCss.Num(Model.WidthCm)" data-hcm="@DashCss.Num(Model.HeightCm)" data-locked="@(Editing && Locked ? "true" : null)" data-selected="@(State?.Selected.Count ?? 0)">
         @foreach (var child in page.Children)
         {
+            if (!Editing && child is PopupResult)
+            {
+                continue;
+            }
+
             <DashElementView @key="child.Key" Result="child" Root="true" Movable="@DashCanvasEdits.IsMovable(Model, child.Source)" Placement="@DashCss.Absolute(child.Style, Model.PageWidth, Model.PageHeight)" />
+        }
+        @if (!Editing)
+        {
+            foreach (var popup in OpenPopups)
+            {
+                var current = popup;
+                <div @key="current.Key" class="popup-layer" data-popup-layer="@current.Source?.Id" tabindex="-1" role="dialog" aria-modal="true" aria-label="@current.Title" @onkeydown="e => PopupKeyAsync(e, current)">
+                    <div class="popup-shade" @onclick="() => ClosePopupAsync(current)"></div>
+                    <DashElementView Result="current" Root="true" Placement="@DashCss.Absolute(current.Style, Model.PageWidth, Model.PageHeight)" />
+                </div>
+            }
         }
         @if (State?.Gridlines == true)
         {
@@ -48,6 +66,31 @@
     public EventCallback<string> OnEditText { get; set; }
 
     private bool Editing => State?.Mode == DashViewState.EditMode;
+
+    [CascadingParameter]
+    public DashRenderContext Context { get; set; }
+
+    private string _focusedPopup;
+
+    private IEnumerable<PopupResult> OpenPopups => Model.Root.Children.OfType<PopupResult>().Where(popup => popup.Visible);
+
+    private Task ClosePopupAsync(PopupResult popup) =>
+        Context != null && Context.CanInteract && popup.Source?.Id != null
+            ? Context.RunAction(new PopupAction { Id = popup.Source.Id, Close = true }, null)
+            : Task.CompletedTask;
+
+    private Task PopupKeyAsync(KeyboardEventArgs e, PopupResult popup) => e.Key == "Escape" ? ClosePopupAsync(popup) : Task.CompletedTask;
+
+    private async Task FocusPopupAsync()
+    {
+        var top = Editing ? null : OpenPopups.LastOrDefault()?.Source?.Id;
+        if (top == _focusedPopup)
+            return;
+
+        _focusedPopup = top;
+        if (top != null)
+            await JS.InvokeVoidAsync("docuHelper.focus", "[data-popup-layer=\"" + top + "\"]");
+    }
 
     private string Snap => string.Join(" ", new[] { State?.Gridlines == true ? "grid" : null, State?.Guides == true ? "guides" : null }.Where(mode => mode != null));
 
@@ -89,6 +132,8 @@
                 _focusedEditor = editing;
             else if (editing == null)
                 _focusedEditor = null;
+
+            await FocusPopupAsync();
         }
         catch (JSException)
         {

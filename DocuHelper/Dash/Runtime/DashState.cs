@@ -8,6 +8,7 @@ namespace DocuHelper.Dash.Runtime
     public sealed class DashState
     {
         private readonly Dictionary<string, object> _values = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, IReadOnlyDictionary<string, object>> _popups = new(StringComparer.Ordinal);
 
         public IReadOnlyDictionary<string, object> Values => _values;
 
@@ -24,7 +25,38 @@ namespace DocuHelper.Dash.Runtime
                     : param.InitialValue();
             }
 
+            if (previous != null)
+            {
+                foreach (var pair in previous._popups)
+                {
+                    if (document?.Find(pair.Key) is Elements.PopupElement)
+                        state._popups[pair.Key] = pair.Value;
+                }
+            }
+
             return state;
+        }
+
+        public bool IsOpen(string id) => id != null && _popups.ContainsKey(id);
+
+        public IReadOnlyDictionary<string, object> PopupItem(string id) => id != null && _popups.TryGetValue(id, out var item) ? item : null;
+
+        public void Open(string id, IReadOnlyDictionary<string, object> item)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return;
+
+            _popups[id.Trim()] = item == null
+                ? new Dictionary<string, object>(StringComparer.Ordinal)
+                : new Dictionary<string, object>(item, StringComparer.Ordinal);
+        }
+
+        public void Close(string id = null)
+        {
+            if (id == null)
+                _popups.Clear();
+            else
+                _popups.Remove(id.Trim());
         }
 
         public object Get(string name) => name != null && _values.TryGetValue(name, out var value) ? value : null;

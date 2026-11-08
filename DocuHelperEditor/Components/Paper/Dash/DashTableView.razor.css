@@ -33,3 +33,11 @@
 .table td {
     border-bottom: 1px solid var(--hair);
 }
+
+tr.click {
+    cursor: pointer;
+}
+
+tr.click:hover td {
+    background: var(--well);
+}
