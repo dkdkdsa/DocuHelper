@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml.Packaging;
 
@@ -76,19 +77,19 @@ namespace DocuHelper.Tools.Ppt
                 : string.Join(", ", shapes.Select(PptOutput.ShapeLabel));
 
             var layoutName = PptSlideFactory.LayoutName(layout);
-            var content = $"Added slide {slide.Number} with layout \"{layoutName}\" ({described}).";
+            var content = new StringBuilder($"Added slide {slide.Number} with layout \"{layoutName}\" ({described}).");
             if (choice.Created)
-                content += $" The deck had no such layout, so \"{layoutName}\" was created in the slide master.";
+                content.Append($" The deck had no such layout, so \"{layoutName}\" was created in the slide master.");
 
             if (slide.Number <= slides.Count)
-                content += $" The slides that were {slide.Number}-{slides.Count} are now {slide.Number + 1}-{slides.Count + 1}.";
+                content.Append($" The slides that were {slide.Number}-{slides.Count} are now {slide.Number + 1}-{slides.Count + 1}.");
 
             var slideHeight = document.PresentationPart.Presentation.SlideSize?.Cy?.Value ?? 6858000;
             foreach (var shape in shapes.Where(s => s.HasText))
             {
                 var fit = PptFit.Estimate(shape, slideHeight);
                 if (fit.IsKnown && !fit.Fits)
-                    content += $" {PptOutput.ShapeLabel(shape)}: {PptOutput.Fit(fit)}.";
+                    content.Append($" {PptOutput.ShapeLabel(shape)}: {PptOutput.Fit(fit)}.");
             }
 
             var change = new DocuChange
@@ -98,7 +99,7 @@ namespace DocuHelper.Tools.Ppt
             };
             change.Anchors.AddRange(shapes.Select(s => s.Anchor));
 
-            return ToolResult.Changed(content, change, choice.Created ? $"새 슬라이드 · 레이아웃 {layoutName}" : "새 슬라이드");
+            return ToolResult.Changed(content.ToString(), change, choice.Created ? $"새 슬라이드 · 레이아웃 {layoutName}" : "새 슬라이드");
         }
 
         private static PptLayoutChoice ChooseLayout(PresentationDocument document, string request, SlidePart near)

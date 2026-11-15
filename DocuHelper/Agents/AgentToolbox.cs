@@ -446,14 +446,14 @@ namespace DocuHelper.Agents
             step.Detail = Shorten(answer);
             host.OnStepCompleted(step);
 
-            var text = $"The user answered: {answer}";
+            var text = new StringBuilder($"The user answered: {answer}");
             var changed = _workspace.HandEditsSince(mark);
             if (changed.Count > 0)
             {
-                text += "\nWhile you waited, the user changed these by hand:\n" + string.Join("\n", changed) + "\nRead those places again before you write over them.";
+                text.Append("\nWhile you waited, the user changed these by hand:\n").Append(string.Join("\n", changed)).Append("\nRead those places again before you write over them.");
             }
 
-            return ToolResult.Ok(text);
+            return ToolResult.Ok(text.ToString());
         }
 
         private async Task<string> AskWhileUnlocked(AgentQuestion question, IAgentHost host, CancellationToken cancellationToken)

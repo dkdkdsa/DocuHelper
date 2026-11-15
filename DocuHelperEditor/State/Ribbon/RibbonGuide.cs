@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocuHelper.Agents;
 using DocuHelperEditor.Components.Paper.Dash;
 using DocuHelperEditor.Components.Paper.Ppt;
@@ -73,22 +74,25 @@ namespace DocuHelperEditor.State.Ribbon
 
         private static string Entry(string label, string shortcut, bool dropdown, string tip, CommandSpec spec, IReadOnlyDictionary<string, List<string>> refused)
         {
-            var text = label.Trim() + (dropdown ? "▾" : string.Empty);
+            var text = new StringBuilder(label.Trim());
+            if (dropdown)
+                text.Append('▾');
+
             var choices = Choices(spec, refused);
             if (choices.Length > 0)
-                text += $" ({choices})";
+                text.Append($" ({choices})");
 
             if (!string.IsNullOrWhiteSpace(shortcut))
-                text += $" [{shortcut.Trim()}]";
+                text.Append($" [{shortcut.Trim()}]");
 
             var description = Description(label, tip);
             if (description != null)
-                text += " — " + description;
+                text.Append(" — ").Append(description);
 
             if (spec?.Class == RibbonCommandClass.Disabled)
-                text += " 안 됨: " + (string.IsNullOrWhiteSpace(spec.Reason) ? RibbonRouter.PendingReason : spec.Reason.Trim());
+                text.Append(" 안 됨: ").Append(string.IsNullOrWhiteSpace(spec.Reason) ? RibbonRouter.PendingReason : spec.Reason.Trim());
 
-            return text;
+            return text.ToString();
         }
 
         private static string Choices(CommandSpec spec, IReadOnlyDictionary<string, List<string>> refused)

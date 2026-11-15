@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
@@ -158,11 +159,11 @@ namespace DocuHelper.Tools.Word
             }
 
             var location = WordScan.PageLabel(blocks);
-            var content = $"Edited {blocks.Count} paragraph(s): {string.Join("; ", notes)}.";
+            var content = new StringBuilder($"Edited {blocks.Count} paragraph(s): {string.Join("; ", notes)}.");
             if (revision != null)
-                content += $" Recorded as tracked changes by {revision.Author}.";
+                content.Append($" Recorded as tracked changes by {revision.Author}.");
 
-            return ToolResult.Changed(content, Change(location, "pencil", blocks.Select(b => b.Anchor)), $"글자 {ops.Count}곳 고침");
+            return ToolResult.Changed(content.ToString(), Change(location, "pencil", blocks.Select(b => b.Anchor)), $"글자 {ops.Count}곳 고침");
         }
 
         private List<Op> Parse(ToolInput input)

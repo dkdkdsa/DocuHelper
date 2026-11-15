@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -76,7 +77,7 @@ namespace DocuHelper.Tools.Excel
             var before = ExcelDrawings.CellOf(anchor.ChildElements.First(e => e.LocalName == "from"));
             string detail;
             string icon;
-            string location = $"{properties.Name?.Value} · ";
+            var location = new StringBuilder($"{properties.Name?.Value} · ");
             var anchors = new List<string> { ExcelAnchor.Cell(sheet.Name, before) };
             switch (action)
             {
@@ -89,13 +90,13 @@ namespace DocuHelper.Tools.Excel
                     detail = "옮김";
                     icon = "move";
                     anchors.Add(ExcelAnchor.Cell(sheet.Name, target));
-                    location += target;
+                    location.Append(target);
                     break;
                 case "resize":
                     Resize(sheet, anchor, input.GetOptionalInt("columns"), input.GetOptionalInt("rows"));
                     detail = "크기 바꿈";
                     icon = "resize";
-                    location += before;
+                    location.Append(before);
                     break;
                 case "restyle":
                     if (chart)
@@ -104,7 +105,7 @@ namespace DocuHelper.Tools.Excel
                     Restyle(anchor, input);
                     detail = "서식 바꿈";
                     icon = "pencil";
-                    location += before;
+                    location.Append(before);
                     break;
                 case "set_text":
                     if (chart || !HasTextBody(anchor))
@@ -113,20 +114,20 @@ namespace DocuHelper.Tools.Excel
                     SetText(anchor, input.GetString("text"));
                     detail = "글 바꿈";
                     icon = "pencil";
-                    location += before;
+                    location.Append(before);
                     break;
                 case "set_alt_text":
                     properties.Description = string.IsNullOrWhiteSpace(input.GetOptionalString("text")) ? null : input.GetString("text").Trim();
                     detail = "대체 텍스트";
                     icon = "pencil";
-                    location += before;
+                    location.Append(before);
                     break;
                 case "front":
                 case "back":
                     Reorder(part, anchor, action == "front");
                     detail = action == "front" ? "맨 앞으로" : "맨 뒤로";
                     icon = "shapes";
-                    location += before;
+                    location.Append(before);
                     break;
                 case "update":
                     if (!chart)
@@ -135,7 +136,7 @@ namespace DocuHelper.Tools.Excel
                     UpdateChart(sheet, book, anchor, input);
                     detail = "차트 바꿈";
                     icon = "chart";
-                    location += before;
+                    location.Append(before);
                     break;
                 default:
                     Delete(sheet, part, anchor);
@@ -144,7 +145,7 @@ namespace DocuHelper.Tools.Excel
 
             sheet.Invalidate();
             var content = $"Changed ‘{objectName}’ on ‘{sheet.Name}’: {action}.";
-            return ToolResult.Changed(content, new DocuChange { Location = location, Icon = icon, Anchors = anchors.Distinct().ToList() }, detail);
+            return ToolResult.Changed(content, new DocuChange { Location = location.ToString(), Icon = icon, Anchors = anchors.Distinct().ToList() }, detail);
         }
 
         private static bool IsChart(OpenXmlElement anchor) =>

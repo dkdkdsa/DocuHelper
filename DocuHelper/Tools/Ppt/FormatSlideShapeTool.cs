@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -295,11 +296,11 @@ namespace DocuHelper.Tools.Ppt
                 ? $"[{ids[0]}] {PptTargets.KindOf(targets[0]).ToString().ToLowerInvariant()}"
                 : $"{targets.Count} shapes ({string.Join(", ", ids.Select(i => "[" + i + "]"))})";
 
-            var content = $"Slide {slide.Number} {subject}: {string.Join(", ", phrases)}.";
+            var content = new StringBuilder($"Slide {slide.Number} {subject}: {string.Join(", ", phrases)}.");
             if (request.MovesBox || request.Rotation != null)
             {
                 var bounds = PptBox.Bounds(targets.Select(t => PptXfrm.Read(t)).Where(b => b != null).Select(b => b.Value));
-                content += $" Now x={PptUnits.CmText(bounds.X)} y={PptUnits.CmText(bounds.Y)} w={PptUnits.CmText(bounds.Width)} h={PptUnits.CmText(bounds.Height)} cm.";
+                content.Append($" Now x={PptUnits.CmText(bounds.X)} y={PptUnits.CmText(bounds.Y)} w={PptUnits.CmText(bounds.Width)} h={PptUnits.CmText(bounds.Height)} cm.");
             }
 
             var change = new DocuChange
@@ -311,7 +312,7 @@ namespace DocuHelper.Tools.Ppt
             };
 
             change.Anchors.AddRange(targets.Select(t => PptAnchor.Shape(slide.SlideId, PptTargets.IdOf(t))));
-            return ToolResult.Changed(content, change, request.Detail());
+            return ToolResult.Changed(content.ToString(), change, request.Detail());
         }
 
         private static string Label(OpenXmlElement target) =>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -74,11 +75,11 @@ namespace DocuHelper.Tools.Word
                 throw new ToolInputException("이 문서는 변경 내용 추적 상태로만 고칠 수 있게 제한돼 있어요. 추적을 끄려면 편집 제한을 먼저 풀어 주세요.");
 
             WordRevisions.SetTracking(docu, on);
-            var content = on ? "Tracking is now on." : "Tracking is now off.";
+            var content = new StringBuilder(on ? "Tracking is now on." : "Tracking is now off.");
             if (!on && !string.IsNullOrWhiteSpace(docu.AssistantRevisionAuthor))
-                content += " Edits made by the assistant are still recorded as tracked changes because the app setting for that is on.";
+                content.Append(" Edits made by the assistant are still recorded as tracked changes because the app setting for that is on.");
 
-            return ToolResult.Changed(content, Change(null, on ? "eye" : "eye-off", new[] { WordAnchors.Doc("settings") }), on ? "추적 켬" : "추적 끔");
+            return ToolResult.Changed(content.ToString(), Change(null, on ? "eye" : "eye-off", new[] { WordAnchors.Doc("settings") }), on ? "추적 켬" : "추적 끔");
         }
 
         private ToolResult Resolve(WordDocu docu, ToolInput input, bool accept)
@@ -114,12 +115,12 @@ namespace DocuHelper.Tools.Word
             var blocks = outcome.ParagraphIds.Select(after.Find).Where(b => b != null).Distinct().ToList();
             var anchors = blocks.Select(b => b.Anchor);
             var verb = accept ? "Accepted" : "Rejected";
-            var content = $"{verb} {outcome.Count} change(s).";
+            var content = new StringBuilder($"{verb} {outcome.Count} change(s).");
             if (outcome.Skipped > 0)
-                content += $" {outcome.Skipped} change(s) of a kind that cannot be {(accept ? "accepted" : "rejected")} here were left as they are.";
+                content.Append($" {outcome.Skipped} change(s) of a kind that cannot be {(accept ? "accepted" : "rejected")} here were left as they are.");
 
             return ToolResult.Changed(
-                content,
+                content.ToString(),
                 Change(WordScan.PageLabel(blocks), accept ? "check" : "rotate-ccw", anchors),
                 accept ? $"변경 {outcome.Count}개 적용" : $"변경 {outcome.Count}개 되돌림");
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Text;
 
 namespace DocuHelper.Tools.Ppt
 {
@@ -19,9 +20,9 @@ namespace DocuHelper.Tools.Ppt
 
         public static string ShapeLabel(PptShapeInfo shape)
         {
-            var role = PptPlaceholder.RoleName(shape.Role);
+            var role = new StringBuilder(PptPlaceholder.RoleName(shape.Role));
             if (shape.Role == PptShapeRole.Body && shape.PlaceholderType != null && shape.PlaceholderIndex > 1)
-                role += " " + shape.PlaceholderIndex.ToString(CultureInfo.InvariantCulture);
+                role.Append(' ').Append(shape.PlaceholderIndex.ToString(CultureInfo.InvariantCulture));
 
             return $"[{shape.ShapeId.ToString(CultureInfo.InvariantCulture)}] {role}";
         }

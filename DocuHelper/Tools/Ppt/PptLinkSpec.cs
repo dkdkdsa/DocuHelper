@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace DocuHelper.Tools.Ppt
@@ -107,11 +108,11 @@ namespace DocuHelper.Tools.Ppt
                 throw new ToolInputException("메일 주소를 읽지 못했어요. name@example.com 처럼 알려 주세요.");
 
             var subject = PptInputs.Text(target, "subject", MaxSubject);
-            var text = "mailto:" + address;
+            var text = new StringBuilder("mailto:").Append(address);
             if (!string.IsNullOrEmpty(subject))
-                text += "?subject=" + Uri.EscapeDataString(subject);
+                text.Append("?subject=").Append(Uri.EscapeDataString(subject));
 
-            return PptLinkRelations.NormalizeUrl(text);
+            return PptLinkRelations.NormalizeUrl(text.ToString());
         }
     }
 }

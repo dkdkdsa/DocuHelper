@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 
 namespace DocuHelperEditor.State.Papers
 {
@@ -32,11 +33,11 @@ namespace DocuHelperEditor.State.Papers
                 return fallback;
 
             var clean = name.Replace("'", string.Empty).Replace("\"", string.Empty).Replace(";", string.Empty).Trim();
-            var family = "'" + clean + "'";
+            var family = new StringBuilder().Append('\'').Append(clean).Append('\'');
             if (s_aliases.TryGetValue(clean, out var alias))
-                family += ", '" + alias + "'";
+                family.Append(", '").Append(alias).Append("'");
 
-            return family + ", " + fallback;
+            return family.Append(", ").Append(fallback).ToString();
         }
 
         public static string Pixels(double points) => (points * PixelsPerPoint).ToString("0.##", CultureInfo.InvariantCulture) + "px";

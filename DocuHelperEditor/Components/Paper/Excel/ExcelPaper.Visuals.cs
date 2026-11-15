@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocuHelperEditor.Services;
 using DocuHelperEditor.State.Papers;
 using Microsoft.AspNetCore.Components;
@@ -105,11 +106,11 @@ namespace DocuHelperEditor.Components.Paper.Excel
                 {
                     case SheetLinkCheck.Open:
                         var uri = new Uri(target);
-                        var shown = string.IsNullOrEmpty(uri.Host) ? target : uri.Host;
+                        var shown = new StringBuilder(string.IsNullOrEmpty(uri.Host) ? target : uri.Host);
                         if (uri.IdnHost != uri.Host)
-                            shown += " (" + uri.IdnHost + ")";
+                            shown.Append(" (").Append(uri.IdnHost).Append(")");
 
-                        _confirm = new Confirm("이 주소를 열까요? 연결 대상: " + shown, "열기", () => Shells.FirstOrDefault()?.OpenFile(target));
+                        _confirm = new Confirm(shown.Insert(0, "이 주소를 열까요? 연결 대상: ").ToString(), "열기", () => Shells.FirstOrDefault()?.OpenFile(target));
                         break;
                     case SheetLinkCheck.TooLong:
                         _editError = "이 링크 주소가 너무 길어서 열 수 없어요.";

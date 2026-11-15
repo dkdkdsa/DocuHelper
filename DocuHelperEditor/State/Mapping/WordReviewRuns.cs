@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocuHelper.Tools.Word;
 using DocuHelperEditor.State.Papers;
 using DocumentFormat.OpenXml;
@@ -112,20 +113,20 @@ namespace DocuHelperEditor.State.Mapping
 
         private static string TextOf(Run run)
         {
-            var text = string.Empty;
+            var text = new StringBuilder();
             foreach (var child in run.ChildElements)
             {
-                text += child switch
+                text.Append(child switch
                 {
                     Text value => value.Text,
                     DeletedText value => value.Text,
                     TabChar => "\t",
                     Break br when br.Type == null || br.Type.Value == BreakValues.TextWrapping => "\n",
                     _ => string.Empty,
-                };
+                });
             }
 
-            return text;
+            return text.ToString();
         }
 
         private static string AttributeOf(OpenXmlElement element, string name) =>

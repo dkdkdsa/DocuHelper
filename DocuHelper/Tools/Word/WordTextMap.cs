@@ -629,16 +629,24 @@ namespace DocuHelper.Tools.Word
         private static void JoinTexts(Run run)
         {
             var children = run.ChildElements.ToList();
+            var joined = new StringBuilder();
             for (var i = 0; i + 1 < children.Count; i++)
             {
-                if (children[i] is Text a && children[i + 1] is Text b)
+                if (children[i] is not Text first || children[i + 1] is not Text second)
+                    continue;
+
+                joined.Clear().Append(first.Text).Append(second.Text);
+                second.Remove();
+                var next = i + 2;
+                for (; next < children.Count && children[next] is Text other; next++)
                 {
-                    a.Text += b.Text;
-                    FixSpace(a);
-                    b.Remove();
-                    children.RemoveAt(i + 1);
-                    i--;
+                    joined.Append(other.Text);
+                    other.Remove();
                 }
+
+                first.Text = joined.ToString();
+                FixSpace(first);
+                i = next - 1;
             }
         }
 

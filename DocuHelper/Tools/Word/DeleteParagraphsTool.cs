@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -68,13 +69,13 @@ namespace DocuHelper.Tools.Word
 
             Repair(scan.Body, used);
 
-            var content = revision == null
+            var content = new StringBuilder(revision == null
                 ? $"Deleted {targets.Count - cleared.Count} block(s)."
-                : $"Marked {targets.Count - cleared.Count} block(s) as tracked deletions.";
+                : $"Marked {targets.Count - cleared.Count} block(s) as tracked deletions.");
             if (cleared.Count > 0)
-                content += $" {string.Join(", ", cleared)} hold a section break, so only their text was {(revision == null ? "removed" : "marked as deleted")}.";
+                content.Append($" {string.Join(", ", cleared)} hold a section break, so only their text was {(revision == null ? "removed" : "marked as deleted")}.");
 
-            return ToolResult.Changed(content, Change(location, "trash", targets.Select(b => b.Anchor)), $"{targets.Count}개 지움");
+            return ToolResult.Changed(content.ToString(), Change(location, "trash", targets.Select(b => b.Anchor)), $"{targets.Count}개 지움");
         }
 
         private static bool Track(WordBlock block, RevisionContext revision)

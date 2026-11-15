@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocumentFormat.OpenXml.Spreadsheet;
 using DocuHelper.Docus;
 
@@ -153,14 +154,14 @@ namespace DocuHelper.Tools.Excel
             var result = Recalculate(book, dependents);
             var errors = dependents.Count(k => result.Values.TryGetValue(k, out var value) && value.IsError);
             var unknown = dependents.Count(result.Unknown.Contains);
-            var text = string.Empty;
+            var text = new StringBuilder(string.Empty);
             if (errors > 0)
-                text += $" {errors} of them show an error.";
+                text.Append($" {errors} of them show an error.");
 
             if (unknown > 0)
-                text += $" {unknown} could not be calculated here, so Excel calculates them when the file is opened.";
+                text.Append($" {unknown} could not be calculated here, so Excel calculates them when the file is opened.");
 
-            return text;
+            return text.ToString();
         }
 
         private static ToolResult Finish(ExcelBook book, string content, string detail, string name, string text)

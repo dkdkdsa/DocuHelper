@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace DocuHelperEditor.Services
 {
@@ -11,16 +12,16 @@ namespace DocuHelperEditor.Services
 
         public static void Write(string message, Exception exception = null)
         {
-            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}";
+            var line = new StringBuilder($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}");
             if (exception != null)
-                line += Environment.NewLine + exception;
+                line.Append(Environment.NewLine).Append(exception);
 
             try
             {
                 lock (s_lock)
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
-                    File.AppendAllText(FilePath, line + Environment.NewLine);
+                    File.AppendAllText(FilePath, line.AppendLine().ToString());
                 }
             }
             catch (IOException)

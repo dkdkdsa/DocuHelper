@@ -189,11 +189,11 @@ namespace DocuHelper.Tools.Excel
             switch (value.Kind)
             {
                 case ExcelValueKind.Number:
-                    var display = ExcelNumberFormat.Format(value.Number, style.FormatCode);
-                    if (!TypedInput.TryParseNumber(display, out var parsed, out _) || Math.Abs(parsed - value.Number) > 1e-9 * Math.Max(1, Math.Abs(value.Number)))
-                        display += " [" + ExcelValue.Invariant(value.Number) + "]";
+                    var display = new StringBuilder(ExcelNumberFormat.Format(value.Number, style.FormatCode));
+                    if (!TypedInput.TryParseNumber(display.ToString(), out var parsed, out _) || Math.Abs(parsed - value.Number) > 1e-9 * Math.Max(1, Math.Abs(value.Number)))
+                        display.Append(" [").Append(ExcelValue.Invariant(value.Number)).Append("]");
 
-                    return display;
+                    return display.ToString();
                 case ExcelValueKind.Text:
                     var text = value.Text;
                     if (text.Length == 0)

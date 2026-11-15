@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using A = DocumentFormat.OpenXml.Drawing;
 
@@ -126,11 +127,11 @@ namespace DocuHelper.Tools.Ppt
                 PptSlides.ResetAutofit(target.Shape);
 
             var shapeId = target.ShapeId;
-            var content = $"Slide {slide.Number} {target.Label()}: {Describe(format)}{Scope(paragraphs, range)}.";
+            var content = new StringBuilder($"Slide {slide.Number} {target.Label()}: {Describe(format)}{Scope(paragraphs, range)}.");
             if (target.Shape != null && (format.Size != null || format.Step != null))
             {
                 var info = target.Info();
-                content += $" Fit: {PptOutput.Fit(PptFit.Estimate(info, document.PresentationPart.Presentation.SlideSize?.Cy?.Value ?? 6858000))}.";
+                content.Append($" Fit: {PptOutput.Fit(PptFit.Estimate(info, document.PresentationPart.Presentation.SlideSize?.Cy?.Value ?? 6858000))}.");
             }
 
             var change = new DocuChange
@@ -140,7 +141,7 @@ namespace DocuHelper.Tools.Ppt
                 Anchors = { PptAnchor.Shape(slide.SlideId, shapeId) },
             };
 
-            return ToolResult.Changed(content, change, "글자 모양");
+            return ToolResult.Changed(content.ToString(), change, "글자 모양");
         }
 
         private static A.TextAlignmentTypeValues? ParseAlign(string value)

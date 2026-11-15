@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml.Packaging;
@@ -134,14 +135,14 @@ namespace DocuHelper.Tools.Ppt
 
             PptFrames.Place(slide, tree, empty, frame);
 
-            var content = $"Created {kind.Token} chart [{id.ToString(CultureInfo.InvariantCulture)}] with {model.Categories.Count.ToString(CultureInfo.InvariantCulture)} categories and {used.Count.ToString(CultureInfo.InvariantCulture)} series at x={PptUnits.CmText(box.X)} y={PptUnits.CmText(box.Y)} w={PptUnits.CmText(box.Width)} h={PptUnits.CmText(box.Height)} cm.";
+            var content = new StringBuilder($"Created {kind.Token} chart [{id.ToString(CultureInfo.InvariantCulture)}] with {model.Categories.Count.ToString(CultureInfo.InvariantCulture)} categories and {used.Count.ToString(CultureInfo.InvariantCulture)} series at x={PptUnits.CmText(box.X)} y={PptUnits.CmText(box.Y)} w={PptUnits.CmText(box.Width)} h={PptUnits.CmText(box.Height)} cm.");
             if (kind.IsPie && model.Series.Count > 1)
-                content += " Only the first series is drawn in a pie or doughnut chart.";
+                content.Append(" Only the first series is drawn in a pie or doughnut chart.");
 
             if (empty != null)
-                content += " It took the place of the empty content placeholder.";
+                content.Append(" It took the place of the empty content placeholder.");
 
-            return ToolResult.Changed(content, Change(slide, id), "차트 넣기");
+            return ToolResult.Changed(content.ToString(), Change(slide, id), "차트 넣기");
         }
 
         private static ToolResult Update(PptSlideRef slide, ToolInput input, Request request)
@@ -237,11 +238,11 @@ namespace DocuHelper.Tools.Ppt
 
             part.ChartSpace = PptChartBuilder.Build(kind, model, relationshipId);
 
-            var content = $"Updated {kind.Token} chart [{id.ToString(CultureInfo.InvariantCulture)}]: {model.Categories.Count.ToString(CultureInfo.InvariantCulture)} categories, {used.Count.ToString(CultureInfo.InvariantCulture)} series. The chart was rebuilt from this data, so custom formatting of the old chart (fonts, 3D, axis options) is replaced.";
+            var content = new StringBuilder($"Updated {kind.Token} chart [{id.ToString(CultureInfo.InvariantCulture)}]: {model.Categories.Count.ToString(CultureInfo.InvariantCulture)} categories, {used.Count.ToString(CultureInfo.InvariantCulture)} series. The chart was rebuilt from this data, so custom formatting of the old chart (fonts, 3D, axis options) is replaced.");
             if (kind.IsPie && model.Series.Count > 1)
-                content += " Only the first series is drawn in a pie or doughnut chart.";
+                content.Append(" Only the first series is drawn in a pie or doughnut chart.");
 
-            return ToolResult.Changed(content, Change(slide, id), "차트 고침");
+            return ToolResult.Changed(content.ToString(), Change(slide, id), "차트 고침");
         }
 
         private static void Complete(PptChartInfo model)

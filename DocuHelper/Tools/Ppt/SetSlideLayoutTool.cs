@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml.Packaging;
 
@@ -66,21 +67,21 @@ namespace DocuHelper.Tools.Ppt
             if (results.All(r => !r.IsChanged && r.Created == 0) && created.Count == 0)
                 return ToolResult.Ok($"{Slides(selected.Count)} {numbers} already use{(selected.Count == 1 ? "s" : string.Empty)} layout \"{name}\". Nothing changed.");
 
-            var content = $"{Slides(selected.Count)} {numbers} now use{(selected.Count == 1 ? "s" : string.Empty)} layout \"{name}\".";
+            var content = new StringBuilder($"{Slides(selected.Count)} {numbers} now use{(selected.Count == 1 ? "s" : string.Empty)} layout \"{name}\".");
             var converted = results.Sum(r => r.Converted);
             var dropped = results.Sum(r => r.Dropped);
             var added = results.Sum(r => r.Created);
             if (converted > 0)
-                content += $" {converted} text shape{PptOutput.Plural(converted)} without a matching placeholder {(converted == 1 ? "was" : "were")} kept as ordinary text box{(converted == 1 ? string.Empty : "es")}.";
+                content.Append($" {converted} text shape{PptOutput.Plural(converted)} without a matching placeholder {(converted == 1 ? "was" : "were")} kept as ordinary text box{(converted == 1 ? string.Empty : "es")}.");
 
             if (dropped > 0)
-                content += $" {dropped} empty placeholder{PptOutput.Plural(dropped)} the new layout has no place for {(dropped == 1 ? "was" : "were")} removed.";
+                content.Append($" {dropped} empty placeholder{PptOutput.Plural(dropped)} the new layout has no place for {(dropped == 1 ? "was" : "were")} removed.");
 
             if (added > 0)
-                content += $" {added} empty placeholder{PptOutput.Plural(added)} from the layout {(added == 1 ? "was" : "were")} added.";
+                content.Append($" {added} empty placeholder{PptOutput.Plural(added)} from the layout {(added == 1 ? "was" : "were")} added.");
 
             if (created.Count > 0)
-                content += $" Created layout{(created.Count == 1 ? string.Empty : "s")} {string.Join(", ", created.Select(n => "\"" + n + "\""))} in the slide master.";
+                content.Append($" Created layout{(created.Count == 1 ? string.Empty : "s")} {string.Join(", ", created.Select(n => "\"" + n + "\""))} in the slide master.");
 
             var change = new DocuChange
             {
@@ -92,7 +93,7 @@ namespace DocuHelper.Tools.Ppt
             for (var i = 0; i < selected.Count; i++)
                 change.Anchors.AddRange(results[i].Changed.Select(id => PptAnchor.Shape(selected[i].SlideId, id)));
 
-            return ToolResult.Changed(content, change, $"레이아웃 {name}");
+            return ToolResult.Changed(content.ToString(), change, $"레이아웃 {name}");
         }
 
         private static ToolResult Reset(PresentationDocument document, List<PptSlideRef> selected, int total)

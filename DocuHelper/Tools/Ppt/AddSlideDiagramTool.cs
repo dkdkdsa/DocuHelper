@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
@@ -96,9 +97,9 @@ namespace DocuHelper.Tools.Ppt
             }
 
             var bounds = plan.Bounds;
-            var content = $"Added {PptDiagramKinds.TokenOf(kind)} diagram [{id.ToString(CultureInfo.InvariantCulture)}] with {items.Count} items at x={PptUnits.CmText(bounds.X)} y={PptUnits.CmText(bounds.Y)} w={PptUnits.CmText(bounds.Width)} h={PptUnits.CmText(bounds.Height)} cm.";
+            var content = new StringBuilder($"Added {PptDiagramKinds.TokenOf(kind)} diagram [{id.ToString(CultureInfo.InvariantCulture)}] with {items.Count} items at x={PptUnits.CmText(bounds.X)} y={PptUnits.CmText(bounds.Y)} w={PptUnits.CmText(bounds.Width)} h={PptUnits.CmText(bounds.Height)} cm.");
             if (empty != null)
-                content += " It took the place of the empty content placeholder.";
+                content.Append(" It took the place of the empty content placeholder.");
 
             var change = new DocuChange
             {
@@ -107,7 +108,7 @@ namespace DocuHelper.Tools.Ppt
                 Anchors = { PptAnchor.Shape(slide.SlideId, id) },
             };
 
-            return ToolResult.Changed(content, change, $"도형으로 만든 {PptDiagramKinds.KoreanName(kind)}");
+            return ToolResult.Changed(content.ToString(), change, $"도형으로 만든 {PptDiagramKinds.KoreanName(kind)}");
         }
 
         private static List<string> Items(ToolInput input)

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace DocuHelper.Tools.Excel
 {
@@ -56,16 +57,16 @@ namespace DocuHelper.Tools.Excel
             if (used == null)
                 return $"{name} 비어 있음";
 
-            var text = $"{name} {used}";
+            var text = new StringBuilder($"{name} {used}");
             if (features != null)
-                text += $" [{features}]";
+                text.Append($" [{features}]");
 
             if (limit == 0 || headers.Count == 0)
-                return text;
+                return text.ToString();
 
             var names = headers.Take(limit).ToList();
             var list = string.Join(", ", names) + (headers.Count > names.Count ? ", …" : string.Empty);
-            return text + $" (머리글: {list})";
+            return text.Append($" (머리글: {list})").ToString();
         }
 
         private static List<string> HeaderNames(ExcelBook book, ExcelSheet sheet, CellRange used)

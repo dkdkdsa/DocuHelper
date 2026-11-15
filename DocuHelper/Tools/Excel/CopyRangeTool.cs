@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 
 namespace DocuHelper.Tools.Excel
@@ -80,31 +81,31 @@ namespace DocuHelper.Tools.Excel
                 _ => "data validation",
             };
             var verb = move ? "Moved" : "Copied";
-            var content = $"{verb} ‘{source.Name}’ {range} to ‘{target.Name}’ {destination} ({what}"
+            var content = new StringBuilder($"{verb} ‘{source.Name}’ {range} to ‘{target.Name}’ {destination} ({what}"
                 + (operation == PasteOperation.None ? string.Empty : $", combined with {operation.ToString().ToLowerInvariant()}")
                 + (transpose ? ", rows and columns swapped" : string.Empty)
                 + (skipBlanks ? ", empty source cells skipped" : string.Empty)
-                + ").";
+                + ").");
             if (outcome.Skipped > 0)
-                content += $" {outcome.Skipped} cell(s) were left as they were because the source was empty or the destination was not a number.";
+                content.Append($" {outcome.Skipped} cell(s) were left as they were because the source was empty or the destination was not a number.");
 
             if (outcome.NoResult > 0)
-                content += $" {outcome.NoResult} formula cell(s) had no calculated result, so their pasted value is empty.";
+                content.Append($" {outcome.NoResult} formula cell(s) had no calculated result, so their pasted value is empty.");
 
             if (outcome.Rules.ValidationCount + outcome.Rules.FormatCount + outcome.Rules.LinkCount > 0)
-                content += $" Also copied: {outcome.Rules.ValidationCount} data validation rule(s), {outcome.Rules.FormatCount} conditional format rule(s), {outcome.Rules.LinkCount} hyperlink(s).";
+                content.Append($" Also copied: {outcome.Rules.ValidationCount} data validation rule(s), {outcome.Rules.FormatCount} conditional format rule(s), {outcome.Rules.LinkCount} hyperlink(s).");
 
             if (outcome.Rules.Skipped > 0)
-                content += $" {outcome.Rules.Skipped} conditional format rule(s) with extended settings were not {(move ? "moved" : "copied")}.";
+                content.Append($" {outcome.Rules.Skipped} conditional format rule(s) with extended settings were not {(move ? "moved" : "copied")}.");
 
             if (outcome.Comments)
-                content += " Comments, pictures and charts are not copied" + (move ? " and stay where they are." : ".");
+                content.Append(" Comments, pictures and charts are not copied").Append(move ? " and stay where they are." : ".");
 
             var broken = dirty.Where(k => result.Values.TryGetValue(k, out var v) && v.IsError && v.Text == ExcelValue.BadReference).ToList();
             if (broken.Count > 0)
-                content += $" {broken.Count} formula cell(s) now show #REF! because they pointed at cells that were pasted over, e.g. {broken[0].Address}.";
+                content.Append($" {broken.Count} formula cell(s) now show #REF! because they pointed at cells that were pasted over, e.g. {broken[0].Address}.");
 
-            content += FormulaReport(result, outcome.Formulas, 12);
+            content.Append(FormulaReport(result, outcome.Formulas, 12));
 
             var change = new DocuChange
             {
@@ -112,7 +113,7 @@ namespace DocuHelper.Tools.Excel
                 Icon = move ? "move" : "copy",
                 Anchors = Anchors(target, destination.Cells()),
             };
-            return ToolResult.Changed(content, change, $"{range.CellCount}칸");
+            return ToolResult.Changed(content.ToString(), change, $"{range.CellCount}칸");
         }
 
         private static ExcelSheet ResolveTarget(ExcelBook book, ToolInput input, ExcelSheet source)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocumentFormat.OpenXml.Spreadsheet;
 using DocuHelper.Docus;
 
@@ -165,15 +166,15 @@ namespace DocuHelper.Tools.Excel
             {
                 var known = keys.Count(k => result.Values.ContainsKey(k) && !result.Unknown.Contains(k));
                 var errors = keys.Count(k => result.Values.TryGetValue(k, out var value) && value.IsError);
-                var text = $"Recalculated {known} of {keys.Count} formula cell(s) in {scope}.";
+                var text = new StringBuilder($"Recalculated {known} of {keys.Count} formula cell(s) in {scope}.");
                 if (errors > 0)
-                    text += $" {errors} show an error.";
+                    text.Append($" {errors} show an error.");
 
                 var unknown = keys.Where(result.Unknown.Contains).ToList();
                 if (unknown.Count > 0)
-                    text += $" Not calculated here (unsupported function or reference), Excel calculates on open: {string.Join(", ", unknown.Take(8).Select(k => book.Sheets[k.SheetIndex].Name + "!" + k.Address))}{(unknown.Count > 8 ? ", …" : string.Empty)}.";
+                    text.Append($" Not calculated here (unsupported function or reference), Excel calculates on open: {string.Join(", ", unknown.Take(8).Select(k => book.Sheets[k.SheetIndex].Name + "!" + k.Address))}{(unknown.Count > 8 ? ", …" : string.Empty)}.");
 
-                notes.Add(text);
+                notes.Add(text.ToString());
             }
 
             places.Add(("다시 계산", "calc"));

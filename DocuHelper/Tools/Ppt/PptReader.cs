@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -204,11 +205,17 @@ namespace DocuHelper.Tools.Ppt
                 .Select(r => string.Join(" | ", r.Elements<A.TableCell>().Select(CellText)))
                 .ToList();
 
-            var text = $"{rows.Count}x{columns}: {string.Join(" / ", lines)}";
+            var text = new StringBuilder($"{rows.Count}x{columns}: {string.Join(" / ", lines)}");
             if (rows.Count > MaxTableRows)
-                text += " / …";
+                text.Append(" / …");
 
-            return text.Length > MaxTableText ? text.Substring(0, MaxTableText) + "…" : text;
+            if (text.Length > MaxTableText)
+            {
+                text.Length = MaxTableText;
+                text.Append('…');
+            }
+
+            return text.ToString();
         }
 
         private static string CellText(A.TableCell cell)

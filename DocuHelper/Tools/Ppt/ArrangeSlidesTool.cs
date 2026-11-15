@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml.Packaging;
 
@@ -86,13 +87,13 @@ namespace DocuHelper.Tools.Ppt
             var shifted = all.Where(s => s.Number > anchor).Select(s => (s.Number, s.Number + parts.Count));
             var skipped = selected.Sum(s => PptSlideCloner.SkippedModernComments(s.Part));
 
-            var content = numbers.Count == 1
+            var content = new StringBuilder(numbers.Count == 1
                 ? $"Slide {numbers[0]} is a copy of {sources[0]}."
-                : $"Slides {PptSlideOrder.Ranges(numbers)} are copies of {PptSlideOrder.Ranges(sources)}.";
+                : $"Slides {PptSlideOrder.Ranges(numbers)} are copies of {PptSlideOrder.Ranges(sources)}.");
 
-            content += PptSlideOrder.Renumbering(shifted);
+            content.Append(PptSlideOrder.Renumbering(shifted));
             if (skipped > 0)
-                content += " Modern comments are not copied to the new slides.";
+                content.Append(" Modern comments are not copied to the new slides.");
 
             var change = new DocuChange
             {
@@ -100,7 +101,7 @@ namespace DocuHelper.Tools.Ppt
                 Icon = "copy",
             };
             change.Anchors.AddRange(PptSlideSet.Anchors(created));
-            return ToolResult.Changed(content, change, $"슬라이드 {parts.Count.ToString(CultureInfo.InvariantCulture)}장 복제");
+            return ToolResult.Changed(content.ToString(), change, $"슬라이드 {parts.Count.ToString(CultureInfo.InvariantCulture)}장 복제");
         }
 
         private static ToolResult Delete(PresentationDocument document, List<PptSlideRef> all, List<PptSlideRef> selected)
@@ -113,16 +114,16 @@ namespace DocuHelper.Tools.Ppt
             PptSlideOrder.FitShowRange(document.PresentationPart, deleted, all.Count);
             var kept = all.Where(s => !deleted.Contains(s.Number)).Select(s => (s.Number, s.Number - deleted.Count(d => d < s.Number)));
 
-            var content = deleted.Count == 1
+            var content = new StringBuilder(deleted.Count == 1
                 ? $"Deleted slide {deleted[0]}."
-                : $"Deleted slides {PptSlideOrder.Ranges(deleted)}.";
+                : $"Deleted slides {PptSlideOrder.Ranges(deleted)}.");
 
-            content += PptSlideOrder.Renumbering(kept);
+            content.Append(PptSlideOrder.Renumbering(kept));
             if (links > 0)
-                content += $" Removed {links} link{PptOutput.Plural(links)} on other slides that jumped to the deleted slides.";
+                content.Append($" Removed {links} link{PptOutput.Plural(links)} on other slides that jumped to the deleted slides.");
 
             if (all.Count == deleted.Count)
-                content += " The deck has no slides now; use add_slide to create one.";
+                content.Append(" The deck has no slides now; use add_slide to create one.");
 
             var change = new DocuChange
             {
@@ -130,7 +131,7 @@ namespace DocuHelper.Tools.Ppt
                 Icon = "trash",
             };
 
-            return ToolResult.Changed(content, change, $"슬라이드 {deleted.Count.ToString(CultureInfo.InvariantCulture)}장 지움");
+            return ToolResult.Changed(content.ToString(), change, $"슬라이드 {deleted.Count.ToString(CultureInfo.InvariantCulture)}장 지움");
         }
 
         private static ToolResult Move(PresentationDocument document, List<PptSlideRef> all, List<PptSlideRef> selected, int to)
@@ -150,8 +151,8 @@ namespace DocuHelper.Tools.Ppt
             var others = rest.Select(s => (s.Number, newNumber[s.SlideId]));
 
             var where = to == 0 ? "to the front" : $"after slide {to}";
-            var content = $"Moved slide{(selected.Count == 1 ? string.Empty : "s")} {label} {where}. {(selected.Count == 1 ? "It is" : "They are")} now {(moved.Count == 1 ? "slide " : "slides ")}{PptSlideOrder.Ranges(moved.Select(m => m.Number))}.";
-            content += PptSlideOrder.Renumbering(others);
+            var content = new StringBuilder($"Moved slide{(selected.Count == 1 ? string.Empty : "s")} {label} {where}. {(selected.Count == 1 ? "It is" : "They are")} now {(moved.Count == 1 ? "slide " : "slides ")}{PptSlideOrder.Ranges(moved.Select(m => m.Number))}.");
+            content.Append(PptSlideOrder.Renumbering(others));
 
             var change = new DocuChange
             {
@@ -159,7 +160,7 @@ namespace DocuHelper.Tools.Ppt
                 Icon = "move",
             };
             change.Anchors.AddRange(PptSlideSet.Anchors(moved));
-            return ToolResult.Changed(content, change, $"슬라이드 {selected.Count.ToString(CultureInfo.InvariantCulture)}장 옮김");
+            return ToolResult.Changed(content.ToString(), change, $"슬라이드 {selected.Count.ToString(CultureInfo.InvariantCulture)}장 옮김");
         }
 
         private static ToolResult Visibility(List<PptSlideRef> all, List<PptSlideRef> selected, bool hide)

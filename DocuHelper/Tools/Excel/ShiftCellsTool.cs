@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 
 namespace DocuHelper.Tools.Excel
@@ -46,12 +47,17 @@ namespace DocuHelper.Tools.Excel
             var broken = dirty.Where(k => result.Values.TryGetValue(k, out var v) && v.IsError && v.Text == ExcelValue.BadReference).ToList();
 
             var moved = shift.Vertical ? "below" : "to the right";
-            var content = insert
+            var content = new StringBuilder(insert
                 ? $"Inserted {range.CellCount} empty cell(s) at ‘{sheet.Name}’ {range}; the existing cells {moved} moved {direction} by {shift.Size}."
-                : $"Deleted ‘{sheet.Name}’ {range} ({filled} filled cell(s) removed); the cells {moved} moved {direction} by {shift.Size}.";
-            content += (outcome.Changed > 0 ? $" {outcome.Changed} formula(s) or references were adjusted." : string.Empty)
-                + (broken.Count > 0 ? $" {broken.Count} formula cell(s) now show #REF! because they pointed at deleted cells, e.g. {broken[0].Address}." : string.Empty)
-                + (result.Updated > 0 ? $" {result.Updated} formula cell(s) were recalculated." : string.Empty);
+                : $"Deleted ‘{sheet.Name}’ {range} ({filled} filled cell(s) removed); the cells {moved} moved {direction} by {shift.Size}.");
+            if (outcome.Changed > 0)
+                content.Append($" {outcome.Changed} formula(s) or references were adjusted.");
+
+            if (broken.Count > 0)
+                content.Append($" {broken.Count} formula cell(s) now show #REF! because they pointed at deleted cells, e.g. {broken[0].Address}.");
+
+            if (result.Updated > 0)
+                content.Append($" {result.Updated} formula cell(s) were recalculated.");
 
             var change = new DocuChange
             {
@@ -59,7 +65,7 @@ namespace DocuHelper.Tools.Excel
                 Icon = insert ? "cins" : "cdel",
                 Anchors = Anchors(sheet, range.Cells().Take(500)),
             };
-            return ToolResult.Changed(content, change, $"{range.CellCount}칸 {(insert ? "넣음" : "지움")}");
+            return ToolResult.Changed(content.ToString(), change, $"{range.CellCount}칸 {(insert ? "넣음" : "지움")}");
         }
 
         private static bool ParseAction(string text)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -148,9 +149,9 @@ namespace DocuHelperEditor.Components.Paper.Dash
                 if (_el == null)
                     return "아무것도 고르지 않았어요";
 
-                var text = DashLabels.Kind(_el.Kind);
+                var text = new StringBuilder(DashLabels.Kind(_el.Kind));
                 if (_el.Locked)
-                    text += ", 잠금";
+                    text.Append(", 잠금");
 
                 var data = _el switch
                 {
@@ -160,13 +161,13 @@ namespace DocuHelperEditor.Components.Paper.Dash
                     _ => null,
                 };
                 if (!string.IsNullOrWhiteSpace(data))
-                    text += ", ‘" + data + "’ 표";
+                    text.Append(", ‘").Append(data).Append("’ 표");
 
                 var param = DashDependents.ParamOf(_el);
                 if (!string.IsNullOrWhiteSpace(param))
-                    text += ", ‘" + param + "’ 조절값";
+                    text.Append(", ‘").Append(param).Append("’ 조절값");
 
-                return text;
+                return text.ToString();
             }
         }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
@@ -172,12 +173,12 @@ namespace DocuHelper.Tools.Ppt
             PptFrames.Place(slide, tree, empty, frame);
 
             var made = PptXfrm.Read(frame).Value;
-            var content = $"Created table [{id.ToString(CultureInfo.InvariantCulture)}] with {rows.ToString(CultureInfo.InvariantCulture)} rows x {columns.ToString(CultureInfo.InvariantCulture)} columns at x={PptUnits.CmText(made.X)} y={PptUnits.CmText(made.Y)} w={PptUnits.CmText(made.Width)} h={PptUnits.CmText(made.Height)} cm, style {styleKey}.";
+            var content = new StringBuilder($"Created table [{id.ToString(CultureInfo.InvariantCulture)}] with {rows.ToString(CultureInfo.InvariantCulture)} rows x {columns.ToString(CultureInfo.InvariantCulture)} columns at x={PptUnits.CmText(made.X)} y={PptUnits.CmText(made.Y)} w={PptUnits.CmText(made.Width)} h={PptUnits.CmText(made.Height)} cm, style {styleKey}.");
             if (empty != null)
-                content += " It took the place of the empty content placeholder.";
+                content.Append(" It took the place of the empty content placeholder.");
 
             var change = Change(slide, id);
-            return ToolResult.Changed(content, change, "표 넣기");
+            return ToolResult.Changed(content.ToString(), change, "표 넣기");
         }
 
         private static ToolResult SetCells(Edit edit, ToolInput input)

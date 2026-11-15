@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
 using P = DocumentFormat.OpenXml.Presentation;
@@ -182,9 +183,9 @@ namespace DocuHelper.Tools.Ppt
             var members = Ids(targets);
             var group = PptGrouping.Group(slide, targets);
             var groupId = PptTargets.IdOf(group);
-            var content = $"Grouped {members} into [{groupId.ToString(CultureInfo.InvariantCulture)}].";
+            var content = new StringBuilder($"Grouped {members} into [{groupId.ToString(CultureInfo.InvariantCulture)}].");
             if (effects > 0)
-                content += " The animation of the grouped shapes was removed because only a whole group can be animated.";
+                content.Append(" The animation of the grouped shapes was removed because only a whole group can be animated.");
 
             var change = new DocuChange
             {
@@ -193,7 +194,7 @@ namespace DocuHelper.Tools.Ppt
                 Anchors = { PptAnchor.Shape(slide.SlideId, groupId) },
             };
 
-            return ToolResult.Changed(content, change, "묶음");
+            return ToolResult.Changed(content.ToString(), change, "묶음");
         }
 
         private static ToolResult Ungroup(PptSlideRef slide, List<OpenXmlCompositeElement> targets)
@@ -275,9 +276,9 @@ namespace DocuHelper.Tools.Ppt
         {
             var names = Ids(targets);
             var effects = PptShapeRemover.Remove(slide, targets);
-            var content = $"Deleted {names}.";
+            var content = new StringBuilder($"Deleted {names}.");
             if (effects > 0)
-                content += " Their animation effects were removed too.";
+                content.Append(" Their animation effects were removed too.");
 
             var change = new DocuChange
             {
@@ -285,7 +286,7 @@ namespace DocuHelper.Tools.Ppt
                 Icon = "trash",
             };
 
-            return ToolResult.Changed(content, change, "지움");
+            return ToolResult.Changed(content.ToString(), change, "지움");
         }
 
         private static Dictionary<OpenXmlCompositeElement, PptBox> VisualBoxes(PptSlideRef slide, List<OpenXmlCompositeElement> targets)

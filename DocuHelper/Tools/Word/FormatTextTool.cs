@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
@@ -101,12 +102,12 @@ namespace DocuHelper.Tools.Word
             var blocks = ranges.Select(r => after.Find(r.Block.Id)).Where(b => b != null).Distinct().ToList();
             var paragraphs = ranges.Select(r => r.Paragraph).Distinct().Count();
             var parts = format.Describe();
-            var content = $"Formatted {count} range(s) in {paragraphs} paragraph(s): {string.Join(", ", parts.Select(p => p.English))}.";
+            var content = new StringBuilder($"Formatted {count} range(s) in {paragraphs} paragraph(s): {string.Join(", ", parts.Select(p => p.English))}.");
             if (WordRevisions.Active(docu) != null)
-                content += " Formatting is applied directly and is not recorded as a tracked change.";
+                content.Append(" Formatting is applied directly and is not recorded as a tracked change.");
 
             return ToolResult.Changed(
-                content,
+                content.ToString(),
                 Change(WordScan.PageLabel(blocks), format.Icon(), blocks.Select(b => b.Anchor)),
                 string.Join(", ", parts.Select(p => p.Korean)));
         }

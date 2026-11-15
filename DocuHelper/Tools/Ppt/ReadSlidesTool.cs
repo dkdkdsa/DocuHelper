@@ -181,22 +181,22 @@ namespace DocuHelper.Tools.Ppt
 
         private static string Style(PptParagraphInfo paragraph)
         {
-            var style = PptOutput.Points(paragraph.FontSize);
+            var style = new StringBuilder(PptOutput.Points(paragraph.FontSize));
             if (paragraph.Bold)
-                style += " bold";
+                style.Append(" bold");
 
             if (paragraph.Italic)
-                style += " italic";
+                style.Append(" italic");
 
             if (paragraph.Underline)
-                style += " underline";
+                style.Append(" underline");
 
             if (paragraph.Align == "ctr")
-                style += " centered";
+                style.Append(" centered");
             else if (paragraph.Align == "r")
-                style += " right-aligned";
+                style.Append(" right-aligned");
 
-            return style;
+            return style.ToString();
         }
 
         private static string SizeNote(PptParagraphInfo paragraph, PptParagraphInfo first) =>

@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -138,9 +139,9 @@ namespace DocuHelper.Tools.Ppt
             PptSlides.AppendToTree(tree, element);
 
             var where = place == "master" ? " on the slide master" : string.Empty;
-            var content = $"Added [{id.ToString(CultureInfo.InvariantCulture)}] {spec.Token}{where} at x={PptUnits.CmText(box.X)} y={PptUnits.CmText(box.Y)} w={PptUnits.CmText(box.Width)} h={PptUnits.CmText(box.Height)} cm.";
+            var content = new StringBuilder($"Added [{id.ToString(CultureInfo.InvariantCulture)}] {spec.Token}{where} at x={PptUnits.CmText(box.X)} y={PptUnits.CmText(box.Y)} w={PptUnits.CmText(box.Width)} h={PptUnits.CmText(box.Height)} cm.");
             if (place == "master")
-                content += " It shows on every slide whose layout shows master shapes.";
+                content.Append(" It shows on every slide whose layout shows master shapes.");
 
             var change = new DocuChange
             {
@@ -149,7 +150,7 @@ namespace DocuHelper.Tools.Ppt
                 Anchors = { place == "master" ? PptAnchor.Slide(slide.SlideId) : PptAnchor.Shape(slide.SlideId, id) },
             };
 
-            return ToolResult.Changed(content, change, spec.Detail);
+            return ToolResult.Changed(content.ToString(), change, spec.Detail);
         }
 
         private static P.ShapeTree TreeOf(PresentationDocument document, PptSlideRef slide, string place)

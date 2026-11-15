@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -107,15 +108,15 @@ namespace DocuHelper.Tools.Ppt
             var picture = PptPictureBuilder.Create(id, $"그림 {(id - 1).ToString(CultureInfo.InvariantCulture)}", alt, relationshipId, box);
             PptFrames.Place(slide, tree, empty, picture);
 
-            var content = $"Inserted picture [{id.ToString(CultureInfo.InvariantCulture)}] ({image.WidthPx.ToString(CultureInfo.InvariantCulture)}x{image.HeightPx.ToString(CultureInfo.InvariantCulture)} px) at x={PptUnits.CmText(box.X)} y={PptUnits.CmText(box.Y)} w={PptUnits.CmText(box.Width)} h={PptUnits.CmText(box.Height)} cm.";
+            var content = new StringBuilder($"Inserted picture [{id.ToString(CultureInfo.InvariantCulture)}] ({image.WidthPx.ToString(CultureInfo.InvariantCulture)}x{image.HeightPx.ToString(CultureInfo.InvariantCulture)} px) at x={PptUnits.CmText(box.X)} y={PptUnits.CmText(box.Y)} w={PptUnits.CmText(box.Width)} h={PptUnits.CmText(box.Height)} cm.");
             if (place == "master")
-                content += " It is on the slide master and shows on every slide whose layout shows master shapes.";
+                content.Append(" It is on the slide master and shows on every slide whose layout shows master shapes.");
 
             if (empty != null)
-                content += " It took the place of the empty content placeholder.";
+                content.Append(" It took the place of the empty content placeholder.");
 
             if (string.IsNullOrEmpty(alt))
-                content += " No alt_text was given; add a short Korean alt_text for meaningful pictures.";
+                content.Append(" No alt_text was given; add a short Korean alt_text for meaningful pictures.");
 
             var change = new DocuChange
             {
@@ -124,7 +125,7 @@ namespace DocuHelper.Tools.Ppt
                 Anchors = { place == "master" ? PptAnchor.Slide(slide.SlideId) : PptAnchor.Shape(slide.SlideId, id) },
             };
 
-            return ToolResult.Changed(content, change, "그림 넣기");
+            return ToolResult.Changed(content.ToString(), change, "그림 넣기");
         }
 
         private static ToolResult Replace(PptSlideRef slide, string key, byte[] bytes, string alt, string fileName)

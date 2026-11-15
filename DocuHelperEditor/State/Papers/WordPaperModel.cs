@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using DocuHelper.Tools.Word;
 
 namespace DocuHelperEditor.State.Papers
@@ -107,19 +108,19 @@ namespace DocuHelperEditor.State.Papers
                 return text;
 
             var words = text.Split(' ');
-            var subject = words[0];
+            var subject = new StringBuilder(words[0]);
             foreach (var word in words.Skip(1))
             {
                 if (subject.Length + 1 + word.Length > SubjectLength)
                     break;
 
-                subject += " " + word;
+                subject.Append(' ').Append(word);
             }
 
             if (subject.Length > SubjectLength)
-                subject = subject.Substring(0, SubjectLength);
+                subject.Length = SubjectLength;
 
-            return subject + "…";
+            return subject.Append('…').ToString();
         }
     }
 }

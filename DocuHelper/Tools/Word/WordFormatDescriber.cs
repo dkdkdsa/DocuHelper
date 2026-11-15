@@ -240,6 +240,7 @@ namespace DocuHelper.Tools.Word
         {
             var map = WordTextMap.Build(paragraph);
             var pieces = new List<Piece>();
+            var current = new StringBuilder();
             foreach (var segment in map.Segments)
             {
                 if (segment.Length == 0 || segment.Run == null)
@@ -257,14 +258,21 @@ namespace DocuHelper.Tools.Word
                 var last = pieces.Count == 0 ? null : pieces[^1];
                 if (last != null && last.Look == look && last.Inserted == inserted)
                 {
-                    last.Text += text;
+                    current.Append(text);
                     last.Asian |= asian;
                 }
                 else
                 {
-                    pieces.Add(new Piece { Text = text, Look = look, Inserted = inserted, Asian = asian });
+                    if (last != null)
+                        last.Text = current.ToString();
+
+                    current.Clear().Append(text);
+                    pieces.Add(new Piece { Look = look, Inserted = inserted, Asian = asian });
                 }
             }
+
+            if (pieces.Count > 0)
+                pieces[^1].Text = current.ToString();
 
             var any = map.Text.Any(IsAsian);
             var mark = new List<OpenXmlElement>();

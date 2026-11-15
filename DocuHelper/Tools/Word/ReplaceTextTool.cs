@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using DocuHelper.Docus;
 using DocumentFormat.OpenXml;
@@ -171,14 +172,14 @@ namespace DocuHelper.Tools.Word
             var blocks = changed.Where(s => s.Block != null).Select(s => after.Find(s.Block.Id)).Where(b => b != null).Distinct().ToList();
             var location = WordScan.PageLabel(blocks);
             var paragraphs = changed.Select(s => s.Paragraph).Distinct().Count();
-            var content = $"Replaced {replaced} occurrence(s) in {paragraphs} paragraph(s).";
+            var content = new StringBuilder($"Replaced {replaced} occurrence(s) in {paragraphs} paragraph(s).");
             if (skipped > 0)
-                content += $" Skipped {skipped} match(es) that contain pictures, notes or fields.";
+                content.Append($" Skipped {skipped} match(es) that contain pictures, notes or fields.");
 
             if (revision != null)
-                content += $" Recorded as tracked changes by {revision.Author}.";
+                content.Append($" Recorded as tracked changes by {revision.Author}.");
 
-            return ToolResult.Changed(content, Change(location, "replace", Anchors(after, changed)), $"{replaced}곳 바꿈");
+            return ToolResult.Changed(content.ToString(), Change(location, "replace", Anchors(after, changed)), $"{replaced}곳 바꿈");
         }
 
         private static bool? Apply(WordTextEditor editor, Paragraph paragraph, int start, int end, string text, WordRunFormat format)
